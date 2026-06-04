@@ -6,7 +6,6 @@ import {
 	getSettings,
 	updateSettings,
 	initDiscordPresence,
-	getJreVersions,
 } from "./cubicApi";
 import { applyTheme } from "./themeManager";
 
@@ -40,7 +39,6 @@ export function initEventListeners(): void {
 					);
 				break;
 			case "DFinishRuntime":
-				getJreVersions();
 				break;
 			case "STChanged":
 				syncSettings();

@@ -344,7 +344,8 @@ export async function searchModrinth(
 		}
 		return (await res.json()) as ModrinthSearchResult;
 	} catch (err) {
-		if (err instanceof DOMException && err.name === "AbortError") return null;
+		if (err instanceof DOMException && err.name === "AbortError")
+			return null;
 		console.error("Error searching Modrinth:", err);
 		showError("Modrinth Error", `Could not search for mods: ${err}`);
 		return null;
@@ -384,7 +385,8 @@ export async function searchModrinthAll(
 		}
 		return (await res.json()) as ModrinthSearchResult;
 	} catch (err) {
-		if (err instanceof DOMException && err.name === "AbortError") return null;
+		if (err instanceof DOMException && err.name === "AbortError")
+			return null;
 		console.error("Error searching Modrinth:", err);
 		showError("Modrinth Error", `Could not search for mods: ${err}`);
 		return null;

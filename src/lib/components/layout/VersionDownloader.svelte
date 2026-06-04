@@ -9,7 +9,11 @@
 		refreshAvailableVersions,
 		getDownloadQueue,
 	} from "$lib/api/cubicApi";
-	import type { MinecraftVersion, FabricGameVersion, AppEvent } from "$lib/types/types";
+	import type {
+		MinecraftVersion,
+		FabricGameVersion,
+		AppEvent,
+	} from "$lib/types/types";
 	import { listen } from "@tauri-apps/api/event";
 
 	import VirtualList from "./VirtualList.svelte";
@@ -36,7 +40,7 @@
 					.map((iv) => iv.replace(/^fabric-loader-[\d.]+-/, "")),
 			),
 	);
-	let downloadingVersions = $state<Set<string>>(new Set());
+	let downloadingVersions = new SvelteSet<string>();
 	let filter = $state("release");
 	let search = $state("");
 	let installStatusFilter = $state("all");
@@ -73,26 +77,26 @@
 		loadingFabric = false;
 	}
 
-	onMount(async () => {
-		installedVersions = await getInstalledVersions();
-		loading = false;
+	onMount(() => {
+		getInstalledVersions().then((v) => {
+			installedVersions = v;
+			loading = false;
+		});
 
-		const queue = await getDownloadQueue();
-		for (const item of queue) {
-			if (item.status !== "done") {
-				downloadingVersions.add(item.version);
+		getDownloadQueue().then((queue) => {
+			for (const item of queue) {
+				if (item.status !== "done") {
+					downloadingVersions.add(item.version);
+				}
 			}
-		}
-		downloadingVersions = new Set(downloadingVersions);
+		});
 
 		const unlisten = listen<AppEvent>("app-event", (event) => {
 			const p = event.payload;
 			if (p.type === "DEnqueue") {
 				downloadingVersions.add(p.data.version);
-				downloadingVersions = new Set(downloadingVersions);
 			} else if (p.type === "DFinish") {
 				downloadingVersions.delete(p.data.version);
-				downloadingVersions = new Set(downloadingVersions);
 				getInstalledVersions().then((v) => (installedVersions = v));
 			}
 		});

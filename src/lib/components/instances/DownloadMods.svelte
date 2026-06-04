@@ -49,28 +49,6 @@
 	// Installed mods tracking
 	let installedModNames = $state<Set<string>>(new Set());
 
-	const categories = [
-		"Adventure",
-		"Optimization",
-		"Utility",
-		"Magic",
-		"Technology",
-		"Library",
-	];
-
-	const sortOptions = $derived([
-		{
-			value: "downloads",
-			label: t("instanceView.downloadMods.sortDownloads"),
-		},
-		{
-			value: "relevance",
-			label: t("instanceView.downloadMods.sortRelevance"),
-		},
-		{ value: "newest", label: t("instanceView.downloadMods.sortNewest") },
-		{ value: "updated", label: t("instanceView.downloadMods.sortUpdated") },
-	]);
-
 	function getGameVersion(versionStr: string): string {
 		const segments = versionStr.split("-");
 		if (segments.length > 1) {
@@ -172,11 +150,6 @@
 		});
 		performSearch();
 	});
-
-	function handleCategoryClick(cat: string | null) {
-		activeCategory = cat;
-		performSearch(true);
-	}
 
 	function toggleBasket(project: ModrinthProject) {
 		let newBasket = new SvelteMap(basket);
@@ -332,7 +305,10 @@
 			});
 			if (selectedModVersions.length > 0) {
 				const stored = versionSelection.get(projectId);
-				if (stored && selectedModVersions.find((v) => v.id === stored)) {
+				if (
+					stored &&
+					selectedModVersions.find((v) => v.id === stored)
+				) {
 					selectedVersionId = stored;
 				} else {
 					const compatible = selectedModVersions.find((v) =>
@@ -340,7 +316,9 @@
 					);
 					if (compatible) {
 						selectedVersionId = compatible.id;
-						let newVersionSelection = new SvelteMap(versionSelection);
+						let newVersionSelection = new SvelteMap(
+							versionSelection,
+						);
 						newVersionSelection.set(projectId, compatible.id);
 						versionSelection = newVersionSelection;
 					}

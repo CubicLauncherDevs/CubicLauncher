@@ -153,6 +153,12 @@ export type AppEvent =
 			};
 	  }
 	| {
+			type: "DEnqueue";
+			data: {
+				version: string;
+			};
+	  }
+	| {
 			type: "STChanged";
 	  }
 	| {

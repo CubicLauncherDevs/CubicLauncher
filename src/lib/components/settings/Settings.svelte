@@ -41,8 +41,6 @@
 	let jreStatuses = $state<Record<number, JreStatus>>({});
 	let jreActionStates = $state<Record<number, string | undefined>>({});
 
-	
-
 	async function refreshJreStatus() {
 		const statuses = await getJreVersions();
 		const map: Record<number, JreStatus> = {};
@@ -57,11 +55,8 @@
 		jreActionStates[version] = "downloading";
 		try {
 			await installJre(version);
-			await refreshJreStatus();
 		} catch (e) {
 			console.error(`Failed to install JRE ${version}:`, e);
-		} finally {
-			jreActionStates[version] = undefined;
 		}
 	}
 
@@ -70,11 +65,8 @@
 		jreActionStates[version] = "uninstalling";
 		try {
 			await uninstallJre(version);
-			await refreshJreStatus();
 		} catch (e) {
 			console.error(`Failed to uninstall JRE ${version}:`, e);
-		} finally {
-			jreActionStates[version] = undefined;
 		}
 	}
 	async function handleSave() {
@@ -91,7 +83,13 @@
 				await invoke("detect_java_paths");
 			for (const v of JRE_VERSIONS) {
 				const p = paths[`jre${v}`];
-				if (p) (launcherStore.settings as any)[`jre${v}_path`] = p;
+				if (p)
+					(
+						launcherStore.settings as unknown as Record<
+							string,
+							string
+						>
+					)[`jre${v}_path`] = p;
 			}
 		} catch (e) {
 			console.error("Failed to detect java paths", e);
@@ -276,9 +274,7 @@
 						tabindex="0"
 						onkeydown={(e) => {
 							if (e.key === "Enter")
-								openUrl(
-									"https://www.cubiclauncher.com/themes",
-								);
+								openUrl("https://www.cubiclauncher.com/themes");
 						}}>{t("settings.launcher.themesSpan")}</span
 					>
 				</CollapsibleSection>
@@ -335,23 +331,80 @@
 							<label for="min-mem"
 								>{t("settings.minecraft.minRam")}</label
 							>
-							<input
-								type="number"
-								id="min-mem"
-								bind:value={launcherStore.settings.min_memory}
-							/>
+							<div class="qm-ram-stepper">
+								<button
+									type="button"
+									class="qm-stepper-btn"
+									onclick={() => {
+										const v =
+											launcherStore.settings.min_memory -
+											0.5;
+										if (v >= 0.5)
+											launcherStore.settings.min_memory =
+												v;
+									}}>−</button
+								>
+								<span class="qm-ram-value"
+									>{launcherStore.settings.min_memory} GB</span
+								>
+								<button
+									type="button"
+									class="qm-stepper-btn"
+									onclick={() => {
+										const v =
+											launcherStore.settings.min_memory +
+											0.5;
+										if (
+											v <=
+											launcherStore.settings.max_memory
+										)
+											launcherStore.settings.min_memory =
+												v;
+									}}>+</button
+								>
+							</div>
 						</div>
 						<div class="qm-field">
 							<label for="max-mem"
 								>{t("settings.minecraft.maxRam")}</label
 							>
-							<input
-								type="number"
-								id="max-mem"
-								bind:value={launcherStore.settings.max_memory}
-							/>
+							<div class="qm-ram-stepper">
+								<button
+									type="button"
+									class="qm-stepper-btn"
+									onclick={() => {
+										const v =
+											launcherStore.settings.max_memory -
+											0.5;
+										if (
+											v >=
+											launcherStore.settings.min_memory
+										)
+											launcherStore.settings.max_memory =
+												v;
+									}}>−</button
+								>
+								<span class="qm-ram-value"
+									>{launcherStore.settings.max_memory} GB</span
+								>
+								<button
+									type="button"
+									class="qm-stepper-btn"
+									onclick={() => {
+										const v =
+											launcherStore.settings.max_memory +
+											0.5;
+										if (v <= 64)
+											launcherStore.settings.max_memory =
+												v;
+									}}>+</button
+								>
+							</div>
 						</div>
 					</div>
+					<span class="qm-ram-hint"
+						>{t("settings.minecraft.ramHint")}</span
+					>
 				</CollapsibleSection>
 
 				<CollapsibleSection
@@ -460,7 +513,9 @@
 							>{t("settings.java.detectPathsBtn")}</button
 						>
 					</div>
-					<div class="zulu-credit">{t("settings.java.zuluCredit")}</div>
+					<div class="zulu-credit">
+						{t("settings.java.zuluCredit")}
+					</div>
 				</CollapsibleSection>
 
 				<CollapsibleSection
@@ -591,28 +646,54 @@
 		margin-bottom: 6px;
 	}
 
-	.qm-field input {
-		width: 100%;
-		background: var(--bg-input);
-		border: 1px solid var(--border-color);
-		color: var(--text-primary);
-		padding: 8px 10px;
-		border-radius: var(--border-radius-sm);
-		font-size: 0.85rem;
-		transition: border-color 0.2s;
-		box-sizing: border-box;
-		box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
-	}
-
-	.qm-field input:focus {
-		outline: none;
-		border-color: var(--text-muted);
-	}
-
 	.qm-field-group {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 15px;
+	}
+
+	.qm-ram-stepper {
+		display: flex;
+		align-items: center;
+		background: var(--bg-input);
+		border: 1px solid var(--border-color);
+		border-radius: var(--border-radius-sm);
+		box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+	}
+
+	.qm-stepper-btn {
+		background: none;
+		border: none;
+		color: var(--text-secondary);
+		padding: 8px 14px;
+		font-size: 1.1rem;
+		font-weight: 700;
+		cursor: pointer;
+		transition: color 0.15s;
+		line-height: 1;
+	}
+
+	.qm-stepper-btn:hover {
+		color: var(--text-primary);
+	}
+
+	.qm-ram-value {
+		flex: 1;
+		text-align: center;
+		font-size: 0.9rem;
+		font-weight: 600;
+		color: var(--text-primary);
+		padding: 8px 4px;
+		user-select: none;
+	}
+
+	.qm-ram-hint {
+		display: block;
+		margin-top: 10px;
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		line-height: 1.5;
+		padding: 0 4px;
 	}
 
 	.qm-save-btn {

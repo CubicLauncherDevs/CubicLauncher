@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { slide } from "svelte/transition";
+	import { SvelteMap } from "svelte/reactivity";
 	import { listen } from "@tauri-apps/api/event";
 	import { getInstalledVersions, getDownloadQueue } from "$lib/api/cubicApi";
 	import { INSTANCE_LOGOS } from "$lib/icons/logos";
@@ -65,7 +66,7 @@
 		};
 	}
 
-	let downloads = $state<Map<string, DlItem>>(new Map());
+	let downloads = new SvelteMap<string, DlItem>();
 	let downloadsOpen = $state(false);
 	let activeCount = $derived(
 		[...downloads.values()].filter((d) => !d.done).length,
@@ -96,7 +97,6 @@
 				}
 			}
 			if (queue.length > 0) {
-				downloads = new Map(downloads);
 				downloadsOpen = true;
 			}
 		});
@@ -113,7 +113,6 @@
 							segs: emptySegs(),
 							done: false,
 						});
-						downloads = new Map(downloads);
 						downloadsOpen = true;
 					}
 					break;
@@ -128,15 +127,17 @@
 					};
 					const key = SEGS.includes(d_type as SegKey)
 						? (d_type as SegKey)
-						: existing.activeType ?? "Library";
-					const newSegs = { ...existing.segs, [key]: { current, total } };
+						: (existing.activeType ?? "Library");
+					const newSegs = {
+						...existing.segs,
+						[key]: { current, total },
+					};
 					downloads.set(version, {
 						...existing,
 						segs: newSegs,
 						activeType: key,
 						done: false,
 					});
-					downloads = new Map(downloads);
 					break;
 				}
 				case "DFinish": {
@@ -148,11 +149,9 @@
 							done: true,
 							activeType: null,
 						});
-						downloads = new Map(downloads);
 					}
 					setTimeout(() => {
 						downloads.delete(version);
-						downloads = new Map(downloads);
 					}, 4000);
 					break;
 				}
@@ -302,201 +301,207 @@
 	</div>
 
 	<div class="sidebar-sections">
-	<div class="sd-root">
-		<button
-			type="button"
-			class="sd-header"
-			class:expanded={downloadsOpen}
-			onclick={toggleDownloads}
-			aria-expanded={downloadsOpen}
-		>
-			<span class="sd-header-left">
-				{#if activeCount > 0}
-					<span class="sd-spinner"></span>
-					<span class="sd-label"
-						>{activeCount} {t("sidebar.downloading")}</span
+		<div class="sd-root">
+			<button
+				type="button"
+				class="sd-header"
+				class:expanded={downloadsOpen}
+				onclick={toggleDownloads}
+				aria-expanded={downloadsOpen}
+			>
+				<span class="sd-header-left">
+					{#if activeCount > 0}
+						<span class="sd-spinner"></span>
+						<span class="sd-label"
+							>{activeCount} {t("sidebar.downloading")}</span
+						>
+					{:else if doneCount > 0}
+						<svg
+							width="12"
+							height="12"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="var(--color-success)"
+							stroke-width="2.5"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							><polyline points="20 6 9 17 4 12" /></svg
+						>
+						<span class="sd-label"
+							>{doneCount} {t("sidebar.completed")}</span
+						>
+					{:else}
+						<svg
+							width="18"
+							height="18"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path
+								d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"
+							/>
+						</svg>
+						<span class="sd-label">{t("sidebar.noDownloads")}</span>
+					{/if}
+				</span>
+				<svg
+					class="sd-chevron"
+					class:open={downloadsOpen}
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="M6 9l6 6 6-6" />
+				</svg>
+			</button>
+			{#if downloadsOpen}
+				<div class="sd-body" transition:slide={{ duration: 150 }}>
+					{#if downloads.size === 0}
+						<div class="sd-empty">
+							{t("sidebar.noDownloadDesc")}
+						</div>
+					{:else}
+						{#each [...downloads.values()] as item (item.version)}
+							{@const overall = pct(item.segs)}
+							<div class="sd-item" class:done={item.done}>
+								<div class="sd-item-header">
+									<span class="sd-item-left">
+										{#if item.done}
+											<svg
+												width="8"
+												height="8"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="var(--color-success)"
+												stroke-width="3"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												><polyline
+													points="20 6 9 17 4 12"
+												/></svg
+											>
+										{:else}
+											<span class="sd-spinner-sm"></span>
+										{/if}
+										<span class="sd-version"
+											>{item.version}</span
+										>
+									</span>
+									<span class="sd-pct" class:done={item.done}
+										>{overall}%</span
+									>
+								</div>
+								<div class="sd-progress-track">
+									<div
+										class="sd-progress-fill"
+										class:done={item.done}
+										style:width="{overall}%"
+									></div>
+								</div>
+							</div>
+						{/each}
+					{/if}
+				</div>
+			{/if}
+		</div>
+
+		<div class="section-full">
+			<CollapsibleSection
+				title={t("sidebar.tools")}
+				iconSrc="/images/icons/sliders.svg"
+				storageKey="sidebar-tools"
+			>
+				<div class="tools-group">
+					<button
+						type="button"
+						class="tools-btn"
+						onclick={onopencreateinstance}
 					>
-				{:else if doneCount > 0}
-					<svg
+						<img
+							src="/images/icons/create.svg"
+							alt=""
+							width="14"
+							height="14"
+						/>
+						{t("sidebar.createInstance")}
+					</button>
+					<button
+						type="button"
+						class="tools-btn"
+						onclick={onopenversiondownloader}
+					>
+						<img
+							src="/images/icons/download.svg"
+							alt=""
+							width="14"
+							height="14"
+						/>
+						{t("sidebar.downloadVersions")}
+					</button>
+					<button
+						type="button"
+						class="tools-btn"
+						onclick={onopenquickmenu}
+					>
+						<img
+							src="/images/icons/settings.svg"
+							alt=""
+							width="14"
+							height="14"
+						/>
+						{t("sidebar.settings")}
+					</button>
+				</div>
+			</CollapsibleSection>
+		</div>
+
+		<div
+			class="user-profile"
+			onclick={() => (showUserMenu = true)}
+			role="button"
+			tabindex="0"
+			onkeydown={(e) =>
+				(e.key === "Enter" || e.key === " ") && (showUserMenu = true)}
+			style="cursor: pointer;"
+		>
+			<img
+				src="https://minotar.net/avatar/{launcherStore.settings
+					.username}"
+				alt="Avatar"
+				class="user-avatar"
+			/>
+			<div class="user-info">
+				<div class="user-name-wrapper">
+					<span class="user-name"
+						>{launcherStore.settings.username}</span
+					>
+					<img
+						src="/images/icons/edit.svg"
+						alt={t("userMenu.edit")}
+						class="user-edit-icon"
 						width="12"
 						height="12"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="var(--color-success)"
-						stroke-width="2.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						><polyline points="20 6 9 17 4 12" /></svg
-					>
-					<span class="sd-label"
-						>{doneCount} {t("sidebar.completed")}</span
-					>
-				{:else}
-					<svg
-						width="18"
-						height="18"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path
-							d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"
-						/>
-					</svg>
-					<span class="sd-label">{t("sidebar.noDownloads")}</span>
-				{/if}
-			</span>
-			<svg
-				class="sd-chevron"
-				class:open={downloadsOpen}
-				width="16"
-				height="16"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M6 9l6 6 6-6" />
-			</svg>
-		</button>
-		{#if downloadsOpen}
-			<div class="sd-body" transition:slide={{ duration: 150 }}>
-				{#if downloads.size === 0}
-					<div class="sd-empty">
-						{t("sidebar.noDownloadDesc")}
-					</div>
-				{:else}
-					{#each [...downloads.values()] as item (item.version)}
-						{@const overall = pct(item.segs)}
-						<div class="sd-item" class:done={item.done}>
-							<div class="sd-item-header">
-								<span class="sd-item-left">
-									{#if item.done}
-										<svg
-											width="8"
-											height="8"
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="var(--color-success)"
-											stroke-width="3"
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											><polyline points="20 6 9 17 4 12" /></svg
-										>
-									{:else}
-										<span class="sd-spinner-sm"></span>
-									{/if}
-									<span class="sd-version"
-										>{item.version}</span
-									>
-								</span>
-								<span class="sd-pct" class:done={item.done}
-									>{overall}%</span
-								>
-							</div>
-							<div class="sd-progress-track">
-								<div
-									class="sd-progress-fill"
-									class:done={item.done}
-									style:width="{overall}%"
-								></div>
-							</div>
-						</div>
-					{/each}
-				{/if}
-			</div>
-		{/if}
-	</div>
-
-	<div class="section-full">
-	<CollapsibleSection
-		title={t("sidebar.tools")}
-		iconSrc="/images/icons/sliders.svg"
-		storageKey="sidebar-tools"
-	>
-		<div class="tools-group">
-			<button
-				type="button"
-				class="tools-btn"
-				onclick={onopencreateinstance}
-			>
-				<img
-					src="/images/icons/create.svg"
-					alt=""
-					width="14"
-					height="14"
-				/>
-				{t("sidebar.createInstance")}
-			</button>
-			<button
-				type="button"
-				class="tools-btn"
-				onclick={onopenversiondownloader}
-			>
-				<img
-					src="/images/icons/download.svg"
-					alt=""
-					width="14"
-					height="14"
-				/>
-				{t("sidebar.downloadVersions")}
-			</button>
-			<button type="button" class="tools-btn" onclick={onopenquickmenu}>
-				<img
-					src="/images/icons/settings.svg"
-					alt=""
-					width="14"
-					height="14"
-				/>
-				{t("sidebar.settings")}
-			</button>
-		</div>
-	</CollapsibleSection>
-	</div>
-
-	<div
-		class="user-profile"
-		onclick={() => (showUserMenu = true)}
-		role="button"
-		tabindex="0"
-		onkeydown={(e) =>
-			(e.key === "Enter" || e.key === " ") && (showUserMenu = true)}
-		style="cursor: pointer;"
-	>
-		<img
-			src="https://minotar.net/avatar/{launcherStore.settings
-				.username}"
-			alt="Avatar"
-			class="user-avatar"
-		/>
-		<div class="user-info">
-			<div class="user-name-wrapper">
-				<span class="user-name"
-					>{launcherStore.settings.username}</span
+					/>
+				</div>
+				<span
+					class="user-status"
+					class:premium={launcherStore.settings.user}
 				>
-				<img
-					src="/images/icons/edit.svg"
-					alt={t("userMenu.edit")}
-					class="user-edit-icon"
-					width="12"
-					height="12"
-				/>
+					{launcherStore.settings.user
+						? t("userMenu.premium")
+						: t("userMenu.offline")}
+				</span>
 			</div>
-			<span
-				class="user-status"
-				class:premium={launcherStore.settings.user}
-			>
-				{launcherStore.settings.user
-					? t("userMenu.premium")
-					: t("userMenu.offline")}
-			</span>
 		</div>
-	</div>
 	</div>
 </aside>
 
@@ -782,7 +787,6 @@
 		letter-spacing: 0.05em;
 		white-space: nowrap;
 	}
-
 
 	.sd-spinner {
 		width: 10px;

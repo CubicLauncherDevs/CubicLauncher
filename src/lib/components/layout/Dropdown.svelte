@@ -51,12 +51,10 @@
 		return () => window.removeEventListener("click", handleClickOutside);
 	});
 
-	let selectedLabel = $state(placeholder);
-	$effect(() => {
-		selectedLabel =
-			(options as Option[]).find((o) => o.value === value)?.label ??
-			placeholder;
-	});
+	let selectedLabel = $derived(
+		(options as Option[]).find((o) => o.value === value)?.label ??
+			placeholder,
+	);
 </script>
 
 <div class="dd-container" bind:this={container} {id}>

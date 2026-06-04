@@ -39,6 +39,7 @@
 			"perfTitle": "Performance (RAM)",
 			"minRam": "Minimum (GB)",
 			"maxRam": "Maximum (GB)",
+			"ramHint": "Minimum memory is what Java reserves at startup, maximum is the cap it can use. Two values allow Java to adjust its usage between both.",
 			"optionsTitle": "Minecraft Options",
 			"showSnapshots": "Show Snapshot versions",
 			"showAlpha": "Show Alpha versions"
