@@ -7,8 +7,10 @@
 		getFabricVersions,
 		downloadFabric,
 		refreshAvailableVersions,
+		getDownloadQueue,
 	} from "$lib/api/cubicApi";
-	import type { MinecraftVersion, FabricGameVersion } from "$lib/types/types";
+	import type { MinecraftVersion, FabricGameVersion, AppEvent } from "$lib/types/types";
+	import { listen } from "@tauri-apps/api/event";
 
 	import VirtualList from "./VirtualList.svelte";
 	import Select from "./Select.svelte";
@@ -34,6 +36,7 @@
 					.map((iv) => iv.replace(/^fabric-loader-[\d.]+-/, "")),
 			),
 	);
+	let downloadingVersions = $state<Set<string>>(new Set());
 	let filter = $state("release");
 	let search = $state("");
 	let installStatusFilter = $state("all");
@@ -73,6 +76,30 @@
 	onMount(async () => {
 		installedVersions = await getInstalledVersions();
 		loading = false;
+
+		const queue = await getDownloadQueue();
+		for (const item of queue) {
+			if (item.status !== "done") {
+				downloadingVersions.add(item.version);
+			}
+		}
+		downloadingVersions = new Set(downloadingVersions);
+
+		const unlisten = listen<AppEvent>("app-event", (event) => {
+			const p = event.payload;
+			if (p.type === "DEnqueue") {
+				downloadingVersions.add(p.data.version);
+				downloadingVersions = new Set(downloadingVersions);
+			} else if (p.type === "DFinish") {
+				downloadingVersions.delete(p.data.version);
+				downloadingVersions = new Set(downloadingVersions);
+				getInstalledVersions().then((v) => (installedVersions = v));
+			}
+		});
+
+		return () => {
+			unlisten.then((u) => u());
+		};
 	});
 
 	$effect(() => {
@@ -379,8 +406,7 @@
 											: version.id}
 									</div>
 									{#if isInstalled || (filter === "fabric" && fabricInstalledSet.has(version.version))}
-										<span
-											style="font-size: 0.6rem; background: rgba(var(--color-success-rgb), 0.1); color: var(--color-success); padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; border: 1px solid rgba(var(--color-success-rgb), 0.2);"
+										<span class="inst-badge"
 											>{t(
 												"versionDownloader.installedTag",
 											)}</span
@@ -403,12 +429,10 @@
 							</div>
 
 							{#if isInstalled}
-								<div
-									style="color: var(--color-success); padding: 6px 14px; display: flex; align-items: center; gap: 4px;"
-								>
+								<div class="inst-icon">
 									<svg
-										width="16"
-										height="16"
+										width="14"
+										height="14"
 										viewBox="0 0 24 24"
 										fill="none"
 										stroke="currentColor"
@@ -419,6 +443,16 @@
 										></polyline></svg
 									>
 								</div>
+							{:else if downloadingVersions.has(filter === "fabric" ? version.version : version.id)}
+								<button
+									type="button"
+									class="download-btn"
+									class:downloading={true}
+									disabled
+								>
+									<span class="dl-spinner"></span>
+									{t("versionDownloader.downloading")}
+								</button>
 							{:else}
 								<button
 									type="button"
@@ -463,15 +497,62 @@
 		background: var(--accent);
 		color: var(--accent-text);
 		border: none;
-		padding: 6px 14px;
-		border-radius: 6px;
-		font-size: 0.75rem;
+		padding: 4px 10px;
+		border-radius: var(--border-radius-sm);
+		font-size: 0.7rem;
 		font-weight: 700;
 		cursor: pointer;
 		transition: all 0.2s;
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		font-family: "Cantarell", system-ui, sans-serif;
 	}
 
 	.download-btn:hover {
 		opacity: 0.9;
+	}
+
+	.download-btn.downloading {
+		opacity: 0.6;
+		cursor: not-allowed;
+		background: var(--bg-input);
+		color: var(--text-muted);
+		border: 1px solid var(--border-color);
+	}
+
+	.dl-spinner {
+		width: 12px;
+		height: 12px;
+		border: 1.5px solid var(--border);
+		border-top-color: var(--text-muted);
+		border-radius: 50%;
+		animation: dl-spin 0.7s linear infinite;
+		flex-shrink: 0;
+	}
+
+	@keyframes dl-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.inst-badge {
+		font-size: 0.5rem;
+		background: rgba(var(--color-success-rgb), 0.1);
+		color: var(--color-success);
+		padding: 1px 5px;
+		border-radius: 3px;
+		font-weight: 700;
+		text-transform: uppercase;
+		border: 1px solid rgba(var(--color-success-rgb), 0.2);
+		letter-spacing: 0.3px;
+	}
+
+	.inst-icon {
+		color: var(--color-success);
+		padding: 4px 8px;
+		display: flex;
+		align-items: center;
 	}
 </style>
