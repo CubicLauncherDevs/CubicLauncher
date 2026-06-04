@@ -4,6 +4,7 @@
 		getAvailableVersions,
 		addToQueue,
 		getInstalledVersions,
+		getInstalledMcVersions,
 		getFabricVersions,
 		downloadFabric,
 		refreshAvailableVersions,
@@ -31,15 +32,8 @@
 	let loading = $state(true);
 	let manifest = $state<MinecraftVersion[] | null>(null);
 	let fabricManifest = $state<FabricGameVersion[]>([]);
-	let installedVersions = $state<string[]>([]);
-	let fabricInstalledSet = $derived.by(
-		() =>
-			new Set(
-				installedVersions
-					.filter((iv) => iv.startsWith("fabric-loader-"))
-					.map((iv) => iv.replace(/^fabric-loader-[\d.]+-/, "")),
-			),
-	);
+	let installedVanilla = $state(new Set<string>());
+	let installedFabric = $state(new Set<string>());
 	let downloadingVersions = new SvelteSet<string>();
 	let filter = $state("release");
 	let search = $state("");
@@ -78,8 +72,10 @@
 	}
 
 	onMount(() => {
-		getInstalledVersions().then((v) => {
-			installedVersions = v;
+		getInstalledVersions().then((raw) => {
+			const { vanilla, fabric } = getInstalledMcVersions(raw);
+			installedVanilla = vanilla;
+			installedFabric = fabric;
 			loading = false;
 		});
 
@@ -97,7 +93,11 @@
 				downloadingVersions.add(p.data.version);
 			} else if (p.type === "DFinish") {
 				downloadingVersions.delete(p.data.version);
-				getInstalledVersions().then((v) => (installedVersions = v));
+				getInstalledVersions().then((raw) => {
+					const { vanilla, fabric } = getInstalledMcVersions(raw);
+					installedVanilla = vanilla;
+					installedFabric = fabric;
+				});
 			}
 		});
 
@@ -153,8 +153,9 @@
 						: (v as MinecraftVersion).id;
 
 				const isInstalled =
-					installedVersions.includes(versionId) ||
-					(filter === "fabric" && fabricInstalledSet.has(versionId));
+					filter === "fabric"
+						? installedFabric.has(versionId)
+						: installedVanilla.has(versionId);
 
 				if (installStatusFilter === "installed" && !isInstalled)
 					return false;
@@ -229,8 +230,10 @@
 			await addToQueue(versionId);
 		}
 
-		// Refetch installed versions
-		installedVersions = await getInstalledVersions();
+		const raw = await getInstalledVersions();
+		const { vanilla, fabric } = getInstalledMcVersions(raw);
+		installedVanilla = vanilla;
+		installedFabric = fabric;
 	}
 </script>
 
@@ -387,9 +390,10 @@
 		{:else}
 			<VirtualList items={displayVersions} itemHeight={66} padding={20}>
 				{#snippet children(version, _index)}
-					{@const isInstalled = installedVersions.includes(
-						version.id,
-					)}
+					{@const isInstalled =
+						filter === "fabric"
+							? installedFabric.has(version.version)
+							: installedVanilla.has(version.id)}
 					<div
 						class="virtual-item-container"
 						style="padding: 0 20px;"
@@ -409,7 +413,7 @@
 											? version.version
 											: version.id}
 									</div>
-									{#if isInstalled || (filter === "fabric" && fabricInstalledSet.has(version.version))}
+									{#if isInstalled}
 										<span class="inst-badge"
 											>{t(
 												"versionDownloader.installedTag",
