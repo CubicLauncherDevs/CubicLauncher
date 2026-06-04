@@ -1,3 +1,4 @@
+use crate::core::InstanceError::JreDoesntExists;
 use crate::core::path_manager::PathManager;
 use crate::core::{AppError, AppEvent, AuthError, DownloadError, FsError, InstanceError, emit};
 use crate::services::SettingsManager;
@@ -307,6 +308,15 @@ impl Launcher {
         let mut user = SettingsManager::read().get_minecraft_user();
 
         let java_path = resolve_java_path(&settings_m, manifest.java_version.as_ref());
+
+        if !java_path.exists() {
+            handle.set_status(InstanceStatus::Error(
+                JreDoesntExists(manifest.java_major_version().to_string()).to_string(),
+            ));
+            return Err(AppError::Instance(InstanceError::JreDoesntExists(
+                manifest.java_major_version().to_string(),
+            )))?;
+        }
 
         // Auto-refresh del token Microsoft — el lock de settings se toma y suelta rápido
         if user.user_type == AccountType::Microsoft
