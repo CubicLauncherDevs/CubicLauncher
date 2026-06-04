@@ -81,7 +81,14 @@
 
 	const gameVersion = $derived(getGameVersion(instance.version));
 
+	let abortController = $state<AbortController | null>(null);
+	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+
 	async function performSearch(resetResults = true) {
+		abortController?.abort();
+		abortController = new AbortController();
+		const signal = abortController.signal;
+
 		if (resetResults) {
 			searching = true;
 			allHits = [];
@@ -99,6 +106,7 @@
 				sortIndex,
 				PAGE_SIZE,
 				resetResults ? 0 : currentOffset,
+				signal,
 			);
 			if (result) {
 				totalHits = result.total_hits;
@@ -108,9 +116,17 @@
 				currentOffset = allHits.length;
 			}
 		} finally {
-			searching = false;
-			loadingMore = false;
+			if (!signal.aborted) {
+				searching = false;
+				loadingMore = false;
+			}
 		}
+	}
+
+	function onSearchInput(value: string) {
+		query = value;
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => performSearch(true), 300);
 	}
 
 	function handleNearEnd() {
@@ -142,9 +158,12 @@
 	}
 
 	let pendingInstanceId: string | null = null;
+	let prevInstanceId = $state<string>("");
 
 	$effect(() => {
 		const id = instance.uuid;
+		if (id === prevInstanceId) return;
+		prevInstanceId = id;
 		pendingInstanceId = id;
 		resetState();
 		getInstanceMods(id).then((mods) => {
@@ -460,66 +479,6 @@
 	{:else}
 		<!-- ─── BROWSE LAYOUT ─── -->
 		<div class="dm-layout">
-			<!-- Left Sidebar -->
-			<aside class="dm-sidebar">
-				<div class="dm-sidebar-top">
-					<span class="dm-section-label"
-						>{t("instanceView.downloadMods.categoriesLabel")}</span
-					>
-					<button
-						type="button"
-						class="dm-cat-btn {activeCategory === null
-							? 'active'
-							: ''}"
-						onclick={() => handleCategoryClick(null)}
-					>
-						{t("instanceView.downloadMods.allCategories")}
-					</button>
-					{#each categories as cat (cat)}
-						<button
-							type="button"
-							class="dm-cat-btn {activeCategory === cat
-								? 'active'
-								: ''}"
-							onclick={() => handleCategoryClick(cat)}
-						>
-							{cat}
-						</button>
-					{/each}
-				</div>
-
-				<div class="dm-sidebar-middle">
-					<Dropdown
-						label={t("instanceView.downloadMods.sortLabel")}
-						bind:value={sortIndex}
-						options={sortOptions}
-						onchange={() => performSearch(true)}
-					/>
-				</div>
-
-				<div class="dm-basket-card">
-					<div class="dm-basket-header">
-						<span class="dm-basket-label"
-							>{t(
-								"instanceView.downloadMods.selectionLabel",
-							)}</span
-						>
-						<span class="dm-basket-badge">{basket.size}</span>
-					</div>
-					<p class="dm-basket-desc">
-						{t("instanceView.downloadMods.selectionDesc")}
-					</p>
-					<button
-						type="button"
-						class="dm-primary-btn dm-full-width"
-						disabled={basket.size === 0}
-						onclick={startReview}
-					>
-						{t("instanceView.downloadMods.reviewBtn")}
-					</button>
-				</div>
-			</aside>
-
 			<!-- Main -->
 			<main class="dm-main">
 				<div class="dm-search-bar-wrap">
@@ -540,10 +499,10 @@
 					<input
 						class="dm-search-input"
 						type="text"
-						bind:value={query}
 						placeholder={t(
 							"instanceView.downloadMods.searchPlaceholder",
 						)}
+						oninput={(e) => onSearchInput(e.currentTarget.value)}
 						onkeydown={(e) =>
 							e.key === "Enter" && performSearch(true)}
 					/>
@@ -840,6 +799,21 @@
 				</aside>
 			{/if}
 		</div>
+
+		{#if basket.size > 0}
+			<div class="dm-bottom-bar">
+				<span class="dm-bottom-count">
+					{t("instanceView.downloadMods.selectionLabel")}: {basket.size}
+				</span>
+				<button
+					type="button"
+					class="dm-primary-btn"
+					onclick={startReview}
+				>
+					{t("instanceView.downloadMods.reviewBtn")}
+				</button>
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -861,25 +835,6 @@
 		overflow: hidden;
 	}
 
-	.dm-sidebar {
-		width: 220px;
-		flex-shrink: 0;
-		background-color: var(--bg-sidebar);
-		border-right: 1px solid var(--border);
-		display: flex;
-		flex-direction: column;
-		padding: 20px 14px;
-		gap: 24px;
-		overflow-y: auto;
-	}
-
-	.dm-sidebar-top,
-	.dm-sidebar-middle {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-	}
-
 	.dm-section-label {
 		font-size: 0.62rem;
 		font-weight: 700;
@@ -890,70 +845,6 @@
 		display: block;
 	}
 
-	.dm-cat-btn {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		width: 100%;
-		text-align: left;
-		background: transparent;
-		border: 1px solid transparent;
-		padding: 7px 10px;
-		color: var(--text-secondary);
-		border-radius: var(--border-radius-sm);
-		cursor: pointer;
-		transition: all 0.15s ease;
-		font-size: 0.82rem;
-		font-family: "Cantarell", system-ui, sans-serif;
-	}
-
-	.dm-cat-btn:hover {
-		background: rgba(255, 255, 255, 0.04);
-		color: var(--text-primary);
-	}
-
-	.dm-cat-btn.active {
-		background: var(--bg-item-active);
-		border-color: var(--border);
-		color: var(--accent);
-		font-weight: 600;
-	}
-
-	.dm-basket-card {
-		margin-top: auto;
-		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		padding: 14px;
-	}
-
-	.dm-basket-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 6px;
-	}
-
-	.dm-basket-label {
-		font-size: 0.78rem;
-		font-weight: 700;
-		color: var(--text-primary);
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
-	.dm-basket-badge {
-		background: var(--accent);
-		color: var(--bg-main);
-		font-size: 0.72rem;
-		font-weight: 700;
-		padding: 1px 7px;
-		border-radius: 20px;
-	}
-	.dm-basket-desc {
-		font-size: 0.75rem;
-		color: var(--text-secondary);
-		margin-bottom: 12px;
-	}
 	.dm-full-width {
 		width: 100%;
 	}
@@ -1014,6 +905,22 @@
 		letter-spacing: 1px;
 		border-bottom: 1px solid var(--border);
 		flex-shrink: 0;
+	}
+
+	.dm-bottom-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 12px 24px;
+		background: var(--bg-sidebar);
+		border-top: 1px solid var(--border);
+		flex-shrink: 0;
+	}
+
+	.dm-bottom-count {
+		font-size: 0.82rem;
+		font-weight: 600;
+		color: var(--text-primary);
 	}
 
 	.dm-results-area {
@@ -1591,29 +1498,12 @@
 	}
 
 	@media (max-width: 1200px) {
-		.dm-sidebar {
-			width: 180px;
-		}
 		.dm-details {
 			width: 260px;
 		}
 	}
 
-	@media (max-width: 1024px) {
-		.dm-root {
-			margin: -28px -30px;
-			height: calc(100% + 56px);
-		}
-		.dm-sidebar {
-			width: 180px;
-		}
-	}
-
 	@media (max-width: 950px) {
-		.dm-root {
-			margin: -24px;
-			height: calc(100% + 48px);
-		}
 		.dm-details {
 			position: fixed;
 			right: 0;
@@ -1626,47 +1516,7 @@
 		}
 	}
 
-	@media (max-width: 850px) {
-		.dm-root {
-			margin: -20px;
-			height: calc(100% + 40px);
-		}
-		.dm-sidebar {
-			width: 160px;
-			padding: 16px 12px;
-		}
-	}
-
 	@media (max-width: 700px) {
-		.dm-root {
-			margin: -16px;
-			height: calc(100% + 32px);
-		}
-		.dm-layout {
-			flex-direction: column;
-		}
-		.dm-sidebar {
-			width: 100%;
-			flex-direction: row;
-			align-items: center;
-			padding: 12px 16px;
-			gap: 12px;
-			border-right: none;
-			border-bottom: 1px solid var(--border);
-			overflow-x: auto;
-			flex-wrap: nowrap;
-		}
-		.dm-sidebar-top {
-			display: none;
-		}
-		.dm-sidebar-middle {
-			min-width: 120px;
-		}
-		.dm-basket-card {
-			margin-top: 0;
-			flex-shrink: 0;
-			min-width: 140px;
-		}
 		.dm-main .dm-search-bar-wrap {
 			padding: 12px 16px;
 		}
@@ -1676,25 +1526,12 @@
 		.dm-vlist-wrap {
 			padding: 4px 16px 12px;
 		}
+		.dm-bottom-bar {
+			padding: 10px 16px;
+		}
 	}
 
 	@media (max-width: 550px) {
-		.dm-root {
-			margin: -12px;
-			height: calc(100% + 24px);
-		}
-		.dm-sidebar {
-			padding: 10px 12px;
-			gap: 8px;
-			flex-wrap: wrap;
-		}
-		.dm-sidebar-middle {
-			min-width: 100px;
-		}
-		.dm-basket-card {
-			padding: 10px;
-			min-width: 120px;
-		}
 		.dm-details {
 			width: 100%;
 		}
@@ -1711,13 +1548,6 @@
 		}
 		.dm-mod-title-v {
 			font-size: 0.85rem;
-		}
-	}
-
-	@media (max-width: 400px) {
-		.dm-root {
-			margin: -8px;
-			height: calc(100% + 16px);
 		}
 	}
 </style>
