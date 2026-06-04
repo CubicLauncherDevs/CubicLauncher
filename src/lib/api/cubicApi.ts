@@ -317,6 +317,7 @@ export async function searchModrinth(
 	index: string = "downloads",
 	limit: number = 24,
 	offset: number = 0,
+	signal?: AbortSignal,
 ): Promise<ModrinthSearchResult | null> {
 	try {
 		const facets = [];
@@ -337,12 +338,13 @@ export async function searchModrinth(
 		url.searchParams.append("limit", limit.toString());
 		url.searchParams.append("offset", offset.toString());
 
-		const res = await fetch(url.toString());
+		const res = await fetch(url.toString(), { signal });
 		if (!res.ok) {
 			throw new Error(`Modrinth API error: ${res.status}`);
 		}
 		return (await res.json()) as ModrinthSearchResult;
 	} catch (err) {
+		if (err instanceof DOMException && err.name === "AbortError") return null;
 		console.error("Error searching Modrinth:", err);
 		showError("Modrinth Error", `Could not search for mods: ${err}`);
 		return null;
@@ -356,6 +358,7 @@ export async function searchModrinthAll(
 	index: string = "downloads",
 	limit: number = 24,
 	offset: number = 0,
+	signal?: AbortSignal,
 ): Promise<ModrinthSearchResult | null> {
 	try {
 		const facets = [];
@@ -375,12 +378,13 @@ export async function searchModrinthAll(
 		url.searchParams.append("limit", limit.toString());
 		url.searchParams.append("offset", offset.toString());
 
-		const res = await fetch(url.toString());
+		const res = await fetch(url.toString(), { signal });
 		if (!res.ok) {
 			throw new Error(`Modrinth API error: ${res.status}`);
 		}
 		return (await res.json()) as ModrinthSearchResult;
 	} catch (err) {
+		if (err instanceof DOMException && err.name === "AbortError") return null;
 		console.error("Error searching Modrinth:", err);
 		showError("Modrinth Error", `Could not search for mods: ${err}`);
 		return null;
