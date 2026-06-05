@@ -216,9 +216,8 @@ pub(crate) fn extract_native_jar_sync(jar_path: &Path, destino: &Path) -> Result
             continue;
         }
 
-        let mut buf = Vec::with_capacity(entry.size() as usize);
-        std::io::Read::read_to_end(&mut entry, &mut buf)?;
-        std::fs::write(&out_path, &buf)?;
+        let mut out_file = std::fs::File::create(&out_path)?;
+        std::io::copy(&mut entry, &mut out_file)?;
         info!("Extracted native: {} -> {}", file_name, destino.display());
     }
 

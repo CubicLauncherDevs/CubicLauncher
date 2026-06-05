@@ -204,10 +204,10 @@ async fn run_download(
         let c = Arc::clone(&completed);
         let ti = Arc::clone(&inner.total_items);
         let tx = progress_tx.clone();
-        let url = item.url;
-        let dest = item.destination;
-        let hash = item.expected_hash;
-        let label = item.label;
+        let url = item.url.clone();
+        let dest = item.destination.clone();
+        let hash = item.expected_hash.clone();
+        let label = item.label.clone();
         let name = batch_name.clone();
 
         tasks.push(tokio::spawn(async move {

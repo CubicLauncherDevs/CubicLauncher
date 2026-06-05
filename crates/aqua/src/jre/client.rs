@@ -141,56 +141,48 @@ async fn extract_tar_gz(
     dest: &Path,
     _filename: &str,
 ) -> Result<(), ProtonError> {
-    let file = tokio::fs::File::open(archive).await?;
-    let buf = {
-        use tokio::io::AsyncReadExt;
-        let mut buf = Vec::new();
-        tokio::io::BufReader::new(file)
-            .read_to_end(&mut buf)
-            .await?;
-        buf
-    };
+    let archive = archive.to_path_buf();
+    let dest = dest.to_path_buf();
 
-    let decoded = {
-        let mut d = flate2::read::GzDecoder::new(&buf[..]);
-        use std::io::Read;
-        let mut result = Vec::new();
-        d.read_to_end(&mut result)?;
-        result
-    };
-
-    {
-        let mut archive = tar::Archive::new(&decoded[..]);
-        archive.unpack(dest)?;
-    }
-
-    Ok(())
+    tokio::task::spawn_blocking(move || {
+        let file = std::fs::File::open(&archive)?;
+        let decoder = flate2::read::GzDecoder::new(file);
+        let mut archive = tar::Archive::new(decoder);
+        archive.unpack(&dest)?;
+        Ok::<_, ProtonError>(())
+    })
+    .await?
 }
 
 async fn extract_zip(archive: &Path, dest: &Path, _filename: &str) -> Result<(), ProtonError> {
-    let file = std::fs::File::open(archive)?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| ProtonError::Other(format!("Failed to open ZIP: {}", e)))?;
+    let dest = dest.to_path_buf();
+    let archive = archive.to_path_buf();
 
-    for i in 0..archive.len() {
-        let mut entry = archive.by_index(i)
-            .map_err(|e| ProtonError::Other(format!("Failed to read ZIP entry: {}", e)))?;
+    tokio::task::spawn_blocking(move || {
+        let file = std::fs::File::open(&archive)?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|e| ProtonError::Other(format!("Failed to open ZIP: {}", e)))?;
 
-        let name = entry.name().to_string();
-        if name.ends_with('/') {
-            std::fs::create_dir_all(dest.join(&name))?;
-            continue;
+        for i in 0..archive.len() {
+            let mut entry = archive.by_index(i)
+                .map_err(|e| ProtonError::Other(format!("Failed to read ZIP entry: {}", e)))?;
+
+            let name = entry.name().to_string();
+            if name.ends_with('/') {
+                std::fs::create_dir_all(dest.join(&name))?;
+                continue;
+            }
+
+            let out_path = dest.join(&name);
+            if let Some(parent) = out_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+
+            let mut out_file = std::fs::File::create(&out_path)?;
+            std::io::copy(&mut entry, &mut out_file)?;
         }
 
-        let out_path = dest.join(&name);
-        if let Some(parent) = out_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-
-        let mut buf = Vec::with_capacity(entry.size() as usize);
-        std::io::Read::read_to_end(&mut entry, &mut buf)?;
-        std::fs::write(&out_path, &buf)?;
-    }
-
-    Ok(())
+        Ok::<_, ProtonError>(())
+    })
+    .await?
 }

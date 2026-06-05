@@ -148,8 +148,8 @@ impl DownloadBatch for FabricBatch {
         self.fabric_version_id.clone()
     }
 
-    fn items(&self) -> Vec<DownloadItemSpec> {
-        self.items.clone()
+    fn items(&self) -> &[DownloadItemSpec] {
+        &self.items
     }
 
     fn prepare(&self) -> Pin<Box<dyn Future<Output = Result<(), ProtonError>> + Send + '_>> {

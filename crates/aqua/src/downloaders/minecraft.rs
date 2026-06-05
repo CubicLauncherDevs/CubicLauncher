@@ -8,7 +8,7 @@ use uuid::Uuid;
 use super::batch::{DownloadBatch, DownloadItemSpec};
 use crate::manifest::{resolve_asset_index, resolve_version_data};
 use crate::natives::natives_subdir;
-use crate::types::{NormalizedVersion, RESOURCES_BASE_URL};
+use crate::types::{AssetMeta, NormalizedVersion, RESOURCES_BASE_URL};
 use crate::utilities::download_file;
 use crate::ProtonError;
 use crate::utilities::HTTP_CLIENT;
@@ -114,13 +114,14 @@ impl DownloadBatch for MinecraftBatch {
         self.version.id.clone()
     }
 
-    fn items(&self) -> Vec<DownloadItemSpec> {
-        self.items.clone()
+    fn items(&self) -> &[DownloadItemSpec] {
+        &self.items
     }
 
     fn prepare(&self) -> Pin<Box<dyn Future<Output = Result<(), ProtonError>> + Send + '_>> {
         let dirs = self.dirs.clone();
-        let version = self.version.clone();
+        let version_id = self.version.id.clone();
+        let asset_index = self.version.asset_index.clone();
         let temp_dir = self.temp_dir.clone();
         Box::pin(async move {
             tokio::fs::create_dir_all(&dirs.natives_dir).await?;
@@ -130,8 +131,8 @@ impl DownloadBatch for MinecraftBatch {
             tokio::fs::create_dir_all(&dirs.assets_indexes_dir).await?;
             tokio::fs::create_dir_all(&temp_dir).await?;
 
-            download_version_json(&version, &dirs).await?;
-            download_asset_index_json(&version, &dirs).await?;
+            download_version_json(&version_id, &dirs).await?;
+            download_asset_index_json(&asset_index, &dirs).await?;
 
             Ok(())
         })
@@ -196,10 +197,10 @@ impl DownloadBatch for MinecraftBatch {
 }
 
 async fn download_version_json(
-    version: &NormalizedVersion,
+    version_id: &str,
     dirs: &DirPaths,
 ) -> Result<(), ProtonError> {
-    let path = dirs.versions_dir.join(format!("{}.json", version.id));
+    let path = dirs.versions_dir.join(format!("{}.json", version_id));
     if path.exists() {
         return Ok(());
     }
@@ -208,8 +209,8 @@ async fn download_version_json(
     let v2: serde_json::Value = HTTP_CLIENT.get(v2_url).send().await?.json().await?;
     let entry = v2["versions"]
         .as_array()
-        .and_then(|arr| arr.iter().find(|v| v["id"] == version.id))
-        .ok_or_else(|| ProtonError::VersionNotFound(version.id.clone()))?;
+        .and_then(|arr| arr.iter().find(|v| v["id"] == version_id))
+        .ok_or_else(|| ProtonError::VersionNotFound(version_id.to_string()))?;
     let detail_url = entry["url"]
         .as_str()
         .ok_or_else(|| ProtonError::Other("No URL in manifest".into()))?;
@@ -221,14 +222,14 @@ async fn download_version_json(
 }
 
 async fn download_asset_index_json(
-    version: &NormalizedVersion,
+    asset_index: &AssetMeta,
     dirs: &DirPaths,
 ) -> Result<(), ProtonError> {
     let path = dirs
         .assets_indexes_dir
-        .join(format!("{}.json", version.asset_index.id));
+        .join(format!("{}.json", asset_index.id));
     if path.exists() {
-        let ok = crate::utilities::verify_file_hash(&path, &version.asset_index.sha1)
+        let ok = crate::utilities::verify_file_hash(&path, &asset_index.sha1)
             .await
             .unwrap_or(false);
         if ok {
@@ -237,9 +238,9 @@ async fn download_asset_index_json(
     }
 
     download_file(
-        &version.asset_index.url,
+        &asset_index.url,
         &path,
-        &version.asset_index.sha1,
+        &asset_index.sha1,
     )
     .await?;
     Ok(())

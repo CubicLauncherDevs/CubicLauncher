@@ -31,7 +31,7 @@ impl DownloadItemSpec {
 pub trait DownloadBatch: Send + Sync {
     fn name(&self) -> String;
 
-    fn items(&self) -> Vec<DownloadItemSpec>;
+    fn items(&self) -> &[DownloadItemSpec];
 
     fn prepare(&self) -> Pin<Box<dyn Future<Output = Result<(), ProtonError>> + Send + '_>> {
         Box::pin(async { Ok(()) })
@@ -63,7 +63,7 @@ impl DownloadBatch for GenericBatch {
         self.name.clone()
     }
 
-    fn items(&self) -> Vec<DownloadItemSpec> {
-        self.items.clone()
+    fn items(&self) -> &[DownloadItemSpec] {
+        &self.items
     }
 }
