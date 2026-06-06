@@ -307,14 +307,15 @@ impl Launcher {
             .map_err(|e| DownloadError::ParseJson(e.to_string()))?;
         let mut user = SettingsManager::read().get_minecraft_user();
 
-        let java_path = resolve_java_path(&settings_m, manifest.java_version.as_ref());
+        let (java_version, java_path) =
+            resolve_java_path(&settings_m, manifest.java_version.as_ref());
 
         if !java_path.exists() {
             handle.set_status(InstanceStatus::Error(
-                JreDoesntExists(manifest.java_major_version().to_string()).to_string(),
+                InstanceError::JreDoesntExists(java_version.to_string()).to_string(),
             ));
             return Err(AppError::Instance(InstanceError::JreDoesntExists(
-                manifest.java_major_version().to_string(),
+                java_version.to_string(),
             )))?;
         }
 
@@ -489,34 +490,33 @@ impl Launcher {
 fn resolve_java_path(
     settings: &SettingsManager,
     java_version: Option<&launchwerk::models::JavaVersion>,
-) -> std::path::PathBuf {
+) -> (u8, std::path::PathBuf) {
     let version = match java_version {
         Some(ref v) => v.major_version,
         None => 25,
     };
-
     match version {
         8 if settings.jre8_managed && JavaManager::is_installed(8) => {
-            JavaManager::get_java_binary(8)
+            (8, JavaManager::get_java_binary(8))
         }
         17 if settings.jre17_managed && JavaManager::is_installed(17) => {
-            JavaManager::get_java_binary(17)
+            (17, JavaManager::get_java_binary(17))
         }
         21 if settings.jre21_managed && JavaManager::is_installed(21) => {
-            JavaManager::get_java_binary(21)
+            (21, JavaManager::get_java_binary(21))
         }
         25 if settings.jre25_managed && JavaManager::is_installed(25) => {
-            JavaManager::get_java_binary(25)
+            (25, JavaManager::get_java_binary(25))
         }
-        8 => settings.get_jre8_path().to_path_buf(),
-        17 => settings.get_jre17_path().to_path_buf(),
-        21 => settings.get_jre21_path().to_path_buf(),
-        25 => settings.get_jre25_path().to_path_buf(),
+        8 => (8, settings.get_jre8_path().to_path_buf()),
+        17 => (17, settings.get_jre17_path().to_path_buf()),
+        21 => (21, settings.get_jre21_path().to_path_buf()),
+        25 => (25, settings.get_jre25_path().to_path_buf()),
         _ => {
             if settings.jre21_managed && JavaManager::is_installed(21) {
-                JavaManager::get_java_binary(21)
+                (21, JavaManager::get_java_binary(21))
             } else {
-                settings.get_jre21_path().to_path_buf()
+                (21, settings.get_jre21_path().to_path_buf())
             }
         }
     }
