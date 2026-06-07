@@ -21,7 +21,7 @@ export default [
 	{
 		files: ["src/**/*.{ts,svelte}"],
 		languageOptions: {
-			globals: { ...globals.browser, ...globals.node },
+			globals: { ...globals.browser, ...globals.node, __APP_VERSION__: "readonly" },
 			parser: sveltePlugin.parser,
 			parserOptions: {
 				parser: tseslint.parser,

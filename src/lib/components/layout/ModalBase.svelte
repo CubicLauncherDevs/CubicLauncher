@@ -47,7 +47,6 @@
 					type="button"
 					class="action-btn"
 					onclick={close}
-					title="Cerrar"
 				>
 					<svg
 						width="14"

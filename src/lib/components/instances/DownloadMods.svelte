@@ -1,8 +1,7 @@
 <script lang="ts">
 	import {
-		searchModrinthAll,
+		searchModrinth,
 		getModrinthProjectVersions,
-		getModrinthProjectVersionsAll,
 		downloadMods,
 		getInstanceMods,
 		type ModDownloadInfo,
@@ -77,9 +76,10 @@
 		}
 
 		try {
-			const result = await searchModrinthAll(
+			const result = await searchModrinth(
 				query,
 				instance.loader,
+				undefined,
 				activeCategory,
 				sortIndex,
 				PAGE_SIZE,
@@ -294,7 +294,7 @@
 		selectedModVersions = [];
 		selectedVersionId = "";
 		try {
-			const versions = await getModrinthProjectVersionsAll(
+			const versions = await getModrinthProjectVersions(
 				projectId,
 				instance.loader,
 			);

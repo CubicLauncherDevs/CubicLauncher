@@ -349,7 +349,7 @@ export async function getDownloadQueue(): Promise<
 export async function searchModrinth(
 	query: string,
 	loader: string,
-	gameVersion: string,
+	gameVersion?: string,
 	category: string | null = null,
 	index: string = "downloads",
 	limit: number = 24,
@@ -361,47 +361,8 @@ export async function searchModrinth(
 		if (loader.toLowerCase() !== "vanilla") {
 			facets.push([`categories:${loader.toLowerCase()}`]);
 		}
-		facets.push([`versions:${gameVersion}`]);
-		facets.push(["project_type:mod"]);
-
-		if (category) {
-			facets.push([`categories:${category.toLowerCase()}`]);
-		}
-
-		const url = new URL("https://api.modrinth.com/v2/search");
-		url.searchParams.append("query", query);
-		url.searchParams.append("facets", JSON.stringify(facets));
-		url.searchParams.append("index", index);
-		url.searchParams.append("limit", limit.toString());
-		url.searchParams.append("offset", offset.toString());
-
-		const res = await fetch(url.toString(), { signal });
-		if (!res.ok) {
-			throw new Error(`Modrinth API error: ${res.status}`);
-		}
-		return (await res.json()) as ModrinthSearchResult;
-	} catch (err) {
-		if (err instanceof DOMException && err.name === "AbortError")
-			return null;
-		console.error("Error searching Modrinth:", err);
-		showError("Modrinth Error", `Could not search for mods: ${err}`);
-		return null;
-	}
-}
-
-export async function searchModrinthAll(
-	query: string,
-	loader: string,
-	category: string | null = null,
-	index: string = "downloads",
-	limit: number = 24,
-	offset: number = 0,
-	signal?: AbortSignal,
-): Promise<ModrinthSearchResult | null> {
-	try {
-		const facets = [];
-		if (loader.toLowerCase() !== "vanilla") {
-			facets.push([`categories:${loader.toLowerCase()}`]);
+		if (gameVersion) {
+			facets.push([`versions:${gameVersion}`]);
 		}
 		facets.push(["project_type:mod"]);
 
@@ -433,17 +394,17 @@ export async function searchModrinthAll(
 export async function getModrinthProjectVersions(
 	projectId: string,
 	loader: string,
-	gameVersion: string,
+	gameVersion?: string,
 ): Promise<ModrinthVersion[]> {
 	try {
 		const loadersJson = JSON.stringify([loader.toLowerCase()]);
-		const gameVersionsJson = JSON.stringify([gameVersion]);
-
 		const url = new URL(
 			`https://api.modrinth.com/v2/project/${projectId}/version`,
 		);
 		url.searchParams.append("loaders", loadersJson);
-		url.searchParams.append("game_versions", gameVersionsJson);
+		if (gameVersion) {
+			url.searchParams.append("game_versions", JSON.stringify([gameVersion]));
+		}
 
 		const res = await fetch(url.toString());
 		if (!res.ok) {
@@ -452,28 +413,6 @@ export async function getModrinthProjectVersions(
 		return (await res.json()) as ModrinthVersion[];
 	} catch (err) {
 		console.error(`Error getting versions for ${projectId}:`, err);
-		return [];
-	}
-}
-
-export async function getModrinthProjectVersionsAll(
-	projectId: string,
-	loader: string,
-): Promise<ModrinthVersion[]> {
-	try {
-		const loadersJson = JSON.stringify([loader.toLowerCase()]);
-		const url = new URL(
-			`https://api.modrinth.com/v2/project/${projectId}/version`,
-		);
-		url.searchParams.append("loaders", loadersJson);
-
-		const res = await fetch(url.toString());
-		if (!res.ok) {
-			throw new Error(`Modrinth API error: ${res.status}`);
-		}
-		return (await res.json()) as ModrinthVersion[];
-	} catch (err) {
-		console.error(`Error getting all versions for ${projectId}:`, err);
 		return [];
 	}
 }

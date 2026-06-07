@@ -3,10 +3,6 @@
 	import { InstState, type InstanceDto } from "$lib/types/types";
 	import InstanceDetails from "./InstanceDetails.svelte";
 	import { launchInstance } from "$lib/api/cubicApi";
-	import ModsRow from "./ModsRow.svelte";
-	import DownloadMods from "./DownloadMods.svelte";
-	import ResourcePacksTab from "./ResourcePacksTab.svelte";
-	import ScreenshotsTab from "./ScreenshotsTab.svelte";
 	import Loading from "../../icons/Loading.svelte";
 	import Check from "../../icons/Check.svelte";
 	import { t } from "$lib/i18n";
@@ -30,6 +26,28 @@
 	$effect(() => {
 		if (!supportsMods && activeTab === "mods") {
 			activeTab = "detalles";
+		}
+	});
+
+	// Lazy loaded components — loaded on first tab switch
+	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+	let ModsRow: typeof import("./ModsRow.svelte").default | null = $state(null);
+	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+	let DownloadMods: typeof import("./DownloadMods.svelte").default | null = $state(null);
+	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+	let ResourcePacksTab: typeof import("./ResourcePacksTab.svelte").default | null = $state(null);
+	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+	let ScreenshotsTab: typeof import("./ScreenshotsTab.svelte").default | null = $state(null);
+
+	$effect(() => {
+		if (activeTab === "mods" && !ModsRow) {
+			import("./ModsRow.svelte").then((m) => (ModsRow = m.default));
+		} else if (activeTab === "download_mods" && !DownloadMods) {
+			import("./DownloadMods.svelte").then((m) => (DownloadMods = m.default));
+		} else if (activeTab === "resources" && !ResourcePacksTab) {
+			import("./ResourcePacksTab.svelte").then((m) => (ResourcePacksTab = m.default));
+		} else if (activeTab === "screenshots" && !ScreenshotsTab) {
+			import("./ScreenshotsTab.svelte").then((m) => (ScreenshotsTab = m.default));
 		}
 	});
 
@@ -272,22 +290,30 @@
 		{:else if activeTab === "mods"}
 			<div class="tab-pane">
 				{#key selectedInstance.uuid}
-					<ModsRow instanceId={selectedInstance.uuid} />
+					{#if ModsRow}
+						<ModsRow instanceId={selectedInstance.uuid} />
+					{/if}
 				{/key}
 			</div>
 		{:else if activeTab === "download_mods"}
 			<div class="tab-pane">
 				{#key selectedInstance.uuid}
-					<DownloadMods instance={selectedInstance} />
+					{#if DownloadMods}
+						<DownloadMods instance={selectedInstance} />
+					{/if}
 				{/key}
 			</div>
 		{:else if activeTab === "resources"}
 			<div class="tab-pane">
-				<ResourcePacksTab instanceId={selectedInstance.uuid} />
+				{#if ResourcePacksTab}
+					<ResourcePacksTab instanceId={selectedInstance.uuid} />
+				{/if}
 			</div>
 		{:else if activeTab === "screenshots"}
 			<div class="tab-pane">
-				<ScreenshotsTab instance={selectedInstance} />
+				{#if ScreenshotsTab}
+					<ScreenshotsTab instance={selectedInstance} />
+				{/if}
 			</div>
 		{/if}
 	</div>

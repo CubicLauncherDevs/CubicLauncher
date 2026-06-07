@@ -14,7 +14,6 @@
 
 	let lines = $state<ConsoleLine[]>([]);
 	let autoScroll = $state(true);
-	let unlisten: (() => void) | null = null;
 	let logContainer: HTMLDivElement | undefined = $state();
 
 	const MAX_LINES = 2000;
@@ -75,18 +74,11 @@
 		const id = instance.uuid;
 		if (!id) return;
 
-		if (unlisten) {
-			unlisten();
-			unlisten = null;
-		}
 		lines = [];
 
-		let cancelled = false;
-
-		listen<{ id: string; line: string; stream: string }>(
+		const unlistenPromise = listen<{ id: string; line: string; stream: string }>(
 			"instance-console-output",
 			(event) => {
-				if (cancelled) return;
 				if (event.payload.id === id) {
 					const line: ConsoleLine = {
 						text: event.payload.line,
@@ -96,22 +88,10 @@
 					lines = [...lines.slice(-(MAX_LINES - 1)), line];
 				}
 			},
-		)
-			.then((unsub) => {
-				if (cancelled) {
-					unsub();
-				} else {
-					unlisten = unsub;
-				}
-			})
-			.catch(() => {});
+		).catch(() => {});
 
 		return () => {
-			cancelled = true;
-			if (unlisten) {
-				unlisten();
-				unlisten = null;
-			}
+			unlistenPromise.then((unsub) => unsub?.());
 		};
 	});
 
