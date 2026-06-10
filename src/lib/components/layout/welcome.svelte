@@ -22,6 +22,13 @@
 		onopensettings?: () => void;
 	} = $props();
 
+	const languageOptions = [
+		{ value: "es", label: "Español" },
+		{ value: "en", label: "English" },
+	];
+
+	let phase = $state<"language" | "tutorial">("language");
+
 	const steps: Step[] = [
 		{ sel: "[data-tutorial='sidebar-header']", key: "slide1" },
 		{ sel: "[data-tutorial='instance-list']", key: "slide2" },
@@ -150,7 +157,7 @@
 	});
 
 	$effect(() => {
-		if (!active) return;
+		if (!active || phase !== "tutorial") return;
 		const step = steps[currentStep];
 		if (step.onEnter) step.onEnter();
 		const resume = step.measureDelay
@@ -181,7 +188,9 @@
 		onclick={close}
 		role="presentation"
 	>
-		<div class="tut-spotlight" style="--sx:{sx}px;--sy:{sy}px;--sw:{sw}px;--sh:{sh}px"></div>
+		{#if phase === "tutorial"}
+			<div class="tut-spotlight" style="--sx:{sx}px;--sy:{sy}px;--sw:{sw}px;--sh:{sh}px"></div>
+		{/if}
 	</div>
 
 	<div
@@ -218,16 +227,59 @@
 					<button type="button" class="tut-dot" class:active={i === currentStep} onclick={() => goToStep(i)} aria-label="Step {i + 1}"></button>
 				{/each}
 			</div>
-			<div class="tut-nav">
-				{#if currentStep > 0}
-					<button type="button" class="btn-secondary tut-btn" onclick={prev}>{t("tutorial.prev")}</button>
-				{/if}
-				{#if currentStep < steps.length - 1}
-					<button type="button" class="btn-primary tut-btn" onclick={next}>{t("tutorial.next")}</button>
-				{:else}
-					<button type="button" class="btn-primary tut-btn" onclick={close}>{t("tutorial.finish")}</button>
-				{/if}
+			<div class="lang-body">
+				<Select
+					id="welcome-language"
+					label={t("settings.launcher.language")}
+					options={languageOptions}
+					bind:value={launcherStore.settings.language}
+				/>
+			</div>
+			<div class="lang-footer">
+				<button type="button" class="btn-primary lang-btn" onclick={() => selectLanguage(launcherStore.settings.language)}>
+					{t("welcome.continue")}
+				</button>
 			</div>
 		</div>
-	</div>
+	{:else}
+		<div
+			class="tut-tip"
+			class:visible={active}
+			class:left={isInside}
+			style="--tx:{tx}px;--ty:{ty}px"
+			role="dialog"
+		>
+			<div class="tut-arrow"></div>
+
+			<button type="button" class="tut-close" onclick={close} aria-label={t("tutorial.skip")}>
+				<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+					<line x1="18" y1="6" x2="6" y2="18"></line>
+					<line x1="6" y1="6" x2="18" y2="18"></line>
+				</svg>
+			</button>
+
+			<div class="tut-body">
+				<h3 class="tut-title">{t(`tutorial.${steps[currentStep].key}.title`)}</h3>
+				<p class="tut-desc">{t(`tutorial.${steps[currentStep].key}.desc`)}</p>
+			</div>
+
+			<div class="tut-footer">
+				<div class="tut-dots">
+					{#each steps as _, i (i)}
+						<button type="button" class="tut-dot" class:active={i === currentStep} onclick={() => (currentStep = i)} aria-label="Step {i + 1}"></button>
+					{/each}
+				</div>
+				<div class="tut-nav">
+					{#if currentStep > 0}
+						<button type="button" class="btn-secondary tut-btn" onclick={prev}>{t("tutorial.prev")}</button>
+					{/if}
+					{#if currentStep < steps.length - 1}
+						<button type="button" class="btn-primary tut-btn" onclick={next}>{t("tutorial.next")}</button>
+					{:else}
+						<button type="button" class="btn-primary tut-btn" onclick={close}>{t("tutorial.finish")}</button>
+					{/if}
+				</div>
+			</div>
+		</div>
+	{/if}
 {/if}

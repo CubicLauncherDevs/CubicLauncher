@@ -282,11 +282,15 @@
 	"downloadProgress": {
 		"items": "items"
 	},
+	"welcome": {
+		"language": "Select your language",
+		"continue": "Continue"
+	},
 	"tutorial": {
 		"skip": "Skip",
 		"next": "Next",
 		"prev": "Previous",
-		"finish": "Get Started",
+		"finish": "Start",
 		"slide1": {
 			"title": "Welcome to CubicLauncher!",
 			"desc": "A modern, fast Minecraft launcher. Manage multiple instances, mods, Java configurations and more. Let's take a quick tour!"

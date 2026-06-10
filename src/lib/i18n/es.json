@@ -282,6 +282,10 @@
 	"downloadProgress": {
 		"items": "objetos"
 	},
+	"welcome": {
+		"language": "Selecciona tu idioma",
+		"continue": "Continuar"
+	},
 	"tutorial": {
 		"skip": "Saltar",
 		"next": "Siguiente",
