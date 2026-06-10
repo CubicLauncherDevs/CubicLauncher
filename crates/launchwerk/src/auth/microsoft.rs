@@ -5,7 +5,7 @@ use crate::auth::MinecraftUser;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
-pub const DEFAULT_CLIENT_ID: &str = "cb4acffe-727f-4dd1-ad5e-fd3553d84a7f"; // Minecraft Launcher Client ID
+pub const DEFAULT_CLIENT_ID: &str = "c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb"; // Minecraft Launcher Client ID
 const SCOPE: &str = "XboxLive.SignIn XboxLive.offline_access";
 
 #[derive(Debug, Deserialize)]
