@@ -58,6 +58,7 @@
 		} catch (e) {
 			console.error(`Failed to install JRE ${version}:`, e);
 		}
+		jreActionStates[version] = undefined;
 	}
 
 	async function handleUninstallJre(version: number) {
@@ -68,6 +69,7 @@
 		} catch (e) {
 			console.error(`Failed to uninstall JRE ${version}:`, e);
 		}
+		jreActionStates[version] = undefined;
 	}
 	async function handleSave() {
 		saving = true;
@@ -149,6 +151,8 @@
 			if (event.payload.type === "DFinishRuntime") {
 				const v = Number(event.payload.data.version);
 				jreActionStates[v] = undefined;
+				refreshJreStatus();
+			} else if (event.payload.type === "JREChanged") {
 				refreshJreStatus();
 			}
 		});

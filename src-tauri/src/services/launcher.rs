@@ -8,9 +8,9 @@ use crate::services::instance_manager::{
 use crate::services::java_manager::JavaManager;
 use aqua::{DownloadManager, DownloadProgress, DownloadProgressType};
 use dashmap::DashMap;
+use launchwerk::auth::{AccountType, MinecraftUser, microsoft::MicrosoftAuth};
 use launchwerk::models::VersionManifest;
 use launchwerk::{LaunchConfig, Launchwerk};
-use launchwerk::auth::{microsoft::MicrosoftAuth, AccountType, MinecraftUser};
 use std::borrow::Cow;
 use std::sync::{Arc, OnceLock};
 use tauri::Emitter;
@@ -163,13 +163,9 @@ impl DownloadQueue {
                 }
             };
 
-            let (tx, mut progress_rx) = mpsc::channel::<DownloadProgress>(100);
+            let (tx, progress_rx) = mpsc::channel::<DownloadProgress>(100);
 
-            let monitor = monitor_download_progress(
-                version.clone(),
-                progress_rx,
-                queue.clone(),
-            );
+            let monitor = monitor_download_progress(version.clone(), progress_rx, queue.clone());
 
             let (dl_result, ()) = tokio::join!(download_handle.download_all(Some(tx)), monitor);
 

@@ -47,6 +47,7 @@
 					type="button"
 					class="action-btn"
 					onclick={close}
+					aria-label="Close"
 				>
 					<svg
 						width="14"

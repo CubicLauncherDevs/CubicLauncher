@@ -3,5 +3,5 @@
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
-    cubiclauncher_lib::run()
+    cubite::run()
 }
