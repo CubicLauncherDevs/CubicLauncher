@@ -757,7 +757,7 @@ dependencies = [
 
 [[package]]
 name = "cubiclauncher"
-version = "26.6.2"
+version = "27.0.0"
 dependencies = [
  "aqua",
  "base64 0.22.1",

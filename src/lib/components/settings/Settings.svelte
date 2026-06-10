@@ -168,6 +168,25 @@
 	);
 
 	const currentVersion = __APP_VERSION__;
+
+	function fmtVersion(v: string): string {
+		if (!v) return v;
+		const [major, , patch] = v.split(".");
+		const patchNum = parseInt(patch ?? "0");
+		return patchNum === 0 ? major : `${major} rev ${patchNum}`;
+	}
+
+	const displayVersion = $derived(fmtVersion(currentVersion));
+	const formattedPendingUpdate = $derived(
+		launcherStore.pendingUpdate
+			? {
+					version: fmtVersion(
+						launcherStore.pendingUpdate.version ?? "",
+					),
+					body: launcherStore.pendingUpdate.body,
+				}
+			: null,
+	);
 </script>
 
 <div class="qm-root">
@@ -238,8 +257,8 @@
 					storageKey="section_updates"
 				>
 					<UpdateSection
-						{currentVersion}
-						pendingUpdate={launcherStore.pendingUpdate}
+						currentVersion={displayVersion}
+						pendingUpdate={formattedPendingUpdate}
 						updateProgress={launcherStore.updateProgress}
 						updateDownloaded={launcherStore.updateDownloaded}
 						{checking}
@@ -575,7 +594,7 @@
 
 	<!-- Footer -->
 	<div class="qm-footer">
-		<span class="qm-version">CubicLauncher v{currentVersion}</span>
+		<span class="qm-version">CubicLauncher v{displayVersion}</span>
 	</div>
 </div>
 
