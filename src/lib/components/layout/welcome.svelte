@@ -28,9 +28,9 @@
 			sel: "[data-tutorial='settings']", key: "slide5", pos: "right",
 			onEnter: () => { onopensettings?.(); },
 		},
-		{ sel: "[data-tutorial='settings-tabs']", key: "slide6", pos: "left" },
+		{ sel: "[data-tutorial='settings-tabs']", key: "slide6", pos: "right" },
 		{
-			sel: "[data-tutorial='settings-scroll']", key: "slide7", pos: "left",
+			sel: "[data-tutorial='settings-scroll']", key: "slide7", pos: "right",
 			onEnter: () => {
 				const javaTab = document.querySelector("[data-tutorial='tab-java']") as HTMLElement;
 				if (javaTab) javaTab.click();
@@ -72,6 +72,9 @@
 
 		const r = el.getBoundingClientRect();
 		const gap = 12;
+		const tipW = 260;
+		const tipH = 150;
+		const m = 10;
 		const left = step.pos === "left";
 
 		sx = r.left - 4;
@@ -79,11 +82,8 @@
 		sw = r.width + 8;
 		sh = r.height + 8;
 
-		let x = left ? r.left - gap : r.right + gap;
+		let x = left ? r.left - tipW - gap : r.right + gap;
 		let y = r.top + r.height / 2;
-		const tipW = 260;
-		const tipH = 150;
-		const m = 10;
 
 		y = Math.max(m, Math.min(y - tipH / 2, window.innerHeight - tipH - m));
 
