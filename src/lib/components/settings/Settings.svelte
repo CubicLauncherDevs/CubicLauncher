@@ -517,6 +517,19 @@
 					<div class="zulu-credit">
 						{t("settings.java.zuluCredit")}
 					</div>
+					<span
+						class="qm-themes-hint"
+						onclick={() =>
+							openUrl("https://www.cubiclauncher.com/docs/java")}
+						role="link"
+						tabindex="0"
+						onkeydown={(e) => {
+							if (e.key === "Enter")
+								openUrl(
+									"https://www.cubiclauncher.com/docs/java",
+								);
+						}}>{t("settings.launcher.javaSpan")}</span
+					>
 				</CollapsibleSection>
 
 				<CollapsibleSection
