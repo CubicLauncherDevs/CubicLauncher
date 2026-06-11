@@ -2,17 +2,18 @@ use crate::core::errors::{CoreError, FsError};
 use crate::core::{AppEvent, PathManager, emit};
 use crate::services::SettingsManager;
 use crate::theme_watcher::ThemeWatcher;
+use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 use tauri::command;
 use tracing::{error, info, warn};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ThemeFile {
-    pub name: String,
+    pub name: CompactString,
     #[serde(default)]
-    pub author: String,
+    pub author: CompactString,
     #[serde(default)]
-    pub r#type: String,
+    pub r#type: CompactString,
     pub variables: std::collections::HashMap<String, String>,
     #[serde(default)]
     pub bg_image: Option<String>,
@@ -26,10 +27,10 @@ pub struct ThemeFile {
 
 #[derive(Debug, Serialize, Clone)]
 pub struct ThemeEntry {
-    pub id: String,
-    pub name: String,
-    pub author: String,
-    pub r#type: String,
+    pub id: CompactString,
+    pub name: CompactString,
+    pub author: CompactString,
+    pub r#type: CompactString,
 }
 
 #[command]
@@ -67,7 +68,7 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
             Err(_) => continue,
         };
         themes.push(ThemeEntry {
-            id,
+            id: id.into(),
             name: theme.name,
             author: theme.author,
             r#type: theme.r#type,
@@ -142,8 +143,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeFile, String> {
 pub async fn set_theme(id: String) -> Result<(), String> {
     info!("Cambiando tema a '{}'", id);
     SettingsManager::write(|s| {
-        s.theme = id.clone();
-        s.dirty = true;
+        s.theme = id.clone().into();
     })?;
 
     SettingsManager::save().await?;
@@ -156,14 +156,14 @@ pub async fn set_theme(id: String) -> Result<(), String> {
         ThemeWatcher::watch(None);
     }
 
-    emit(AppEvent::ThemeChanged { id: id.clone() });
+    emit(AppEvent::ThemeChanged { id: id.clone().into() });
     info!("Tema cambiado a '{}'", id);
     Ok(())
 }
 
 #[command]
 pub fn get_current_theme() -> Result<String, String> {
-    let theme = SettingsManager::read().theme.clone();
+    let theme = SettingsManager::read().theme.clone().to_string();
     info!("Tema actual: '{}'", theme);
     Ok(theme)
 }
@@ -233,9 +233,9 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
         theme_id, theme_file.name
     );
     Ok(ThemeEntry {
-        id: theme_id,
+        id: theme_id.into(),
         name: theme_file.name,
         author: theme_file.author,
-        r#type: "user".to_string(),
+        r#type: "user".into(),
     })
 }

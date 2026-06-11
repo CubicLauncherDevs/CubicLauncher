@@ -1,6 +1,6 @@
 use crate::core::path_manager::PathManager;
 use crate::core::{AppError, AppEvent, AuthError, DownloadError, FsError, InstanceError, emit};
-use crate::services::SettingsManager;
+use crate::services::{SettingsManager, SettingsSnapshot};
 use crate::services::discord_presence;
 use crate::services::instance_manager::{
     InstanceHandle, InstanceStatus, register_kill_sender, unregister_kill_sender,
@@ -38,14 +38,14 @@ pub enum DownloadStatus {
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct DownloadState {
-    pub version: Arc<String>,
+    pub version: Arc<str>,
     pub status: DownloadStatus,
     pub current: u64,
     pub total: u64,
 }
 
 impl DownloadState {
-    fn new(version: Arc<String>) -> Self {
+    fn new(version: Arc<str>) -> Self {
         Self {
             version,
             status: DownloadStatus::Pending,
@@ -65,8 +65,8 @@ impl DownloadState {
 // ── DownloadQueue ─────────────────────────────────────────────────────────────
 
 pub struct DownloadQueue {
-    sender: mpsc::Sender<Arc<String>>,
-    active: DashMap<Arc<String>, DownloadState>,
+    sender: mpsc::Sender<Arc<str>>,
+    active: DashMap<Arc<str>, DownloadState>,
 }
 
 impl DownloadQueue {
@@ -77,7 +77,7 @@ impl DownloadQueue {
     }
 
     pub async fn init(_app_handle: Option<tauri::AppHandle>) -> Arc<Self> {
-        let (tx, rx) = mpsc::channel::<Arc<String>>(64);
+        let (tx, rx) = mpsc::channel::<Arc<str>>(64);
 
         let queue = Arc::new(Self {
             sender: tx,
@@ -93,8 +93,9 @@ impl DownloadQueue {
         queue
     }
 
-    pub async fn enqueue(&self, version: String) {
-        let version = Arc::new(version);
+    pub async fn enqueue(&self, version: impl Into<Arc<str>>) {
+        let version: Arc<str> = version.into();
+
         if let Some(state) = self.active.get(&version)
             && state.is_active()
         {
@@ -103,13 +104,16 @@ impl DownloadQueue {
 
         info!("{} encolada", &*version);
 
+        // Ahora .clone() solo clonará el puntero al Arc<str>
         self.active
             .insert(version.clone(), DownloadState::new(version.clone()));
 
+        // Compila perfecto porque el evento ya espera Arc<str>
         emit(AppEvent::DEnqueue {
             version: version.clone(),
         });
 
+        // Enviamos el Arc<str> a través del canal de Tokio
         if let Err(e) = self.sender.send(version).await {
             error!("Error al encolar descarga: {}", e);
         }
@@ -125,7 +129,7 @@ impl DownloadQueue {
 
     // ── Worker ────────────────────────────────────────────────────────────────
 
-    async fn worker(mut rx: mpsc::Receiver<Arc<String>>, queue: Arc<DownloadQueue>) {
+    async fn worker(mut rx: mpsc::Receiver<Arc<str>>, queue: Arc<DownloadQueue>) {
         while let Some(version) = rx.recv().await {
             let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
             let manager = DownloadManager::new(shared_dir);
@@ -227,13 +231,12 @@ impl Launcher {
         trace!("=== CubicLaunchwerk ===");
 
         if handle.is_busy() {
-            let msg = "La instancia ya está corriendo o iniciando".to_string();
-            warn!("{}", msg);
+            warn!("La instancia ya está corriendo o iniciando");
             return Err(AppError::Instance(InstanceError::AlreadyStarted));
         }
         handle.set_status(InstanceStatus::Starting);
 
-        let settings_m = SettingsManager::snapshot();
+        let settings_m = SettingsManager::launch_snapshot();
 
         let version = handle.get_version().await;
         let name = handle.get_name().await;
@@ -257,7 +260,7 @@ impl Launcher {
                 "Versión {} no descargada, encolando descarga automática...",
                 version
             );
-            DownloadQueue::get().enqueue((*version).clone()).await;
+            DownloadQueue::get().enqueue(version.clone()).await;
             handle.set_status(InstanceStatus::Off);
             return Err(AppError::Instance(InstanceError::NotFound));
         }
@@ -281,8 +284,8 @@ impl Launcher {
         // Auto-refresh del token Microsoft — el lock de settings se toma y suelta rápido
         user = refresh_microsoft_token(user).await?;
 
-        let min_mem = format!("{}G", settings_m.get_min_memory());
-        let max_mem = format!("{}G", settings_m.get_max_memory());
+        let min_mem = format!("{}G", settings_m.min_memory);
+        let max_mem = format!("{}G", settings_m.max_memory);
 
         let mut builder = LaunchConfig::builder()
             .java_path(java_path)
@@ -299,7 +302,7 @@ impl Launcher {
 
         for (k, v) in &settings_m.env_vars {
             if !k.is_empty() {
-                builder = builder.env(k, v);
+                builder = builder.env(k.as_str(), v);
             }
         }
 
@@ -408,7 +411,7 @@ async fn refresh_microsoft_token(mut user: MinecraftUser) -> Result<MinecraftUse
 
 fn spawn_io_forwarding(
     app: tauri::AppHandle,
-    id: Arc<String>,
+    id: Arc<str>,
     mut rx: broadcast::Receiver<String>,
     stream: &'static str,
 ) {
@@ -442,7 +445,7 @@ fn d_type_str(t: &DownloadProgressType) -> &'static str {
 }
 
 async fn monitor_download_progress(
-    version: Arc<String>,
+    version: Arc<str>,
     mut progress_rx: mpsc::Receiver<DownloadProgress>,
     queue: Arc<DownloadQueue>,
 ) {
@@ -489,7 +492,7 @@ async fn monitor_download_progress(
 }
 
 fn resolve_java_path(
-    settings: &SettingsManager,
+    settings: &SettingsSnapshot,
     java_version: Option<&launchwerk::models::JavaVersion>,
 ) -> (u8, std::path::PathBuf) {
     let version = match java_version {
@@ -529,21 +532,21 @@ mod tests {
 
     #[test]
     fn test_download_state_pending() {
-        let s = DownloadState::new(Arc::new("1.21".into()));
+        let s = DownloadState::new(Arc::from("1.21"));
         assert_eq!(s.status, DownloadStatus::Pending);
         assert!(s.is_active());
     }
 
     #[test]
     fn test_download_state_not_active_done() {
-        let mut s = DownloadState::new(Arc::new("1.21".into()));
+        let mut s = DownloadState::new(Arc::from("1.21"));
         s.status = DownloadStatus::Done;
         assert!(!s.is_active());
     }
 
     #[test]
     fn test_download_state_not_active_error() {
-        let mut s = DownloadState::new(Arc::new("1.21".into()));
+        let mut s = DownloadState::new(Arc::from("1.21"));
         s.status = DownloadStatus::Error("err".into());
         assert!(!s.is_active());
     }

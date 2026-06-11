@@ -1,4 +1,5 @@
 use directories::UserDirs;
+use smallvec::SmallVec;
 use std::env::temp_dir;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
@@ -7,10 +8,10 @@ use tracing::info;
 static PATH_MANAGER: LazyLock<PathManager> = LazyLock::new(PathManager::initialize);
 
 pub struct PathManager {
-    instances_dir: PathBuf,
-    shared_dir: PathBuf,
-    settings_dir: PathBuf,
-    themes_dir: PathBuf,
+    instances_dir: Box<Path>,
+    shared_dir: Box<Path>,
+    settings_dir: Box<Path>,
+    themes_dir: Box<Path>,
 }
 
 impl PathManager {
@@ -31,7 +32,7 @@ impl PathManager {
         &self.themes_dir
     }
 
-    pub fn ensure_dirs() -> Result<(), Vec<String>> {
+    pub fn ensure_dirs() -> Result<(), SmallVec<[String; 4]>> {
         let dirs = [
             Self::get().get_instance_dir(),
             Self::get().get_shared_dir(),
@@ -39,7 +40,7 @@ impl PathManager {
             Self::get().get_themes_dir(),
         ];
 
-        let mut errors = Vec::new();
+        let mut errors = SmallVec::<[String; 4]>::new();
         for dir in &dirs {
             if let Err(e) = std::fs::create_dir_all(dir) {
                 errors.push(format!("{}: {}", dir.display(), e));
@@ -60,17 +61,22 @@ impl PathManager {
         let base_dir = resolve_base_dir();
 
         PathManager {
-            instances_dir: base_dir.join(".cubic").join("instances"),
-            shared_dir: base_dir.join(".cubic").join("shared"),
-            settings_dir: base_dir.join(".cubic").join("settings"),
-            themes_dir: base_dir.join(".cubic").join("themes"),
+            instances_dir: base_dir.join(".cubic").join("instances").into_boxed_path(),
+            shared_dir: base_dir.join(".cubic").join("shared").into_boxed_path(),
+            settings_dir: base_dir.join(".cubic").join("settings").into_boxed_path(),
+            themes_dir: base_dir.join(".cubic").join("themes").into_boxed_path(),
         }
     }
 }
 
 // utilidades
 fn resolve_base_dir() -> PathBuf {
-    // con la lib normal
+    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+        if home.is_dir() {
+            info!("Directorio base resuelto: home dir {:?}", home);
+            return home;
+        }
+    }
     if let Some(d) = UserDirs::new() {
         let path = d.home_dir().to_path_buf();
         info!("Directorio base resuelto: home dir {:?}", path);

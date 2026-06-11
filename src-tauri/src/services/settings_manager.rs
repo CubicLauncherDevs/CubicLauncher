@@ -1,11 +1,15 @@
 use crate::core::{AppError, CoreError, FsError, PathManager, emit};
+use compact_str::CompactString;
 use launchwerk::auth::MinecraftUser;
 use parking_lot::{RwLock, RwLockReadGuard};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
+use std::sync::OnceLock;
 use tokio::fs;
+use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 
 // ── Static global ─────────────────────────────────────────────────────────────
@@ -13,8 +17,24 @@ use tracing::{error, info, warn};
 static SETTINGS: LazyLock<RwLock<SettingsManager>> =
     LazyLock::new(|| RwLock::new(SettingsManager::load()));
 
-// ── Defaults (serde) ──────────────────────────────────────────────────────────
+static SAVE_TX: OnceLock<mpsc::UnboundedSender<()>> = OnceLock::new();
 
+pub fn init_auto_save() {
+    let (tx, mut rx) = mpsc::unbounded_channel::<()>();
+    SAVE_TX.set(tx).ok();
+    tokio::spawn(async move {
+        loop {
+            rx.recv().await;
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            while rx.try_recv().is_ok() {}
+            if let Err(e) = SettingsManager::save().await {
+                warn!("Error en auto-save: {}", e);
+            }
+        }
+    });
+}
+
+// ── Defaults (serde) ──────────────────────────────────────────────────────────
 
 fn default_min_mem() -> u32 {
     1
@@ -22,14 +42,14 @@ fn default_min_mem() -> u32 {
 fn default_max_mem() -> u32 {
     2
 }
-fn default_lang() -> String {
-    String::from("es")
+fn default_lang() -> CompactString {
+    CompactString::from("es")
 }
 fn default_true() -> bool {
     true
 }
-fn default_theme() -> String {
-    String::from("dark")
+fn default_theme() -> CompactString {
+    CompactString::from("dark")
 }
 fn default_active_user_idx() -> usize {
     0
@@ -70,7 +90,7 @@ pub struct SettingsManager {
     #[serde(default = "default_true")]
     pub jre25_managed: bool,
     #[serde(default = "default_lang")]
-    pub language: String,
+    pub language: CompactString,
     #[serde(default = "default_true")]
     pub auto_updates: bool,
     #[serde(default)]
@@ -82,17 +102,50 @@ pub struct SettingsManager {
     #[serde(default)]
     pub show_alpha: bool,
     #[serde(default)]
-    pub jvm_args: String,
+    pub jvm_args: CompactString,
     #[serde(default)]
-    pub env_vars: HashMap<String, String>,
+    pub env_vars: HashMap<CompactString, String>,
     #[serde(default = "default_theme")]
-    pub theme: String,
+    pub theme: CompactString,
     #[serde(default = "default_true")]
     pub discord_presence: bool,
     #[serde(default = "default_true")]
     pub show_tutorial: bool,
     #[serde(skip)]
     pub dirty: bool,
+}
+
+// ── SettingsSnapshot ──────────────────────────────────────────────────────────
+
+/// Snapshot liviano para el hot path (launch).
+/// Solo contiene los campos necesarios para lanzar una instancia.
+pub struct SettingsSnapshot {
+    pub min_memory: u32,
+    pub max_memory: u32,
+    pub env_vars: HashMap<CompactString, String>,
+    pub jre8_managed: bool,
+    pub jre17_managed: bool,
+    pub jre21_managed: bool,
+    pub jre25_managed: bool,
+    pub jre8_path: Box<Path>,
+    pub jre17_path: Box<Path>,
+    pub jre21_path: Box<Path>,
+    pub jre25_path: Box<Path>,
+}
+
+impl SettingsSnapshot {
+    pub fn get_jre8_path(&self) -> &Path {
+        &self.jre8_path
+    }
+    pub fn get_jre17_path(&self) -> &Path {
+        &self.jre17_path
+    }
+    pub fn get_jre21_path(&self) -> &Path {
+        &self.jre21_path
+    }
+    pub fn get_jre25_path(&self) -> &Path {
+        &self.jre25_path
+    }
 }
 
 impl Default for SettingsManager {
@@ -114,15 +167,15 @@ impl Default for SettingsManager {
             jre21_managed: true,
             jre25_path: PathBuf::new(),
             jre25_managed: true,
-            language: String::from("es"),
+            language: CompactString::from("es"),
             auto_updates: true,
             show_error_console: false,
             close_launcher_on_play: true,
             show_snapshots: false,
             show_alpha: false,
-            jvm_args: String::new(),
+            jvm_args: CompactString::default(),
             env_vars: HashMap::new(),
-            theme: String::from("dark"),
+            theme: CompactString::from("dark"),
             discord_presence: true,
             show_tutorial: true,
             dirty: true,
@@ -138,11 +191,32 @@ impl SettingsManager {
     pub fn write(f: impl FnOnce(&mut SettingsManager)) -> Result<(), CoreError> {
         let mut settings = SETTINGS.write();
         f(&mut settings);
+        settings.dirty = true;
+        if let Some(tx) = SAVE_TX.get() {
+            let _ = tx.send(());
+        }
         Ok(())
     }
 
     pub fn snapshot() -> SettingsManager {
         SETTINGS.read().clone()
+    }
+
+    pub fn launch_snapshot() -> SettingsSnapshot {
+        let s = SETTINGS.read();
+        SettingsSnapshot {
+            min_memory: s.min_memory,
+            max_memory: s.max_memory,
+            env_vars: s.env_vars.clone(),
+            jre8_managed: s.jre8_managed,
+            jre17_managed: s.jre17_managed,
+            jre21_managed: s.jre21_managed,
+            jre25_managed: s.jre25_managed,
+            jre8_path: s.jre8_path.clone().into_boxed_path(),
+            jre17_path: s.jre17_path.clone().into_boxed_path(),
+            jre21_path: s.jre21_path.clone().into_boxed_path(),
+            jre25_path: s.jre25_path.clone().into_boxed_path(),
+        }
     }
 
     // ── Getters ───────────────────────────────────────────────────────────────
@@ -165,19 +239,6 @@ impl SettingsManager {
     pub fn get_jre25_path(&self) -> &Path {
         &self.jre25_path
     }
-    // pub fn get_minecraft_user(&self) -> MinecraftUser {
-    //     self.user.clone()
-    // }
-
-    // // ── Setters ───────────────────────────────────────────────────────────────
-
-    // pub fn set_user(&mut self, user: Option<MinecraftUser>) {
-    //     if let Some(ref u) = user {
-    //         self.username = u.username.clone();
-    //     }
-    //     self.user = user;
-    //     self.dirty = true;
-    // }
 
     pub fn add_user(&mut self, user: MinecraftUser) {
         self.user.push(user);
@@ -214,24 +275,16 @@ impl SettingsManager {
     // ── Persistencia ──────────────────────────────────────────────────────────
 
     /// Serializa y escribe a disco.
-    /// Extrae el contenido con el Mutex tomado, luego escribe fuera del scope
-    /// para minimizar el tiempo que el lock bloquea otros hilos.
+    /// Clona fuera del lock para minimizar la contención.
     pub async fn save() -> Result<(), AppError> {
-        let (content, path, was_dirty) = {
+        let (clone, path) = {
             let settings = SETTINGS.read();
             if !settings.dirty {
-                (String::new(), PathBuf::new(), false)
-            } else {
-                let content = serde_json::to_string(&*settings)
-                    .map_err(|e| CoreError::Serialize(e.to_string()))?;
-                let path = PathManager::get().get_settings_dir().join("settings.cub");
-                (content, path, true)
+                return Ok(());
             }
+            let path = PathManager::get().get_settings_dir().join("settings.cub");
+            (settings.clone(), path)
         };
-
-        if !was_dirty {
-            return Ok(());
-        }
 
         let parent = path.parent().ok_or_else(|| {
             AppError::CoreError(CoreError::Serialize(format!(
@@ -247,14 +300,16 @@ impl SettingsManager {
             })
         })?;
 
-        fs::write(&path, content).await.map_err(|e| {
+        let json_bytes = serde_json::to_vec(&clone)
+            .map_err(|e| AppError::CoreError(CoreError::Serialize(e.to_string())))?;
+
+        fs::write(&path, json_bytes).await.map_err(|e| {
             AppError::Fs(FsError::WriteFile {
                 path: path.to_string_lossy().to_string(),
                 source: e,
             })
         })?;
 
-        // Esto solo se ejecuta si la operacion de escritura paso sin errores.
         {
             let mut settings = SETTINGS.write();
             settings.dirty = false;
@@ -273,15 +328,16 @@ impl SettingsManager {
             return Self::default();
         }
 
-        let content = match std::fs::read_to_string(&path) {
-            Ok(c) => c,
+        let file = match std::fs::File::open(&path) {
+            Ok(f) => f,
             Err(e) => {
                 error!("Error al leer la configuración desde {:?}: {}", path, e);
                 return Self::default();
             }
         };
 
-        match serde_json::from_str::<Self>(&content) {
+        let reader = BufReader::new(file);
+        match serde_json::from_reader::<_, Self>(reader) {
             Ok(mut settings) => {
                 settings.migrate();
                 info!("Configuración cargada desde {:?}", path);
@@ -317,8 +373,6 @@ impl SettingsManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-
 
     /// `SettingsManager::default()` debe inicializar todos los campos con
     /// los valores por defecto definidos en las funciones `default_*`.

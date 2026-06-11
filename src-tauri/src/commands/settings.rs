@@ -31,7 +31,6 @@ pub async fn update_settings(mut new_settings: SettingsManager) -> Result<(), St
             }
         }
         *s = new_settings;
-        s.dirty = true;
     })?;
     SettingsManager::save().await?;
     info!("Configuración actualizada y guardada");

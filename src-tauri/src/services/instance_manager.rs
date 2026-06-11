@@ -1,6 +1,7 @@
 use crate::core::path_manager::PathManager;
 use crate::core::{AppEvent, FsError, InstanceError, emit};
 use crate::services::SettingsManager;
+use compact_str::ToCompactString;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -79,14 +80,14 @@ impl AtomicStatus {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct InstanceData {
-    name: Arc<String>,
-    version: Arc<String>,
+    name: Arc<str>,
+    version: Arc<str>,
     last_played: u64,
     min_memory: Option<u32>,
     max_memory: Option<u32>,
     cover_image: Option<PathBuf>,
-    icon: Option<Arc<String>>,
-    uuid: Arc<String>,
+    icon: Option<Arc<str>>,
+    uuid: Arc<str>,
     #[serde(skip)]
     dirty: bool,
 }
@@ -94,14 +95,14 @@ struct InstanceData {
 impl InstanceData {
     fn new(name: String, version: String, icon: Option<String>) -> Self {
         Self {
-            name: Arc::new(name),
-            version: Arc::new(version),
+            name: name.into(),
+            version: version.into(),
             last_played: 0,
             min_memory: None,
             max_memory: None,
             cover_image: None,
-            icon: icon.map(Arc::new),
-            uuid: Arc::new(uuid::Uuid::new_v4().to_string()),
+            icon: icon.map(|s| s.into()),
+            uuid: uuid::Uuid::new_v4().to_string().into(),
             dirty: true,
         }
     }
@@ -120,7 +121,9 @@ impl InstanceData {
     }
 
     fn get_instance_dir(&self) -> PathBuf {
-        PathManager::get().get_instance_dir().join(self.name.as_ref())
+        PathManager::get()
+            .get_instance_dir()
+            .join(self.name.as_ref())
     }
 
     async fn save(&mut self) -> Result<(), io::Error> {
@@ -154,7 +157,7 @@ impl InstanceData {
 
 #[derive(Clone)]
 pub struct InstanceHandle {
-    pub uuid: Arc<String>,
+    pub uuid: Arc<str>,
     data: Arc<RwLock<InstanceData>>,
     status: Arc<AtomicStatus>,
 }
@@ -182,7 +185,7 @@ impl InstanceHandle {
     pub fn set_status(&self, status: InstanceStatus) {
         self.status.set(status);
         emit(AppEvent::InstanceEdited {
-            id: self.uuid.to_string(),
+            id: self.uuid.to_compact_string(),
         });
     }
 
@@ -203,11 +206,11 @@ impl InstanceHandle {
 
     // ── Lecturas de data ──────────────────────────────────────────────────
 
-    pub async fn get_name(&self) -> Arc<String> {
+    pub async fn get_name(&self) -> Arc<str> {
         self.data.read().await.name.clone()
     }
 
-    pub async fn get_version(&self) -> Arc<String> {
+    pub async fn get_version(&self) -> Arc<str> {
         self.data.read().await.version.clone()
     }
 
@@ -235,7 +238,7 @@ impl InstanceHandle {
         self.data.read().await.cover_image.clone()
     }
 
-    pub async fn get_icon(&self) -> Option<Arc<String>> {
+    pub async fn get_icon(&self) -> Option<Arc<str>> {
         self.data.read().await.icon.clone()
     }
 
@@ -258,19 +261,19 @@ impl InstanceHandle {
 
     pub async fn set_name(&self, name: String) {
         let mut data = self.data.write().await;
-        data.name = Arc::new(name);
+        data.name = name.into();
         data.dirty = true;
     }
 
     pub async fn set_version(&self, version: String) {
         let mut data = self.data.write().await;
-        data.version = Arc::new(version);
+        data.version = version.into();
         data.dirty = true;
     }
 
     pub async fn set_icon(&self, icon: Option<String>) {
         let mut data = self.data.write().await;
-        data.icon = icon.map(Arc::new);
+        data.icon = icon.map(|s| s.into());
         data.dirty = true;
     }
 
@@ -534,14 +537,14 @@ pub fn signal_kill(uuid: &str) -> bool {
 
 #[derive(Serialize, Clone)]
 pub struct InstanceDto {
-    pub name: Arc<String>,
-    pub version: Arc<String>,
+    pub name: Arc<str>,
+    pub version: Arc<str>,
     pub loader: Cow<'static, str>,
     pub last_played: u64,
     pub status: InstanceStatus,
     pub cover_image: Option<PathBuf>,
-    pub icon: Option<Arc<String>>,
-    pub uuid: Arc<String>,
+    pub icon: Option<Arc<str>>,
+    pub uuid: Arc<str>,
     pub path: PathBuf,
 }
 

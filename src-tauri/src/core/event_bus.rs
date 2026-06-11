@@ -1,10 +1,9 @@
+use crate::services::InstanceDto;
+use compact_str::CompactString;
+use serde::Serialize;
 use std::borrow::Cow;
 use std::sync::{Arc, OnceLock};
-
-use serde::Serialize;
 use tauri::{AppHandle, Emitter};
-
-use crate::services::InstanceDto;
 
 static APP: OnceLock<AppHandle> = OnceLock::new();
 
@@ -12,31 +11,31 @@ static APP: OnceLock<AppHandle> = OnceLock::new();
 #[serde(tag = "type", content = "data")]
 pub enum AppEvent {
     InstanceEdited {
-        id: String,
+        id: CompactString,
     },
     InstanceCreated {
-        id: String,
+        id: CompactString,
         dto: InstanceDto,
     },
     DProgress {
-        version: Arc<String>,
+        version: Arc<str>,
         current: u32,
         total: u32,
         d_type: Cow<'static, str>,
     },
     DEnqueue {
-        version: Arc<String>,
+        version: Arc<str>,
     },
     DFinish {
-        version: Arc<String>,
+        version: Arc<str>,
     },
     DFinishRuntime {
-        version: String,
+        version: CompactString,
     },
     JREChanged,
     STChanged,
     ThemeChanged {
-        id: String,
+        id: CompactString,
     },
 }
 

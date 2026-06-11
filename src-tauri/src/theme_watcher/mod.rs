@@ -107,7 +107,7 @@ impl ThemeWatcher {
                     if let Some(ref id) = current_id {
                         info!("ThemeWatcher: cambio confirmado en theme '{}'", id);
                         emit(AppEvent::ThemeChanged {
-                            id: format!("user:{}", id),
+                            id: format!("user:{}", id).into(),
                         });
                     }
                     last_event = None;

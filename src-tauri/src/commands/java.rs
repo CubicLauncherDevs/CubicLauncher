@@ -2,6 +2,7 @@ use crate::core::emit;
 use crate::core::AppEvent;
 use crate::services::java_manager::JavaManager;
 use aqua::JreStatus;
+use smallvec::SmallVec;
 use std::collections::HashSet;
 use std::sync::{LazyLock, Mutex};
 use tauri::command;
@@ -30,7 +31,7 @@ pub async fn install_jre(version: u8) -> Result<(), String> {
     INSTALLING_JRES.lock().expect("poisoned INSTALLING_JRES lock").remove(&version);
     result?;
     emit(AppEvent::DFinishRuntime {
-        version: version.to_string(),
+        version: version.to_string().into(),
     });
     emit(AppEvent::JREChanged);
     Ok(())
@@ -50,7 +51,7 @@ pub async fn uninstall_jre(version: u8) -> Result<(), String> {
 pub async fn get_jre_versions() -> Result<Vec<JreStatus>, String> {
     info!("Getting status for all JRE versions");
     let versions = [8u8, 17, 21, 25];
-    let mut results = Vec::new();
+    let mut results = SmallVec::<[JreStatus; 4]>::new();
     for v in versions {
         match JavaManager::get_status(v).await {
             Ok(status) => results.push(status),
@@ -63,5 +64,5 @@ pub async fn get_jre_versions() -> Result<Vec<JreStatus>, String> {
             }
         }
     }
-    Ok(results)
+    Ok(results.into_vec())
 }

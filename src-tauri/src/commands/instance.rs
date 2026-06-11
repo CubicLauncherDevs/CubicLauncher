@@ -121,7 +121,7 @@ pub async fn create_instance(
         Ok(d) => {
             info!("Instancia creada: uuid={}", d.uuid);
             emit(AppEvent::InstanceCreated {
-                id: d.uuid.to_string(),
+                id: d.uuid.to_string().into(),
                 dto: d.to_dto().await,
             });
             Ok(())
