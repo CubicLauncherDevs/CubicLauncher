@@ -76,12 +76,19 @@
 			const webview = getCurrentWebview();
 			await webview.onDragDropEvent((event) => {
 				if (event.payload.type === "over") {
-					isDragOver = true;
+					const payload = event.payload as { paths?: string[]; position: { x: number; y: number } };
+					isDragOver =
+						!!payload.paths &&
+						payload.paths.length > 0 &&
+						payload.paths.some(
+							(p) =>
+								p.endsWith(".mrpack") || p.endsWith(".zip"),
+						);
 				} else if (event.payload.type === "leave") {
 					isDragOver = false;
 				} else if (event.payload.type === "drop") {
 					isDragOver = false;
-					const paths = event.payload.paths;
+					const paths = event.payload.paths as string[];
 					const mrpackFile = paths.find(
 						(p: string) =>
 							p.endsWith(".mrpack") || p.endsWith(".zip"),

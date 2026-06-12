@@ -6,7 +6,6 @@
 	import { t } from "$lib/i18n";
 	import type { MrpackInfo } from "$lib/types/types";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
-	import { slide } from "svelte/transition";
 
 	let {
 		open = $bindable(),
@@ -226,7 +225,7 @@
 	</div>
 
 	{#if mode === "manual"}
-		<div transition:slide={{ duration: 200 }}>
+		<div>
 			<div class="create-layout">
 				<div class="create-logo-section">
 					<span class="input-label">{t("createInstance.iconLabel")}</span>
@@ -298,7 +297,7 @@
 	{/if}
 
 	{#if mode === "import"}
-		<div transition:slide={{ duration: 200 }}>
+		<div>
 			{#if parsing}
 				<div class="parsing-state">
 					<p>Analizando modpack...</p>
