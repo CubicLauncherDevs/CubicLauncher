@@ -2,24 +2,36 @@
 	import {
 		searchModrinth,
 		getModrinthProjectVersions,
+		searchCurseForge,
+		getCurseForgeProjectFiles,
+		getCurseForgeFileDownloadUrl,
 		downloadMods,
 		getInstanceMods,
 		type ModDownloadInfo,
 	} from "$lib/api/cubicApi";
-	import type { ModrinthProject, InstanceDto } from "$lib/types/types";
+	import type {
+		ModrinthProject,
+		ModrinthVersion,
+		ModrinthFile,
+		CurseForgeProject,
+		CurseForgeFile,
+		InstanceDto,
+		ModSource,
+	} from "$lib/types/types";
 	import { t } from "$lib/i18n";
 	import Loading from "../../icons/Loading.svelte";
 	import Dropdown from "../layout/Dropdown.svelte";
 	import VirtualList from "../layout/VirtualList.svelte";
 	import { SvelteMap } from "svelte/reactivity";
-	import type { ModrinthVersion, ModrinthFile } from "$lib/types/types";
 
 	let { instance } = $props<{ instance: InstanceDto }>();
 
 	const PAGE_SIZE = 12;
 
+	let source = $state<ModSource>("modrinth");
+
 	let query = $state("");
-	let allHits = $state<ModrinthProject[]>([]);
+	let allHits = $state<(ModrinthProject | CurseForgeProject)[]>([]);
 	let totalHits = $state(0);
 	let currentOffset = $state(0);
 	let searching = $state(true);
@@ -27,25 +39,20 @@
 	let activeCategory = $state<string | null>(null);
 	let sortIndex = $state<string>("downloads");
 
-	// Basket state
-	let basket = new SvelteMap<string, ModrinthProject>();
+	let basket = $state(new SvelteMap<string, ModrinthProject | CurseForgeProject>());
 
-	// Details Panel state
-	let selectedMod = $state<ModrinthProject | null>(null);
+	let selectedMod = $state<ModrinthProject | CurseForgeProject | null>(null);
 
-	// Download state
 	let reviewing = $state(false);
 	let resolvingDeps = $state(false);
 	let downloading = $state(false);
 	let downloadQueue = $state<ModDownloadInfo[]>([]);
 
-	// Version selection state
-	let selectedModVersions = $state<ModrinthVersion[]>([]);
+	let selectedModVersions = $state<(ModrinthVersion | CurseForgeFile)[]>([]);
 	let selectedVersionId = $state<string>("");
 	let loadingVersions = $state(false);
-	let versionSelection = new SvelteMap<string, string>();
+	let versionSelection = $state(new SvelteMap<string, string>());
 
-	// Installed mods tracking
 	let installedModNames = $state<Set<string>>(new Set());
 
 	function getGameVersion(versionStr: string): string {
@@ -60,6 +67,61 @@
 
 	let abortController = $state<AbortController | null>(null);
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function getProjectId(project: ModrinthProject | CurseForgeProject): string {
+		return "project_id" in project ? project.project_id : project.id.toString();
+	}
+
+	function getProjectTitle(project: ModrinthProject | CurseForgeProject): string {
+		return "title" in project ? project.title : project.name;
+	}
+
+	function getProjectAuthor(project: ModrinthProject | CurseForgeProject): string {
+		return "author" in project ? project.author : project.authors.map(a => a.name).join(", ");
+	}
+
+	function getProjectDescription(project: ModrinthProject | CurseForgeProject): string {
+		return "description" in project ? project.description : project.summary;
+	}
+
+	function getProjectIcon(project: ModrinthProject | CurseForgeProject): string | null {
+		return "icon_url" in project ? project.icon_url : project.logo?.url ?? null;
+	}
+
+	function getProjectDownloads(project: ModrinthProject | CurseForgeProject): number {
+		return "downloads" in project ? project.downloads : project.downloadCount;
+	}
+
+	function isModrinthProject(p: ModrinthProject | CurseForgeProject): p is ModrinthProject {
+		return "project_id" in p;
+	}
+
+	function isCurseForgeProject(p: ModrinthProject | CurseForgeProject): p is CurseForgeProject {
+		return "id" in p && !("project_id" in p);
+	}
+
+	function isCurseForgeFile(v: ModrinthVersion | CurseForgeFile): v is CurseForgeFile {
+		return "fileName" in v;
+	}
+
+	function getProjectCategories(project: ModrinthProject | CurseForgeProject): string[] {
+		if (isModrinthProject(project)) {
+			return project.categories;
+		}
+		return project.categories.map(c => c.slug);
+	}
+
+	function getProjectVersionsList(project: ModrinthProject | CurseForgeProject): string[] {
+		return "versions" in project ? project.versions : [];
+	}
+
+	function isFromSource(
+		project: ModrinthProject | CurseForgeProject,
+		s: ModSource,
+	): boolean {
+		if (s === "modrinth") return isModrinthProject(project);
+		return isCurseForgeProject(project);
+	}
 
 	async function performSearch(resetResults = true) {
 		abortController?.abort();
@@ -76,22 +138,45 @@
 		}
 
 		try {
-			const result = await searchModrinth(
-				query,
-				instance.loader,
-				undefined,
-				activeCategory,
-				sortIndex,
-				PAGE_SIZE,
-				resetResults ? 0 : currentOffset,
-				signal,
-			);
-			if (result) {
-				totalHits = result.total_hits;
-				allHits = resetResults
-					? result.hits
-					: [...allHits, ...result.hits];
-				currentOffset = allHits.length;
+			if (source === "modrinth") {
+				const result = await searchModrinth(
+					query,
+					instance.loader,
+					gameVersion,
+					activeCategory,
+					sortIndex,
+					PAGE_SIZE,
+					resetResults ? 0 : currentOffset,
+					signal,
+				);
+				if (result) {
+					totalHits = result.total_hits;
+					allHits = resetResults
+						? result.hits
+						: [...allHits, ...result.hits];
+					currentOffset = allHits.length;
+				}
+			} else {
+				const cfCategory = activeCategory && !isNaN(Number(activeCategory))
+					? activeCategory
+					: null;
+				const result = await searchCurseForge(
+					query,
+					instance.loader,
+					gameVersion,
+					cfCategory,
+					sortIndex,
+					PAGE_SIZE,
+					resetResults ? 0 : currentOffset,
+					signal,
+				);
+				if (result) {
+					totalHits = result.pagination.totalCount;
+					allHits = resetResults
+						? result.data
+						: [...allHits, ...result.data];
+					currentOffset = allHits.length;
+				}
 			}
 		} finally {
 			if (!signal.aborted) {
@@ -113,6 +198,20 @@
 		}
 	}
 
+	function switchSource(newSource: ModSource) {
+		source = newSource;
+		query = "";
+		allHits = [];
+		totalHits = 0;
+		currentOffset = 0;
+		searching = true;
+		selectedMod = null;
+		basket = new SvelteMap();
+		versionSelection = new SvelteMap();
+		reviewing = false;
+		performSearch(true);
+	}
+
 	function resetState() {
 		query = "";
 		allHits = [];
@@ -122,7 +221,7 @@
 		loadingMore = false;
 		activeCategory = null;
 		sortIndex = "downloads";
-		basket = new Map();
+		basket = new SvelteMap();
 		selectedMod = null;
 		reviewing = false;
 		resolvingDeps = false;
@@ -131,7 +230,7 @@
 		selectedModVersions = [];
 		selectedVersionId = "";
 		loadingVersions = false;
-		versionSelection = new Map();
+		versionSelection = new SvelteMap();
 		installedModNames = new Set();
 	}
 
@@ -151,14 +250,15 @@
 		performSearch();
 	});
 
-	function toggleBasket(project: ModrinthProject) {
-		if (basket.has(project.project_id)) {
-			basket.delete(project.project_id);
-			versionSelection.delete(project.project_id);
+	function toggleBasket(project: ModrinthProject | CurseForgeProject) {
+		const pid = getProjectId(project);
+		if (basket.has(pid)) {
+			basket.delete(pid);
+			versionSelection.delete(pid);
 		} else {
-			basket.set(project.project_id, project);
+			basket.set(pid, project);
 			if (selectedVersionId) {
-				versionSelection.set(project.project_id, selectedVersionId);
+				versionSelection.set(pid, selectedVersionId);
 			}
 		}
 	}
@@ -169,7 +269,6 @@
 		downloadQueue = [];
 
 		try {
-			// Fetch already-installed mods once to avoid re-downloading deps
 			const installedMods = await getInstanceMods(instance.uuid);
 			const installedFilenames = new Set(
 				installedMods.map((m) => m.filename.toLowerCase()),
@@ -177,71 +276,111 @@
 
 			const queue: ModDownloadInfo[] = [];
 			for (const [id, project] of basket) {
-				const versions = await getModrinthProjectVersions(
-					id,
-					instance.loader,
-					gameVersion,
-				);
-				if (versions && versions.length > 0) {
-					let targetVersion;
-					const storedVersionId = versionSelection.get(id);
-					if (storedVersionId) {
-						targetVersion = versions.find(
-							(v) => v.id === storedVersionId,
-						);
-					}
-					if (!targetVersion) {
-						targetVersion = versions[0];
-					}
-					const primaryFile =
-						targetVersion.files.find(
-							(f: ModrinthFile) => f.primary,
-						) || targetVersion.files[0];
-					if (
-						!queue.find((q) => q.filename === primaryFile.filename)
-					) {
-						queue.push({
-							url: primaryFile.url,
-							filename: primaryFile.filename,
-							projectTitle: project.title,
-							iconUrl: project.icon_url || undefined,
-						});
-					}
+				if (isFromSource(project, "modrinth")) {
+					const mrProject = project as ModrinthProject;
+					const versions = await getModrinthProjectVersions(
+						id,
+						instance.loader,
+						gameVersion,
+					);
+					if (versions && versions.length > 0) {
+						let targetVersion: ModrinthVersion | undefined;
+						const storedVersionId = versionSelection.get(id);
+						if (storedVersionId) {
+							targetVersion = versions.find(
+								(v) => v.id === storedVersionId,
+							);
+						}
+						if (!targetVersion) {
+							targetVersion = versions[0];
+						}
+						const primaryFile =
+							targetVersion.files.find(
+								(f: ModrinthFile) => f.primary,
+							) || targetVersion.files[0];
+						if (
+							!queue.find((q) => q.filename === primaryFile.filename)
+						) {
+							queue.push({
+								url: primaryFile.url,
+								filename: primaryFile.filename,
+								projectTitle: mrProject.title,
+								iconUrl: mrProject.icon_url || undefined,
+							});
+						}
 
-					if (targetVersion.dependencies) {
-						for (const dep of targetVersion.dependencies) {
-							if (
-								dep.dependency_type === "required" &&
-								dep.project_id
-							) {
-								const depVersions =
-									await getModrinthProjectVersions(
-										dep.project_id,
-										instance.loader,
-										gameVersion,
-									);
-								if (depVersions && depVersions.length > 0) {
-									const depLatest = depVersions[0];
-									const depFile =
-										depLatest.files.find(
-											(f: ModrinthFile) => f.primary,
-										) || depLatest.files[0];
-
-									// Skip if already installed or already queued
-									const alreadyInstalled =
-										installedFilenames.has(
-											depFile.filename.toLowerCase(),
+						if (targetVersion.dependencies) {
+							for (const dep of targetVersion.dependencies) {
+								if (
+									dep.dependency_type === "required" &&
+									dep.project_id
+								) {
+									const depVersions =
+										await getModrinthProjectVersions(
+											dep.project_id,
+											instance.loader,
+											gameVersion,
 										);
-									const alreadyQueued = queue.find(
-										(q) => q.filename === depFile.filename,
-									);
-									if (!alreadyInstalled && !alreadyQueued) {
-										queue.push({
-											url: depFile.url,
-											filename: depFile.filename,
-										});
+									if (depVersions && depVersions.length > 0) {
+										const depLatest = depVersions[0];
+										const depFile =
+											depLatest.files.find(
+												(f: ModrinthFile) => f.primary,
+											) || depLatest.files[0];
+
+										const alreadyInstalled =
+											installedFilenames.has(
+												depFile.filename.toLowerCase(),
+											);
+										const alreadyQueued = queue.find(
+											(q) => q.filename === depFile.filename,
+										);
+										if (!alreadyInstalled && !alreadyQueued) {
+											queue.push({
+												url: depFile.url,
+												filename: depFile.filename,
+											});
+										}
 									}
 								}
+							}
+						}
+					}
+				} else {
+					const cfProject = project as CurseForgeProject;
+					const files = await getCurseForgeProjectFiles(
+						cfProject.id,
+						instance.loader,
+						gameVersion,
+					);
+					if (files && files.length > 0) {
+						let targetFile: CurseForgeFile | undefined;
+						const storedFileId = versionSelection.get(id);
+						if (storedFileId) {
+							targetFile = files.find(
+								(f) => f.id.toString() === storedFileId,
+							);
+						}
+						if (!targetFile) {
+							targetFile = files[0];
+						}
+						let downloadUrl = targetFile.downloadUrl;
+						if (!downloadUrl) {
+							downloadUrl = await getCurseForgeFileDownloadUrl(
+								cfProject.id,
+								targetFile.id,
+							);
+						}
+						if (downloadUrl) {
+							if (
+								!queue.find((q) => q.filename === targetFile!.fileName)
+							) {
+								queue.push({
+									url: downloadUrl,
+									filename: targetFile.fileName,
+									projectTitle: cfProject.name,
+									iconUrl: cfProject.logo?.url || undefined,
+								});
 							}
 						}
 					}
@@ -257,7 +396,7 @@
 		downloading = true;
 		try {
 			await downloadMods(instance.uuid, downloadQueue);
-			basket = new Map();
+			basket = new SvelteMap();
 			reviewing = false;
 			selectedMod = null;
 		} finally {
@@ -271,18 +410,33 @@
 		return num.toString();
 	}
 
-	function isVersionCompatible(version: ModrinthVersion): boolean {
+	function isModInstalled(project: ModrinthProject | CurseForgeProject): boolean {
+		return installedModNames.has(getProjectTitle(project).toLowerCase());
+	}
+
+	function isVersionCompatibleModrinth(version: ModrinthVersion): boolean {
 		return version.game_versions?.some(
 			(gv) => getGameVersion(gv) === gameVersion,
 		);
 	}
 
-	function isModCompatible(project: ModrinthProject): boolean {
-		return project.versions.some((v) => v === gameVersion);
+	function isVersionCompatibleCurseForge(file: CurseForgeFile): boolean {
+		return file.gameVersions.some((gv) => {
+			const clean = getGameVersion(gv);
+			return clean === gameVersion;
+		});
 	}
 
-	function isModInstalled(project: ModrinthProject): boolean {
-		return installedModNames.has(project.title.toLowerCase());
+	function isModCompatible(project: ModrinthProject | CurseForgeProject): boolean {
+		if ("versions" in project) {
+			return project.versions.some((v) => v === gameVersion);
+		}
+		if ("latestFilesIndexes" in project) {
+			return project.latestFilesIndexes?.some(
+				(idx) => getGameVersion(idx.gameVersion) === gameVersion,
+			) ?? false;
+		}
+		return true;
 	}
 
 	async function loadVersions(projectId: string) {
@@ -290,29 +444,62 @@
 		selectedModVersions = [];
 		selectedVersionId = "";
 		try {
-			const versions = await getModrinthProjectVersions(
-				projectId,
-				instance.loader,
-			);
-			selectedModVersions = [...versions].sort((a, b) => {
-				const aCompat = isVersionCompatible(a) ? 1 : 0;
-				const bCompat = isVersionCompatible(b) ? 1 : 0;
-				return bCompat - aCompat;
-			});
-			if (selectedModVersions.length > 0) {
-				const stored = versionSelection.get(projectId);
-				if (
-					stored &&
-					selectedModVersions.find((v) => v.id === stored)
-				) {
-					selectedVersionId = stored;
-				} else {
-					const compatible = selectedModVersions.find((v) =>
-						isVersionCompatible(v),
-					);
-					if (compatible) {
-						selectedVersionId = compatible.id;
-						versionSelection.set(projectId, compatible.id);
+			if (source === "modrinth") {
+				const versions = await getModrinthProjectVersions(
+					projectId,
+					instance.loader,
+				);
+				const sorted = [...versions].sort((a, b) => {
+					const aCompat = isVersionCompatibleModrinth(a) ? 1 : 0;
+					const bCompat = isVersionCompatibleModrinth(b) ? 1 : 0;
+					return bCompat - aCompat;
+				});
+				selectedModVersions = sorted;
+				if (sorted.length > 0) {
+					const stored = versionSelection.get(projectId);
+					if (stored && sorted.find((v) => v.id === stored)) {
+						selectedVersionId = stored;
+					} else {
+						const compatible = sorted.find((v) =>
+							isVersionCompatibleModrinth(v),
+						);
+						if (compatible) {
+							selectedVersionId = compatible.id;
+							versionSelection.set(projectId, compatible.id);
+						}
+					}
+				}
+			} else {
+				const modId = Number(projectId);
+				const files = await getCurseForgeProjectFiles(
+					modId,
+					instance.loader,
+				);
+				const cfFiles = [...files].sort((a, b) => {
+					const aCompat = isVersionCompatibleCurseForge(a) ? 1 : 0;
+					const bCompat = isVersionCompatibleCurseForge(b) ? 1 : 0;
+					return bCompat - aCompat;
+				});
+				const prioritized = [
+					...cfFiles.filter((f) => f.releaseType === 1),
+					...cfFiles.filter((f) => f.releaseType === 2),
+					...cfFiles.filter((f) => f.releaseType === 3),
+				];
+				selectedModVersions = prioritized.length > 0 ? prioritized : cfFiles;
+				if (selectedModVersions.length > 0) {
+					const stored = versionSelection.get(projectId);
+					const first = selectedModVersions[0] as CurseForgeFile;
+					const storedMatch = stored
+						? selectedModVersions.find((f) => ("id" in f ? f.id.toString() === stored : false))
+						: undefined;
+					if (storedMatch && stored) {
+						selectedVersionId = stored;
+					} else {
+						const compatible = selectedModVersions.find((f) =>
+							isCurseForgeFile(f) && isVersionCompatibleCurseForge(f),
+						) || first;
+						selectedVersionId = compatible.id.toString();
+						versionSelection.set(projectId, compatible.id.toString());
 					}
 				}
 			}
@@ -322,33 +509,60 @@
 	}
 
 	function onVersionChange() {
-		if (selectedVersionId) {
-			versionSelection.set(selectedMod!.project_id, selectedVersionId);
-		} else {
-			versionSelection.delete(selectedMod!.project_id);
+		if (selectedVersionId && selectedMod) {
+			versionSelection.set(getProjectId(selectedMod), selectedVersionId);
 		}
 	}
 
 	const versionDropdownOptions = $derived(
-		selectedModVersions.map((v) => ({
-			value: v.id,
-			label: v.version_number,
-			subtitle: isVersionCompatible(v)
-				? t("instanceView.downloadMods.compatible")
-				: v.game_versions?.slice(0, 2).join(", "),
-		})),
+		selectedModVersions.map((v) => {
+			if (isCurseForgeFile(v)) {
+				const compatible = isVersionCompatibleCurseForge(v);
+				const subtitle = compatible
+					? t("instanceView.downloadMods.compatible")
+					: v.gameVersions.slice(0, 2).join(", ");
+
+				let extra = "";
+				if (v.releaseType === 1) extra = "release";
+				else if (v.releaseType === 2) extra = "beta";
+				else if (v.releaseType === 3) extra = "alpha";
+
+				return {
+					value: v.id.toString(),
+					label: extra ? `${v.fileName} [${extra}]` : v.fileName,
+					subtitle,
+				};
+			} else {
+				const compatible = isVersionCompatibleModrinth(v);
+				const subtitle = compatible
+					? t("instanceView.downloadMods.compatible")
+					: v.game_versions?.slice(0, 2).join(", ");
+
+				return {
+					value: v.id,
+					label: v.version_number,
+					subtitle,
+				};
+			}
+		}),
 	);
 
 	$effect(() => {
 		if (selectedMod && !reviewing) {
-			loadVersions(selectedMod.project_id);
+			loadVersions(getProjectId(selectedMod));
 		}
 	});
+
+	function getCurseForgeReleaseTypeName(releaseType: number): string {
+		if (releaseType === 1) return t("instanceView.downloadMods.curseForgeRelease");
+		if (releaseType === 2) return t("instanceView.downloadMods.curseForgeBeta");
+		if (releaseType === 3) return t("instanceView.downloadMods.curseForgeAlpha");
+		return "";
+	}
 </script>
 
 <div class="dm-root">
 	{#if reviewing}
-		<!-- ─── REVIEW PANE ─── -->
 		<div class="dm-review">
 			<div class="dm-review-header">
 				<div>
@@ -445,11 +659,25 @@
 			</div>
 		</div>
 	{:else}
-		<!-- ─── BROWSE LAYOUT ─── -->
 		<div class="dm-layout">
-			<!-- Main -->
 			<main class="dm-main">
 				<div class="dm-search-bar-wrap">
+					<div class="dm-source-tabs">
+						<button
+							type="button"
+							class="dm-source-tab {source === 'modrinth' ? 'active' : ''}"
+							onclick={() => switchSource("modrinth")}
+						>
+							{t("instanceView.downloadMods.sourceModrinth")}
+						</button>
+						<button
+							type="button"
+							class="dm-source-tab {source === 'curseforge' ? 'active' : ''}"
+							onclick={() => switchSource("curseforge")}
+						>
+							{t("instanceView.downloadMods.sourceCurseForge")}
+						</button>
+					</div>
 					<span class="dm-search-icon">
 						<svg
 							width="15"
@@ -516,17 +744,16 @@
 									<!-- svelte-ignore a11y_click_events_have_key_events -->
 									<!-- svelte-ignore a11y_no_static_element_interactions -->
 									<div
-										class="dm-mod-card-v {selectedMod?.project_id ===
-										project.project_id
+										class="dm-mod-card-v {selectedMod && getProjectId(selectedMod) === getProjectId(project)
 											? 'selected'
 											: ''}"
 										onclick={() => (selectedMod = project)}
 									>
 										<div class="dm-mod-icon-v">
-											{#if project.icon_url}
+											{#if getProjectIcon(project)}
 												<img
-													src={project.icon_url}
-													alt={project.title}
+													src={getProjectIcon(project)!}
+													alt={getProjectTitle(project)}
 													loading="lazy"
 												/>
 											{:else}
@@ -540,9 +767,9 @@
 											<div class="dm-mod-top-v">
 												<h4
 													class="dm-mod-title-v"
-													title={project.title}
+													title={getProjectTitle(project)}
 												>
-													{project.title}
+													{getProjectTitle(project)}
 												</h4>
 												<div class="dm-mod-badges-v">
 													{#if isModInstalled(project)}
@@ -576,22 +803,22 @@
 												{t(
 													"instanceView.downloadMods.by",
 												)}
-												{project.author}
+												{getProjectAuthor(project)}
 											</span>
 											<p class="dm-mod-desc-v">
-												{project.description}
+												{getProjectDescription(project)}
 											</p>
 										</div>
 										<div class="dm-mod-actions-v">
 											<span class="dm-mod-stat"
 												>↓ {formatNumber(
-													project.downloads,
+													getProjectDownloads(project),
 												)}</span
 											>
 											<button
 												type="button"
 												class="dm-select-btn {basket.has(
-													project.project_id,
+													getProjectId(project),
 												)
 													? 'selected'
 													: ''}"
@@ -600,7 +827,7 @@
 													toggleBasket(project);
 												}}
 											>
-												{basket.has(project.project_id)
+												{basket.has(getProjectId(project))
 													? t(
 															"instanceView.downloadMods.selected",
 														)
@@ -653,7 +880,6 @@
 				</div>
 			</main>
 
-			<!-- Details Panel -->
 			{#if selectedMod}
 				<aside class="dm-details">
 					<button
@@ -675,19 +901,19 @@
 					</button>
 					<div class="dm-details-scroll">
 						<div class="dm-details-icon">
-							{#if selectedMod.icon_url}
+							{#if getProjectIcon(selectedMod)}
 								<img
-									src={selectedMod.icon_url}
-									alt={selectedMod.title}
+									src={getProjectIcon(selectedMod)!}
+									alt={getProjectTitle(selectedMod)}
 								/>
 							{:else}
 								<span>📦</span>
 							{/if}
 						</div>
-						<h3 class="dm-details-title">{selectedMod.title}</h3>
+						<h3 class="dm-details-title">{getProjectTitle(selectedMod)}</h3>
 						<p class="dm-details-author">
 							{t("instanceView.downloadMods.by")}
-							{selectedMod.author}
+							{getProjectAuthor(selectedMod)}
 						</p>
 
 						<div class="dm-details-stat-row">
@@ -698,18 +924,17 @@
 									)}</span
 								>
 								<span class="dm-details-stat-value"
-									>{formatNumber(selectedMod.downloads)}</span
+									>{formatNumber(getProjectDownloads(selectedMod))}</span
 								>
 							</div>
 						</div>
 
 						<div class="dm-tags">
-							{#each selectedMod.categories.slice(0, 4) as cat (cat)}
+							{#each getProjectCategories(selectedMod).slice(0, 4) as cat (cat)}
 								<span class="dm-tag">{cat}</span>
 							{/each}
 						</div>
 
-						<!-- Version Selector -->
 						<div class="dm-details-version-row">
 							<span class="dm-details-version-label"
 								>{t(
@@ -745,24 +970,23 @@
 							{/if}
 						</div>
 
-						<p class="dm-details-desc">{selectedMod.description}</p>
+						<p class="dm-details-desc">{getProjectDescription(selectedMod)}</p>
 
 						<button
 							type="button"
 							class="dm-primary-btn dm-full-width {basket.has(
-								selectedMod.project_id,
+								getProjectId(selectedMod),
 							)
 								? 'dm-btn-remove'
 								: ''}"
 							onclick={() => toggleBasket(selectedMod!)}
 						>
-							{basket.has(selectedMod.project_id)
+							{basket.has(getProjectId(selectedMod))
 								? t("instanceView.downloadMods.removeSelection")
 								: t(
 										"instanceView.downloadMods.selectToDownload",
 									)}
 						</button>
-						t
 					</div>
 				</aside>
 			{/if}
@@ -832,6 +1056,39 @@
 		background: var(--bg-sidebar);
 		border-bottom: 1px solid var(--border);
 		flex-shrink: 0;
+	}
+
+	.dm-source-tabs {
+		display: flex;
+		gap: 2px;
+		background: rgba(255, 255, 255, 0.04);
+		border-radius: var(--border-radius-sm);
+		padding: 2px;
+		flex-shrink: 0;
+	}
+
+	.dm-source-tab {
+		padding: 4px 12px;
+		background: transparent;
+		border: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+		font-size: 0.72rem;
+		font-weight: 600;
+		font-family: "Cantarell", system-ui, sans-serif;
+		border-radius: calc(var(--border-radius-sm) - 1px);
+		transition: all 0.15s;
+		white-space: nowrap;
+	}
+
+	.dm-source-tab:hover {
+		color: var(--text-primary);
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	.dm-source-tab.active {
+		background: var(--accent);
+		color: var(--bg-main);
 	}
 
 	.dm-search-icon {

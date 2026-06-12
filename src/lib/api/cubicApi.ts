@@ -8,6 +8,10 @@ import {
 	type FabricGameVersion,
 	type ModrinthSearchResult,
 	type ModrinthVersion,
+	type CurseForgeSearchResult,
+	type CurseForgeFilesResult,
+	type CurseForgeProject,
+	type CurseForgeFile,
 	type JreStatus,
 	type McVersion,
 } from "../types/types";
@@ -414,6 +418,162 @@ export async function getModrinthProjectVersions(
 	} catch (err) {
 		console.error(`Error getting versions for ${projectId}:`, err);
 		return [];
+	}
+}
+
+const CURSEFORGE_API_BASE = "https://api.curseforge.com/v1";
+const MINECRAFT_GAME_ID = 432;
+const CURSEFORGE_API_KEY = "$2a$10$v4G8m2LV2QhjUu5l.G24Ieqdp4JTEEQ6bRsZjvpa0YncCVaDaqBP6";
+
+export async function searchCurseForge(
+	query: string,
+	loader: string,
+	gameVersion?: string,
+	category?: string | null,
+	index: string = "popularity",
+	limit: number = 24,
+	offset: number = 0,
+	signal?: AbortSignal,
+): Promise<CurseForgeSearchResult | null> {
+	try {
+		const apiKey = CURSEFORGE_API_KEY;
+
+		const url = new URL(`${CURSEFORGE_API_BASE}/mods/search`);
+		url.searchParams.append("gameId", MINECRAFT_GAME_ID.toString());
+		if (query) url.searchParams.append("searchFilter", query);
+		url.searchParams.append("pageSize", Math.min(limit, 50).toString());
+		url.searchParams.append("index", offset.toString());
+		url.searchParams.append("classId", "6");
+
+		if (loader.toLowerCase() !== "vanilla") {
+			url.searchParams.append("modLoaderType", modLoaderNameToCurseForgeId(loader).toString());
+		}
+		if (gameVersion) {
+			url.searchParams.append("gameVersion", gameVersion);
+		}
+		if (category) {
+			url.searchParams.append("categoryId", category);
+		}
+		if (index === "downloads") {
+			url.searchParams.append("sortOrder", "desc");
+		} else if (index === "newest") {
+			url.searchParams.append("sortField", "2");
+			url.searchParams.append("sortOrder", "desc");
+		} else if (index === "updated") {
+			url.searchParams.append("sortField", "3");
+			url.searchParams.append("sortOrder", "desc");
+		} else {
+			url.searchParams.append("sortOrder", "desc");
+		}
+
+		const res = await fetch(url.toString(), {
+			signal,
+			headers: {
+				"x-api-key": apiKey,
+				Accept: "application/json",
+			},
+		});
+		if (!res.ok) {
+			throw new Error(`CurseForge API error: ${res.status}`);
+		}
+		return (await res.json()) as CurseForgeSearchResult;
+	} catch (err) {
+		if (err instanceof DOMException && err.name === "AbortError") return null;
+		console.error("Error searching CurseForge:", err);
+		showError("CurseForge Error", `Could not search for mods: ${err}`);
+		return null;
+	}
+}
+
+function modLoaderNameToCurseForgeId(loader: string): number {
+	switch (loader.toLowerCase()) {
+		case "fabric": return 4;
+		case "forge": return 1;
+		case "neoforge": return 6;
+		case "quilt": return 5;
+		default: return 4;
+	}
+}
+
+export async function getCurseForgeProject(
+	modId: number,
+): Promise<CurseForgeProject | null> {
+	try {
+		const apiKey = CURSEFORGE_API_KEY;
+		const res = await fetch(`${CURSEFORGE_API_BASE}/mods/${modId}`, {
+			headers: {
+				"x-api-key": apiKey,
+				Accept: "application/json",
+			},
+		});
+		if (!res.ok) {
+			throw new Error(`CurseForge API error: ${res.status}`);
+		}
+		const body = await res.json();
+		return body.data as CurseForgeProject;
+	} catch (err) {
+		console.error(`Error getting CurseForge project ${modId}:`, err);
+		return null;
+	}
+}
+
+export async function getCurseForgeProjectFiles(
+	modId: number,
+	loader?: string,
+	gameVersion?: string,
+): Promise<CurseForgeFile[]> {
+	try {
+		const apiKey = CURSEFORGE_API_KEY;
+		const url = new URL(`${CURSEFORGE_API_BASE}/mods/${modId}/files`);
+		url.searchParams.append("pageSize", "100");
+
+		if (gameVersion) {
+			url.searchParams.append("gameVersion", gameVersion);
+		}
+		if (loader && loader.toLowerCase() !== "vanilla") {
+			url.searchParams.append("modLoaderType", modLoaderNameToCurseForgeId(loader).toString());
+		}
+
+		const res = await fetch(url.toString(), {
+			headers: {
+				"x-api-key": apiKey,
+				Accept: "application/json",
+			},
+		});
+		if (!res.ok) {
+			throw new Error(`CurseForge API error: ${res.status}`);
+		}
+		const body = (await res.json()) as CurseForgeFilesResult;
+		return body.data || [];
+	} catch (err) {
+		console.error(`Error getting files for CurseForge mod ${modId}:`, err);
+		return [];
+	}
+}
+
+export async function getCurseForgeFileDownloadUrl(
+	modId: number,
+	fileId: number,
+): Promise<string | null> {
+	try {
+		const apiKey = CURSEFORGE_API_KEY;
+		const res = await fetch(
+			`${CURSEFORGE_API_BASE}/mods/${modId}/files/${fileId}/download-url`,
+			{
+				headers: {
+					"x-api-key": apiKey,
+					Accept: "application/json",
+				},
+			},
+		);
+		if (!res.ok) {
+			throw new Error(`CurseForge API error: ${res.status}`);
+		}
+		const body = await res.json();
+		return body.data?.downloadUrl as string | null;
+	} catch (err) {
+		console.error(`Error getting download URL for file ${fileId}:`, err);
+		return null;
 	}
 }
 

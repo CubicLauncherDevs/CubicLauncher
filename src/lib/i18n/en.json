@@ -209,7 +209,7 @@
 			"selectionLabel": "Selection",
 			"selectionDesc": "Mods ready to install",
 			"reviewBtn": "Review & Download",
-			"searchPlaceholder": "Search for mods on Modrinth...",
+			"searchPlaceholder": "Search for mods...",
 			"resultsFound": "{count} mods found",
 			"searching": "Searching mods...",
 			"loadingMore": "Loading more mods...",
@@ -230,7 +230,16 @@
 			"noCompatibleVersions": "No versions for {version}",
 			"noCompatibleDesc": "This mod has no versions compatible with your game version and loader.",
 			"loadingVersions": "Loading versions...",
-			"installed": "Installed"
+			"installed": "Installed",
+			"sourceLabel": "Source",
+			"sourceModrinth": "Modrinth",
+			"sourceCurseForge": "CurseForge",
+			"curseForgeApiKeyMissing": "CurseForge API Key not configured",
+			"curseForgeApiKeyDesc": "Set your CurseForge API Key in Settings to use this source.",
+			"openSettings": "Open Settings",
+			"curseForgeRelease": "Release",
+			"curseForgeBeta": "Beta",
+			"curseForgeAlpha": "Alpha"
 		}
 	},
 	"createInstance": {

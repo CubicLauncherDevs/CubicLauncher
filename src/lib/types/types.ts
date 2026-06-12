@@ -229,3 +229,87 @@ export interface ModrinthSearchResult {
 	limit: number;
 	total_hits: number;
 }
+
+export type ModSource = "modrinth" | "curseforge";
+
+export interface CurseForgeAuthor {
+	name: string;
+}
+
+export interface CurseForgeLogo {
+	url: string;
+}
+
+export interface CurseForgeCategory {
+	id: number;
+	name: string;
+	slug: string;
+}
+
+export interface CurseForgeProject {
+	id: number;
+	name: string;
+	slug: string;
+	summary: string;
+	logo: CurseForgeLogo | null;
+	categories: CurseForgeCategory[];
+	authors: CurseForgeAuthor[];
+	downloadCount: number;
+	gameId: number;
+	dateCreated: string;
+	dateModified: string;
+	isAvailable: boolean;
+	latestFiles: CurseForgeFile[];
+	latestFilesIndexes: {
+		gameVersion: string;
+		fileId: number;
+		filename: string;
+		releaseType: number;
+		modLoader: string;
+	}[];
+}
+
+export interface CurseForgeSearchResult {
+	data: CurseForgeProject[];
+	pagination: {
+		index: number;
+		pageSize: number;
+		resultCount: number;
+		totalCount: number;
+	};
+}
+
+export interface CurseForgeFile {
+	id: number;
+	modId: number;
+	fileName: string;
+	fileDate: string;
+	downloadUrl: string | null;
+	fileLength: number;
+	gameVersions: string[];
+	modLoaders: string[];
+	isAvailable: boolean;
+	releaseType: number;
+}
+
+export interface CurseForgeFilesResult {
+	data: CurseForgeFile[];
+	pagination: {
+		index: number;
+		pageSize: number;
+		resultCount: number;
+		totalCount: number;
+	};
+}
+
+export interface CurseForgeModLoader {
+	id: number;
+	name: string;
+	slug: string;
+}
+
+export interface CurseForgeGameVersion {
+	id: number;
+	name: string;
+	slug: string;
+}

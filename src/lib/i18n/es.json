@@ -209,7 +209,7 @@
 			"selectionLabel": "Selección",
 			"selectionDesc": "Mods listos para instalar",
 			"reviewBtn": "Revisar & Descargar",
-			"searchPlaceholder": "Buscar mods en Modrinth...",
+			"searchPlaceholder": "Buscar mods...",
 			"resultsFound": "{count} mods encontrados",
 			"searching": "Buscando mods...",
 			"loadingMore": "Cargando más mods...",
@@ -230,7 +230,16 @@
 			"noCompatibleVersions": "Sin versiones para {version}",
 			"noCompatibleDesc": "Este mod no tiene versiones compatibles con tu versión y loader.",
 			"loadingVersions": "Cargando versiones...",
-			"installed": "Instalado"
+			"installed": "Instalado",
+			"sourceLabel": "Fuente",
+			"sourceModrinth": "Modrinth",
+			"sourceCurseForge": "CurseForge",
+			"curseForgeApiKeyMissing": "API Key de CurseForge no configurada",
+			"curseForgeApiKeyDesc": "Configura tu API Key de CurseForge en Ajustes para usar esta fuente.",
+			"openSettings": "Abrir Ajustes",
+			"curseForgeRelease": "Release",
+			"curseForgeBeta": "Beta",
+			"curseForgeAlpha": "Alpha"
 		}
 	},
 	"createInstance": {

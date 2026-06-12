@@ -33,6 +33,7 @@
 					"https://asset.localhost",
 					"https://minotar.net",
 					"https://cdn.modrinth.com",
+					"https://media.forgecdn.net",
 					"http://localhost:*",
 					"data:"
 				],
@@ -55,7 +56,8 @@
 					"http://localhost:*",
 					"https://tauri.localhost",
 					"https://minotar.net",
-					"https://api.modrinth.com"
+					"https://api.modrinth.com",
+					"https://api.curseforge.com"
 				]
 			},
 			"assetProtocol": {
