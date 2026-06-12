@@ -377,87 +377,213 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
     };
 
     let mods_dir = handle.get_instance_dir().await.join("mods");
+    let mods_dir2 = mods_dir.clone();
     info!("Listando mods de instancia {} en {:?}", id, mods_dir);
 
-    let mod_paths = tokio::task::spawn_blocking(move || -> Vec<PathBuf> {
-        match std::fs::read_dir(&mods_dir) {
-            Ok(entries) => entries
-                .flatten()
-                .filter(|e| e.path().is_file())
-                .map(|e| e.path())
-                .collect(),
-            Err(_) => Vec::new(),
-        }
-    })
-    .await
-    .unwrap_or_default();
-
-    // Filtrar y preparar la info básica de cada path (síncrono, barato)
     struct ModEntry {
         path: PathBuf,
         filename: String,
         display_name: String,
         enabled: bool,
+        mtime: std::time::SystemTime,
+        size: u64,
     }
 
-    let entries: Vec<ModEntry> = mod_paths
-        .into_iter()
-        .filter_map(|path| {
-            let ext = path.extension()?.to_string_lossy().to_lowercase();
-            let file_name = path.file_name()?.to_string_lossy().to_string();
-            let file_name_lower = file_name.to_lowercase();
+    let entries = tokio::task::spawn_blocking(move || -> Vec<ModEntry> {
+        let dir = match std::fs::read_dir(&mods_dir) {
+            Ok(d) => d,
+            Err(_) => return Vec::new(),
+        };
 
-            let (is_mod, enabled) = if ext == "jar" || ext == "zip" {
-                (true, true)
-            } else if ext == "disabled"
-                && (file_name_lower.ends_with(".jar.disabled")
-                    || file_name_lower.ends_with(".zip.disabled"))
-            {
-                (true, false)
-            } else {
-                (false, false)
-            };
+        dir.flatten()
+            .filter_map(|e| {
+                let path = e.path();
+                if !path.is_file() {
+                    return None;
+                }
+                let file_name = path.file_name()?.to_string_lossy().to_string();
+                let file_name_lower = file_name.to_lowercase();
+                let ext = path.extension()?.to_string_lossy().to_lowercase();
 
-            if !is_mod {
+                let (is_mod, enabled) = if ext == "jar" || ext == "zip" {
+                    (true, true)
+                } else if ext == "disabled"
+                    && (file_name_lower.ends_with(".jar.disabled")
+                        || file_name_lower.ends_with(".zip.disabled"))
+                {
+                    (true, false)
+                } else {
+                    (false, false)
+                };
+
+                if !is_mod {
+                    return None;
+                }
+
+                let display_name = file_name
+                    .strip_suffix(".disabled")
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| file_name.clone());
+
+                let meta = std::fs::metadata(&path).ok()?;
+                let mtime = meta.modified().ok()?;
+                let size = meta.len();
+
+                Some(ModEntry {
+                    path,
+                    filename: file_name,
+                    display_name,
+                    enabled,
+                    mtime,
+                    size,
+                })
+            })
+            .collect()
+    })
+    .await
+    .unwrap_or_default();
+
+    if entries.is_empty() {
+        return Vec::new();
+    }
+
+    // cache via ablage
+    let repo_path = mods_dir2.join(".mod_cache.crep");
+    let mut repo = ablage::Repo::open(&repo_path);
+
+    fn entry_fingerprint(filename: &str, mtime: &std::time::SystemTime, size: u64) -> u64 {
+        let nanos = mtime
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64;
+        let name_hash = {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            filename.hash(&mut h);
+            h.finish()
+        };
+        name_hash ^ nanos ^ size
+    }
+
+    // compute global fingerprint (XOR of all individual fingerprints)
+    let global_fp: u64 = entries
+        .iter()
+        .fold(0, |acc, e| acc ^ entry_fingerprint(&e.filename, &e.mtime, e.size));
+
+    let cache_hit = repo
+        .get("__global")
+        .and_then(|entry| {
+            if entry.data.len() != 8 {
                 return None;
             }
-
-            let display_name = file_name
-                .strip_suffix(".disabled")
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| file_name.clone());
-
-            Some(ModEntry {
-                path,
-                filename: file_name,
-                display_name,
-                enabled,
-            })
+            let mut buf = [0u8; 8];
+            buf.copy_from_slice(&entry.data);
+            Some(u64::from_le_bytes(buf))
         })
-        .collect();
+        .map(|stored| stored == global_fp)
+        .unwrap_or(false);
 
-    // Parsear todos los ZIPs en paralelo
+    if cache_hit {
+        // fast path: read all metadata from cache
+        let mods: Vec<ModDto> = entries
+            .into_iter()
+            .filter_map(|e| {
+                let meta: Option<crate::services::AddonMetadata> = repo
+                    .get(&e.filename)
+                    .and_then(|entry| postcard::from_bytes(&entry.data).ok());
+                let (md_name, md_version, md_desc, md_authors, md_icon) = match meta {
+                    Some(m) => (m.name, m.version, m.description, m.authors, m.icon),
+                    None => (e.display_name, None, None, None, None),
+                };
+                Some(ModDto {
+                    name: md_name,
+                    filename: e.filename,
+                    version: md_version,
+                    description: md_desc,
+                    authors: md_authors,
+                    icon: md_icon.map(|s| (*s).clone()),
+                    enabled: e.enabled,
+                })
+            })
+            .collect();
+        info!(
+            "{} mods cargados desde cache en instancia {}",
+            mods.len(),
+            id
+        );
+        return mods;
+    }
+
+    // slow path: parse only changed files in parallel
     let handles: Vec<_> = entries
         .iter()
         .map(|e| {
             let path = e.path.clone();
-            tokio::task::spawn_blocking(move || crate::services::AddonManager::get_mod_info(&path))
+            let filename = e.filename.clone();
+            let fp = entry_fingerprint(&e.filename, &e.mtime, e.size);
+            // check individual cache first
+            let cached = repo.get(&filename).and_then(|entry| {
+                if entry.fingerprint == fp {
+                    postcard::from_bytes::<crate::services::AddonMetadata>(&entry.data).ok()
+                } else {
+                    None
+                }
+            });
+            if let Some(meta) = cached {
+                // fully cached
+                tokio::task::spawn_blocking(move || (filename, fp, Some(meta)))
+            } else {
+                tokio::task::spawn_blocking(move || {
+                    let meta = crate::services::AddonManager::get_mod_info(&path);
+                    (filename, fp, meta)
+                })
+            }
         })
         .collect();
 
-    let metadatas = futures::future::join_all(handles).await;
+    let results = futures::future::join_all(handles).await;
+    let mut dirty = false;
 
-    // Combinar resultados
-    let mut mods: Vec<ModDto> = entries
+    let mods: Vec<ModDto> = entries
         .into_iter()
-        .zip(metadatas)
-        .map(|(entry, meta_result)| {
-            let metadata = meta_result.unwrap_or(None);
-            let (md_name, md_version, md_desc, md_authors, md_icon) = match metadata {
-                Some(m) => (m.name, m.version, m.description, m.authors, m.icon),
+        .zip(results)
+        .filter_map(|(entry, result)| {
+            let (filename, fp, meta_option) = match result {
+                Ok(r) => r,
+                Err(_) => {
+                    warn!("Error parsing mod {}", entry.filename);
+                    return Some(ModDto {
+                        name: entry.display_name,
+                        filename: entry.filename,
+                        version: None,
+                        description: None,
+                        authors: None,
+                        icon: None,
+                        enabled: entry.enabled,
+                    });
+                }
+            };
+            let (md_name, md_version, md_desc, md_authors, md_icon) = match &meta_option {
+                Some(m) => (m.name.clone(), m.version.clone(), m.description.clone(), m.authors.clone(), m.icon.clone()),
                 None => (entry.display_name, None, None, None, None),
             };
-            ModDto {
+            // update cache for this entry
+            if let Some(meta) = &meta_option {
+                if repo.get(&filename).map(|e| e.fingerprint) != Some(fp) {
+                    if let Ok(data) = postcard::to_stdvec(meta) {
+                        repo.put(
+                            filename,
+                            ablage::Entry {
+                                version: 1,
+                                fingerprint: fp,
+                                data,
+                            },
+                        );
+                        dirty = true;
+                    }
+                }
+            }
+            Some(ModDto {
                 name: md_name,
                 filename: entry.filename,
                 version: md_version,
@@ -465,12 +591,24 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
                 authors: md_authors,
                 icon: md_icon.map(|s| (*s).clone()),
                 enabled: entry.enabled,
-            }
+            })
         })
         .collect();
 
-    mods.sort_by_key(|a| a.name.to_lowercase());
-    info!("{} mods encontrados en instancia {}", mods.len(), id);
+    // update global fingerprint
+    let global_entry = ablage::Entry {
+        version: 1,
+        fingerprint: 0,
+        data: global_fp.to_le_bytes().to_vec(),
+    };
+    repo.put("__global", global_entry);
+    dirty = true;
+
+    if dirty {
+        let _ = repo.flush();
+    }
+
+    info!("{} mods parseados en instancia {}", mods.len(), id);
     mods
 }
 

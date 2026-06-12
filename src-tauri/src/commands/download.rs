@@ -1,10 +1,9 @@
-use crate::core::errors::{DownloadError, FsError};
+use crate::core::errors::DownloadError;
 use crate::core::{HTTP, PathManager};
 use crate::services::DownloadQueue;
 use aqua::{DownloadManager, FabricBatch};
 use serde::{Deserialize, Serialize};
-use tokio::fs;
-use tracing::{info, warn};
+use tracing::info;
 
 const MOJANG_MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
@@ -43,10 +42,6 @@ pub async fn add_to_queue(version: String) {
 }
 
 pub async fn download_manifest() -> Result<Vec<MinecraftVersion>, String> {
-    let path = PathManager::get()
-        .get_settings_dir()
-        .join("manifest_cache.cub");
-
     info!("Descargando manifiesto de versiones desde Mojang");
     let response = HTTP
         .get(MOJANG_MANIFEST_URL)
@@ -63,9 +58,6 @@ pub async fn download_manifest() -> Result<Vec<MinecraftVersion>, String> {
         "Manifiesto descargado ({} bytes), cacheando en disco",
         bytes.len()
     );
-    fs::write(&path, &bytes)
-        .await
-        .map_err(|e| FsError::WriteFile { path: path.to_string_lossy().to_string(), source: e }.to_string())?;
 
     let manifest: MinecraftManifest =
         serde_json::from_slice(&bytes).map_err(|e| DownloadError::ParseJson(e.to_string()).to_string())?;
@@ -74,63 +66,57 @@ pub async fn download_manifest() -> Result<Vec<MinecraftVersion>, String> {
         "Manifiesto parseado: {} versiones disponibles",
         manifest.versions.len()
     );
+
+    let cache_path = PathManager::get().get_settings_dir().join("versions.crep");
+    let mut repo = ablage::Repo::open(&cache_path);
+    if let Ok(data) = postcard::to_stdvec(&manifest) {
+        repo.put("manifest", ablage::Entry { version: 1, fingerprint: 0, data });
+        let _ = repo.flush();
+    }
+
     Ok(manifest.versions)
 }
 
 #[tauri::command]
 pub async fn get_available_versions() -> Result<Vec<MinecraftVersion>, String> {
-    let path = PathManager::get()
-        .get_settings_dir()
-        .join("manifest_cache.cub");
+    let cache_path = PathManager::get().get_settings_dir().join("versions.crep");
+    let repo = ablage::Repo::open(&cache_path);
 
-    if tokio::fs::try_exists(&path).await.unwrap_or(false) {
-        info!("Usando manifiesto cacheado");
-        match tokio::fs::read(path).await {
-            Ok(d) => {
-                let manifest: MinecraftManifest = serde_json::from_slice(&d)
-                    .map_err(|e| DownloadError::ParseJson(e.to_string()).to_string())?;
-                info!("{} versiones cargadas desde caché", manifest.versions.len());
-                Ok(manifest.versions)
-            }
-            Err(_) => {
-                info!("Error leyendo caché, descargando manifiesto nuevo");
-                download_manifest().await
-            }
+    if let Some(entry) = repo.get("manifest") {
+        if let Ok(manifest) = postcard::from_bytes::<MinecraftManifest>(&entry.data) {
+            info!("{} versiones cargadas desde cache", manifest.versions.len());
+            return Ok(manifest.versions);
         }
-    } else {
-        info!("No hay caché de manifiesto, descargando");
-        download_manifest().await
     }
-}
 
-const FABRIC_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(3600);
+    info!("No hay cache de manifiesto, descargando");
+    download_manifest().await
+}
 
 #[tauri::command]
 pub async fn get_fabric_versions() -> Result<Vec<FabricGameVersion>, String> {
-    let cache_path = PathManager::get()
-        .get_settings_dir()
-        .join("fabric_versions_cache.cub");
+    let cache_path = PathManager::get().get_settings_dir().join("versions.crep");
+    let cache_path2 = cache_path.clone();
 
-    let cached = tokio::task::spawn_blocking({
-        let path = cache_path.clone();
-        move || -> Option<Vec<FabricGameVersion>> {
-            let metadata = std::fs::metadata(&path).ok()?;
-            let modified = metadata.modified().ok()?;
-            if let Ok(age) = modified.elapsed()
-                && age > FABRIC_CACHE_TTL
-            {
-                return None;
-            }
-            let data = std::fs::read(&path).ok()?;
-            serde_json::from_slice(&data).ok()
+    let cached = tokio::task::spawn_blocking(move || -> Option<Vec<FabricGameVersion>> {
+        let repo = ablage::Repo::open(&cache_path);
+        let entry = repo.get("fabric")?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let cached_time = entry.fingerprint;
+        if now.saturating_sub(cached_time) > 3600 {
+            return None;
         }
+        postcard::from_bytes(&entry.data).ok()
     })
     .await
     .unwrap_or(None);
 
     if let Some(versions) = cached {
         info!(
-            "Usando caché de versiones de Fabric ({} versiones)",
+            "Usando cache de versiones de Fabric ({} versiones)",
             versions.len()
         );
         return Ok(versions);
@@ -154,13 +140,17 @@ pub async fn get_fabric_versions() -> Result<Vec<FabricGameVersion>, String> {
         versions.len()
     );
 
-    let write_path = cache_path;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
     let write_versions = versions.clone();
     tokio::task::spawn_blocking(move || {
-        if let Ok(data) = serde_json::to_vec(&write_versions)
-            && let Err(e) = std::fs::write(&write_path, &data)
-        {
-            warn!("Error escribiendo caché en {:?}: {}", write_path, e);
+        let mut repo = ablage::Repo::open(&cache_path2);
+        if let Ok(data) = postcard::to_stdvec(&write_versions) {
+            repo.put("fabric", ablage::Entry { version: 1, fingerprint: now, data });
+            let _ = repo.flush();
         }
     })
     .await
@@ -227,16 +217,16 @@ pub async fn download_fabric(
 }
 #[tauri::command]
 pub async fn refresh_versions() -> Result<Vec<MinecraftVersion>, String> {
-    info!("Forzando actualización del manifiesto de versiones");
+    info!("Forzando actualizacion del manifiesto de versiones");
     let path = PathManager::get()
         .get_settings_dir()
-        .join("manifest_cache.cub");
+        .join("versions.crep");
 
     if path.exists() {
         tokio::fs::remove_file(&path)
             .await
-            .map_err(|e| FsError::Remove { path: path.to_string_lossy().to_string(), source: e }.to_string())?;
-        info!("Caché de manifiesto eliminado: {:?}", path);
+            .map_err(|e| format!("Error al eliminar cache: {}", e))?;
+        info!("Cache de manifiesto eliminado: {:?}", path);
     }
 
     download_manifest().await

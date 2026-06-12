@@ -6,13 +6,19 @@
 	let { instanceId } = $props<{ instanceId: string }>();
 	let mods = $state<ModDto[]>([]);
 	let prevInstanceId = $state<string>("");
+	let loading = $state(true);
 
 	$effect(() => {
 		if (instanceId && instanceId !== prevInstanceId) {
 			prevInstanceId = instanceId;
-			getInstanceMods(instanceId).then((data) => {
-				mods = data;
-			});
+			loading = true;
+			getInstanceMods(instanceId)
+				.then((data) => {
+					mods = data;
+				})
+				.finally(() => {
+					loading = false;
+				});
 		}
 	});
 
@@ -30,60 +36,89 @@
 	<span class="section-title"
 		>{t("instanceView.mods.title")} ({mods.length})</span
 	>
-	<div class="mods-grid">
-		{#each mods as mod (mod.filename)}
-			<div class="mod-card" class:disabled={!mod.enabled}>
-				<div class="mod-icon">
-					{#if mod.icon}
-						<img src={mod.icon} alt={mod.name} />
-					{:else}
-						<div class="mod-icon-placeholder">📦</div>
-					{/if}
-				</div>
-				<div class="mod-info">
-					<div class="mod-name-row">
-						<span class="mod-name" title={mod.name}>{mod.name}</span
-						>
-						<span class="mod-version"
-							>{mod.version ||
-								t("instanceView.mods.jarFile")}</span
-						>
+	{#if loading}
+		<div class="mods-loading">
+			<div class="minimal-spinner"></div>
+		</div>
+	{:else}
+		<div class="mods-grid">
+			{#each mods as mod (mod.filename)}
+				<div class="mod-card" class:disabled={!mod.enabled}>
+					<div class="mod-icon">
+						{#if mod.icon}
+							<img src={mod.icon} alt={mod.name} />
+						{:else}
+							<div class="mod-icon-placeholder">📦</div>
+						{/if}
 					</div>
-					<p class="mod-description" title={mod.description}>
-						{mod.description ||
-							t("instanceView.mods.noDescription")}
-					</p>
-					{#if mod.authors && mod.authors.length > 0}
-						<span
-							class="mod-authors"
-							title={mod.authors.join(", ")}
-						>
-							{t("instanceView.mods.authors")}: {mod.authors.join(
-								", ",
-							)}
-						</span>
-					{/if}
+					<div class="mod-info">
+						<div class="mod-name-row">
+							<span class="mod-name" title={mod.name}>{mod.name}</span
+							>
+							<span class="mod-version"
+								>{mod.version ||
+									t("instanceView.mods.jarFile")}</span
+							>
+						</div>
+						<p class="mod-description" title={mod.description}>
+							{mod.description ||
+								t("instanceView.mods.noDescription")}
+						</p>
+						{#if mod.authors && mod.authors.length > 0}
+							<span
+								class="mod-authors"
+								title={mod.authors.join(", ")}
+							>
+								{t("instanceView.mods.authors")}: {mod.authors.join(
+									", ",
+								)}
+							</span>
+						{/if}
+					</div>
+					<div class="mod-status-toggle">
+						<input
+							type="checkbox"
+							checked={mod.enabled}
+							onchange={() => handleToggle(mod)}
+						/>
+					</div>
 				</div>
-				<div class="mod-status-toggle">
-					<input
-						type="checkbox"
-						checked={mod.enabled}
-						onchange={() => handleToggle(mod)}
-					/>
+			{/each}
+			{#if mods.length === 0}
+				<div class="empty-mods">
+					{t("instanceView.mods.empty")}
 				</div>
-			</div>
-		{/each}
-		{#if mods.length === 0}
-			<div class="empty-mods">
-				{t("instanceView.mods.empty")}
-			</div>
-		{/if}
-	</div>
+			{/if}
+		</div>
+	{/if}
 </div>
 
 <style>
 	.mods-section {
 		margin-bottom: 24px;
+	}
+
+	.mods-loading {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		padding: 48px 0;
+	}
+
+	.minimal-spinner {
+		width: 32px;
+		height: 32px;
+		border: 2px solid var(--border);
+		border-top-color: var(--accent);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+		will-change: transform;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.mods-grid {
