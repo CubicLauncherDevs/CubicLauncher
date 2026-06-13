@@ -324,3 +324,97 @@ export interface CurseForgeGameVersion {
 	name: string;
 	slug: string;
 }
+
+export interface CurseManifestInfo {
+	name: string;
+	version: string;
+	author: string | null;
+	minecraft_version: string;
+	loader: string | null;
+	loader_version: string | null;
+	file_count: number;
+	manifest_files: ManifestFileEntry[];
+}
+
+export interface ManifestFileEntry {
+	project_id: number;
+	file_id: number;
+}
+
+export interface CurseFileUrl {
+	project_id: number;
+	file_id: number;
+	url: string;
+	filename: string;
+}
+
+export interface FTBModpack {
+	id: number;
+	name: string;
+	synopsis: string;
+	description: string;
+	icon: string | null;
+	authors: string[];
+	versions: FTBModpackVersion[];
+	installs: number;
+	plays: number;
+}
+
+export interface FTBModpackVersion {
+	id: number;
+	name: string;
+	type: string;
+	minecraft: string;
+	loader: string;
+	loaderVersion: string | null;
+	changelog: string | null;
+}
+
+export interface FTBSearchResult {
+	packs: number[];
+	curseforge: number[];
+	total: number;
+	limit: number;
+}
+
+export interface FTBPopularResult {
+	packs: number[];
+	total: number;
+	type: string;
+	status: string;
+	limit: number;
+}
+
+export interface FTBModpackAPIResponse {
+	id: number;
+	name: string;
+	synopsis: string;
+	description: string;
+	art: { url: string; type: string }[];
+	authors: { name: string }[];
+	versions: {
+		id: number;
+		name: string;
+		type: string;
+		targets: { version: string; name: string; type: string }[];
+	}[];
+	installs: number;
+	plays: number;
+	status: string;
+}
+
+export interface FTBVersionAPIResponse {
+	status: string;
+	targets: { version: string; name: string; type: string }[];
+	files: { name: string; path: string; curseforge: { project: number; file: number } }[];
+	changelog: string | null;
+}
+
+export interface InstallResultInfo {
+	name: string;
+	version: string;
+	minecraft_version: string;
+	loader: string | null;
+	loader_version: string | null;
+	version_id_for_instance: string;
+}

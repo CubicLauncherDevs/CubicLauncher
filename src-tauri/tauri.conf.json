@@ -34,6 +34,7 @@
 					"https://minotar.net",
 					"https://cdn.modrinth.com",
 					"https://media.forgecdn.net",
+					"https://apps.modpacks.ch/modpacks/art/",
 					"http://localhost:*",
 					"data:"
 				],
@@ -57,7 +58,8 @@
 					"https://tauri.localhost",
 					"https://minotar.net",
 					"https://api.modrinth.com",
-					"https://api.curseforge.com"
+					"https://api.curseforge.com",
+					"https://api.modpacks.ch/public/modpack"
 				]
 			},
 			"assetProtocol": {

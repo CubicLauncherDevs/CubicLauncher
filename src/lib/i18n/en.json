@@ -234,8 +234,6 @@
 			"sourceLabel": "Source",
 			"sourceModrinth": "Modrinth",
 			"sourceCurseForge": "CurseForge",
-			"curseForgeApiKeyMissing": "CurseForge API Key not configured",
-			"curseForgeApiKeyDesc": "Set your CurseForge API Key in Settings to use this source.",
 			"openSettings": "Open Settings",
 			"curseForgeRelease": "Release",
 			"curseForgeBeta": "Beta",
