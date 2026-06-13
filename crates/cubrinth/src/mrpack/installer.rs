@@ -82,10 +82,10 @@ pub async fn install_mrpack(
         .map_err(|e| MrpackError::Download(e.to_string()))?;
 
     for file_entry in &pack.files {
-        if let Some(env) = &file_entry.env {
-            if env.get("client").map(|s| s.as_str()) == Some("unsupported") {
-                continue;
-            }
+        if let Some(env) = &file_entry.env
+            && env.get("client").map(|s| s.as_str()) == Some("unsupported")
+        {
+            continue;
         }
 
         let dest = instance_dir.join(&file_entry.path);

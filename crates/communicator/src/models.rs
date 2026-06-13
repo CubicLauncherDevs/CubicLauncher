@@ -26,14 +26,6 @@ pub struct Button {
     pub url: String,
 }
 
-// Discord IPC quirk: inside `activity.buttons`, only the label is sent.
-// The URLs live in a separate top-level `metadata.button_urls` array.
-// This wrapper is used only when building the wire payload.
-#[derive(Debug, Serialize)]
-pub(crate) struct ButtonLabel<'a> {
-    pub label: &'a str,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Timestamps {
     #[serde(skip_serializing_if = "Option::is_none")]

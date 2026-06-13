@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use crate::error::Error;
-use crate::launch_config::LaunchConfig;
 use crate::models::{Loader, VersionManifest};
-use crate::resolvers::CommandBuilder;
 use log::{debug, info, warn};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -13,6 +11,8 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 use uuid::Uuid;
+use zellkern::resolvers::CommandBuilder;
+use zellkern::{extract_natives, LaunchConfig};
 
 // ─── Internal state ───────────────────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ impl InstanceHandle {
             .join("natives")
             .join(&inner.manifest.id_raw);
 
-        crate::natives::extract_natives(&inner.manifest, &lib_dir, &natives_dir)?;
+        extract_natives(&inner.manifest, &lib_dir, &natives_dir)?;
 
         // ── Build the command ─────────────────────────────────────────────
         let cmd_args = CommandBuilder::new(

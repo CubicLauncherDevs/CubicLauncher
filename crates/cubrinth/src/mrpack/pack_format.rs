@@ -6,6 +6,7 @@ use zellkern::{GameVersion, Loader};
 #[serde(rename_all = "camelCase")]
 pub struct PackFormat {
     pub game: String,
+    #[allow(dead_code)]
     pub format_version: i32,
     pub version_id: String,
     pub name: String,
@@ -18,9 +19,11 @@ pub struct PackFormat {
 #[serde(rename_all = "camelCase")]
 pub struct PackFile {
     pub path: String,
+    #[allow(dead_code)]
     pub hashes: HashMap<String, String>,
     pub env: Option<HashMap<String, String>>,
     pub downloads: Vec<String>,
+    #[allow(dead_code)]
     pub file_size: u32,
 }
 

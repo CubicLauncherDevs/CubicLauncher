@@ -1,5 +1,5 @@
 use crate::core::{AppEvent, InstanceError, emit};
-use crate::services::{InstanceManager, DownloadQueue};
+use crate::services::{DownloadQueue, InstanceManager};
 use serde::Serialize;
 use tracing::info;
 
@@ -28,11 +28,21 @@ pub async fn parse_mrpack(path: String) -> Result<MrpackInfo, String> {
         name: metadata.name,
         version_id: metadata.version_id,
         summary: metadata.summary,
-        minecraft_version: metadata.game_version.as_ref().map(|gv| gv.mc_version.clone()),
+        minecraft_version: metadata
+            .game_version
+            .as_ref()
+            .map(|gv| gv.mc_version.clone()),
         loader: metadata.game_version.as_ref().and_then(|gv| {
-            if gv.loader.is_vanilla() { None } else { Some(gv.loader.name().to_string()) }
+            if gv.loader.is_vanilla() {
+                None
+            } else {
+                Some(gv.loader.name().to_string())
+            }
         }),
-        loader_version: metadata.game_version.as_ref().and_then(|gv| gv.loader.version().map(|s| s.to_string())),
+        loader_version: metadata
+            .game_version
+            .as_ref()
+            .and_then(|gv| gv.loader.version().map(|s| s.to_string())),
         file_count: metadata.file_count,
         version_id_for_instance,
     })
@@ -40,7 +50,10 @@ pub async fn parse_mrpack(path: String) -> Result<MrpackInfo, String> {
 
 #[tauri::command]
 pub async fn install_mrpack(path: String, instance_name: String) -> Result<MrpackInfo, String> {
-    info!("Installing mrpack '{}' as instance '{}'", path, instance_name);
+    info!(
+        "Installing mrpack '{}' as instance '{}'",
+        path, instance_name
+    );
 
     let metadata = cubrinth::mrpack::parse_mrpack(std::path::Path::new(&path))
         .map_err(|e| format!("Failed to parse mrpack: {}", e))?;
@@ -59,9 +72,7 @@ pub async fn install_mrpack(path: String, instance_name: String) -> Result<Mrpac
         .create_instance(instance_name, version_id.clone(), None)
         .await
         .map_err(|e| match e {
-            InstanceError::AlreadyExists => {
-                "An instance with that name already exists".to_string()
-            }
+            InstanceError::AlreadyExists => "An instance with that name already exists".to_string(),
             other => format!("Failed to create instance: {}", other),
         })?;
 
@@ -88,7 +99,11 @@ pub async fn install_mrpack(path: String, instance_name: String) -> Result<Mrpac
         version_id: metadata.version_id,
         summary: metadata.summary,
         minecraft_version: Some(game_version.mc_version),
-        loader: if game_version.loader.is_vanilla() { None } else { Some(game_version.loader.name().to_string()) },
+        loader: if game_version.loader.is_vanilla() {
+            None
+        } else {
+            Some(game_version.loader.name().to_string())
+        },
         loader_version: game_version.loader.version().map(|s| s.to_string()),
         file_count: metadata.file_count,
         version_id_for_instance: Some(version_id),
@@ -101,22 +116,23 @@ async fn download_fabric_loader(game_version: &str, loader_version: &str) -> Res
         loader_version, game_version
     );
 
-    let game_path = crate::core::PathManager::get().get_shared_dir().to_path_buf();
+    let game_path = crate::core::PathManager::get()
+        .get_shared_dir()
+        .to_path_buf();
     let fabric_version_id = format!("fabric-loader-{}-{}", loader_version, game_version);
-    let version_json_path = game_path.join("versions").join(&fabric_version_id).join(format!("{}.json", fabric_version_id));
+    let version_json_path = game_path
+        .join("versions")
+        .join(&fabric_version_id)
+        .join(format!("{}.json", fabric_version_id));
 
     if version_json_path.exists() {
         info!("Fabric version already downloaded: {}", fabric_version_id);
         return Ok(());
     }
 
-    let batch = aqua::FabricBatch::new(
-        &game_path,
-        game_version,
-        loader_version,
-    )
-    .await
-    .map_err(|e| format!("Failed to create Fabric batch: {}", e))?;
+    let batch = aqua::FabricBatch::new(&game_path, game_version, loader_version)
+        .await
+        .map_err(|e| format!("Failed to create Fabric batch: {}", e))?;
 
     let dm = aqua::DownloadManager::new(game_path);
     let handle = dm
@@ -129,6 +145,9 @@ async fn download_fabric_loader(game_version: &str, loader_version: &str) -> Res
         .await
         .map_err(|e| format!("Failed to download Fabric: {}", e))?;
 
-    info!("Fabric loader downloaded successfully: {}", fabric_version_id);
+    info!(
+        "Fabric loader downloaded successfully: {}",
+        fabric_version_id
+    );
     Ok(())
 }

@@ -1,12 +1,20 @@
-// Copyright (C) 2025 Santiagolxx, CubicLauncher contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later
-
-use crate::error::Error;
-use crate::models::VersionManifest;
-use log::{debug, info, warn};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+
+use log::{debug, info, warn};
+
+use crate::{MCVersion, VersionManifest, Error};
+
+/// Determine the native subdirectory based on Minecraft version.
+/// Versions >= 26w02a use "java" subdirectory.
+pub fn natives_subdir(version: &MCVersion) -> &'static str {
+    if version.major > 26 || (version.major == 26 && version.minor >= 2) {
+        "java"
+    } else {
+        ""
+    }
+}
 
 pub fn extract_natives(
     manifest: &VersionManifest,
@@ -62,9 +70,7 @@ fn get_native_subdir(lib_name: &str) -> &'static str {
         "lwjgl"
     } else if name_lower.contains("netty") {
         "netty"
-    } else if name_lower.contains("jna") || name_lower.contains("java-objc-bridge") {
-        "java"
-    } else if name_lower.contains("jtracy") {
+    } else if name_lower.contains("jna") || name_lower.contains("java-objc-bridge") || name_lower.contains("jtracy") {
         "java"
     } else {
         ""
@@ -74,18 +80,15 @@ fn get_native_subdir(lib_name: &str) -> &'static str {
 fn extract_jar(jar_path: &Path, dest_dir: &Path) -> Result<(), Error> {
     let file = fs::File::open(jar_path)?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| {
-        Error::Io(std::io::Error::new(
+        std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             format!("Failed to open JAR {}: {e}", jar_path.display()),
-        ))
+        )
     })?;
 
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).map_err(|e| {
-            Error::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
+            std::io::Error::other(e.to_string())
         })?;
 
         let name = entry.name().to_string();
@@ -106,7 +109,13 @@ fn extract_jar(jar_path: &Path, dest_dir: &Path) -> Result<(), Error> {
 
         let out_path = dest_dir.join(&file_name);
 
-        if out_path.exists() && out_path.metadata().map(|m| m.len()).unwrap_or(0) == entry.size() {
+        if out_path.exists()
+            && out_path
+                .metadata()
+                .map(|m| m.len())
+                .unwrap_or(0)
+                == entry.size()
+        {
             debug!("Native already extracted: {}", out_path.display());
             continue;
         }

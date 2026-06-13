@@ -99,7 +99,12 @@ pub async fn switch_user(idx: usize) -> Result<(), String> {
     {
         let settings = SettingsManager::read();
         if idx >= settings.user.len() {
-            return Err(CoreError::Other(format!("Índice {} fuera de rango ({} usuarios)", idx, settings.user.len())).to_string());
+            return Err(CoreError::Other(format!(
+                "Índice {} fuera de rango ({} usuarios)",
+                idx,
+                settings.user.len()
+            ))
+            .to_string());
         }
     }
     SettingsManager::write(|settings| {
@@ -119,7 +124,11 @@ pub async fn remove_user(username: String) -> Result<(), String> {
     {
         let user = {
             let settings = SettingsManager::read();
-            settings.user.iter().find(|u| u.username == username).cloned()
+            settings
+                .user
+                .iter()
+                .find(|u| u.username == username)
+                .cloned()
         };
         if let Some(u) = user {
             info!("Eliminando tokens para {}", u.username);

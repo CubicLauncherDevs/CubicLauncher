@@ -1,10 +1,9 @@
-// Copyright (C) 2025 Santiagolxx, CubicLauncher contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later
-
-use crate::models::{Loader, VersionManifest};
-use log::{debug, warn};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+use log::{debug, warn};
+
+use crate::{Loader, VersionManifest};
 
 pub struct ClasspathResolver<'a> {
     manifest: &'a VersionManifest,
@@ -74,10 +73,8 @@ impl<'a> ClasspathResolver<'a> {
 
     fn add_version_jars(&self, paths: &mut Vec<String>) {
         let loader = Loader::from_version_id(&self.manifest.id_raw);
-        // Para Forge y NeoForge, no añadimos el version_jar al classpath porque ya estará en el module path.
         match loader {
             Loader::Forge(_) | Loader::NeoForge(_) => {
-                // Solo añadir el forge universal si existe, pero no el version_jar
                 if let Some(forge_jar) = self.find_forge_universal() {
                     self.push_if_exists(paths, &forge_jar);
                 }
@@ -130,7 +127,7 @@ impl<'a> ClasspathResolver<'a> {
                     .lib_dir
                     .join(&group_path)
                     .join(artifact)
-                    .join(&version);
+                    .join(version);
 
                 if let Some(cls) = classifier {
                     let jar = base.join(format!("{artifact}-{version}-{cls}.jar"));

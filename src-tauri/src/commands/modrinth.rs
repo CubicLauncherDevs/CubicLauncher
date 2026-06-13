@@ -2,8 +2,8 @@ use aqua::{DownloadItemSpec, DownloadManager, GenericBatch};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use crate::core::errors::{DownloadError, FsError, InstanceError};
 use crate::core::PathManager;
+use crate::core::errors::{DownloadError, FsError, InstanceError};
 use crate::services::InstanceManager;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -21,9 +21,13 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
         .ok_or_else(|| InstanceError::NotFound.to_string())?;
     let mods_dir = handle.get_instance_dir().await.join("mods");
 
-    tokio::fs::create_dir_all(&mods_dir)
-        .await
-        .map_err(|e| FsError::CreateDir { path: mods_dir.to_string_lossy().to_string(), source: e }.to_string())?;
+    tokio::fs::create_dir_all(&mods_dir).await.map_err(|e| {
+        FsError::CreateDir {
+            path: mods_dir.to_string_lossy().to_string(),
+            source: e,
+        }
+        .to_string()
+    })?;
 
     let count = mods.len();
     let items: Vec<DownloadItemSpec> = mods

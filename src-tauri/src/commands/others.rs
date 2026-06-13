@@ -3,7 +3,9 @@ use crate::core::errors::CoreError;
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), String> {
     if !url.starts_with("https://") && !url.starts_with("http://") {
-        return Err(CoreError::Other("URL debe comenzar con http:// o https://".to_string()).to_string());
+        return Err(
+            CoreError::Other("URL debe comenzar con http:// o https://".to_string()).to_string(),
+        );
     }
     #[cfg(target_os = "windows")]
     {

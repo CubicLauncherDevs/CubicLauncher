@@ -64,10 +64,12 @@ impl JavaManager {
             })?;
         }
 
-        ZuluApi::download_and_extract(&pkg, &dest_dir).await.map_err(|e| {
-            error!("Failed to download/extract JRE {}: {:?}", version, e);
-            AppError::CoreError(crate::core::CoreError::Other(e.to_string()))
-        })?;
+        ZuluApi::download_and_extract(&pkg, &dest_dir)
+            .await
+            .map_err(|e| {
+                error!("Failed to download/extract JRE {}: {:?}", version, e);
+                AppError::CoreError(crate::core::CoreError::Other(e.to_string()))
+            })?;
 
         if !Self::is_installed(version) {
             // Try to find java binary in subdirectories
@@ -111,7 +113,7 @@ impl JavaManager {
         })
         .to_string();
 
-        // Parse version line like: openjdk version "21.0.11" 2025-... 
+        // Parse version line like: openjdk version "21.0.11" 2025-...
         let version_line = version_str.lines().next()?;
         let parsed_version = version_line
             .split('"')
@@ -119,7 +121,7 @@ impl JavaManager {
             .or_else(|| {
                 version_line
                     .split_whitespace()
-                    .find(|s| s.chars().next().map_or(false, |c| c.is_ascii_digit()))
+                    .find(|s| s.chars().next().is_some_and(|c| c.is_ascii_digit()))
             })
             .map(|s| s.to_string());
 
@@ -140,9 +142,10 @@ impl JavaManager {
         }
 
         if !dest_dir.exists() {
-            return Err(AppError::CoreError(crate::core::CoreError::Other(
-                format!("JRE {} destination directory not found after extraction", version),
-            )));
+            return Err(AppError::CoreError(crate::core::CoreError::Other(format!(
+                "JRE {} destination directory not found after extraction",
+                version
+            ))));
         }
 
         let mut entries = fs::read_dir(dest_dir).await.map_err(|e| {
@@ -180,9 +183,10 @@ impl JavaManager {
             }
         }
 
-        Err(AppError::CoreError(crate::core::CoreError::Other(
-            format!("Java binary not found after extracting JRE {}", version),
-        )))
+        Err(AppError::CoreError(crate::core::CoreError::Other(format!(
+            "Java binary not found after extracting JRE {}",
+            version
+        ))))
     }
 
     fn move_contents(src: &Path, dest: &Path) -> Result<(), AppError> {
@@ -211,7 +215,10 @@ impl JavaManager {
                     warn!("Error al eliminar archivo destino {:?}: {}", dest_path, e);
                 }
                 if let Err(e) = std::fs::rename(&src_path, &dest_path) {
-                    warn!("Error al renombrar {:?} -> {:?}: {}", src_path, dest_path, e);
+                    warn!(
+                        "Error al renombrar {:?} -> {:?}: {}",
+                        src_path, dest_path, e
+                    );
                 }
             } else {
                 std::fs::rename(&src_path, &dest_path).map_err(|e| {

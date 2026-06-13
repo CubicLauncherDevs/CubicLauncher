@@ -29,10 +29,7 @@ impl Repo {
     pub fn open(path: impl AsRef<Path>) -> Self {
         let path = path.as_ref().to_path_buf();
         let entries = if path.exists() {
-            match read_all(&path) {
-                Ok(e) => e,
-                Err(_) => HashMap::new(),
-            }
+            read_all(&path).unwrap_or_default()
         } else {
             HashMap::new()
         };
@@ -145,10 +142,10 @@ impl Repo {
             .map_err(|e| format!("Failed to rename temp file: {}", e))?;
 
         // ensure parent dir fsync for directory metadata durability
-        if let Some(parent) = self.path.parent() {
-            if let Ok(dir) = File::open(parent) {
-                let _ = dir.sync_all();
-            }
+        if let Some(parent) = self.path.parent()
+            && let Ok(dir) = File::open(parent)
+        {
+            let _ = dir.sync_all();
         }
 
         self.dirty = false;

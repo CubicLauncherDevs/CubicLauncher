@@ -1,9 +1,10 @@
-use crate::ProtonError;
 use crate::types::{
     AssetMeta, Downloadable, LibraryFile, MOJANG_MANIFEST_URL, NormalizedArguments,
-    NormalizedVersion, VersionAssets, VersionManifest,
+    NormalizedVersion, VersionAssets,
 };
 use crate::utilities::HTTP_CLIENT;
+use crate::ProtonError;
+use zellkern::VersionManifest;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -16,6 +17,7 @@ struct ManifestEntry {
     id: String,
     url: String,
     #[serde(rename = "type")]
+    #[allow(dead_code)]
     version_type: String,
 }
 

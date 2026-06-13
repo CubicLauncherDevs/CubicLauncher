@@ -1,23 +1,11 @@
-mod manifest;
-mod version;
-
-pub use zellkern::Loader;
-pub use manifest::{
+pub use zellkern::{
     Argument, ArgumentValue, AssetIndex, DownloadEntry, JavaVersion, Library, LibraryArtifact,
-    LibraryDownloads, Natives, OsRule, Rule, RuleAction, VersionArgType, VersionDownloads,
-    VersionManifest,
+    LibraryDownloads, Loader, MCVersion, Natives, OsRule, QuickPlay, Rule, RuleAction,
+    VersionArgType, VersionDownloads, VersionManifest, parse_version,
 };
-pub use version::{MCVersion, parse_version};
 
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-#[derive(Debug, Clone)]
-pub enum QuickPlay {
-    Singleplayer(String),
-    Multiplayer(String),
-    Realms(String),
-}
 
 pub const MOJANG_MANIFEST_URL: &str =
     "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
@@ -90,6 +78,10 @@ impl VersionAssets {
 
     pub fn len(&self) -> usize {
         self.objects.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.objects.is_empty()
     }
 }
 

@@ -43,7 +43,7 @@ dashmap = "6.2.1"
 parking_lot = "0.12.5"
 cubrinth = { path = "../crates/cubrinth" }
 zellkern = { path = "../crates/zellkern" }
-communicator = {path="../crates/Communicator"}
+communicator = {path="../crates/communicator"}
 compact_str = { version = "0.9.1", features = ["serde"] }
 smallvec = "1.15.1"
 ablage = { path = "../crates/ablage" }

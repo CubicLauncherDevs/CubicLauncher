@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use crate::handle::{InstanceHandle, InstanceInner};
-use crate::launch_config::LaunchConfig;
 use crate::models::VersionManifest;
 use dashmap::DashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use uuid::Uuid;
+use zellkern::LaunchConfig;
 
 /// Top-level manager for Minecraft instances.
 ///

@@ -1,5 +1,5 @@
 use crate::core::{AppEvent, InstanceError, emit};
-use crate::services::{InstanceManager, DownloadQueue};
+use crate::services::{DownloadQueue, InstanceManager};
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::path::Path;
@@ -32,12 +32,15 @@ struct CurseManifestFile {
 #[serde(rename_all = "camelCase")]
 struct CurseManifest {
     minecraft: CurseManifestMinecraft,
+    #[allow(dead_code)]
     manifest_type: Option<String>,
+    #[allow(dead_code)]
     manifest_version: Option<i32>,
     name: String,
     version: String,
     author: Option<String>,
     files: Vec<CurseManifestFile>,
+    #[allow(dead_code)]
     overrides: Option<String>,
 }
 
@@ -124,8 +127,8 @@ pub async fn install_curse_manifest(
     let version_id = if let Some(ref lv) = loader_version {
         match loader.as_deref() {
             Some("fabric") => format!("fabric-loader-{}-{}", lv, mc_version),
-            Some("forge") => format!("{}", mc_version),
-            Some("neoforge") => format!("{}", mc_version),
+            Some("forge") => mc_version.to_string(),
+            Some("neoforge") => mc_version.to_string(),
             _ => mc_version.clone(),
         }
     } else {
@@ -137,9 +140,7 @@ pub async fn install_curse_manifest(
         .create_instance(instance_name, version_id.clone(), None)
         .await
         .map_err(|e| match e {
-            InstanceError::AlreadyExists => {
-                "An instance with that name already exists".to_string()
-            }
+            InstanceError::AlreadyExists => "An instance with that name already exists".to_string(),
             other => format!("Failed to create instance: {}", other),
         })?;
 
@@ -157,21 +158,13 @@ pub async fn install_curse_manifest(
 
     for file_entry in &file_urls {
         let dest = mods_dir.join(&file_entry.filename);
-        info!(
-            "Downloading {} -> {:?}",
-            file_entry.url, dest
-        );
+        info!("Downloading {} -> {:?}", file_entry.url, dest);
 
         let response = client
             .get(&file_entry.url)
             .send()
             .await
-            .map_err(|e| {
-                format!(
-                    "Download failed for {}: {}",
-                    file_entry.filename, e
-                )
-            })?;
+            .map_err(|e| format!("Download failed for {}: {}", file_entry.filename, e))?;
 
         if !response.status().is_success() {
             return Err(format!(
@@ -217,8 +210,7 @@ pub async fn install_curse_manifest(
 }
 
 fn read_curse_manifest(path: &Path) -> Result<CurseManifest, String> {
-    let file =
-        std::fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
+    let file = std::fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
     let mut archive =
         zip::ZipArchive::new(file).map_err(|e| format!("Failed to read zip: {}", e))?;
 
@@ -257,10 +249,7 @@ fn parse_loader(manifest: &CurseManifest) -> (Option<String>, Option<String>) {
     if let Some(ml) = manifest.minecraft.mod_loaders.first() {
         let parts: Vec<&str> = ml.id.split('-').collect();
         if parts.len() >= 2 {
-            return (
-                Some(parts[0].to_string()),
-                Some(parts[1..].join("-")),
-            );
+            return (Some(parts[0].to_string()), Some(parts[1..].join("-")));
         }
     }
 
@@ -285,8 +274,8 @@ pub async fn install_ftb_modpack(
     let version_id = if let Some(ref lv) = loader_version {
         match loader.as_deref() {
             Some("fabric") => format!("fabric-loader-{}-{}", lv, minecraft_version),
-            Some("forge") => format!("{}", minecraft_version),
-            Some("neoforge") => format!("{}", minecraft_version),
+            Some("forge") => minecraft_version.to_string(),
+            Some("neoforge") => minecraft_version.to_string(),
             _ => minecraft_version.clone(),
         }
     } else {
@@ -298,9 +287,7 @@ pub async fn install_ftb_modpack(
         .create_instance(instance_name, version_id.clone(), None)
         .await
         .map_err(|e| match e {
-            InstanceError::AlreadyExists => {
-                "An instance with that name already exists".to_string()
-            }
+            InstanceError::AlreadyExists => "An instance with that name already exists".to_string(),
             other => format!("Failed to create instance: {}", other),
         })?;
 
@@ -318,21 +305,13 @@ pub async fn install_ftb_modpack(
 
     for file_entry in &file_urls {
         let dest = mods_dir.join(&file_entry.filename);
-        info!(
-            "Downloading {} -> {:?}",
-            file_entry.url, dest
-        );
+        info!("Downloading {} -> {:?}", file_entry.url, dest);
 
         let response = client
             .get(&file_entry.url)
             .send()
             .await
-            .map_err(|e| {
-                format!(
-                    "Download failed for {}: {}",
-                    file_entry.filename, e
-                )
-            })?;
+            .map_err(|e| format!("Download failed for {}: {}", file_entry.filename, e))?;
 
         if !response.status().is_success() {
             return Err(format!(
@@ -375,16 +354,15 @@ pub async fn install_ftb_modpack(
     })
 }
 
-async fn extract_overrides(
-    zip_path: &Path,
-    instance_dir: &Path,
-) -> Result<(), String> {
+async fn extract_overrides(zip_path: &Path, instance_dir: &Path) -> Result<(), String> {
     let file = std::fs::File::open(zip_path).map_err(|e| format!("Failed to open zip: {}", e))?;
     let mut archive =
         zip::ZipArchive::new(file).map_err(|e| format!("Failed to read zip: {}", e))?;
 
     for i in 0..archive.len() {
-        let entry = archive.by_index(i).map_err(|e| format!("Zip error: {}", e))?;
+        let entry = archive
+            .by_index(i)
+            .map_err(|e| format!("Zip error: {}", e))?;
         let entry_name = entry.name().to_string();
         let is_dir = entry.is_dir();
         drop(entry);

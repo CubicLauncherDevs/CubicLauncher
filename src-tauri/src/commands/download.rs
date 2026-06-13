@@ -59,8 +59,8 @@ pub async fn download_manifest() -> Result<Vec<MinecraftVersion>, String> {
         bytes.len()
     );
 
-    let manifest: MinecraftManifest =
-        serde_json::from_slice(&bytes).map_err(|e| DownloadError::ParseJson(e.to_string()).to_string())?;
+    let manifest: MinecraftManifest = serde_json::from_slice(&bytes)
+        .map_err(|e| DownloadError::ParseJson(e.to_string()).to_string())?;
 
     info!(
         "Manifiesto parseado: {} versiones disponibles",
@@ -70,7 +70,14 @@ pub async fn download_manifest() -> Result<Vec<MinecraftVersion>, String> {
     let cache_path = PathManager::get().get_settings_dir().join("versions.crep");
     let mut repo = ablage::Repo::open(&cache_path);
     if let Ok(data) = postcard::to_stdvec(&manifest) {
-        repo.put("manifest", ablage::Entry { version: 1, fingerprint: 0, data });
+        repo.put(
+            "manifest",
+            ablage::Entry {
+                version: 1,
+                fingerprint: 0,
+                data,
+            },
+        );
         let _ = repo.flush();
     }
 
@@ -82,11 +89,11 @@ pub async fn get_available_versions() -> Result<Vec<MinecraftVersion>, String> {
     let cache_path = PathManager::get().get_settings_dir().join("versions.crep");
     let repo = ablage::Repo::open(&cache_path);
 
-    if let Some(entry) = repo.get("manifest") {
-        if let Ok(manifest) = postcard::from_bytes::<MinecraftManifest>(&entry.data) {
-            info!("{} versiones cargadas desde cache", manifest.versions.len());
-            return Ok(manifest.versions);
-        }
+    if let Some(entry) = repo.get("manifest")
+        && let Ok(manifest) = postcard::from_bytes::<MinecraftManifest>(&entry.data)
+    {
+        info!("{} versiones cargadas desde cache", manifest.versions.len());
+        return Ok(manifest.versions);
     }
 
     info!("No hay cache de manifiesto, descargando");
@@ -149,7 +156,14 @@ pub async fn get_fabric_versions() -> Result<Vec<FabricGameVersion>, String> {
     tokio::task::spawn_blocking(move || {
         let mut repo = ablage::Repo::open(&cache_path2);
         if let Ok(data) = postcard::to_stdvec(&write_versions) {
-            repo.put("fabric", ablage::Entry { version: 1, fingerprint: now, data });
+            repo.put(
+                "fabric",
+                ablage::Entry {
+                    version: 1,
+                    fingerprint: now,
+                    data,
+                },
+            );
             let _ = repo.flush();
         }
     })
@@ -218,9 +232,7 @@ pub async fn download_fabric(
 #[tauri::command]
 pub async fn refresh_versions() -> Result<Vec<MinecraftVersion>, String> {
     info!("Forzando actualizacion del manifiesto de versiones");
-    let path = PathManager::get()
-        .get_settings_dir()
-        .join("versions.crep");
+    let path = PathManager::get().get_settings_dir().join("versions.crep");
 
     if path.exists() {
         tokio::fs::remove_file(&path)

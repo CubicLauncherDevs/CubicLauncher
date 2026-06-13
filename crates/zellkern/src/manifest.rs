@@ -1,14 +1,11 @@
-// Copyright (C) 2025 Santiagolxx, CubicLauncher contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later
+use std::collections::HashMap;
+use std::env::consts::{ARCH, OS};
+use std::path::{Path, PathBuf};
 
-use super::version::MCVersion;
-use crate::error::Error;
 use serde::Deserialize;
-use std::{
-    collections::HashMap,
-    env::consts::{ARCH, OS},
-    path::{Path, PathBuf},
-};
+
+use crate::version::MCVersion;
+use crate::Error;
 
 // ─── OS / arch rules ──────────────────────────────────────────────────────────
 
@@ -172,6 +169,27 @@ impl Library {
         self.evaluate()
     }
 
+    pub fn is_correct_arch(&self) -> bool {
+        let name = self.name.to_lowercase();
+        let has_x86 = name.contains("natives-windows-x86") || name.contains("natives-linux-x86");
+        let has_arm64 = name.contains("natives-windows-arm64")
+            || name.contains("natives-macos-arm64")
+            || name.contains("natives-linux-aarch_64")
+            || name.contains("natives-linux-arm64");
+        let has_arm32 = name.contains("natives-linux-arm32");
+
+        if has_x86 {
+            return ARCH == "x86";
+        }
+        if has_arm64 {
+            return ARCH == "aarch64";
+        }
+        if has_arm32 {
+            return ARCH == "arm";
+        }
+        true
+    }
+
     pub fn get_path(&self) -> PathBuf {
         if let Some(path) = self
             .downloads
@@ -205,10 +223,7 @@ impl Library {
     }
 
     pub fn native_artifact(&self) -> Option<&LibraryArtifact> {
-        let natives = match self.natives.as_ref() {
-            Some(n) => n,
-            None => return None,
-        };
+        let natives = self.natives.as_ref()?;
         let classifier = match OS {
             "linux" => natives.linux.as_deref(),
             "windows" => natives.windows.as_deref(),
@@ -279,9 +294,28 @@ pub struct AssetIndex {
 pub struct VersionArgType {
     pub game: Option<Vec<Argument>>,
     pub jvm: Option<Vec<Argument>>,
+    #[serde(default)]
+    pub default_user_jvm: Option<Vec<Argument>>,
 }
 
-// ─── VersionManifest (opcional para herencia) ────────────────────────────────
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionDownloads {
+    pub client: DownloadEntry,
+    pub server: Option<DownloadEntry>,
+    pub client_mappings: Option<DownloadEntry>,
+    pub server_mappings: Option<DownloadEntry>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadEntry {
+    pub sha1: String,
+    pub size: u64,
+    pub url: String,
+}
+
+// ─── VersionManifest ──────────────────────────────────────────────────────────
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -291,6 +325,7 @@ pub struct VersionManifest {
     pub main_class: Option<String>,
     pub arguments: Option<VersionArgType>,
     pub minecraft_arguments: Option<String>,
+    pub downloads: Option<VersionDownloads>,
     pub libraries: Option<Vec<Library>>,
     pub asset_index: Option<AssetIndex>,
     pub java_version: Option<JavaVersion>,
@@ -309,6 +344,7 @@ impl VersionManifest {
             main_class: Option<String>,
             arguments: Option<VersionArgType>,
             minecraft_arguments: Option<String>,
+            downloads: Option<VersionDownloads>,
             libraries: Option<Vec<Library>>,
             asset_index: Option<AssetIndex>,
             java_version: Option<JavaVersion>,
@@ -322,6 +358,7 @@ impl VersionManifest {
             main_class: inner.main_class,
             arguments: inner.arguments,
             minecraft_arguments: inner.minecraft_arguments,
+            downloads: inner.downloads,
             libraries: inner.libraries,
             asset_index: inner.asset_index,
             java_version: inner.java_version,
@@ -330,11 +367,10 @@ impl VersionManifest {
     }
 
     pub fn from_file(path: impl AsRef<Path>) -> Result<Self, Error> {
-        let bytes = std::fs::read(path)?;
+        let bytes = std::fs::read(path.as_ref())?;
         Self::from_bytes(&bytes)
     }
 
-    /// Combina este manifiesto con el padre (el hijo tiene prioridad)
     pub fn resolve(&self, parent: &VersionManifest) -> VersionManifest {
         VersionManifest {
             id: self.id,
@@ -359,6 +395,7 @@ impl VersionManifest {
                         Some(VersionArgType {
                             jvm: Some(jvm),
                             game: Some(game),
+                            default_user_jvm: c.default_user_jvm.clone().or(p.default_user_jvm.clone()),
                         })
                     }
                 }
@@ -367,6 +404,7 @@ impl VersionManifest {
                 .minecraft_arguments
                 .clone()
                 .or(parent.minecraft_arguments.clone()),
+            downloads: self.downloads.clone().or(parent.downloads.clone()),
             libraries: {
                 let mut libs = parent.libraries.clone().unwrap_or_default();
                 if let Some(child_libs) = &self.libraries {
@@ -380,7 +418,13 @@ impl VersionManifest {
         }
     }
 
-    /// Helper para obtener classpath (ya resuelto)
+    pub fn java_major_version(&self) -> u8 {
+        self.java_version
+            .as_ref()
+            .map(|j| j.major_version)
+            .unwrap_or(8)
+    }
+
     pub fn get_classpath(&self, lib_dir: &Path) -> String {
         let vec = vec![];
         let libs = self.libraries.as_ref().unwrap_or(&vec);
@@ -394,18 +438,37 @@ impl VersionManifest {
         #[cfg(not(target_os = "windows"))]
         return paths.join(":");
     }
-
-    pub fn java_major_version(&self) -> u8 {
-        self.java_version
-            .as_ref()
-            .map(|j| j.major_version)
-            .unwrap_or(8)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rule_without_os_allows() {
+        let r: Rule = serde_json::from_str(r#"{"action":"allow"}"#).unwrap();
+        assert!(r.action_if_matches().is_some());
+    }
+
+    #[test]
+    fn native_detection_by_path() {
+        let lib: Library = serde_json::from_str(
+            r#"{
+            "name": "org.lwjgl:lwjgl:3.4.1:natives-linux",
+            "downloads": {
+                "artifact": {
+                    "path": "org/lwjgl/lwjgl/3.4.1/lwjgl-3.4.1-natives-linux.jar",
+                    "url": "https://libraries.minecraft.net/org/lwjgl/lwjgl/3.4.1/lwjgl-3.4.1-natives-linux.jar",
+                    "sha1": "abc123",
+                    "size": 12345
+                }
+            },
+            "rules": [{"action":"allow","os":{"name":"linux"}}]
+        }"#,
+        )
+        .unwrap();
+        assert!(lib.is_native());
+    }
 
     #[test]
     #[cfg(target_os = "linux")]
@@ -419,11 +482,5 @@ mod tests {
     fn disallow_linux_on_non_linux() {
         let r: Rule = serde_json::from_str(r#"{"action":"allow","os":{"name":"linux"}}"#).unwrap();
         assert!(!r.evaluate());
-    }
-
-    #[test]
-    fn rule_without_os_allows_by_default() {
-        let r: Rule = serde_json::from_str(r#"{"action":"allow"}"#).unwrap();
-        assert!(r.evaluate());
     }
 }

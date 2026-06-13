@@ -71,12 +71,11 @@ impl PathManager {
 
 // utilidades
 fn resolve_base_dir() -> PathBuf {
-    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
-        if home.is_dir() {
+    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from)
+        && home.is_dir() {
             info!("Directorio base resuelto: home dir {:?}", home);
             return home;
         }
-    }
     if let Some(d) = UserDirs::new() {
         let path = d.home_dir().to_path_buf();
         info!("Directorio base resuelto: home dir {:?}", path);

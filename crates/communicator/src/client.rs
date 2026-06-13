@@ -4,8 +4,8 @@ use serde_json::{Value, json};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use tokio::sync::{mpsc, oneshot};
 use tokio::sync::oneshot::error::TryRecvError;
+use tokio::sync::{mpsc, oneshot};
 use tokio::time;
 use tracing::{debug, error, info, instrument, warn};
 
@@ -15,14 +15,12 @@ use tokio::net::UnixStream;
 #[cfg(windows)]
 use tokio::net::windows::named_pipe::ClientOptions;
 
-
 static NONCE: AtomicU64 = AtomicU64::new(1);
 
 #[inline]
 fn next_nonce() -> String {
     NONCE.fetch_add(1, Ordering::Relaxed).to_string()
 }
-
 
 enum PlatformStream {
     #[cfg(unix)]
@@ -89,7 +87,7 @@ impl AsyncWrite for PlatformStream {
 
 #[derive(Debug)]
 pub enum ClientCommand {
-    SetActivity(Activity),
+    SetActivity(Box<Activity>),
     ClearActivity,
     /// Graceful shutdown: closes the connection and stops the background task permanently.
     Shutdown,
@@ -98,6 +96,7 @@ pub enum ClientCommand {
 // ── Client ────────────────────────────────────────────────────────────────────
 
 pub struct DiscordRpcClient {
+    #[allow(dead_code)]
     client_id: String,
     command_tx: mpsc::Sender<ClientCommand>,
     /// Fires once the first handshake completes. Consumed by `connect()`.
@@ -144,7 +143,7 @@ impl DiscordRpcClient {
 
     pub async fn set_activity(&self, activity: Activity) -> Result<(), DiscordRpcError> {
         self.command_tx
-            .send(ClientCommand::SetActivity(activity))
+            .send(ClientCommand::SetActivity(Box::new(activity)))
             .await
             .map_err(|_| DiscordRpcError::NotConnected)
     }
@@ -161,7 +160,6 @@ impl DiscordRpcClient {
         drop(self);
     }
 }
-
 
 impl DiscordRpcClient {
     #[instrument(skip(command_rx, stop_rx, ready_tx))]
@@ -231,7 +229,10 @@ impl DiscordRpcClient {
         let (write_tx, write_rx) = mpsc::channel::<WriteCmd>(4);
 
         if let Some(activity) = last_activity.clone() {
-            write_tx.send(WriteCmd::SetActivity(activity)).await.ok();
+            write_tx
+                .send(WriteCmd::SetActivity(Box::new(activity)))
+                .await
+                .ok();
         }
 
         let mut read_handle = tokio::spawn(Self::read_task(read_half));
@@ -248,7 +249,7 @@ impl DiscordRpcClient {
                 Some(cmd) = command_rx.recv() => {
                     match cmd {
                         ClientCommand::SetActivity(a) => {
-                            *last_activity = Some(a.clone());
+                            *last_activity = Some((*a).clone());
                             write_tx.send(WriteCmd::SetActivity(a)).await.ok();
                         }
                         ClientCommand::ClearActivity => {
@@ -407,17 +408,12 @@ impl DiscordRpcClient {
         mut rx: mpsc::Receiver<WriteCmd>,
         client_id: String,
     ) {
-
         loop {
             tokio::select! {
                 Some(cmd) = rx.recv() => {
                     let result = match &cmd {
                         WriteCmd::SetActivity(activity) => {
-                            // Discord IPC quirk: buttons must be split across two fields.
-                            // `activity.buttons`  → array of {label} objects (no url)
-                            // `args.metadata`     → {button_urls: [...]}
-                            // Sending {label, url} inside activity is silently ignored.
-                            let (activity_json, metadata) = build_activity_payload(&activity);
+                            let (activity_json, metadata) = build_activity_payload(activity);
                             let mut args = json!({
                                 "pid": std::process::id(),
                                 "activity": activity_json,
@@ -497,7 +493,7 @@ async fn read_frame(r: &mut (impl AsyncRead + Unpin)) -> Result<Value, DiscordRp
 
 #[derive(Debug)]
 enum WriteCmd {
-    SetActivity(Activity),
+    SetActivity(Box<Activity>),
     ClearActivity,
 }
 

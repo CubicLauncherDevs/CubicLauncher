@@ -21,7 +21,10 @@ pub async fn update_settings(mut new_settings: SettingsManager) -> Result<(), St
         warn!("max_memory no puede ser 0, usando 2");
     }
     if new_settings.min_memory > new_settings.max_memory {
-        return Err(CoreError::Other("min_memory no puede ser mayor que max_memory".to_string()).to_string());
+        return Err(
+            CoreError::Other("min_memory no puede ser mayor que max_memory".to_string())
+                .to_string(),
+        );
     }
     SettingsManager::write(|s| {
         for new_user in &mut new_settings.user {

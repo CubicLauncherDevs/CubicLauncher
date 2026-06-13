@@ -1,55 +1,19 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use log::info;
-
-use crate::ProtonError;
-use crate::natives::natives_subdir;
-use crate::resolvers::ClasspathResolver;
-use crate::types::{Argument, QuickPlay, VersionManifest};
 use uuid::Uuid;
+
+use crate::launch_config::LaunchConfig;
+use crate::manifest::{Argument, VersionManifest};
+use crate::resolvers::ClasspathResolver;
+use crate::Error;
 
 pub struct CommandBuilder<'a> {
     manifest: &'a VersionManifest,
     shared_dir: &'a Path,
     instance_dir: &'a Path,
     config: &'a LaunchConfig,
-}
-
-pub struct LaunchConfig {
-    pub java_path: PathBuf,
-    pub username: String,
-    pub min_ram: String,
-    pub max_ram: String,
-    pub width: u32,
-    pub height: u32,
-    pub cracked: bool,
-    pub demo_mode: bool,
-    pub env: HashMap<String, String>,
-    pub quick_play: Option<QuickPlay>,
-    pub access_token: Option<String>,
-    pub auth_uuid: Option<String>,
-    pub user_type: Option<String>,
-}
-
-impl Default for LaunchConfig {
-    fn default() -> Self {
-        Self {
-            java_path: PathBuf::from("java"),
-            username: "Player".into(),
-            min_ram: "512M".into(),
-            max_ram: "2G".into(),
-            width: 854,
-            height: 480,
-            cracked: false,
-            demo_mode: false,
-            env: HashMap::new(),
-            quick_play: None,
-            access_token: None,
-            auth_uuid: None,
-            user_type: None,
-        }
-    }
 }
 
 impl<'a> CommandBuilder<'a> {
@@ -67,7 +31,7 @@ impl<'a> CommandBuilder<'a> {
         }
     }
 
-    fn resolve_manifest(&self) -> Result<(VersionManifest, String), ProtonError> {
+    fn resolve_manifest(&self) -> Result<(VersionManifest, String), Error> {
         let mut current = self.manifest.clone();
         let mut seen = std::collections::HashSet::new();
         seen.insert(current.id_raw.clone());
@@ -75,8 +39,8 @@ impl<'a> CommandBuilder<'a> {
 
         while let Some(parent_id) = current.inherits_from.clone() {
             if !seen.insert(parent_id.clone()) {
-                return Err(ProtonError::Other(format!(
-                    "Circular inheritance: {}",
+                return Err(Error::VersionLoad(format!(
+                    "Circular inheritance detected: {}",
                     parent_id
                 )));
             }
@@ -85,8 +49,7 @@ impl<'a> CommandBuilder<'a> {
                 .join("versions")
                 .join(&parent_id)
                 .join(format!("{}.json", parent_id));
-            let parent_manifest = VersionManifest::from_file(&parent_path)
-                .map_err(|e| ProtonError::Other(format!("Failed to load parent: {e}")))?;
+            let parent_manifest = VersionManifest::from_file(parent_path)?;
             current = current.resolve(&parent_manifest);
             base_id = parent_id;
         }
@@ -97,47 +60,38 @@ impl<'a> CommandBuilder<'a> {
         &self,
         final_manifest: &VersionManifest,
         base_id: &str,
-    ) -> Result<(), ProtonError> {
+    ) -> Result<(), Error> {
         let lib_dir = self.shared_dir.join("libraries");
         let classpath = final_manifest.get_classpath(&lib_dir);
 
-        if !self.config.java_path.exists() {
-            return Err(ProtonError::MissingFile(format!(
-                "Java not found: {}",
-                self.config.java_path.display()
+        let java_path = &self.config.java_path;
+        if !java_path.exists() {
+            return Err(Error::JavaNotFound(format!(
+                "Java binary not found: {}",
+                java_path.display()
             )));
         }
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let executable = self
-                .config
-                .java_path
-                .metadata()
-                .map(|m| m.permissions().mode() & 0o111 != 0)
-                .unwrap_or(false);
-            if !executable {
-                return Err(ProtonError::MissingFile(format!(
-                    "Java not executable: {}",
-                    self.config.java_path.display()
-                )));
-            }
+        if !Self::is_executable(java_path) {
+            return Err(Error::JavaNotFound(format!(
+                "Java binary not executable: {}",
+                java_path.display()
+            )));
         }
 
         let separator = if cfg!(windows) { ';' } else { ':' };
-        let mut missing = Vec::new();
+        let mut missing_files = Vec::new();
         for entry in classpath.split(separator) {
             let p = Path::new(entry);
             if !p.exists() {
-                missing.push(entry.to_string());
+                missing_files.push(entry.to_string());
             }
         }
-        if !missing.is_empty() {
-            return Err(ProtonError::MissingFile(format!(
+        if !missing_files.is_empty() {
+            let msg = format!(
                 "Missing classpath entries:\n  {}",
-                missing.join("\n  ")
-            )));
+                missing_files.join("\n  ")
+            );
+            return Err(Error::MissingFile(msg));
         }
 
         let version_jar = self
@@ -146,26 +100,50 @@ impl<'a> CommandBuilder<'a> {
             .join(base_id)
             .join(format!("{}.jar", base_id));
         if !version_jar.exists() {
-            return Err(ProtonError::MissingFile(format!(
+            return Err(Error::MissingFile(format!(
                 "Version JAR not found: {}",
                 version_jar.display()
             )));
         }
 
+        if !self.instance_dir.exists() {
+            return Err(Error::MissingFile(format!(
+                "Instance directory does not exist: {}",
+                self.instance_dir.display()
+            )));
+        }
+
+        let natives_dir = self.shared_dir.join("natives").join(base_id);
+        if !natives_dir.exists() {
+            std::fs::create_dir_all(&natives_dir)?;
+        }
+
         Ok(())
     }
 
-    pub fn build(&self) -> Result<Vec<String>, ProtonError> {
+    #[cfg(unix)]
+    fn is_executable(path: &Path) -> bool {
+        use std::os::unix::fs::PermissionsExt;
+        path.metadata()
+            .map(|m| m.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false)
+    }
+
+    #[cfg(windows)]
+    fn is_executable(path: &Path) -> bool {
+        path.exists() && path.extension().map_or(false, |ext| ext == "exe")
+    }
+
+    pub fn build(&self) -> Result<Vec<String>, Error> {
         let (final_manifest, base_id) = self.resolve_manifest()?;
 
         let lib_dir = self.shared_dir.join("libraries");
         let assets_dir = self.shared_dir.join("assets");
-        let sub = natives_subdir(&self.manifest.id);
-        let natives_dir = self.shared_dir.join("natives").join(&base_id).join(sub);
+        let natives_dir = self.shared_dir.join("natives").join(&base_id);
 
         let classpath = ClasspathResolver::new(&final_manifest, &base_id, &lib_dir).build();
         if classpath.is_empty() {
-            return Err(ProtonError::EmptyClasspath);
+            return Err(Error::EmptyClasspath);
         }
         self.verify_requirements(&final_manifest, &base_id)?;
 
@@ -174,7 +152,6 @@ impl<'a> CommandBuilder<'a> {
             .auth_uuid
             .clone()
             .unwrap_or_else(|| Uuid::new_v4().to_string());
-
         let vars = self.build_vars(
             &assets_dir,
             &natives_dir,
@@ -184,18 +161,19 @@ impl<'a> CommandBuilder<'a> {
         );
 
         let mut cmd: Vec<String> = Vec::new();
-        cmd.push(self.config.java_path.to_string_lossy().to_string());
+        let java = self.config.java_path.to_string_lossy().to_string();
+        cmd.push(java);
 
         self.add_jvm_flags(&mut cmd, &natives_dir, &vars, &final_manifest);
         cmd.push("-cp".to_string());
         cmd.push(classpath);
-
-        let main_class = final_manifest
-            .main_class
-            .as_ref()
-            .ok_or(ProtonError::MainClassNotFound)?
-            .clone();
-        cmd.push(main_class);
+        cmd.push(
+            final_manifest
+                .main_class
+                .as_ref()
+                .ok_or(Error::MainClassNotFound)?
+                .clone(),
+        );
 
         self.add_game_args(&mut cmd, &vars, &final_manifest);
         self.add_default_game_args(&mut cmd, &assets_dir, &final_manifest);
@@ -217,7 +195,7 @@ impl<'a> CommandBuilder<'a> {
         cmd.push("-Dminecraft.launcher.version=2.0".to_string());
 
         if self.config.cracked {
-            info!("Cracked mode enabled");
+            info!("Offline (cracked) mode enabled");
             cmd.push("-Dminecraft.api.env=custom".to_string());
             for host in &["auth.host", "account.host", "session.host", "services.host"] {
                 cmd.push(format!("-Dminecraft.api.{}=https://invalid.invalid", host));
@@ -255,10 +233,10 @@ impl<'a> CommandBuilder<'a> {
     ) {
         if let Some(args) = manifest.arguments.as_ref().and_then(|a| a.game.as_ref()) {
             for arg in args {
-                if let Argument::Plain(s) = arg {
-                    if self.should_skip_arg(s) {
-                        continue;
-                    }
+                if let Argument::Plain(s) = arg
+                    && self.should_skip_arg(s)
+                {
+                    continue;
                 }
                 for s in arg.get_if_applies() {
                     if !self.should_skip_arg(&s) {
@@ -298,19 +276,20 @@ impl<'a> CommandBuilder<'a> {
         assets_dir: &Path,
         manifest: &VersionManifest,
     ) {
-        let asset_index_id = manifest
-            .asset_index
-            .as_ref()
-            .map(|a| a.id.clone())
-            .unwrap_or_default();
-
         let defaults: Vec<(&str, String)> = vec![
             ("--width", self.config.width.to_string()),
             ("--height", self.config.height.to_string()),
             ("--username", self.config.username.clone()),
             ("--version", manifest.id_raw.clone()),
             ("--assetsDir", assets_dir.display().to_string()),
-            ("--assetIndex", asset_index_id),
+            (
+                "--assetIndex",
+                manifest
+                    .asset_index
+                    .as_ref()
+                    .map(|a| a.id.clone())
+                    .unwrap_or_default(),
+            ),
             ("--gameDir", self.instance_dir.display().to_string()),
             (
                 "--accessToken",
@@ -342,9 +321,9 @@ impl<'a> CommandBuilder<'a> {
         }
         if let Some(qp) = &self.config.quick_play {
             let (flag, value) = match qp {
-                QuickPlay::Singleplayer(v) => ("--quickPlaySingleplayer", v),
-                QuickPlay::Multiplayer(v) => ("--quickPlayMultiplayer", v),
-                QuickPlay::Realms(v) => ("--quickPlayRealms", v),
+                crate::QuickPlay::Singleplayer(v) => ("--quickPlaySingleplayer", v),
+                crate::QuickPlay::Multiplayer(v) => ("--quickPlayMultiplayer", v),
+                crate::QuickPlay::Realms(v) => ("--quickPlayRealms", v),
             };
             if !cmd.contains(&flag.to_string()) {
                 cmd.push(flag.to_string());

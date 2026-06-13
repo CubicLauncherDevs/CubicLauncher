@@ -79,9 +79,10 @@ async fn set_idle() {
 
     let guard = presence.client.lock().await;
     if let Some(ref client) = *guard
-        && let Err(e) = client.set_activity(activity).await {
-            error!("Failed to set idle presence: {e}");
-        }
+        && let Err(e) = client.set_activity(activity).await
+    {
+        error!("Failed to set idle presence: {e}");
+    }
 }
 
 async fn set_playing(name: String, version: String, loader: String) {
@@ -109,9 +110,10 @@ async fn set_playing(name: String, version: String, loader: String) {
 
     let guard = presence.client.lock().await;
     if let Some(ref client) = *guard
-        && let Err(e) = client.set_activity(activity).await {
-            error!("Failed to set playing presence: {e}");
-        }
+        && let Err(e) = client.set_activity(activity).await
+    {
+        error!("Failed to set playing presence: {e}");
+    }
 }
 
 pub async fn shutdown() {

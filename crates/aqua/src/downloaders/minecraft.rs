@@ -7,8 +7,8 @@ use uuid::Uuid;
 
 use super::batch::{DownloadBatch, DownloadItemSpec};
 use crate::manifest::{resolve_asset_index, resolve_version_data};
-use crate::natives::natives_subdir;
 use crate::types::{AssetMeta, NormalizedVersion, RESOURCES_BASE_URL};
+use zellkern::resolvers::natives_subdir;
 use crate::utilities::download_file;
 use crate::ProtonError;
 use crate::utilities::HTTP_CLIENT;
@@ -22,7 +22,7 @@ struct DirPaths {
     assets_indexes_dir: PathBuf,
 }
 
-fn compute_dirs(game_path: &Path, version_id: &str, version: &crate::types::MCVersion) -> DirPaths {
+fn compute_dirs(game_path: &Path, version_id: &str, version: &zellkern::MCVersion) -> DirPaths {
     let sub = natives_subdir(version);
     DirPaths {
         natives_dir: game_path.join("natives").join(version_id).join(sub),

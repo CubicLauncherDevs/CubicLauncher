@@ -55,9 +55,8 @@ fn default_active_user_idx() -> usize {
     0
 }
 fn default_user() -> Vec<MinecraftUser> {
-    let mut vec = Vec::new();
-    vec.push(MinecraftUser::cracked("Steve"));
-    return vec;
+    let vec = vec![MinecraftUser::cracked("Steve")];
+    vec
 }
 // ── SettingsManager ───────────────────────────────────────────────────────────
 
@@ -152,8 +151,10 @@ impl Default for SettingsManager {
     fn default() -> Self {
         Self {
             user: {
-                let mut vec = Vec::new();
-                vec.push(MinecraftUser::cracked("Steve"));
+                // let mut vec = Vec::new();
+                // vec.push(MinecraftUser::cracked("Steve"));
+                // vec
+                let vec = vec![MinecraftUser::cracked("Steve")];
                 vec
             },
             active_user_idx: 0,
@@ -227,15 +228,19 @@ impl SettingsManager {
     pub fn get_max_memory(&self) -> u32 {
         self.max_memory
     }
+    #[allow(dead_code)]
     pub fn get_jre8_path(&self) -> &Path {
         &self.jre8_path
     }
+    #[allow(dead_code)]
     pub fn get_jre17_path(&self) -> &Path {
         &self.jre17_path
     }
+    #[allow(dead_code)]
     pub fn get_jre21_path(&self) -> &Path {
         &self.jre21_path
     }
+    #[allow(dead_code)]
     pub fn get_jre25_path(&self) -> &Path {
         &self.jre25_path
     }

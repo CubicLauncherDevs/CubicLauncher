@@ -47,3 +47,18 @@ impl From<Box<dyn std::error::Error + Send + Sync>> for ProtonError {
         ProtonError::Other(err.to_string())
     }
 }
+
+impl From<zellkern::Error> for ProtonError {
+    fn from(err: zellkern::Error) -> Self {
+        match err {
+            zellkern::Error::Io(e) => ProtonError::IoError(e),
+            zellkern::Error::Json(e) => ProtonError::JsonError(e),
+            zellkern::Error::MainClassNotFound => ProtonError::MainClassNotFound,
+            zellkern::Error::EmptyClasspath => ProtonError::EmptyClasspath,
+            zellkern::Error::JavaNotFound(p) => ProtonError::JavaNotFound(p),
+            zellkern::Error::MissingFile(p) => ProtonError::MissingFile(p),
+            zellkern::Error::VersionLoad(v) => ProtonError::VersionNotFound(v),
+            zellkern::Error::Custom(s) => ProtonError::Other(s),
+        }
+    }
+}

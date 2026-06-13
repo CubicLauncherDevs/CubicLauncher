@@ -1,37 +1,21 @@
-// Copyright (C) 2025 Santiagolxx, CubicLauncher contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 /// All parameters needed to launch a Minecraft instance.
 #[derive(Debug, Clone)]
 pub struct LaunchConfig {
-    /// Path to the Java binary.
     pub java_path: PathBuf,
-    /// Player username (cracked / offline mode).
     pub username: String,
-    /// Minimum JVM heap (e.g. "512M").
     pub min_ram: String,
-    /// Maximum JVM heap (e.g. "2G").
     pub max_ram: String,
-    /// Window width in pixels.
     pub width: u32,
-    /// Window height in pixels.
     pub height: u32,
-    /// Offline / cracked mode: routes auth endpoints to an invalid host.
     pub cracked: bool,
-    /// Optional demo mode flag.
     pub demo_mode: bool,
-    /// Additional environment variables passed to the game process.
     pub env: HashMap<String, String>,
-    /// Optional Quick Play target.
     pub quick_play: Option<QuickPlay>,
-    /// Minecraft access token (real token for premium users, "0" for offline).
     pub access_token: Option<String>,
-    /// Player UUID (real UUID for premium users, random for offline).
     pub auth_uuid: Option<String>,
-    /// User type ("mojang" for Mojang accounts, "msa" for Microsoft, "legacy" for offline).
     pub user_type: Option<String>,
 }
 
@@ -68,7 +52,6 @@ impl LaunchConfig {
     }
 }
 
-/// Fluent builder for `LaunchConfig`.
 #[derive(Default)]
 pub struct LaunchConfigBuilder(LaunchConfig);
 
