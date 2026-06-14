@@ -456,7 +456,7 @@ impl DownloadBatch for ForgeBatch {
                         total,
                         info: crate::types::DownloadProgressInfo {
                             name: "Forge installation complete".into(),
-                            version: Arc::new(version_id),
+                            version: Arc::new(version_id.clone()),
                         },
                         download_type: crate::types::DownloadProgressType::Processing,
                     })
@@ -464,6 +464,24 @@ impl DownloadBatch for ForgeBatch {
             }
 
             info!("All Forge post-processors completed successfully");
+
+            // Copy patched MC JAR to Forge version dir so classpath matches -DignoreList
+            let patched_jar = shared_dir
+                .join("versions")
+                .join(&game_version)
+                .join(format!("{game_version}.jar"));
+            let forge_jar_dest = staging_dir
+                .join("versions")
+                .join(&version_id)
+                .join(format!("{version_id}.jar"));
+            if patched_jar.exists() && !forge_jar_dest.exists() {
+                tokio::fs::copy(&patched_jar, &forge_jar_dest).await?;
+                info!(
+                    "Copied patched MC JAR to Forge version dir: {:?}",
+                    forge_jar_dest
+                );
+            }
+
             commit_and_cleanup(&staging_dir, &shared_dir)?;
             Ok(())
         })
@@ -637,11 +655,12 @@ fn resolve_arg(
             "MINECRAFT_JAR" => mc_jar.to_string_lossy().to_string(),
             "ROOT" | "MC_SUPPLIED_JARS_DIR" => root.to_string_lossy().to_string(),
             "LIBRARY_DIR" => lib_dir.to_string_lossy().to_string(),
+            "SIDE" => "client".to_string(),
             _ => {
                 if let Some(entry) = data.get(key)
                     && let Some(ref client_val) = entry.client
                 {
-                    return resolve_data_value(client_val, lib_dir, root);
+                    return resolve_data_value(client_val, data, mc_jar, lib_dir, root);
                 }
                 arg.to_string()
             }
@@ -668,12 +687,14 @@ fn resolve_arg(
 
 fn resolve_data_value(
     val: &serde_json::Value,
+    data: &std::collections::HashMap<String, zellkern::DataEntry>,
+    mc_jar: &Path,
     lib_dir: &Path,
     root: &Path,
 ) -> String {
     match val {
         serde_json::Value::String(s) => {
-            if let Some(coord) = s.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+            let resolved = if let Some(coord) = s.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
                 lib_dir
                     .join(maven_to_path(coord))
                     .to_string_lossy()
@@ -684,10 +705,45 @@ fn resolve_data_value(
                 root.join(rest).to_string_lossy().to_string()
             } else {
                 s.clone()
-            }
+            };
+            resolve_var_refs(&resolved, data, mc_jar, lib_dir, root)
         }
         _ => val.to_string(),
     }
+}
+
+fn resolve_var_refs(
+    s: &str,
+    data: &std::collections::HashMap<String, zellkern::DataEntry>,
+    mc_jar: &Path,
+    lib_dir: &Path,
+    root: &Path,
+) -> String {
+    let mut result = s.to_string();
+    while let Some(start) = result.find('{') {
+        if let Some(end) = result[start..].find('}') {
+            let key = &result[start + 1..start + end];
+            let replacement = match key {
+                "MINECRAFT_JAR" => mc_jar.to_string_lossy().to_string(),
+                "ROOT" | "MC_SUPPLIED_JARS_DIR" => root.to_string_lossy().to_string(),
+                "LIBRARY_DIR" => lib_dir.to_string_lossy().to_string(),
+                "SIDE" => "client".to_string(),
+                _ => {
+                    if let Some(entry) = data.get(key)
+                        && let Some(ref client_val) = entry.client
+                    {
+                        resolve_data_value(client_val, data, mc_jar, lib_dir, root)
+                    } else {
+                        result[start..=start + end].to_string()
+                    }
+                }
+            };
+            result.replace_range(start..=start + end, &replacement);
+        } else {
+            break;
+        }
+    }
+    result
 }
 
 fn find_java(shared_dir: &Path) -> Result<PathBuf, AquaError> {

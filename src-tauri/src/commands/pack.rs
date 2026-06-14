@@ -1,6 +1,8 @@
 use crate::core::{AppEvent, InstanceError, emit};
 use crate::services::{DownloadQueue, InstanceManager};
 use serde::Serialize;
+use std::borrow::Cow;
+use std::sync::Arc;
 use tracing::info;
 
 #[derive(Debug, Serialize)]
@@ -78,9 +80,30 @@ pub async fn install_mrpack(path: String, instance_name: String) -> Result<Mrpac
 
     let instance_dir = handle.get_instance_dir().await;
 
-    cubrinth::mrpack::install_mrpack(std::path::Path::new(&path), &instance_dir)
-        .await
-        .map_err(|e| format!("Failed to install mrpack: {}", e))?;
+    DownloadQueue::get().enqueue_work("mods").await;
+
+    let (progress_tx, progress_rx) = tokio::sync::mpsc::channel::<(usize, usize)>(32);
+    let mods_label: Arc<str> = "mods".into();
+    let progress_task = tokio::spawn(async move {
+        let mut rx = progress_rx;
+        while let Some((current, total)) = rx.recv().await {
+            emit(AppEvent::DProgress {
+                version: mods_label.clone(),
+                current: current as u32,
+                total: total as u32,
+                d_type: Cow::Borrowed("Generic"),
+            });
+        }
+    });
+
+    let install_result =
+        cubrinth::mrpack::install_mrpack(std::path::Path::new(&path), &instance_dir, Some(progress_tx)).await;
+
+    let _ = progress_task.await;
+
+    DownloadQueue::get().finish_work("mods").await;
+
+    install_result.map_err(|e| format!("Failed to install mrpack: {}", e))?;
 
     if let zellkern::Loader::Fabric(loader_version) = &game_version.loader {
         download_fabric_loader(&mc_version_only, loader_version).await?;

@@ -88,6 +88,7 @@
 		"failed": "error",
 		"noDownloads": "Sin descargas",
 		"noDownloadDesc": "Las versiones descargadas aparecerán aquí",
+		"downloadingMods": "Descargando mods...",
 		"modals": {
 			"editTitle": "Editar Instancia",
 			"nameLabel": "Nombre",
@@ -137,7 +138,8 @@
 		"status": {
 			"starting": "Iniciando",
 			"started": "Version iniciada",
-			"idle": "Inactivo"
+			"idle": "Inactivo",
+			"error": "Error"
 		},
 		"tabs": {
 			"details": "Detalles",
@@ -244,6 +246,8 @@
 	"createInstance": {
 		"title": "Crear Nueva Instancia",
 		"emptyNameErr": "El nombre no puede estar vacío",
+		"nameTooLong": "El nombre no puede tener más de 16 caracteres",
+		"nameExists": "Ya existe una instancia con ese nombre",
 		"createErr": "Error al crear la instancia",
 		"nameLabel": "Nombre de la Instancia",
 		"namePlaceholder": "Ej. Mi instancia",
@@ -252,7 +256,24 @@
 		"noVersionsErr": "No hay versiones descargadas",
 		"cancel": "Cancelar",
 		"createBtn": "Crear",
-		"creatingBtn": "Creando..."
+		"creatingBtn": "Creando...",
+		"manualTab": "Manual",
+		"importTab": "Desde Modpack",
+		"stepName": "Nombre",
+		"stepIcon": "Icono",
+		"stepSource": "Fuente",
+		"stepDetails": "Detalles",
+		"back": "Atrás",
+		"next": "Siguiente",
+		"importBtn": "Importar Modpack",
+		"importingBtn": "Importando...",
+		"selectFile": "Seleccionar archivo",
+		"dragOrDrop": "Arrastra un archivo .mrpack o .zip aquí",
+		"or": "o",
+		"orDownloadFrom": "o descarga desde",
+		"parsingPack": "Analizando modpack...",
+		"packInfo": "Información del Pack",
+		"instanceName": "Nombre de la instancia"
 	},
 	"versionDownloader": {
 		"title": "Descargar Versiones",

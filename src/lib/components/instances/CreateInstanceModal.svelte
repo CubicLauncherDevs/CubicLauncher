@@ -1,19 +1,20 @@
 <script lang="ts">
-import {
-	createInstance,
-	getInstalledVersions,
-	parseMrpack,
-	installMrpack,
-	parseCurseManifest,
-	parseCurseManifestAndInstall,
-} from "$lib/api/cubicApi";
-import { INSTANCE_LOGOS } from "$lib/icons/logos";
-import Select from "$lib/components/layout/Select.svelte";
-import ModalBase from "$lib/components/layout/ModalBase.svelte";
-import FtbModpackBrowser from "$lib/components/instances/FtbModpackBrowser.svelte";
-import { t } from "$lib/i18n";
-import type { MrpackInfo, CurseManifestInfo, InstallResultInfo } from "$lib/types/types";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
+	import {
+		createInstance,
+		fetchAll,
+		getInstalledVersions,
+		parseMrpack,
+		installMrpack,
+		parseCurseManifest,
+		parseCurseManifestAndInstall,
+	} from "$lib/api/cubicApi";
+	import { INSTANCE_LOGOS } from "$lib/icons/logos";
+	import Select from "$lib/components/layout/Select.svelte";
+	import ModalBase from "$lib/components/layout/ModalBase.svelte";
+	import FtbModpackBrowser from "$lib/components/instances/FtbModpackBrowser.svelte";
+	import { t } from "$lib/i18n";
+	import type { MrpackInfo, CurseManifestInfo } from "$lib/types/types";
+	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 	let {
 		open = $bindable(),
@@ -25,42 +26,92 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 		oncreated?: () => void;
 	}>();
 
-	// Manual mode state
+	// ── Step 1: Name + Icon ───────────────────────────────────────────────────
 	let name = $state("");
-	let selectedVersion = $state("");
 	let selectedIcon = $state<string | null>(null);
+
+	// ── Step 2: Version or Modpack ────────────────────────────────────────────
+	type ContentSource = "version" | "modpack";
+	let contentSource = $state<ContentSource>("version");
+
+	// Version
+	let selectedVersion = $state("");
 	let versions = $state<string[]>([]);
 	let versionOptions = $derived(
 		versions.map((v) => ({ value: v, label: v })),
 	);
 
-	// Import mode state
+	// Modpack
 	type AnyPackInfo = MrpackInfo | CurseManifestInfo;
 	let packInfo = $state<AnyPackInfo | null>(null);
 	let packType = $state<"mrpack" | "curse">("mrpack");
 	let parsing = $state(false);
-
-	let loading = $state(false);
-	let error = $state<string | null>(null);
-
-	type Mode = "manual" | "import";
-	let mode = $state<Mode>("manual");
-
 	let showFtbBrowser = $state(false);
 
+	// ── Common ────────────────────────────────────────────────────────────────
+	let loading = $state(false);
+	let error = $state<string | null>(null);
+	let existingNames = $state<string[]>([]);
+
+	// ── Steps ─────────────────────────────────────────────────────────────────
+	let currentStep = $state(0);
+	const TOTAL_STEPS = 2;
+	let nameMsg = $state<string | null>(null);
+
+	function validateName(): boolean {
+		const trimmed = name.trim();
+		if (!trimmed) {
+			nameMsg = "createInstance.emptyNameErr";
+			return false;
+		}
+		if (trimmed.length > 16) {
+			nameMsg = "createInstance.nameTooLong";
+			return false;
+		}
+		if (existingNames.includes(trimmed)) {
+			nameMsg = "createInstance.nameExists";
+			return false;
+		}
+		nameMsg = null;
+		return true;
+	}
+
+	function nextStep() {
+		if (currentStep === 0 && !validateName()) return;
+		if (currentStep < TOTAL_STEPS - 1) currentStep++;
+	}
+	function prevStep() {
+		if (currentStep > 0) currentStep--;
+	}
+	function isLastStep() {
+		return currentStep === TOTAL_STEPS - 1;
+	}
+
+	// ── Effects ───────────────────────────────────────────────────────────────
 	$effect(() => {
 		if (open) {
+			currentStep = 0;
+			contentSource = "version";
+			nameMsg = null;
 			fetchVersions();
+			fetchInstances();
 		}
 	});
 
 	$effect(() => {
 		if (open && mrpackPath) {
-			mode = "import";
+			contentSource = "modpack";
 			loadPackInfo();
 		}
 	});
 
+	// ── Fetch instances ───────────────────────────────────────────────────────
+	async function fetchInstances() {
+		const instances = await fetchAll();
+		existingNames = instances.map((i) => i.name);
+	}
+
+	// ── Fetch versions ────────────────────────────────────────────────────────
 	async function fetchVersions() {
 		const rawVersions = await getInstalledVersions();
 		versions = rawVersions.sort((a, b) =>
@@ -69,36 +120,35 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 				sensitivity: "base",
 			}),
 		);
-
 		if (versions.length > 0 && !selectedVersion) {
 			selectedVersion = versions[0];
 		}
 	}
 
+	// ── Load pack info ────────────────────────────────────────────────────────
 	async function loadPackInfo() {
 		if (!mrpackPath) return;
 		parsing = true;
 		error = null;
 		try {
 			const isZip = mrpackPath.toLowerCase().endsWith(".zip");
-
 			if (isZip) {
 				const info = await parseCurseManifest(mrpackPath);
 				if (info) {
 					packInfo = info;
 					packType = "curse";
-					name = info.name;
+					if (!name.trim()) name = info.name;
 					const loaderIcon = selectIconForLoader(info.loader);
 					if (loaderIcon) selectedIcon = loaderIcon;
 				} else {
-					error = "No se pudo leer el archivo. Asegúrate de que sea un modpack de CurseForge/FTB válido.";
+					error = "No se pudo leer el archivo. Asegúrate de que sea un modpack válido.";
 				}
 			} else {
 				const info = await parseMrpack(mrpackPath);
 				if (info) {
 					packInfo = info;
 					packType = "mrpack";
-					name = info.name;
+					if (!name.trim()) name = info.name;
 					const loaderIcon = selectIconForLoader(info.loader);
 					if (loaderIcon) selectedIcon = loaderIcon;
 				} else {
@@ -110,6 +160,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 		}
 	}
 
+	// ── Helpers ───────────────────────────────────────────────────────────────
 	function selectIconForLoader(loader: string | null): string | null {
 		if (!loader) return null;
 		const l = loader.toLowerCase();
@@ -123,33 +174,28 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	function getPackName(info: AnyPackInfo): string {
 		return info.name;
 	}
-
 	function getPackVersion(info: AnyPackInfo): string {
 		return "version_id" in info ? info.version_id : info.version;
 	}
-
 	function getPackMcVersion(info: AnyPackInfo): string | null {
 		return "minecraft_version" in info ? info.minecraft_version : null;
 	}
-
 	function getPackLoader(info: AnyPackInfo): string | null {
 		return "loader" in info ? info.loader : null;
 	}
-
 	function getPackLoaderVersion(info: AnyPackInfo): string | null {
 		return "loader_version" in info ? info.loader_version : null;
 	}
-
 	function getPackSummary(info: AnyPackInfo): string | null {
 		return "summary" in info ? (info.summary ?? null) : null;
 	}
-
 	function getPackFileCount(info: AnyPackInfo): number {
 		return "file_count" in info ? info.file_count : 0;
 	}
 
-	async function handleCreate() {
-		if (mode === "import" && mrpackPath) {
+	// ── Create / Import ──────────────────────────────────────────────────────
+	async function handleFinalAction() {
+		if (contentSource === "modpack" && mrpackPath) {
 			await handleImport();
 		} else {
 			await handleManualCreate();
@@ -161,15 +207,12 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 			error = t("createInstance.emptyNameErr");
 			return;
 		}
-
 		if (!selectedVersion) {
 			error = t("createInstance.noVersionsErr");
 			return;
 		}
-
 		loading = true;
 		error = null;
-
 		try {
 			await createInstance(
 				name,
@@ -192,10 +235,8 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 	async function handleImport() {
 		if (!mrpackPath || !name.trim()) return;
-
 		loading = true;
 		error = null;
-
 		try {
 			if (packType === "curse") {
 				const result = await parseCurseManifestAndInstall(
@@ -211,9 +252,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 						error = `Error al importar: ${err}`;
 					},
 				);
-				if (!result) {
-					error = "Error al importar el modpack";
-				}
+				if (!result) error = "Error al importar el modpack";
 			} else {
 				const result = await installMrpack(
 					mrpackPath,
@@ -228,15 +267,14 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 						error = `Error al importar: ${err}`;
 					},
 				);
-				if (!result) {
-					error = "Error al importar el modpack";
-				}
+				if (!result) error = "Error al importar el modpack";
 			}
 		} finally {
 			loading = false;
 		}
 	}
 
+	// ── File picker ───────────────────────────────────────────────────────────
 	async function selectMrpackFile() {
 		try {
 			const selected = await openDialog({
@@ -252,6 +290,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 		}
 	}
 
+	// ── Reset ─────────────────────────────────────────────────────────────────
 	function resetState() {
 		name = "";
 		selectedVersion = "";
@@ -262,7 +301,8 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 		packInfo = null;
 		packType = "mrpack";
 		loading = false;
-		mode = "manual";
+		currentStep = 0;
+		contentSource = "version";
 		showFtbBrowser = false;
 	}
 
@@ -272,14 +312,6 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 		resetState();
 	}
 
-	function switchMode(newMode: Mode) {
-		mode = newMode;
-		error = null;
-		if (newMode === "import" && mrpackPath) {
-			loadPackInfo();
-		}
-	}
-
 	function onFtbInstalled() {
 		open = false;
 		resetState();
@@ -287,65 +319,129 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	}
 </script>
 
-<ModalBase bind:open title={t("createInstance.title")} onclose={reset}>
-	<div class="tab-bar">
-		<button
-			type="button"
-			class="tab-btn"
-			class:active={mode === "manual"}
-			onclick={() => switchMode("manual")}
-		>
-			Manual
-		</button>
-		<button
-			type="button"
-			class="tab-btn"
-			class:active={mode === "import"}
-			onclick={() => switchMode("import")}
-		>
-			Desde Modpack
-		</button>
+<ModalBase bind:open title={t("createInstance.title")} width="700px" onclose={reset}>
+	<!-- Step indicator -->
+	<div class="step-indicator">
+		{#each { length: TOTAL_STEPS } as _, i}
+			{@const active = i === currentStep}
+			{@const done = i < currentStep}
+			<div class="step-dot" class:active class:done>
+				{#if done}
+					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+						<polyline points="20 6 9 17 4 12"></polyline>
+					</svg>
+				{:else}
+					<span>{i + 1}</span>
+				{/if}
+			</div>
+			{#if i < TOTAL_STEPS - 1}
+				<div class="step-line" class:done></div>
+			{/if}
+		{/each}
 	</div>
 
-	{#if mode === "manual"}
-		<div>
-			<div class="create-layout">
-				<div class="create-logo-section">
+	<!-- Error -->
+	{#if error}
+		<div class="step-error">{error}</div>
+	{/if}
+
+	<!-- Step content -->
+	<div class="step-content">
+		<!-- Step 1: Name + Icon -->
+		{#if currentStep === 0}
+			<div class="step1-layout">
+				<div class="icon-column">
 					<span class="input-label">{t("createInstance.iconLabel")}</span>
-					<div class="create-logo-preview">
+					<div class="icon-preview">
 						{#if selectedIcon}
 							<img src={selectedIcon} alt="Logo" />
-							<button
-								type="button"
-								class="create-logo-clear"
-								onclick={() => (selectedIcon = null)}
-								onmouseenter={(e) => (e.currentTarget.style.opacity = "1")}
-								onmouseleave={(e) => (e.currentTarget.style.opacity = "0")}
-							>Limpiar</button>
+							<button type="button" class="icon-clear" onclick={() => (selectedIcon = null)} title="Quitar icono">
+							<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+								<line x1="18" y1="6" x2="6" y2="18"></line>
+								<line x1="6" y1="6" x2="18" y2="18"></line>
+							</svg>
+						</button>
 						{:else}
-							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary); opacity: 0.5;">
+							<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary); opacity: 0.4;">
 								<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
 								<circle cx="8.5" cy="8.5" r="1.5"></circle>
 								<polyline points="21 15 16 10 5 21"></polyline>
 							</svg>
 						{/if}
 					</div>
+					<div class="icon-grid">
+						{#each INSTANCE_LOGOS as iconName (iconName)}
+							{@const iconPath = `/images/instances/${iconName}`}
+							<button
+								type="button"
+								class="icon-option"
+								class:selected={selectedIcon === iconPath}
+								onclick={() => (selectedIcon = selectedIcon === iconPath ? null : iconPath)}
+								title={iconName}
+							>
+								<img src={iconPath} alt={iconName} />
+							</button>
+						{/each}
+					</div>
 				</div>
-
-				<div class="create-details-section">
+				<div class="fields-column">
 					<div class="input-group">
 						<span class="input-label">{t("createInstance.nameLabel")}</span>
 						<input
 							type="text"
 							class="text-input"
+							class:error={nameMsg}
+							maxlength={16}
 							bind:value={name}
 							placeholder={t("createInstance.namePlaceholder")}
 							disabled={loading}
-							onkeydown={(e) => e.key === "Enter" && handleCreate()}
+							oninput={() => (nameMsg = null)}
+							onkeydown={(e) => e.key === "Enter" && nextStep()}
 						/>
+						{#if nameMsg}
+							<span class="input-error">{t(nameMsg)}</span>
+						{/if}
 					</div>
+				</div>
+			</div>
+		{/if}
 
-					<div class="input-group">
+		<!-- Step 2: Version or Modpack -->
+		{#if currentStep === 1}
+			<div class="step2-layout">
+				{#if !mrpackPath}
+				<div class="source-toggle">
+					<button
+						type="button"
+						class="source-btn"
+						class:active={contentSource === "version"}
+						onclick={() => { contentSource = "version"; error = null; }}
+					>
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+							<polyline points="7 10 12 15 17 10"></polyline>
+							<line x1="12" y1="15" x2="12" y2="3"></line>
+						</svg>
+						Version instalada
+					</button>
+					<button
+						type="button"
+						class="source-btn"
+						class:active={contentSource === "modpack"}
+						onclick={() => { contentSource = "modpack"; error = null; }}
+					>
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+							<polyline points="17 8 12 3 7 8"></polyline>
+							<line x1="12" y1="3" x2="12" y2="15"></line>
+						</svg>
+						Importar modpack
+					</button>
+				</div>
+				{/if}
+
+				{#if contentSource === "version" && !mrpackPath}
+					<div class="version-section">
 						<Select
 							label={t("createInstance.versionLabel")}
 							bind:value={selectedVersion}
@@ -354,251 +450,165 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 							placeholder={t("createInstance.noVersionsErr")}
 						/>
 					</div>
-				</div>
+				{:else}
+					<div class="modpack-section">
+						{#if parsing}
+							<div class="parsing-state">
+								<p>{t("createInstance.parsingPack")}</p>
+							</div>
+						{:else if !mrpackPath}
+							<div class="drop-zone">
+								<p>{t("createInstance.dragOrDrop")}</p>
+								<span class="drop-or">{t("createInstance.or")}</span>
+								<button type="button" class="btn-secondary" onclick={selectMrpackFile}>
+									{t("createInstance.selectFile")}
+								</button>
+							</div>
+							<div class="ftb-section">
+								<div class="ftb-divider"><span>{t("createInstance.orDownloadFrom")}</span></div>
+								<button type="button" class="ftb-open-btn" onclick={() => (showFtbBrowser = !showFtbBrowser)}>
+									<img src="/images/instances/ftb.png" alt="FTB" class="ftb-icon" />
+									FTB Modpacks
+								</button>
+								{#if showFtbBrowser}
+									<FtbModpackBrowser onInstalled={onFtbInstalled} />
+								{/if}
+							</div>
+						{:else if packInfo}
+							<div class="pack-info">
+								<div class="info-row">
+									<span class="info-label">Pack</span>
+									<span class="info-value">{getPackName(packInfo)}</span>
+								</div>
+								<div class="info-row">
+									<span class="info-label">Versión</span>
+									<span class="info-value">{getPackVersion(packInfo)}</span>
+								</div>
+								{#if getPackSummary(packInfo)}
+									<div class="info-row">
+										<span class="info-label">Descripción</span>
+										<span class="info-value summary">{getPackSummary(packInfo)}</span>
+									</div>
+								{/if}
+								<div class="info-row">
+									<span class="info-label">Minecraft</span>
+									<span class="info-value">{getPackMcVersion(packInfo) ?? "—"}</span>
+								</div>
+								<div class="info-row">
+									<span class="info-label">Loader</span>
+									<span class="info-value">{getPackLoader(packInfo) ?? "Vanilla"}{getPackLoaderVersion(packInfo) ? " " + getPackLoaderVersion(packInfo) : ""}</span>
+								</div>
+								<div class="info-row">
+									<span class="info-label">Formato</span>
+									<span class="info-value">{packType === "mrpack" ? "Modrinth" : "CurseForge/FTB"}</span>
+								</div>
+								<div class="info-row">
+									<span class="info-label">Archivos</span>
+									<span class="info-value">{getPackFileCount(packInfo)} mods/archivos</span>
+								</div>
+							</div>
+							<button type="button" class="btn-change-file" onclick={selectMrpackFile}>
+								Cambiar archivo
+							</button>
+						{:else if error}
+							<div class="drop-zone">
+								<p>{t("createInstance.dragOrDrop")}</p>
+								<span class="drop-or">{t("createInstance.or")}</span>
+								<button type="button" class="btn-secondary" onclick={selectMrpackFile}>
+									{t("createInstance.selectFile")}
+								</button>
+							</div>
+						{/if}
+					</div>
+				{/if}
 			</div>
-
-			<div class="create-divider"></div>
-
-			<div class="input-group">
-				<span class="input-label">Seleccionar Icono</span>
-				<div class="create-icon-grid">
-					{#each INSTANCE_LOGOS as iconName (iconName)}
-						{@const iconPath = `/images/instances/${iconName}`}
-						<button
-							type="button"
-							class="icon-option"
-							class:selected={selectedIcon === iconPath}
-							onclick={() => (selectedIcon = selectedIcon === iconPath ? null : iconPath)}
-							title={iconName}
-						>
-							<img src={iconPath} alt={iconName} />
-						</button>
-					{/each}
-				</div>
-			</div>
-		</div>
-	{/if}
-
-	{#if mode === "import"}
-		<div>
-			{#if parsing}
-				<div class="parsing-state">
-					<p>Analizando modpack...</p>
-				</div>
-			{:else if !mrpackPath}
-				<div class="drop-zone">
-					<p>Arrastra un archivo .mrpack o .zip aquí</p>
-					<span class="drop-or">o</span>
-					<button type="button" class="btn-secondary" onclick={selectMrpackFile}>
-						Seleccionar archivo
-					</button>
-				</div>
-
-				<div class="ftb-section">
-					<div class="ftb-divider"><span>o descarga desde</span></div>
-					<button type="button" class="ftb-open-btn" onclick={() => (showFtbBrowser = !showFtbBrowser)}>
-						<img src="/images/instances/ftb.png" alt="FTB" class="ftb-icon" />
-						FTB Modpacks
-					</button>
-
-					{#if showFtbBrowser}
-						<FtbModpackBrowser onInstalled={onFtbInstalled} />
-					{/if}
-				</div>
-			{:else if packInfo}
-				<div class="pack-info">
-					<div class="info-row">
-						<span class="info-label">Pack</span>
-						<span class="info-value">{getPackName(packInfo)}</span>
-					</div>
-					<div class="info-row">
-						<span class="info-label">Versión</span>
-						<span class="info-value">{getPackVersion(packInfo)}</span>
-					</div>
-					{#if getPackSummary(packInfo)}
-						<div class="info-row">
-							<span class="info-label">Descripción</span>
-							<span class="info-value summary">{getPackSummary(packInfo)}</span>
-						</div>
-					{/if}
-					<div class="info-row">
-						<span class="info-label">Minecraft</span>
-						<span class="info-value">{getPackMcVersion(packInfo) ?? "—"}</span>
-					</div>
-					<div class="info-row">
-						<span class="info-label">Loader</span>
-						<span class="info-value">{getPackLoader(packInfo) ?? "Vanilla"}{getPackLoaderVersion(packInfo) ? " " + getPackLoaderVersion(packInfo) : ""}</span>
-					</div>
-					<div class="info-row">
-						<span class="info-label">Formato</span>
-						<span class="info-value">{packType === "mrpack" ? "Modrinth" : "CurseForge/FTB"}</span>
-					</div>
-					<div class="info-row">
-						<span class="info-label">Archivos</span>
-						<span class="info-value">{getPackFileCount(packInfo)} mods/archivos</span>
-					</div>
-				</div>
-
-				<div class="input-group">
-					<span class="input-label">Nombre de la instancia</span>
-					<input
-						type="text"
-						class="text-input"
-						bind:value={name}
-						placeholder="Nombre de la instancia"
-						disabled={loading}
-						onkeydown={(e) => e.key === "Enter" && handleCreate()}
-					/>
-				</div>
-			{:else if error}
-				<div class="error-msg">{error}</div>
-				<div class="drop-zone">
-					<p>Arrastra otro archivo .mrpack o .zip</p>
-					<span class="drop-or">o</span>
-					<button type="button" class="btn-secondary" onclick={selectMrpackFile}>
-						Seleccionar archivo
-					</button>
-				</div>
-			{/if}
-		</div>
-	{/if}
-
-	{#if error && mode === "manual"}
-		<div class="create-error">{error}</div>
-	{/if}
+		{/if}
+	</div>
 
 	{#snippet footer()}
 		<button
 			type="button"
 			class="btn-secondary"
-			onclick={reset}
+			onclick={currentStep > 0 ? prevStep : reset}
 			disabled={loading}
 		>
-			{t("createInstance.cancel")}
+			{currentStep > 0 ? t("createInstance.back") : t("createInstance.cancel")}
 		</button>
-		<button
-			type="button"
-			class="btn-primary"
-			onclick={handleCreate}
-			disabled={loading || (mode === "import" && (!mrpackPath || !name.trim()))}
-		>
-			{loading
-				? (mode === "import" ? "Importando..." : t("createInstance.creatingBtn"))
-				: (mode === "import" ? "Importar Modpack" : t("createInstance.createBtn"))}
-		</button>
+		{#if !isLastStep()}
+			<button
+				type="button"
+				class="btn-primary"
+				onclick={nextStep}
+				disabled={loading}
+			>
+				{t("createInstance.next")}
+			</button>
+		{:else}
+			<button
+				type="button"
+				class="btn-primary"
+				onclick={handleFinalAction}
+				disabled={loading || (contentSource === "modpack" && (!mrpackPath || !name.trim())) || (contentSource === "version" && !selectedVersion)}
+			>
+				{loading
+					? (contentSource === "modpack" ? t("createInstance.importingBtn") : t("createInstance.creatingBtn"))
+					: (contentSource === "modpack" ? t("createInstance.importBtn") : t("createInstance.createBtn"))}
+			</button>
+		{/if}
 	{/snippet}
 </ModalBase>
 
 <style>
-	.tab-bar {
+	/* ── Step indicator ────────────────────────────────────────────────── */
+	.step-indicator {
 		display: flex;
-		gap: 0;
-		margin-bottom: 16px;
-		border-bottom: 1px solid var(--border);
-	}
-
-	.tab-btn {
-		flex: 1;
-		padding: 10px 16px;
-		background: none;
-		border: none;
-		border-bottom: 2px solid transparent;
-		color: var(--text-secondary);
-		font-size: 0.85rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition: color 0.15s, border-color 0.15s;
-	}
-
-	.tab-btn:hover {
-		color: var(--text-primary);
-	}
-
-	.tab-btn.active {
-		color: var(--text-primary);
-		border-bottom-color: var(--accent);
-	}
-
-	.create-layout {
-		display: flex;
-		gap: 20px;
-	}
-
-	.create-logo-section {
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-		width: 100px;
 		align-items: center;
+		gap: 0;
+		padding: 4px 0 12px;
+	}
+
+	.step-dot {
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.06);
+		border: 2px solid var(--border);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.7rem;
+		font-weight: 700;
+		color: var(--text-secondary);
+		transition: all 0.2s;
 		flex-shrink: 0;
 	}
 
-	.create-logo-preview {
-		width: 80px;
-		height: 80px;
-		border-radius: 12px;
-		background: rgba(255, 255, 255, 0.03);
-		border: 2px dashed var(--border);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 12px;
-		position: relative;
-		overflow: hidden;
+	.step-dot.active {
+		border-color: var(--accent);
+		color: var(--accent);
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.12);
 	}
 
-	.create-logo-preview img {
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-		filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+	.step-dot.done {
+		border-color: var(--accent);
+		background: var(--accent);
+		color: var(--accent-text, #0c0c0c);
 	}
 
-	.create-logo-clear {
-		position: absolute;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.6);
-		border: none;
-		color: white;
-		opacity: 0;
-		cursor: pointer;
-		transition: opacity 0.2s;
-		font-size: 0.7rem;
-		font-weight: bold;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.create-logo-clear:hover {
-		opacity: 1;
-	}
-
-	.create-details-section {
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
+	.step-line {
 		flex: 1;
-	}
-
-	.create-divider {
-		height: 1px;
+		height: 2px;
 		background: var(--border);
-		margin: 16px 0 12px;
+		margin: 0 8px;
+		transition: background 0.2s;
 	}
 
-	.create-icon-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
-		gap: 8px;
-		margin-top: 4px;
-		max-height: 110px;
-		overflow-y: auto;
-		padding-right: 4px;
-		padding-bottom: 4px;
+	.step-line.done {
+		background: var(--accent);
 	}
 
-	.create-error {
+	/* ── Error ─────────────────────────────────────────────────────────── */
+	.step-error {
 		color: var(--color-error);
 		font-size: 0.8rem;
 		background: rgba(var(--color-error-rgb), 0.1);
@@ -607,12 +617,169 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 		padding: 10px;
 		text-align: center;
 		font-weight: 500;
-		margin-top: 8px;
 	}
 
+	/* ── Step content ──────────────────────────────────────────────────── */
+	.step-content {
+		min-height: 200px;
+	}
+
+	/* ── Step 1: Name + Icon ───────────────────────────────────────────── */
+	.step1-layout {
+		display: flex;
+		gap: 24px;
+		align-items: flex-start;
+	}
+
+	.icon-column {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		align-items: center;
+		flex-shrink: 0;
+	}
+
+	.icon-preview {
+		width: 80px;
+		height: 80px;
+		border-radius: 12px;
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.03);
+		border: 2px dashed var(--border);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		position: relative;
+		overflow: visible;
+	}
+
+	.icon-preview img {
+		width: 56px;
+		height: 56px;
+		object-fit: contain;
+		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+	}
+
+	.icon-clear {
+		position: absolute;
+		top: -5px;
+		right: -5px;
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		background: var(--color-error);
+		color: white;
+		border: 2px solid var(--bg-card);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: var(--shadow-sm);
+		transition: transform 0.15s, background 0.15s;
+		opacity: 0;
+	}
+
+	.icon-preview:hover .icon-clear {
+		opacity: 1;
+	}
+
+	.icon-clear:hover {
+		transform: scale(1.15);
+		filter: brightness(0.8);
+	}
+
+	.icon-clear:active {
+		transform: scale(0.95);
+	}
+
+	.icon-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 6px;
+	}
+
+	.icon-option {
+		width: 40px;
+		height: 40px;
+		border-radius: 8px;
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.03);
+		border: 2px solid var(--border);
+		cursor: pointer;
+		padding: 6px;
+		transition: border-color 0.15s, background 0.15s;
+	}
+
+	.icon-option:hover {
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.06);
+		border-color: var(--text-secondary);
+	}
+
+	.icon-option.selected {
+		border-color: var(--accent);
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.1);
+	}
+
+	.icon-option img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+	}
+
+	.fields-column {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+		padding-top: 24px;
+	}
+
+	/* ── Step 2: Version / Modpack ─────────────────────────────────────── */
+	.step2-layout {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+	}
+
+	.source-toggle {
+		display: flex;
+		gap: 8px;
+	}
+
+	.source-btn {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		padding: 12px 16px;
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.03);
+		border: 2px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		color: var(--text-secondary);
+		font-size: 0.85rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+
+	.source-btn:hover {
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.06);
+		border-color: var(--text-secondary);
+	}
+
+	.source-btn.active {
+		border-color: var(--accent);
+		color: var(--text-primary);
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.08);
+	}
+
+	.version-section {
+		padding: 8px 0;
+	}
+
+	/* ── Modpack: Drop zone ────────────────────────────────────────────── */
 	.parsing-state,
 	.drop-zone {
-		padding: 32px 16px;
+		padding: 28px 16px;
 		text-align: center;
 		color: var(--text-secondary);
 		font-size: 0.9rem;
@@ -622,25 +789,24 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 12px;
+		gap: 10px;
 		border: 2px dashed var(--border);
 		border-radius: var(--border-radius-sm);
-		margin: 8px 0;
 	}
 
 	.drop-or {
-		font-size: 0.75rem;
+		font-size: 0.7rem;
 		text-transform: uppercase;
 		opacity: 0.5;
 	}
 
+	/* ── Modpack: Pack info ────────────────────────────────────────────── */
 	.pack-info {
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
-		margin-bottom: 16px;
 		padding: 12px;
-		background: rgba(255, 255, 255, 0.02);
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.02);
 		border-radius: var(--border-radius-sm);
 		border: 1px solid var(--border);
 	}
@@ -652,7 +818,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	}
 
 	.info-label {
-		font-size: 0.75rem;
+		font-size: 0.7rem;
 		font-weight: 600;
 		color: var(--text-secondary);
 		text-transform: uppercase;
@@ -672,42 +838,34 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 		line-height: 1.3;
 	}
 
-	.input-group {
-		margin-top: 12px;
-	}
-
-	.input-label {
-		font-size: 0.75rem;
-		font-weight: 600;
+	.btn-change-file {
+		align-self: flex-start;
+		padding: 6px 12px;
+		background: none;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
 		color: var(--text-secondary);
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-		margin-bottom: 6px;
-		display: block;
+		font-size: 0.75rem;
+		cursor: pointer;
+		transition: color 0.15s, border-color 0.15s;
 	}
 
-	.error-msg {
-		color: var(--color-error);
-		font-size: 0.8rem;
-		background: rgba(var(--color-error-rgb), 0.1);
-		border: 1px solid rgba(var(--color-error-rgb), 0.2);
-		border-radius: 6px;
-		padding: 10px;
-		text-align: center;
-		font-weight: 500;
-		margin-top: 8px;
+	.btn-change-file:hover {
+		color: var(--text-primary);
+		border-color: var(--text-secondary);
 	}
 
+	/* ── Modpack: FTB section ──────────────────────────────────────────── */
 	.ftb-section {
-		margin-top: 16px;
+		margin-top: 14px;
 	}
 
 	.ftb-divider {
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		margin-bottom: 12px;
-		font-size: 0.75rem;
+		margin-bottom: 10px;
+		font-size: 0.7rem;
 		color: var(--text-secondary);
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
@@ -728,7 +886,7 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 		gap: 8px;
 		width: 100%;
 		padding: 10px;
-		background: rgba(255, 255, 255, 0.03);
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.03);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		color: var(--text-primary);
@@ -739,12 +897,39 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	}
 
 	.ftb-open-btn:hover {
-		background: rgba(255, 255, 255, 0.06);
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.06);
 		border-color: var(--text-secondary);
 	}
 
 	.ftb-icon {
 		width: 20px;
 		height: 20px;
+	}
+
+	/* ── Shared input styles ───────────────────────────────────────────── */
+	.input-group {
+		margin-top: 4px;
+	}
+
+	.input-group :global(.text-input.error) {
+		border-color: var(--color-error) !important;
+		box-shadow: 0 0 0 1px var(--color-error) !important;
+	}
+
+	.input-error {
+		font-size: 0.7rem;
+		color: var(--color-error);
+		margin-top: 4px;
+		display: block;
+	}
+
+	.input-label {
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		margin-bottom: 5px;
+		display: block;
 	}
 </style>

@@ -195,7 +195,7 @@
 							{:else}
 								<span class="sd-spinner-sm"></span>
 							{/if}
-							<span class="sd-version">{item.version}</span>
+							<span class="sd-version">{item.version === "mods" ? t("sidebar.downloadingMods") : item.version}</span>
 						</span>
 						{#if item.error}
 							<span class="sd-pct error">{t("sidebar.failed")}</span>

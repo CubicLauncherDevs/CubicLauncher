@@ -2,9 +2,8 @@
 	import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 	import { InstState, type InstanceDto } from "$lib/types/types";
 	import InstanceDetails from "./InstanceDetails.svelte";
+	import StatusLog from "./StatusLog.svelte";
 	import { launchInstance } from "$lib/api/cubicApi";
-	import Loading from "../../icons/Loading.svelte";
-	import Check from "../../icons/Check.svelte";
 	import { t } from "$lib/i18n";
 	import { killInst } from "$lib/api/launcherService";
 
@@ -224,22 +223,8 @@
 			</button>
 		</div>
 	</section>
-	{#if bannerState}
-		{#if bannerState === "Started"}
-			<div class="banner-status-started">
-				<div class="banner-status-row">
-					<Check class="banner-status-icon" />
-					<span>{t("instanceView.status.started")}</span>
-				</div>
-			</div>
-		{:else if bannerState === "Starting"}
-			<div class="banner-status-starting">
-				<div class="banner-status-row">
-					<Loading class="banner-status-icon-rotate" />
-					<span>{t("instanceView.status.starting")}</span>
-				</div>
-			</div>
-		{/if}
+	{#if bannerState !== "Idle" && bannerState !== "Error"}
+		<StatusLog instance={selectedInstance} />
 	{/if}
 
 	<div class="tabs-nav">
@@ -497,38 +482,6 @@
 	.banner-btn:hover {
 		background: rgba(255, 255, 255, 0.1);
 		border-color: rgba(255, 255, 255, 0.2);
-	}
-
-	.banner-status-starting {
-		padding: 10px;
-		border-bottom: 1px solid var(--border-color);
-		background: var(--color-status-starting);
-	}
-
-	.banner-status-started {
-		padding: 10px;
-		border-bottom: 1px solid var(--border-color);
-		background: var(--color-status-started);
-	}
-
-	:global(.banner-status-icon-rotate) {
-		color: var(--accent);
-		animation: rotate 1.2s linear infinite;
-		will-change: transform;
-		height: 32px;
-		width: 32px;
-	}
-
-	:global(.banner-status-icon) {
-		color: var(--accent);
-		height: 32px;
-		width: 32px;
-	}
-
-	.banner-status-row {
-		display: flex;
-		align-items: center;
-		gap: 8px;
 	}
 
 	@keyframes rotate {

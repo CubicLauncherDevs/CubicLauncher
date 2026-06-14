@@ -51,6 +51,7 @@ pub fn parse_mrpack(path: &Path) -> Result<MrpackMetadata, MrpackError> {
 pub async fn install_mrpack(
     path: &Path,
     instance_dir: &Path,
+    progress: Option<tokio::sync::mpsc::Sender<(usize, usize)>>,
 ) -> Result<MrpackMetadata, MrpackError> {
     let file = std::fs::File::open(path)?;
     let mut archive = zip::ZipArchive::new(file)?;
@@ -83,10 +84,17 @@ pub async fn install_mrpack(
         .build()
         .map_err(|e| MrpackError::Download(e.to_string()))?;
 
+    let total = pack.files.len();
+    let mut current = 0usize;
+
     for file_entry in &pack.files {
         if let Some(env) = &file_entry.env
             && env.get("client").map(|s| s.as_str()) == Some("unsupported")
         {
+            current += 1;
+            if let Some(ref tx) = progress {
+                let _ = tx.send((current, total)).await;
+            }
             continue;
         }
 
@@ -100,6 +108,10 @@ pub async fn install_mrpack(
             Some(u) => u,
             None => {
                 tracing::warn!("No download URL for {}", file_entry.path);
+                current += 1;
+                if let Some(ref tx) = progress {
+                    let _ = tx.send((current, total)).await;
+                }
                 continue;
             }
         };
@@ -107,6 +119,11 @@ pub async fn install_mrpack(
         tracing::info!("Downloading {} -> {:?}", url, dest);
 
         download_file(&client, url, &dest).await?;
+
+        current += 1;
+        if let Some(ref tx) = progress {
+            let _ = tx.send((current, total)).await;
+        }
     }
 
     extract_overrides(&mut archive, instance_dir).await?;

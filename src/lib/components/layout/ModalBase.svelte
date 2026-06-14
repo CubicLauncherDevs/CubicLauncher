@@ -6,12 +6,14 @@
 	let {
 		open = $bindable(),
 		title,
+		width,
 		onclose,
 		children,
 		footer,
 	} = $props<{
 		open: boolean;
 		title?: string;
+		width?: string;
 		onclose?: () => void;
 		children?: Snippet;
 		footer?: Snippet;
@@ -38,6 +40,7 @@
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"
+			style={width ? `width: min(${width}, 90vw)` : undefined}
 			transition:fly={{ y: 20, duration: 250 }}
 		>
 			<div class="modal-header">

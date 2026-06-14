@@ -105,6 +105,33 @@ impl DownloadQueue {
             .collect()
     }
 
+    pub async fn enqueue_work(&self, label: impl Into<Arc<str>>) {
+        let label: Arc<str> = label.into();
+        self.active.insert(
+            label.clone(),
+            DownloadState {
+                version: label.clone(),
+                status: DownloadStatus::Downloading,
+                current: 0,
+                total: 0,
+            },
+        );
+        emit(AppEvent::DEnqueue {
+            version: label.clone(),
+        });
+    }
+
+    pub async fn finish_work(&self, label: &str) {
+        let label: Arc<str> = label.into();
+        if let Some(mut state) = self.active.get_mut(&label) {
+            state.status = DownloadStatus::Done;
+        }
+        emit(AppEvent::DFinish {
+            version: label.clone(),
+        });
+        self.active.retain(|_, s| s.is_active());
+    }
+
     async fn worker(mut rx: mpsc::Receiver<Arc<str>>, queue: Arc<DownloadQueue>) {
         while let Some(version) = rx.recv().await {
             let shared_dir = PathManager::get().get_shared_dir().to_path_buf();

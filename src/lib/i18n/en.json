@@ -88,6 +88,7 @@
 		"failed": "failed",
 		"noDownloads": "No downloads",
 		"noDownloadDesc": "Downloaded versions will appear here",
+		"downloadingMods": "Downloading mods...",
 		"modals": {
 			"editTitle": "Edit Instance",
 			"nameLabel": "Name",
@@ -137,7 +138,8 @@
 		"status": {
 			"starting": "Starting",
 			"started": "The version has been started",
-			"idle": "Idle"
+			"idle": "Idle",
+			"error": "Error"
 		},
 		"tabs": {
 			"details": "Details",
@@ -244,6 +246,8 @@
 	"createInstance": {
 		"title": "Create New Instance",
 		"emptyNameErr": "Name cannot be empty",
+		"nameTooLong": "Name cannot be longer than 16 characters",
+		"nameExists": "An instance with that name already exists",
 		"createErr": "Error creating instance",
 		"nameLabel": "Instance Name",
 		"namePlaceholder": "E.g. My Instance",
@@ -252,7 +256,24 @@
 		"noVersionsErr": "No downloaded versions found",
 		"cancel": "Cancel",
 		"createBtn": "Create",
-		"creatingBtn": "Creating..."
+		"creatingBtn": "Creating...",
+		"manualTab": "Manual",
+		"importTab": "From Modpack",
+		"stepName": "Name",
+		"stepIcon": "Icon",
+		"stepSource": "Source",
+		"stepDetails": "Details",
+		"back": "Back",
+		"next": "Next",
+		"importBtn": "Import Modpack",
+		"importingBtn": "Importing...",
+		"selectFile": "Select file",
+		"dragOrDrop": "Drag a .mrpack or .zip file here",
+		"or": "or",
+		"orDownloadFrom": "or download from",
+		"parsingPack": "Analyzing modpack...",
+		"packInfo": "Pack Info",
+		"instanceName": "Instance name"
 	},
 	"versionDownloader": {
 		"title": "Download Versions",

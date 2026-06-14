@@ -62,6 +62,48 @@
 					"https://api.modpacks.ch/public/modpack"
 				]
 			},
+			"devCsp": {
+				"default-src": [
+					"'self'",
+					"tauri:",
+					"http://localhost:*",
+					"https://tauri.localhost"
+				],
+				"img-src": [
+					"'self'",
+					"asset:",
+					"https://asset.localhost",
+					"https://minotar.net",
+					"https://cdn.modrinth.com",
+					"https://media.forgecdn.net",
+					"https://apps.modpacks.ch/modpacks/art/",
+					"http://localhost:*",
+					"data:"
+				],
+				"style-src": [
+					"'self'",
+					"'unsafe-inline'",
+					"http://localhost:*",
+					"https://tauri.localhost"
+				],
+				"font-src": ["'self'", "http://localhost:*"],
+				"script-src": [
+					"'self'",
+					"'unsafe-inline'",
+					"http://localhost:*"
+				],
+				"connect-src": [
+					"'self'",
+					"tauri://localhost",
+					"ipc://localhost",
+					"http://localhost:*",
+					"https://tauri.localhost",
+					"https://minotar.net",
+					"https://api.modrinth.com",
+					"https://api.curseforge.com",
+					"https://api.modpacks.ch/public/modpack"
+				]
+			},
 			"assetProtocol": {
 				"enable": true,
 				"scope": ["$HOME/.cubic/**"]
