@@ -82,6 +82,11 @@ impl<'a> ClasspathResolver<'a> {
                     .lib_dir
                     .parent()
                     .unwrap_or(Path::new("."));
+                let vanilla_jar = shared
+                    .join("versions")
+                    .join(self.base_id)
+                    .join(format!("{}.jar", self.base_id));
+                self.push_if_exists(paths, &vanilla_jar);
                 let version_jar = shared
                     .join("versions")
                     .join(&*self.manifest.id_raw)
