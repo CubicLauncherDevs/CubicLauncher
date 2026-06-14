@@ -167,17 +167,6 @@
 		text-overflow: ellipsis;
 	}
 
-	.dd-chevron {
-		color: var(--text-secondary);
-		transition: transform 0.2s ease;
-		flex-shrink: 0;
-		margin-left: 8px;
-	}
-
-	.dd-trigger.dd-open .dd-chevron {
-		transform: rotate(180deg);
-	}
-
 	.dd-dropdown {
 		position: absolute;
 		top: calc(100% + 8px);
@@ -243,11 +232,6 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-	}
-
-	.dd-check {
-		color: var(--accent);
-		flex-shrink: 0;
 	}
 
 	.dd-dropdown:global(::-webkit-scrollbar) {

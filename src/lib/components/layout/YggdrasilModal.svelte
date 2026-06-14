@@ -146,7 +146,6 @@
 						placeholder="ej: littlesk.in"
 						bind:value={serverUrl}
 						onkeydown={handleKeydown}
-						autofocus
 					/>
 				</div>
 				<button
@@ -179,7 +178,6 @@
 						placeholder={serverInfo?.non_email_login ? "Tu usuario" : "correo@ejemplo.com"}
 						bind:value={username}
 						onkeydown={handleKeydown}
-						autofocus
 					/>
 				</div>
 				<div class="form-group">

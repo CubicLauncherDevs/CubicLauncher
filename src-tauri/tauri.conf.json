@@ -31,6 +31,7 @@
 					"'self'",
 					"asset:",
 					"https://asset.localhost",
+					"http://asset.localhost",
 					"https://minotar.net",
 					"https://cdn.modrinth.com",
 					"https://media.forgecdn.net",

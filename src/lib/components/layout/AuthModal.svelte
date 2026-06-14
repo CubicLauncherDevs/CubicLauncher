@@ -9,6 +9,7 @@
 	import { launcherStore } from "$lib/state/state.svelte";
 	import ModalBase from "./ModalBase.svelte";
 	import CopyIcon from "$lib/icons/CopyIcon.svelte";
+	import CheckIcon from "$lib/icons/CheckIcon.svelte";
 
 	let { open = $bindable(false) } = $props<{ open: boolean }>();
 

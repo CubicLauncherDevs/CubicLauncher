@@ -524,7 +524,7 @@ mod tests {
 
     #[test]
     fn buttons_split_into_labels_and_metadata() {
-        use crate::models::Button;
+        
 
         let activity = Activity::builder()
             .button("GitHub", "https://github.com")

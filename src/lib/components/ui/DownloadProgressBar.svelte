@@ -280,16 +280,6 @@
 		flex: 1;
 	}
 
-	.dl-tray-chevron {
-		color: var(--text-muted);
-		transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-		flex-shrink: 0;
-	}
-
-	.dl-tray.expanded .dl-tray-chevron {
-		transform: rotate(180deg);
-	}
-
 	.dl-tray-spinner {
 		width: 11px;
 		height: 11px;
@@ -357,10 +347,6 @@
 		text-align: center;
 	}
 
-	.dl-tray-empty svg {
-		color: var(--text-muted);
-		margin-bottom: 4px;
-	}
 	.dl-tray-empty-title {
 		font-size: 0.75rem;
 		font-weight: 600;
