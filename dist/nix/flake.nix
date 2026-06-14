@@ -33,7 +33,7 @@
             rustc
             pkg-config
             gtk3
-            webkitgtk
+            webkitgtk_4_1
             libsoup
             openssl
             librsvg

@@ -4,7 +4,7 @@
   bun,
   pkg-config,
   gtk3,
-  webkitgtk,
+  webkitgtk_4_1,
   libsoup,
   openssl,
   librsvg,
@@ -40,7 +40,7 @@ rustPlatform.buildRustPackage {
 
   buildInputs = [
     gtk3
-    webkitgtk
+    webkitgtk_4_1
     libsoup
     openssl
     librsvg
