@@ -1,16 +1,21 @@
 {
   lib,
+  stdenv,
   rustPlatform,
   bun,
   pkg-config,
+  copyDesktopItems,
+  # Linux
   gtk3,
   webkitgtk_4_1,
-  libsoup,
+  libsoup_3,
   openssl,
   librsvg,
   glib-networking,
   gsettings-desktop-schemas,
-  copyDesktopItems,
+  # Darwin
+  darwin,
+  libiconv,
 }:
 
 let
@@ -32,44 +37,56 @@ rustPlatform.buildRustPackage {
     bun run build
   '';
 
-  nativeBuildInputs = [
-    bun
-    pkg-config
-    copyDesktopItems
-  ];
+  nativeBuildInputs =
+    [
+      bun
+      pkg-config
+      libiconv
+    ]
+    ++ lib.optionals stdenv.isLinux [ copyDesktopItems ];
 
-  buildInputs = [
-    gtk3
-    webkitgtk_4_1
-    libsoup
-    openssl
-    librsvg
-    glib-networking
-    gsettings-desktop-schemas
-  ];
+  buildInputs =
+    lib.optionals stdenv.isLinux [
+      gtk3
+      webkitgtk_4_1
+      libsoup_3
+      openssl
+      librsvg
+      glib-networking
+      gsettings-desktop-schemas
+    ]
+    ++ lib.optionals stdenv.isDarwin [
+      darwin.apple_sdk.frameworks.AppKit
+      darwin.apple_sdk.frameworks.WebKit
+      darwin.apple_sdk.frameworks.Foundation
+      darwin.apple_sdk.frameworks.SystemConfiguration
+      darwin.apple_sdk.frameworks.Security
+    ];
 
   installPhase = ''
     runHook preInstall
 
     install -Dm755 target/release/cubiclauncher "$out/bin/cubiclauncher"
 
-    install -Dm644 src-tauri/icons/32x32.png "$out/share/icons/hicolor/32x32/apps/cubiclauncher.png"
-    install -Dm644 src-tauri/icons/128x128.png "$out/share/icons/hicolor/128x128/apps/cubiclauncher.png"
-    install -Dm644 src-tauri/icons/128x128@2x.png "$out/share/icons/hicolor/256x256/apps/cubiclauncher.png"
-    install -Dm644 src-tauri/icons/icon.png "$out/share/icons/hicolor/512x512/apps/cubiclauncher.png"
+    if [[ "$(uname -s)" == "Linux" ]]; then
+      install -Dm644 src-tauri/icons/32x32.png "$out/share/icons/hicolor/32x32/apps/cubiclauncher.png"
+      install -Dm644 src-tauri/icons/128x128.png "$out/share/icons/hicolor/128x128/apps/cubiclauncher.png"
+      install -Dm644 src-tauri/icons/128x128@2x.png "$out/share/icons/hicolor/256x256/apps/cubiclauncher.png"
+      install -Dm644 src-tauri/icons/icon.png "$out/share/icons/hicolor/512x512/apps/cubiclauncher.png"
 
-    mkdir -p "$out/share/applications"
-    cat > "$out/share/applications/cubiclauncher.desktop" << EOF
-[Desktop Entry]
-Type=Application
-Name=CubicLauncher
-Comment=Open source Minecraft launcher
-Exec=$out/bin/cubiclauncher
-Icon=cubiclauncher
-Terminal=false
-Categories=Game;
-StartupWMClass=cubiclauncher
-EOF
+      mkdir -p "$out/share/applications"
+      cat > "$out/share/applications/cubiclauncher.desktop" << EOF
+    [Desktop Entry]
+    Type=Application
+    Name=CubicLauncher
+    Comment=Open source Minecraft launcher
+    Exec=$out/bin/cubiclauncher
+    Icon=cubiclauncher
+    Terminal=false
+    Categories=Game;
+    StartupWMClass=cubiclauncher
+    EOF
+    fi
 
     install -Dm644 LICENSE "$out/share/licenses/$pname/LICENSE"
 
@@ -81,6 +98,6 @@ EOF
     homepage = "https://github.com/CubicLauncher/CubicLauncher";
     license = lib.licenses.gpl3Only;
     maintainers = with lib.maintainers; [ ];
-    platforms = lib.platforms.linux;
+    platforms = lib.platforms.linux ++ lib.platforms.darwin;
   };
 }

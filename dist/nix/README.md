@@ -2,30 +2,25 @@
 
 ## Build con el builder script (recomendado)
 
-Equivalente al `makepkg -si` de Arch:
-
 ```bash
 curl -O https://raw.githubusercontent.com/CubicLauncher/CubicLauncher/main/dist/nix/cubiclauncher-builder
 bash cubiclauncher-builder
 ```
 
-Clona el repo desde GitHub y compila con Nix automáticamente.
-
 ## Build desde checkout local
 
 ```bash
-# Opción 1 — nix-build (no requiere flakes)
 cd dist/nix && nix-build release.nix
-
-# Opción 2 — flakes
+# o con flakes:
 cd dist/nix && nix build --extra-experimental-features 'nix-command flakes'
 ```
 
-## Build desde GitHub (flakes)
+## Build desde GitHub
 
 ```bash
 nix build "github:CubicLauncher/CubicLauncher?dir=dist/nix" \
-  --extra-experimental-features 'nix-command flakes'
+  --extra-experimental-features 'nix-command flakes' \
+  --no-write-lock-file
 ```
 
 ## Shell de desarrollo
@@ -37,5 +32,17 @@ cd dist/nix && nix develop --extra-experimental-features 'nix-command flakes'
 
 ## ⚠️ Notas
 
+- **Linux:** requiere `webkitgtk_4_1`, `gtk3`, `libsoup_3`, etc. Si tu nixpkgs usa otros nombres, ajustalos en `default.nix`.
+- **macOS:** soporte experimental, requiere frameworks `AppKit`, `WebKit`, `Foundation`, `SystemConfiguration`, `Security`.
 - `bun install` necesita red durante el build. Con `sandbox = true`, usar `--impure`.
-- Solo Linux x86_64 por ahora.
+
+## Desinstalar
+
+```bash
+# nix-build
+rm result
+rm -r cubiclauncher-build
+
+# flakes
+nix store delete $(nix store path --hash result) 2>/dev/null; rm result
+```

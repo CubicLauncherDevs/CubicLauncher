@@ -19,6 +19,7 @@
           inherit system;
           config = { };
         };
+        lib = pkgs.lib;
       in
       {
         packages = {
@@ -27,19 +28,29 @@
         };
 
         devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            bun
-            cargo
-            rustc
-            pkg-config
-            gtk3
-            webkitgtk_4_1
-            libsoup
-            openssl
-            librsvg
-            glib-networking
-            gsettings-desktop-schemas
-          ];
+          buildInputs =
+            [
+              pkgs.bun
+              pkgs.cargo
+              pkgs.rustc
+              pkgs.pkg-config
+            ]
+            ++ lib.optionals pkgs.stdenv.isLinux [
+              pkgs.gtk3
+              pkgs.webkitgtk_4_1
+              pkgs.libsoup_3
+              pkgs.openssl
+              pkgs.librsvg
+              pkgs.glib-networking
+              pkgs.gsettings-desktop-schemas
+            ]
+            ++ lib.optionals pkgs.stdenv.isDarwin [
+              pkgs.darwin.apple_sdk.frameworks.AppKit
+              pkgs.darwin.apple_sdk.frameworks.WebKit
+              pkgs.darwin.apple_sdk.frameworks.Foundation
+              pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
+              pkgs.darwin.apple_sdk.frameworks.Security
+            ];
 
           shellHook = ''
             echo "CubicLauncher development shell"
