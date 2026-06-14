@@ -18,6 +18,8 @@ pub struct LaunchConfig {
     pub auth_uuid: Option<String>,
     pub user_type: Option<String>,
     pub extra_jvm_args: Vec<String>,
+    pub authlib_injector_path: Option<PathBuf>,
+    pub yggdrasil_metadata_b64: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -44,6 +46,8 @@ impl Default for LaunchConfig {
             auth_uuid: None,
             user_type: None,
             extra_jvm_args: Vec::new(),
+            authlib_injector_path: None,
+            yggdrasil_metadata_b64: None,
         }
     }
 }
@@ -110,6 +114,14 @@ impl LaunchConfigBuilder {
     }
     pub fn extra_jvm_args(mut self, args: Vec<String>) -> Self {
         self.0.extra_jvm_args = args;
+        self
+    }
+    pub fn authlib_injector_path(mut self, p: impl Into<PathBuf>) -> Self {
+        self.0.authlib_injector_path = Some(p.into());
+        self
+    }
+    pub fn yggdrasil_metadata_b64(mut self, m: impl Into<String>) -> Self {
+        self.0.yggdrasil_metadata_b64 = Some(m.into());
         self
     }
     pub fn build(self) -> LaunchConfig {

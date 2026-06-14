@@ -2407,6 +2407,7 @@ name = "launchwerk"
 version = "1.0.1"
 dependencies = [
  "aes-gcm",
+ "base64 0.22.1",
  "dashmap",
  "dirs",
  "env_logger",

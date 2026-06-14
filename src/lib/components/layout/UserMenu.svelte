@@ -4,6 +4,7 @@
 	import { t } from "$lib/i18n";
 	import { logout, switchUser, removeUser } from "$lib/api/cubicApi";
 	import AuthModal from "./AuthModal.svelte";
+	import YggdrasilModal from "./YggdrasilModal.svelte";
 	import ModalBase from "./ModalBase.svelte";
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
 
@@ -12,6 +13,7 @@
 	let editingIdx = $state<number | null>(null);
 	let editingName = $state("");
 	let showAuthModal = $state(false);
+	let showYggdrasilModal = $state(false);
 	let addingOffline = $state(false);
 	let offlineName = $state("");
 	let removingUser = $state<string | null>(null);
@@ -115,10 +117,17 @@
 				<button
 					type="button"
 					class="add-toggle-btn"
-					class:active={!addingOffline}
+					class:active={!addingOffline && !showYggdrasilModal}
 					onclick={() => (showAuthModal = true)}
 				>
 					{t("userMenu.loginMicrosoft")}
+				</button>
+				<button
+					type="button"
+					class="add-toggle-btn ygg"
+					onclick={() => (showYggdrasilModal = true)}
+				>
+					Authlib
 				</button>
 			</div>
 			{#if addingOffline}
@@ -198,7 +207,15 @@
 										}}
 									>{u.username}</span>
 								{/if}
-								<span class="user-type">{u.user_type === "Microsoft" ? t("userMenu.premium") : t("userMenu.offline")}</span>
+								<span class="user-type">
+							{#if u.user_type === "Yggdrasil"}
+								{t("userMenu.authInjector")} - {u.yggdrasil_server_url?.split("//")[1]?.split("/")[0] ?? "Servidor"}
+								{:else if u.user_type === "Microsoft"}
+									{t("userMenu.premium")}
+								{:else}
+									{t("userMenu.offline")}
+								{/if}
+							</span>
 							</div>
 							<div class="user-badges">
 								{#if i === launcherStore.settings.active_user_idx}
@@ -219,7 +236,7 @@
 										</button>
 										<!-- svelte-ignore a11y_consider_explicit_label -->
 										<button type="button" class="icon-btn confirm-no" onclick={(e) => { e.stopPropagation(); removingUser = null; }}>
-											<CloseIcon size={18} />
+											<CloseIcon size={12} />
 										</button>
 									</div>
 								{:else}
@@ -237,6 +254,7 @@
 </ModalBase>
 
 <AuthModal bind:open={showAuthModal} />
+<YggdrasilModal bind:open={showYggdrasilModal} />
 
 <style>
 	.um-cards {
@@ -282,6 +300,9 @@
 	}
 	.add-toggle-btn:first-child {
 		border-right: 1px solid var(--border-color);
+	}
+	.add-toggle-btn:last-child {
+		border-left: 1px solid var(--border-color);
 	}
 	.add-toggle-btn.active {
 		background: var(--accent);

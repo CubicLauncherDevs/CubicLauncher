@@ -8,7 +8,7 @@ use crate::services::instance_manager::{
     InstanceHandle, InstanceStatus, register_kill_sender, unregister_kill_sender,
 };
 use crate::services::java_manager::JavaManager;
-use launchwerk::auth::{AccountType, MinecraftUser, microsoft::MicrosoftAuth};
+use launchwerk::auth::{AccountType, MinecraftUser, microsoft::MicrosoftAuth, yggdrasil::{self, YggdrasilAuth}};
 use launchwerk::models::VersionManifest;
 use zellkern::Loader;
 use launchwerk::{LaunchConfig, Launchwerk};
@@ -231,6 +231,9 @@ impl Launcher {
         // Auto-refresh del token Microsoft — el lock de settings se toma y suelta rápido
         user = refresh_microsoft_token(user).await?;
 
+        // Auto-refresh del token Yggdrasil
+        user = refresh_yggdrasil_token(user).await?;
+
         let min_mem = format!("{}G", settings_m.min_memory);
         let max_mem = format!("{}G", settings_m.max_memory);
 
@@ -238,13 +241,65 @@ impl Launcher {
             .java_path(java_path)
             .username(user.username)
             .ram(min_mem, max_mem)
-            .cracked(user.user_type != AccountType::Microsoft);
+            .cracked(user.user_type == AccountType::Cracked);
 
-        if user.user_type == AccountType::Microsoft {
-            builder = builder
-                .access_token(user.access_token)
-                .auth_uuid(user.uuid)
-                .user_type("msa");
+        let mut extra_jvm_args: Vec<String> = Vec::new();
+
+        match user.user_type {
+            AccountType::Microsoft => {
+                builder = builder
+                    .access_token(user.access_token)
+                    .auth_uuid(user.uuid)
+                    .user_type("msa");
+            }
+            AccountType::Yggdrasil => {
+                builder = builder
+                    .access_token(user.access_token)
+                    .auth_uuid(user.uuid)
+                    .user_type("mojang");
+
+                // Download authlib-injector and fetch metadata for prefetch
+                if let Some(ref server_url) = user.yggdrasil_server_url {
+                    match yggdrasil::download_authlib_injector(&shared_dir).await {
+                        Ok(jar_path) => {
+                            // Fetch metadata and base64 encode for prefetch
+                            let ygg_auth = YggdrasilAuth::new();
+                            let api_root = ygg_auth
+                                .resolve_api_url(server_url)
+                                .await
+                                .unwrap_or_else(|_| server_url.clone());
+                            match yggdrasil::fetch_metadata_prefetch(&api_root).await {
+                                Ok(metadata_b64) => {
+                                    let agent_arg = format!(
+                                        "-javaagent:{}={}",
+                                        jar_path.display(),
+                                        api_root
+                                    );
+                                    builder = builder
+                                        .authlib_injector_path(jar_path)
+                                        .yggdrasil_metadata_b64(metadata_b64);
+                                    extra_jvm_args.push(agent_arg);
+                                }
+                                Err(e) => {
+                                    warn!("Failed to fetch Yggdrasil metadata for prefetch: {}. Launching without prefetch.", e);
+                                    let agent_arg = format!(
+                                        "-javaagent:{}={}",
+                                        jar_path.display(),
+                                        server_url
+                                    );
+                                    builder = builder
+                                        .authlib_injector_path(jar_path);
+                                    extra_jvm_args.push(agent_arg);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Failed to download authlib-injector: {}. Launching without it.", e);
+                        }
+                    }
+                }
+            }
+            AccountType::Cracked => {}
         }
 
         for (k, v) in &settings_m.env_vars {
@@ -259,9 +314,8 @@ impl Launcher {
             .filter(|s| !s.is_empty())
             .map(String::from)
             .collect();
-        if !parsed_jvm_args.is_empty() {
-            builder = builder.extra_jvm_args(parsed_jvm_args);
-        }
+        extra_jvm_args.extend(parsed_jvm_args);
+        builder = builder.extra_jvm_args(extra_jvm_args);
 
         let options = builder.build();
 
@@ -364,6 +418,76 @@ async fn refresh_microsoft_token(mut user: MinecraftUser) -> Result<MinecraftUse
             }
         }
     }
+    Ok(user)
+}
+
+async fn refresh_yggdrasil_token(mut user: MinecraftUser) -> Result<MinecraftUser, AppError> {
+    if user.user_type != AccountType::Yggdrasil {
+        return Ok(user);
+    }
+
+    let server_url = match &user.yggdrasil_server_url {
+        Some(url) => url.clone(),
+        None => {
+            warn!("URL del servidor Yggdrasil no configurada, no se puede refrescar token");
+            return Ok(user);
+        }
+    };
+
+    // Load tokens from secure storage
+    if let Err(e) = user.load_tokens() {
+        warn!("Error cargando tokens Yggdrasil: {:?}", e);
+        return Ok(user);
+    }
+
+    let client_token = user
+        .client_token
+        .clone()
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    info!("Validando token Yggdrasil...");
+    let auth = YggdrasilAuth::new();
+    let valid = auth
+        .validate(&server_url, &user.access_token, &client_token)
+        .await;
+
+    if valid {
+        info!("Token Yggdrasil válido");
+        return Ok(user);
+    }
+
+    info!("Token Yggdrasil inválido, intentando refresh...");
+    let refresh_result = auth
+        .refresh(
+            &server_url,
+            &user.access_token,
+            &client_token,
+            &user.uuid,
+            &user.username,
+        )
+        .await;
+
+    match refresh_result {
+        Ok(refreshed) => {
+            info!("Token Yggdrasil refrescado para {}", refreshed.username);
+            user = refreshed;
+            user.yggdrasil_server_url = Some(server_url);
+            if let Err(e) = user.save_tokens() {
+                warn!("Error guardando tokens Yggdrasil: {:?}", e);
+            }
+            SettingsManager::write(|settings| {
+                settings.set_user(user.clone());
+            })?;
+            SettingsManager::save().await?;
+        }
+        Err(e) => {
+            warn!(
+                "No se pudo refrescar token Yggdrasil: {}. Continuando con el actual...",
+                e
+            );
+        }
+    }
+
     Ok(user)
 }
 

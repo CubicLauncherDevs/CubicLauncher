@@ -200,6 +200,15 @@ impl<'a> CommandBuilder<'a> {
             for host in &["auth.host", "account.host", "session.host", "services.host"] {
                 cmd.push(format!("-Dminecraft.api.{}=https://invalid.invalid", host));
             }
+        } else if let Some(jar_path) = &self.config.authlib_injector_path {
+            info!("Authlib-injector mode enabled, jar: {}", jar_path.display());
+            // Prefetch metadata
+            if let Some(metadata) = &self.config.yggdrasil_metadata_b64 {
+                cmd.push(format!(
+                    "-Dauthlibinjector.yggdrasil.prefetched={}",
+                    metadata
+                ));
+            }
         }
 
         cmd.push(format!("-Xms{}", self.config.min_ram));

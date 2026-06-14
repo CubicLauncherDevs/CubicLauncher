@@ -1,6 +1,6 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
-	"productName": "CubicLauncher",
+	"productName": "cubiclauncher",
 	"version": "27.0.1",
 	"identifier": "com.cubiclauncher.launcher",
 	"build": {

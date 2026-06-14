@@ -106,6 +106,7 @@
 		"title": "User Profile",
 		"usernamePlaceholder": "Username",
 		"offline": "Offline",
+		"authInjector": "Authlib Injector",
 		"cancel": "Cancel",
 		"loginMicrosoft": "Login with Microsoft",
 		"logout": "Logout",

@@ -63,7 +63,7 @@ export interface JreStatus {
 	java_version: string | null;
 }
 
-export type AccountType = "Cracked" | "Microsoft";
+export type AccountType = "Cracked" | "Microsoft" | "Yggdrasil";
 
 export interface MinecraftUser {
 	username: string;
@@ -71,6 +71,13 @@ export interface MinecraftUser {
 	access_token: string;
 	refresh_token: string | null;
 	user_type: AccountType;
+	yggdrasil_server_url?: string | null;
+}
+
+export interface YggdrasilServerInfo {
+	server_name: string;
+	skin_domains: string[];
+	non_email_login: boolean;
 }
 
 export interface DeviceCode {

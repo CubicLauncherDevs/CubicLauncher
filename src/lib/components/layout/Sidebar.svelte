@@ -36,6 +36,8 @@
 	let activeUser = $derived(getActiveUser());
 	let username = $derived(activeUser?.username ?? "Steve");
 	let isPremium = $derived(activeUser?.user_type === "Microsoft");
+	let isYggdrasil = $derived(activeUser?.user_type === "Yggdrasil");
+	let userTypeLabel = $derived(isPremium ? t("userMenu.premium") : isYggdrasil ? t("userMenu.authInjector") : t("userMenu.offline"));
 	let versionOptions = $derived(
 		installedVersions.map((v) => ({ value: v, label: v })),
 	);
@@ -258,7 +260,7 @@
 					<span class="user-name">{username}</span>
 				</div>
 				<span class="user-status" class:premium={isPremium}>
-					{isPremium ? t("userMenu.premium") : t("userMenu.offline")}
+					{userTypeLabel}
 				</span>
 			</div>
 		</div>

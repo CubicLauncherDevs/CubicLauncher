@@ -106,6 +106,7 @@
 		"title": "Perfil de Usuario",
 		"usernamePlaceholder": "Usuario",
 		"offline": "No Premium",
+		"authInjector": "Authlib Injector",
 		"cancel": "Cancelar",
 		"loginMicrosoft": "Iniciar sesión con Microsoft",
 		"logout": "Cerrar sesión",

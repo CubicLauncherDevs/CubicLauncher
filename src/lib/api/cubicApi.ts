@@ -25,6 +25,7 @@ import {
 	type FTBModpackAPIResponse,
 	type FTBVersionAPIResponse,
 	type InstallResultInfo,
+	type YggdrasilServerInfo,
 } from "../types/types";
 import { invoke } from "@tauri-apps/api/core";
 import { showErrorParsed } from "../state/state.svelte";
@@ -325,6 +326,23 @@ export async function removeUser(username: string): Promise<void> {
 
 export async function getUserList(): Promise<MinecraftUser[]> {
 	return await invoke<MinecraftUser[]>("get_user_list");
+}
+
+// Yggdrasil Auth Commands
+export async function getYggdrasilServerInfo(url: string): Promise<YggdrasilServerInfo> {
+	return await invoke<YggdrasilServerInfo>("get_yggdrasil_server_info", { url });
+}
+
+export async function yggdrasilAuthenticate(
+	serverUrl: string,
+	username: string,
+	password: string,
+): Promise<MinecraftUser> {
+	return await invoke<MinecraftUser>("yggdrasil_authenticate", {
+		serverUrl,
+		username,
+		password,
+	});
 }
 
 export async function initDiscordPresence(): Promise<void> {

@@ -198,7 +198,7 @@
 	}
 
 	:global(.status-icon-spin) {
-		color: var(--accent);
+		color: white;
 		animation: spin 1.2s linear infinite;
 		will-change: transform;
 		height: 20px;
@@ -206,7 +206,7 @@
 	}
 
 	:global(.status-icon-static) {
-		color: var(--accent);
+		color: white;
 		height: 20px;
 		width: 20px;
 	}
