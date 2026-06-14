@@ -3,7 +3,7 @@ pub(crate) mod discord_presence;
 pub(crate) mod download_queue;
 mod instance_manager;
 pub(crate) mod java_manager;
-mod launcher;
+pub(crate) mod launcher;
 pub(crate) mod settings_manager;
 
 pub use addon_manager::*;

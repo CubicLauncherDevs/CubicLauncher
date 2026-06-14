@@ -20,6 +20,18 @@
 	import { checkForUpdates } from "$lib/api/updaterServices";
 	import { saveSettings } from "$lib/api/launcherService";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
+	import LogWindow from "$lib/components/log/LogWindow.svelte";
+
+	const logParams = $derived.by(() => {
+		if (typeof window === "undefined") return null;
+		const params = new URLSearchParams(window.location.search);
+		const logId = params.get("log");
+		if (!logId) return null;
+		return {
+			instanceId: decodeURIComponent(logId),
+			instanceName: decodeURIComponent(params.get("name") || "Logs"),
+		};
+	});
 
 	let selectedInstance = $state<InstanceDto | null>(null);
 	let quickMenuOpen = $state(false);
@@ -128,6 +140,9 @@
 	});
 </script>
 
+{#if logParams}
+	<LogWindow instanceId={logParams.instanceId} instanceName={logParams.instanceName} />
+{:else}
 <div class="app-container" class:drag-over={isDragOver}>
 	{#if isDragOver}
 		<div class="drag-overlay">
@@ -180,6 +195,7 @@
 <Tutorial bind:open={showTutorial} onclose={onTutorialClose} onopensettings={() => (quickMenuOpen = true)} />
 
 <NotificationContainer />
+{/if}
 
 <style>
 	.drag-overlay {

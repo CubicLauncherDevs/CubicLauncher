@@ -45,14 +45,15 @@
 		const id = instance.uuid;
 		let destroyed = false;
 
-		const unlistenPromise = listen<{ id: string; line: string; stream: string }>(
-			"instance-console-output",
+		const unlistenPromise = listen<{ id: string; lines: { line: string; stream: string; timestamp: number }[] }>(
+			"instance-log-batch",
 			(event) => {
-				if (!destroyed && event.payload.id === id) {
-					lastLog = event.payload.line;
-					lastLevel = event.payload.stream === "stderr"
+				if (!destroyed && event.payload.id === id && event.payload.lines.length > 0) {
+					const last = event.payload.lines[event.payload.lines.length - 1];
+					lastLog = last.line;
+					lastLevel = last.stream === "stderr"
 						? "error"
-						: computeLevel(event.payload.line);
+						: computeLevel(last.line);
 				}
 			},
 		);

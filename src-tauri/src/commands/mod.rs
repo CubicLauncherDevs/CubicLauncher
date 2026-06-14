@@ -5,6 +5,7 @@ pub mod forge;
 pub mod ftb;
 pub mod instance;
 pub mod java;
+pub mod log_window;
 pub mod modrinth;
 pub mod others;
 pub mod pack;

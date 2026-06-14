@@ -12,11 +12,93 @@ use launchwerk::auth::{AccountType, MinecraftUser, microsoft::MicrosoftAuth};
 use launchwerk::models::VersionManifest;
 use zellkern::Loader;
 use launchwerk::{LaunchConfig, Launchwerk};
+use std::collections::VecDeque;
 use std::sync::{Arc, OnceLock};
 use tauri::Emitter;
 use tokio::fs;
 use tokio::sync::broadcast;
 use tracing::{error, info, trace, warn};
+
+use dashmap::DashMap;
+
+const LOG_RING_CAPACITY: usize = 5000;
+
+// ── Log Ring Buffer ─────────────────────────────────────────────────────────
+
+#[derive(Clone, serde::Serialize)]
+pub struct LogLine {
+    pub text: String,
+    pub stream: String,
+    pub timestamp: u64,
+}
+
+struct LogLineRaw {
+    text: String,
+    stream: u8,
+    timestamp: u64,
+}
+
+pub struct LogRing {
+    inner: std::sync::Mutex<VecDeque<LogLineRaw>>,
+}
+
+impl LogRing {
+    fn new() -> Self {
+        Self {
+            inner: std::sync::Mutex::new(VecDeque::with_capacity(LOG_RING_CAPACITY)),
+        }
+    }
+
+    pub fn push(&self, text: String, stream: u8) {
+        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        if guard.len() >= LOG_RING_CAPACITY {
+            guard.pop_front();
+        }
+        guard.push_back(LogLineRaw {
+            text,
+            stream,
+            timestamp: ts,
+        });
+    }
+
+    pub fn drain(&self) -> Vec<LogLine> {
+        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        guard
+            .drain(..)
+            .map(|raw| LogLine {
+                text: raw.text,
+                stream: match raw.stream {
+                    0 => "stdout".into(),
+                    _ => "stderr".into(),
+                },
+                timestamp: raw.timestamp,
+            })
+            .collect()
+    }
+}
+
+static LOG_RINGS: OnceLock<DashMap<Arc<str>, Arc<LogRing>>> = OnceLock::new();
+
+fn get_log_ring(id: &str) -> Arc<LogRing> {
+    let map = LOG_RINGS.get_or_init(DashMap::new);
+    map.entry(Arc::from(id))
+        .or_insert_with(|| Arc::new(LogRing::new()))
+        .clone()
+}
+
+pub fn get_log_history(id: &str) -> Vec<LogLine> {
+    get_log_ring(id).drain()
+}
+
+pub fn remove_log_ring(id: &str) {
+    if let Some(map) = LOG_RINGS.get() {
+        map.remove(id);
+    }
+}
 
 // ── Statics ───────────────────────────────────────────────────────────────────
 
@@ -235,6 +317,7 @@ impl Launcher {
                         }
                     }
                     discord_presence::on_instance_stop(&inst_name).await;
+                    remove_log_ring(&uuid);
                     h.set_status(InstanceStatus::Off);
                 });
             }
@@ -291,19 +374,53 @@ fn spawn_io_forwarding(
     stream: &'static str,
 ) {
     tokio::spawn(async move {
-        while let Ok(line) = rx.recv().await {
-            if line.to_lowercase().contains("token") {
-                continue;
+        let ring = get_log_ring(&id);
+        let stream_id: u8 = if stream == "stderr" { 1 } else { 0 };
+        let stream_name = stream;
+        let mut batch: Vec<serde_json::Value> = Vec::with_capacity(64);
+        let mut interval = tokio::time::interval(std::time::Duration::from_millis(80));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+        loop {
+            tokio::select! {
+                line_result = rx.recv() => {
+                    match line_result {
+                        Ok(line) => {
+                            if line.to_lowercase().contains("token") {
+                                continue;
+                            }
+                            let ts = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .map(|d| d.as_millis() as u64)
+                                .unwrap_or(0);
+                            ring.push(line.clone(), stream_id);
+                            batch.push(serde_json::json!({
+                                "line": line,
+                                "stream": stream_name,
+                                "timestamp": ts,
+                            }));
+                        }
+                        Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                        Err(broadcast::error::RecvError::Closed) => break,
+                    }
+                }
+                _ = interval.tick() => {
+                    if !batch.is_empty() {
+                        let lines: Vec<serde_json::Value> = batch.drain(..).collect();
+                        let _ = app.emit(
+                            "instance-log-batch",
+                            serde_json::json!({ "id": id, "lines": lines }),
+                        );
+                    }
+                }
             }
-            if app
-                .emit(
-                    "instance-console-output",
-                    serde_json::json!({ "id": id, "line": line, "stream": stream }),
-                )
-                .is_err()
-            {
-                break;
-            }
+        }
+        if !batch.is_empty() {
+            let lines: Vec<serde_json::Value> = batch.drain(..).collect();
+            let _ = app.emit(
+                "instance-log-batch",
+                serde_json::json!({ "id": id, "lines": lines }),
+            );
         }
     });
 }

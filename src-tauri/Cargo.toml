@@ -48,5 +48,6 @@ compact_str = { version = "0.9.1", features = ["serde"] }
 smallvec = "1.15.1"
 ablage = { path = "../crates/ablage" }
 postcard = { version = "1", features = ["use-std"] }
+urlencoding = "2"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
