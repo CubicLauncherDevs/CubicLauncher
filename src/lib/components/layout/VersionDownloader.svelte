@@ -192,24 +192,38 @@
 
 	const filteredVersions = $derived.by(() => {
 		if (filter === "forge") {
-			return forgeManifest.filter((v) => {
-				const versionId = v.version_id;
-				const isInstalled = installedForge.has(versionId);
+			return forgeManifest
+				.filter((v) => {
+					const versionId = v.version_id;
+					const isInstalled = installedForge.has(versionId);
 
-				if (installStatusFilter === "installed" && !isInstalled) return false;
-				if (installStatusFilter === "not_installed" && isInstalled) return false;
+					if (installStatusFilter === "installed" && !isInstalled) return false;
+					if (installStatusFilter === "not_installed" && isInstalled)
+						return false;
 
-				if (
-					majorVersionFilter !== "all" &&
-					!v.game_version.startsWith(majorVersionFilter)
-				)
-					return false;
+					if (
+						majorVersionFilter !== "all" &&
+						!v.game_version.startsWith(majorVersionFilter)
+					)
+						return false;
 
-				const matchesSearch = versionId
-					.toLowerCase()
-					.includes(search.toLowerCase());
-				return matchesSearch;
-			});
+					const matchesSearch = versionId
+						.toLowerCase()
+						.includes(search.toLowerCase());
+					return matchesSearch;
+				})
+				.sort((a, b) => {
+					const aParts = a.game_version.split(".").map(Number);
+					const bParts = b.game_version.split(".").map(Number);
+					for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+						const aVal = aParts[i] ?? 0;
+						const bVal = bParts[i] ?? 0;
+						if (aVal !== bVal) return bVal - aVal;
+					}
+					return b.forge_version.localeCompare(a.forge_version, undefined, {
+						numeric: true,
+					});
+				});
 		}
 
 		const source = filter === "fabric" ? fabricManifest : manifest;
