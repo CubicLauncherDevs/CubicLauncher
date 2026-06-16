@@ -128,6 +128,25 @@ fn extract_mc_version(full_id: &str) -> String {
     full_id.to_string()
 }
 
+/// Resolve all version IDs that a given version depends on.
+///
+/// Vanilla versions have no dependencies (return only themselves).
+/// Fabric/Forge/NeoForge/Quilt depend on their base MC version.
+///
+/// Example: `"1.20.1-forge-47.2.0"` → `["1.20.1", "1.20.1-forge-47.2.0"]`
+pub fn resolve_dependencies(version_id: &str) -> Vec<String> {
+    let game_version = GameVersion::from_version_id(version_id);
+    match &game_version.loader {
+        Loader::Vanilla => vec![version_id.to_string()],
+        Loader::Fabric(_)
+        | Loader::Forge(_)
+        | Loader::NeoForge(_)
+        | Loader::Quilt(_) => {
+            vec![game_version.mc_version.clone(), version_id.to_string()]
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,5 +203,35 @@ mod tests {
         let original = "1.20.1-forge-47.2.0";
         let gv = GameVersion::from_version_id(original);
         assert_eq!(gv.to_version_id(), original);
+    }
+
+    #[test]
+    fn dependencies_vanilla() {
+        let deps = resolve_dependencies("1.20.1");
+        assert_eq!(deps, vec!["1.20.1"]);
+    }
+
+    #[test]
+    fn dependencies_forge() {
+        let deps = resolve_dependencies("1.20.1-forge-47.2.0");
+        assert_eq!(deps, vec!["1.20.1", "1.20.1-forge-47.2.0"]);
+    }
+
+    #[test]
+    fn dependencies_fabric() {
+        let deps = resolve_dependencies("fabric-loader-0.15.11-1.20.1");
+        assert_eq!(deps, vec!["1.20.1", "fabric-loader-0.15.11-1.20.1"]);
+    }
+
+    #[test]
+    fn dependencies_neoforge() {
+        let deps = resolve_dependencies("1.21-neoforge-21.0.0");
+        assert_eq!(deps, vec!["1.21", "1.21-neoforge-21.0.0"]);
+    }
+
+    #[test]
+    fn dependencies_quilt() {
+        let deps = resolve_dependencies("1.20.1-quilt-0.25.0");
+        assert_eq!(deps, vec!["1.20.1", "1.20.1-quilt-0.25.0"]);
     }
 }

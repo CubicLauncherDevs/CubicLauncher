@@ -105,6 +105,37 @@ export async function getInstalledVersions(): Promise<string[]> {
 	}
 }
 
+export interface VersionIntegrity {
+	version_id: string;
+	dependencies: string[];
+	missing: string[];
+	complete: boolean;
+}
+
+export interface VersionStatus {
+	version_id: string;
+	complete: boolean;
+	missing_deps: string[];
+}
+
+export async function checkVersionIntegrity(versionId: string): Promise<VersionIntegrity | null> {
+	try {
+		return await invoke<VersionIntegrity>("check_version_integrity", { versionId });
+	} catch (err) {
+		showErrorParsed(err);
+		return null;
+	}
+}
+
+export async function getInstalledVersionsWithStatus(): Promise<VersionStatus[]> {
+	try {
+		return await invoke<VersionStatus[]>("get_installed_versions_with_status");
+	} catch (err) {
+		showErrorParsed(err);
+		return [];
+	}
+}
+
 export function parseInstalledVersion(raw: string): McVersion {
 	if (raw.includes("fabric")) {
 		const clean = raw

@@ -36,7 +36,6 @@ pub async fn open_log_window(
         .min_inner_size(400.0, 300.0)
         .resizable(true)
         .decorations(true)
-        .transparent(false)
         .build()
         .map_err(|e| e.to_string())?;
 

@@ -159,18 +159,29 @@ impl Launcher {
                 })?;
         }
 
-        // Si la versión no está descargada, encolarla y salir con error descriptivo
+        // Si la versión o alguna de sus dependencias no está descargada,
+        // encolar la descarga y salir con error descriptivo.
         // El frontend puede escuchar "download-finished" y reintentar el launch
-        let version_json = shared_dir.join(format!("versions/{}/{}.json", version, version));
-        if !version_json.exists() {
+        let deps = zellkern::resolve_dependencies(version.as_ref());
+        let missing: Vec<String> = deps
+            .iter()
+            .filter(|dep| {
+                let json_path = shared_dir.join(format!("versions/{dep}/{dep}.json"));
+                !json_path.exists()
+            })
+            .cloned()
+            .collect();
+        if !missing.is_empty() {
             info!(
-                "Versión {} no descargada, encolando descarga automática...",
-                version
+                "Faltan dependencias para {}: {:?}, encolando descarga automática...",
+                version, missing
             );
             DownloadQueue::get().enqueue(version.clone()).await;
             handle.set_status(InstanceStatus::Off);
             return Err(AppError::Instance(InstanceError::NotFound));
         }
+
+        let version_json = shared_dir.join(format!("versions/{}/{}.json", version, version));
 
         let manifest = VersionManifest::from_file(version_json)
             .map_err(|e| DownloadError::ParseJson(e.to_string()))?;

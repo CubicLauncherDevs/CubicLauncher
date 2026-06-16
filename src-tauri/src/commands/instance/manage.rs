@@ -2,6 +2,7 @@ use super::launch::validate_uuid;
 use crate::core::errors::{FsError, InstanceError};
 use crate::core::{AppEvent, PathManager, emit};
 use crate::services::InstanceManager;
+use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
 
@@ -242,4 +243,96 @@ pub async fn add_instance_file(
     })?;
     info!("Archivo copiado a {:?}", dest_path);
     Ok(())
+}
+
+// ─── Dependency checks ───────────────────────────────────────────────────────
+
+#[derive(Serialize, Clone)]
+pub struct VersionIntegrity {
+    pub version_id: String,
+    pub dependencies: Vec<String>,
+    pub missing: Vec<String>,
+    pub complete: bool,
+}
+
+#[derive(Serialize, Clone)]
+pub struct VersionStatus {
+    pub version_id: String,
+    pub complete: bool,
+    pub missing_deps: Vec<String>,
+}
+
+/// Check if a version and all its dependencies are fully installed.
+#[tauri::command]
+pub async fn check_version_integrity(version_id: String) -> Result<VersionIntegrity, String> {
+    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let deps = zellkern::resolve_dependencies(&version_id);
+
+    let missing = tokio::task::spawn_blocking(move || {
+        deps.iter()
+            .filter(|dep| {
+                let json_path = shared_dir.join(format!("versions/{dep}/{dep}.json"));
+                !json_path.exists()
+            })
+            .cloned()
+            .collect::<Vec<_>>()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let complete = missing.is_empty();
+    let dependencies = zellkern::resolve_dependencies(
+        missing.first().unwrap_or(&version_id),
+    );
+
+    Ok(VersionIntegrity {
+        version_id,
+        dependencies,
+        missing,
+        complete,
+    })
+}
+
+/// List all installed versions with their integrity status.
+#[tauri::command]
+pub async fn get_installed_versions_with_status() -> Vec<VersionStatus> {
+    let versions_dir = PathManager::get().get_shared_dir().join("versions");
+    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+
+    let versions = tokio::task::spawn_blocking(move || -> Vec<String> {
+        match std::fs::read_dir(&versions_dir) {
+            Ok(entries) => entries
+                .flatten()
+                .filter(|e| e.path().is_dir())
+                .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
+                .collect(),
+            Err(_) => Vec::new(),
+        }
+    })
+    .await
+    .unwrap_or_default();
+
+    tokio::task::spawn_blocking(move || {
+        versions
+            .into_iter()
+            .map(|v| {
+                let deps = zellkern::resolve_dependencies(&v);
+                let missing: Vec<String> = deps
+                    .iter()
+                    .filter(|dep| {
+                        let p = shared_dir.join(format!("versions/{dep}/{dep}.json"));
+                        !p.exists()
+                    })
+                    .cloned()
+                    .collect();
+                VersionStatus {
+                    version_id: v,
+                    complete: missing.is_empty(),
+                    missing_deps: missing,
+                }
+            })
+            .collect()
+    })
+    .await
+    .unwrap_or_default()
 }

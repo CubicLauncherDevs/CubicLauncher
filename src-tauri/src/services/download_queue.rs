@@ -194,19 +194,39 @@ impl DownloadQueue {
             } else {
                 match manager.prepare(&version).await {
                     Ok(h) => h,
-                    Err(_) if version.starts_with("fabric-loader-") => {
-                        let gv = version.split('-').next_back().unwrap_or("");
-                        match manager.prepare(gv).await {
-                            Ok(h) => h,
-                            Err(_) => {
-                                emit_and_set_error(&queue, &version, format!("No se pudo resolver base {} para Fabric", gv));
-                                continue;
-                            }
-                        }
-                    }
                     Err(_) => {
-                        emit_and_set_error(&queue, &version, format!("La versión solicitada no existe: {}", version));
-                        continue;
+                        // For loaders (Fabric, NeoForge, Quilt): download base MC first, then retry
+                        let deps = zellkern::resolve_dependencies(&version);
+                        let mc_version = deps.first().filter(|v| *v != version.as_ref()).cloned();
+
+                        if let Some(gv) = mc_version {
+                            info!(
+                                "Loader {} falló, descargando base MC {} primero...",
+                                version, gv
+                            );
+                            match manager.prepare(&gv).await {
+                                Ok(base_handle) => {
+                                    if let Err(e) = base_handle.download_all(None).await {
+                                        error!("Failed to download base MC {gv}: {:?}", e);
+                                    }
+                                }
+                                Err(e) => {
+                                    emit_and_set_error(&queue, &version, format!("No se pudo preparar base {} para loader: {:?}", gv, e));
+                                    continue;
+                                }
+                            }
+                            // Retry loader after base MC is available
+                            match manager.prepare(&version).await {
+                                Ok(h) => h,
+                                Err(e) => {
+                                    emit_and_set_error(&queue, &version, format!("No se pudo descargar loader después de restaurar base: {:?}", e));
+                                    continue;
+                                }
+                            }
+                        } else {
+                            emit_and_set_error(&queue, &version, format!("La versión solicitada no existe: {}", version));
+                            continue;
+                        }
                     }
                 }
             };
