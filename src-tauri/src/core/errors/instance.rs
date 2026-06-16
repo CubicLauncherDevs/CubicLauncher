@@ -5,6 +5,9 @@ pub enum InstanceError {
     #[error("Instancia no encontrada")]
     NotFound,
 
+    #[error("Versión no encontrada: {0}")]
+    VersionNotFound(String),
+
     #[error("Mod no encontrado")]
     ModNotFound,
 
@@ -13,6 +16,9 @@ pub enum InstanceError {
 
     #[error("La instancia ya existe")]
     AlreadyExists,
+
+    #[error("No se puede modificar una instancia mientras está en ejecución")]
+    Busy,
 
     #[error("Archivo de registro no encontrado")]
     LogNotFound,
@@ -37,9 +43,11 @@ impl InstanceError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::NotFound => "INST_NOT_FOUND",
+            Self::VersionNotFound(_) => "INST_VERSION_NOT_FOUND",
             Self::ModNotFound => "INST_MOD_NOT_FOUND",
             Self::AlreadyStarted => "INST_ALREADY_STARTED",
             Self::AlreadyExists => "INST_EXISTS",
+            Self::Busy => "INST_BUSY",
             Self::LogNotFound => "INST_LOG_NOT_FOUND",
             Self::FilenameParse => "INST_FILENAME_PARSE",
             Self::InstNameParse(_) => "INST_NAME_INVALID",
@@ -51,6 +59,7 @@ impl InstanceError {
 
     pub fn params(&self) -> Vec<(&'static str, String)> {
         match self {
+            Self::VersionNotFound(v) => vec![("version", v.clone())],
             Self::InstNameParse(s) => vec![("error", s.clone())],
             Self::JreNotFound(v) => vec![("version", v.clone())],
             Self::Fs(e) => e.params(),

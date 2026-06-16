@@ -178,7 +178,7 @@ impl Launcher {
             );
             DownloadQueue::get().enqueue(version.clone()).await;
             handle.set_status(InstanceStatus::Off);
-            return Err(AppError::Instance(InstanceError::NotFound));
+            return Err(AppError::Instance(InstanceError::VersionNotFound(version.to_string())));
         }
 
         let version_json = shared_dir.join(format!("versions/{}/{}.json", version, version));
