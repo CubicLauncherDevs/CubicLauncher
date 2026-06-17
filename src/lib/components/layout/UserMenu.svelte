@@ -88,17 +88,38 @@
 		await saveSettings();
 	}
 
-	function avatarSrc(username: string, size = 32): string {
-		return `https://minotar.net/avatar/${username}/${size}`;
+	const avatarCache = new Map<string, string>();
+
+	let avatarSvgs = $state<Record<string, string>>({});
+
+	async function loadAvatar(username: string, userType: string): Promise<void> {
+		const endpoint = userType === "Yggdrasil" ? "elyby" : "mojang";
+		const url = `https://bohrium-js.cubiclauncher.com/api/${endpoint}/head/${username}`;
+
+		const cached = avatarCache.get(url);
+		if (cached !== undefined) {
+			if (avatarSvgs[username] !== cached) {
+				avatarSvgs = { ...avatarSvgs, [username]: cached };
+			}
+			return;
+		}
+
+		try {
+			const res = await fetch(url);
+			const svg = await res.text();
+			avatarCache.set(url, svg);
+			avatarSvgs = { ...avatarSvgs, [username]: svg };
+		} catch {
+			avatarSvgs = { ...avatarSvgs, [username]: "" };
+		}
 	}
 
-	function handleAvatarLoad(e: Event) {
-		(e.target as HTMLImageElement).style.opacity = "1";
-	}
-
-	function handleAvatarError(e: Event) {
-		(e.target as HTMLImageElement).style.opacity = "0";
-	}
+	$effect(() => {
+		if (!open) return;
+		for (const u of launcherStore.settings.user) {
+			loadAvatar(u.username, u.user_type);
+		}
+	});
 </script>
 
 <ModalBase bind:open title={t("userMenu.title")}>
@@ -162,16 +183,11 @@
 						onkeydown={(e) => e.key === "Enter" && handleSwitchUser(i)}
 					>
 						<div class="user-card-row">
-							<div class="user-avatar-wrapper">
-								<img
-									src={avatarSrc(u.username)}
-									alt={u.username}
-									class="user-avatar"
-									loading="lazy"
-									onload={handleAvatarLoad}
-									onerror={handleAvatarError}
-								/>
-							</div>
+						<div class="user-avatar-wrapper">
+							{#if avatarSvgs[u.username]}
+								{@html avatarSvgs[u.username]}
+							{/if}
+						</div>
 							<div class="user-info">
 								{#if u.user_type === "Cracked" && editingIdx === i}
 									<!-- svelte-ignore a11y_autofocus -->
@@ -400,14 +416,10 @@
 		justify-content: center;
 	}
 
-	.user-avatar {
+	.user-avatar-wrapper :global(svg) {
 		width: 100%;
 		height: 100%;
-		object-fit: cover;
-		opacity: 0;
-		transition: opacity 0.3s;
-		position: relative;
-		z-index: 1;
+		display: block;
 		border-radius: inherit;
 	}
 

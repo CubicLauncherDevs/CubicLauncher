@@ -38,6 +38,31 @@
 	let isPremium = $derived(activeUser?.user_type === "Microsoft");
 	let isYggdrasil = $derived(activeUser?.user_type === "Yggdrasil");
 	let userTypeLabel = $derived(isPremium ? t("userMenu.premium") : isYggdrasil ? t("userMenu.authInjector") : t("userMenu.offline"));
+
+	const avatarCache = new Map<string, string>();
+
+	let avatarSvg = $state("");
+
+	$effect(() => {
+		if (!username) return;
+		const url = isYggdrasil
+			? `https://bohrium-js.cubiclauncher.com/api/elyby/head/${username}`
+			: `https://bohrium-js.cubiclauncher.com/api/mojang/head/${username}`;
+
+		const cached = avatarCache.get(url);
+		if (cached !== undefined) {
+			avatarSvg = cached;
+			return;
+		}
+
+		fetch(url)
+			.then((r) => r.text())
+			.then((svg) => {
+				avatarCache.set(url, svg);
+				avatarSvg = svg;
+			})
+			.catch(() => {});
+	});
 	let versionOptions = $derived(
 		installedVersions.map((v) => ({ value: v, label: v })),
 	);
@@ -245,16 +270,11 @@
 				(e.key === "Enter" || e.key === " ") && (showUserMenu = true)}
 			style="cursor: pointer;"
 		>
-			<div class="user-avatar-wrapper">
-				<img
-					src="https://minotar.net/avatar/{username}"
-					alt={username}
-					class="user-avatar"
-					loading="lazy"
-					onload={(e) => (e.target as HTMLImageElement).style.opacity = "1"}
-					onerror={(e) => (e.target as HTMLImageElement).style.opacity = "0"}
-				/>
-			</div>
+		<div class="user-avatar-wrapper">
+			{#if avatarSvg}
+				{@html avatarSvg}
+			{/if}
+		</div>
 			<div class="user-info">
 				<div class="user-name-wrapper">
 					<span class="user-name">{username}</span>
@@ -552,14 +572,10 @@
 		justify-content: center;
 	}
 
-	.user-avatar {
+	.user-avatar-wrapper :global(svg) {
 		width: 100%;
 		height: 100%;
-		object-fit: cover;
-		opacity: 0;
-		transition: opacity 0.3s ease;
-		position: relative;
-		z-index: 1;
+		display: block;
 		border-radius: inherit;
 	}
 

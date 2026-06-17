@@ -32,11 +32,13 @@
 					"asset:",
 					"https://asset.localhost",
 					"http://asset.localhost",
-					"https://minotar.net",
+					"https://bohrium-js.cubiclauncher.com",
 					"https://cdn.modrinth.com",
 					"https://media.forgecdn.net",
 					"https://apps.modpacks.ch/modpacks/art/",
 					"http://localhost:*",
+					"https://textures.minecraft.net",
+					"http://textures.minecraft.net",
 					"data:"
 				],
 				"style-src": [
@@ -57,7 +59,7 @@
 					"ipc://localhost",
 					"http://localhost:*",
 					"https://tauri.localhost",
-					"https://minotar.net",
+					"https://bohrium-js.cubiclauncher.com",
 					"https://api.modrinth.com",
 					"https://api.curseforge.com",
 					"https://api.modpacks.ch/public/modpack"
@@ -74,11 +76,13 @@
 					"'self'",
 					"asset:",
 					"https://asset.localhost",
-					"https://minotar.net",
+					"https://bohrium-js.cubiclauncher.com",
 					"https://cdn.modrinth.com",
 					"https://media.forgecdn.net",
 					"https://apps.modpacks.ch/modpacks/art/",
 					"http://localhost:*",
+					"https://textures.minecraft.net",
+					"http://textures.minecraft.net",
 					"data:"
 				],
 				"style-src": [
@@ -99,7 +103,7 @@
 					"ipc://localhost",
 					"http://localhost:*",
 					"https://tauri.localhost",
-					"https://minotar.net",
+					"https://bohrium-js.cubiclauncher.com",
 					"https://api.modrinth.com",
 					"https://api.curseforge.com",
 					"https://api.modpacks.ch/public/modpack"
