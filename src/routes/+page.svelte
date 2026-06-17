@@ -66,7 +66,9 @@
 
 		applyTheme(launcherStore.settings.theme);
 
-		initDiscordPresence();
+		if (launcherStore.settings.discord_presence) {
+			initDiscordPresence();
+		}
 
 		if (launcherStore.settings.auto_updates) {
 			setTimeout(() => checkForUpdates(true), 2000);
