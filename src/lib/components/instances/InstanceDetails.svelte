@@ -287,7 +287,7 @@
 	.path-text {
 		font-size: 0.68rem;
 		color: var(--text-secondary);
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;

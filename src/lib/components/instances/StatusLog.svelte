@@ -168,7 +168,7 @@
 	}
 
 	.status-log-text {
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 		text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 		animation: logFadeIn 0.3s ease-out;
 	}

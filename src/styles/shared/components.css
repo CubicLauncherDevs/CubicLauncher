@@ -5,7 +5,7 @@
 	padding: 8px 16px;
 	border-radius: var(--border-radius-sm);
 	font-size: 0.8rem;
-	font-family: "Cantarell", system-ui, sans-serif;
+
 	font-weight: 700;
 	cursor: pointer;
 	transition: opacity 0.2s ease;
@@ -22,7 +22,7 @@
 	padding: 8px 16px;
 	border-radius: var(--border-radius-sm);
 	font-size: 0.8rem;
-	font-family: "Cantarell", system-ui, sans-serif;
+
 	font-weight: 600;
 	cursor: pointer;
 	transition:

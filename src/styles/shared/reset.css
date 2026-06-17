@@ -1,35 +1,3 @@
-@font-face {
-	font-family: "Cantarell";
-	src: url("/fonts/Cantarell-Regular.woff2") format("woff2");
-	font-weight: 400;
-	font-style: normal;
-	font-display: swap;
-}
-
-@font-face {
-	font-family: "Cantarell";
-	src: url("/fonts/Cantarell-Italic.woff2") format("woff2");
-	font-weight: 400;
-	font-style: italic;
-	font-display: swap;
-}
-
-@font-face {
-	font-family: "Cantarell";
-	src: url("/fonts/Cantarell-Bold.woff2") format("woff2");
-	font-weight: 700;
-	font-style: normal;
-	font-display: swap;
-}
-
-@font-face {
-	font-family: "Cantarell";
-	src: url("/fonts/Cantarell-BoldItalic.woff2") format("woff2");
-	font-weight: 700;
-	font-style: italic;
-	font-display: swap;
-}
-
 :root {
 	--bg-main: #0c0c0c;
 	--bg-sidebar: #0f1010;
@@ -86,7 +54,7 @@
 }
 
 body {
-	font-family: "Cantarell", system-ui, sans-serif;
+	font-family: var(--font-family);
 	background-color: var(--bg-main);
 	color: var(--text-primary);
 	overflow: hidden;

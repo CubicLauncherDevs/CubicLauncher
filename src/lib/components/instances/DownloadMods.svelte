@@ -1017,7 +1017,7 @@
 		margin: -32px -40px;
 		background: var(--bg-main);
 		color: var(--text-primary);
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 		overflow: hidden;
 	}
 
@@ -1075,7 +1075,7 @@
 		cursor: pointer;
 		font-size: 0.72rem;
 		font-weight: 600;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 		border-radius: calc(var(--border-radius-sm) - 1px);
 		transition: all 0.15s;
 		white-space: nowrap;
@@ -1104,7 +1104,7 @@
 		color: var(--text-primary);
 		font-size: 0.9rem;
 		outline: none;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 	}
 	.dm-search-input::placeholder {
 		color: var(--text-secondary);
@@ -1300,7 +1300,7 @@
 		cursor: pointer;
 		font-size: 0.75rem;
 		font-weight: 600;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 		transition: all 0.15s;
 	}
 
@@ -1600,7 +1600,7 @@
 		opacity: 0.6;
 	}
 	.dm-queue-filename {
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 		font-size: 0.8rem;
 		color: var(--text-primary);
 		white-space: nowrap;
@@ -1640,7 +1640,7 @@
 		cursor: pointer;
 		font-size: 0.82rem;
 		font-weight: 700;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 		letter-spacing: 0.3px;
 		transition: all 0.15s;
 	}
@@ -1670,7 +1670,7 @@
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
 		font-size: 0.82rem;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 		transition: all 0.15s;
 	}
 	.dm-back-btn:hover:not(:disabled) {
@@ -1690,7 +1690,7 @@
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
 		font-size: 0.8rem;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 		transition: all 0.15s;
 	}
 	.dm-ghost-btn:hover {

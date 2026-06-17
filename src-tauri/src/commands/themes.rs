@@ -9,6 +9,18 @@ use tauri::command;
 use tracing::{error, info, warn};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FontFace {
+    pub family: CompactString,
+    pub src: CompactString,
+    #[serde(default)]
+    pub format: Option<CompactString>,
+    #[serde(default)]
+    pub weight: Option<CompactString>,
+    #[serde(default)]
+    pub style: Option<CompactString>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ThemeFile {
     pub name: CompactString,
     #[serde(default)]
@@ -26,6 +38,8 @@ pub struct ThemeFile {
     pub bg_image_opacity: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bg_image_warning_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fonts: Vec<FontFace>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -141,6 +155,14 @@ pub fn get_user_theme(id: String) -> Result<ThemeFile, String> {
             warn!("Theme '{}': bg_image no es una imagen válida", id);
             theme.bg_image_warning_key = Some("themes.warning.notAnImage".into());
             theme.bg_image = None;
+        }
+    }
+
+    // Resolver rutas de fuentes relativas al directorio del theme
+    for font in &mut theme.fonts {
+        if !font.src.starts_with('/') && !font.src.starts_with("file:") {
+            let abs_path = PathManager::get().get_themes_dir().join(&id).join(&font.src);
+            font.src = abs_path.to_string_lossy().to_string().into();
         }
     }
 

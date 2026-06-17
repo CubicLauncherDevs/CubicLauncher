@@ -612,7 +612,7 @@
 		display: flex;
 		align-items: center;
 		gap: 5px;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 	}
 
 	.download-btn:hover {

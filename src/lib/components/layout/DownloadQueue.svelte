@@ -235,7 +235,7 @@
 		border-radius: var(--border-radius-sm);
 		transition: background 0.15s ease;
 		user-select: none;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 	}
 
 	.sd-header:hover {

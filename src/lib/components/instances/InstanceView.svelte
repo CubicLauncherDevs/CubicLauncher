@@ -542,7 +542,7 @@
 		transition:
 			background 0.2s ease,
 			box-shadow 0.2s ease;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 		letter-spacing: 0.5px;
 		text-transform: uppercase;
 		box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);

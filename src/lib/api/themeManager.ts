@@ -8,6 +8,14 @@ const builtinThemes: ThemeEntry[] = [
 	{ id: "lima", name: "Lima", author: "CubicLauncher", version: "1.0", type: "builtin" },
 ];
 
+export interface FontFace {
+	family: string;
+	src: string;
+	format?: string | null;
+	weight?: string | null;
+	style?: string | null;
+}
+
 export interface UserTheme {
 	name: string;
 	version?: string;
@@ -16,10 +24,58 @@ export interface UserTheme {
 	bg_image_blur?: string | null;
 	bg_image_opacity?: number | null;
 	bg_image_warning_key?: string | null;
+	fonts?: FontFace[];
 }
 
 let currentImage: HTMLImageElement | null = null;
 let currentGeneration = 0;
+
+const DEFAULT_FONTS_ID = "cubic-default-fonts";
+
+const defaultFontsCSS = `
+@font-face {
+	font-family: "Cantarell";
+	src: url("/fonts/Cantarell-Regular.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "Cantarell";
+	src: url("/fonts/Cantarell-Italic.woff2") format("woff2");
+	font-weight: 400;
+	font-style: italic;
+	font-display: swap;
+}
+@font-face {
+	font-family: "Cantarell";
+	src: url("/fonts/Cantarell-Bold.woff2") format("woff2");
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "Cantarell";
+	src: url("/fonts/Cantarell-BoldItalic.woff2") format("woff2");
+	font-weight: 700;
+	font-style: italic;
+	font-display: swap;
+}
+`;
+
+function injectDefaultFonts() {
+	let el = document.getElementById(DEFAULT_FONTS_ID);
+	if (el) return;
+	el = document.createElement("style");
+	el.id = DEFAULT_FONTS_ID;
+	el.textContent = defaultFontsCSS;
+	document.head.appendChild(el);
+}
+
+function removeDefaultFonts() {
+	const el = document.getElementById(DEFAULT_FONTS_ID);
+	if (el) el.remove();
+}
 
 export async function listThemes(): Promise<ThemeEntry[]> {
 	let userThemes: ThemeEntry[] = [];
@@ -118,5 +174,42 @@ export async function applyTheme(themeId: string) {
 			"--bg-image-opacity",
 			String(theme.bg_image_opacity),
 		);
+	}
+
+	const CUSTOM_FONTS_ID = "cubic-theme-fonts";
+	const existingCustom = document.getElementById(CUSTOM_FONTS_ID);
+	if (existingCustom) existingCustom.remove();
+
+	if (theme.fonts && theme.fonts.length > 0) {
+		removeDefaultFonts();
+
+		const loaded: Promise<void>[] = [];
+
+		for (const font of theme.fonts) {
+			const fontSrc = themeId.startsWith("user:")
+				? convertFileSrc(font.src)
+				: font.src;
+
+			const descriptors: FontFaceDescriptors = {};
+			if (font.weight) descriptors.weight = font.weight;
+			if (font.style) descriptors.style = font.style;
+
+			const face = new FontFace(font.family, `url(${fontSrc})`, descriptors);
+			face.display = "swap";
+
+			loaded.push(
+				face.load().then(() => {
+					document.fonts.add(face);
+				}).catch((err) => {
+					console.warn(`Font "${font.family}" failed to load:`, err, `src: ${fontSrc}`);
+				}),
+			);
+		}
+
+		Promise.allSettled(loaded).then(() => {
+			document.documentElement.style.setProperty("--font-loaded", "1");
+		});
+	} else {
+		injectDefaultFonts();
 	}
 }

@@ -130,11 +130,11 @@
 				<div
 					class="instance-item"
 					class:active={selectedInstance?.uuid === instance.uuid}
-					onclick={() => (selectedInstance = instance)}
-					onkeydown={(e) => {
-						if (e.key === "Enter" || e.key === " ")
-							selectedInstance = instance;
-					}}
+				onclick={() => (selectedInstance = selectedInstance?.uuid === instance.uuid ? null : instance)}
+				onkeydown={(e) => {
+					if (e.key === "Enter" || e.key === " ")
+						selectedInstance = selectedInstance?.uuid === instance.uuid ? null : instance;
+				}}
 					role="button"
 					tabindex="0"
 					title={instance.name}
@@ -437,7 +437,7 @@
 		color: var(--text-primary);
 		width: 100%;
 		text-align: left;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 	}
 
 	.instance-item:hover {
@@ -544,7 +544,7 @@
 		transition:
 			background 0.15s ease,
 			color 0.15s ease;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 	}
 
 	.tools-btn:hover {

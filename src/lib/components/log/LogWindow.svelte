@@ -236,7 +236,7 @@
 		padding: 0;
 		background: #0a0a0a;
 		color: #c8c8c8;
-		font-family: "Cantarell", system-ui, sans-serif;
+	
 		font-size: 0.65rem;
 	}
 
