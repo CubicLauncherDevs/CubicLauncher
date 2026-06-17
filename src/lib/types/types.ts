@@ -205,6 +205,7 @@ export interface ThemeEntry {
 	id: string;
 	name: string;
 	author: string;
+	version: string;
 	type: string;
 }
 

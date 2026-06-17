@@ -37,6 +37,8 @@
 	--bg-card: #111;
 	--bg-input: #0a0a0a;
 	--bg-overlay: rgba(0, 0, 0, 0.7);
+	--bg-sidebar-gradient: linear-gradient(180deg, #0f1010 0%, #0c0c0c 100%);
+	--bg-card-gradient: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
 	--text-primary: #d8d8d8;
 	--text-secondary: #606060;
 	--text-muted: #444;
@@ -44,15 +46,20 @@
 	--accent-rgb: 255, 255, 255;
 	--accent-hover: #e0e0e0;
 	--accent-text: #0c0c0c;
+	--accent-primary: #ffffff;
 	--border: #242424;
 	--border-color: #222;
+	--border-width: 1px;
 	--border-radius: 8px;
 	--border-radius-sm: 4px;
+	--border-radius-lg: 12px;
 	--sidebar-width: 260px;
 	--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
 	--shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
 	--font-family: "Cantarell", system-ui, sans-serif;
 	--glow-accent: 0 0 12px rgba(255, 255, 255, 0.15);
+	--glow-error: 0 0 12px rgba(248, 81, 73, 0.3);
+	--glow-success: 0 0 12px rgba(63, 185, 80, 0.3);
 	--color-success: #3fb950;
 	--color-success-rgb: 63, 185, 80;
 	--color-error: #f85149;
@@ -64,6 +71,12 @@
 	--icon-filter: invert(1);
 	--icon-filter-error: invert(16%) sepia(89%) saturate(4668%) hue-rotate(0deg)
 		brightness(96%) contrast(112%);
+	--clr-loader-vanilla: #78909c;
+	--clr-loader-fabric: #66bb6a;
+	--clr-loader-forge: #ffa726;
+	--clr-loader-quilt: #ab47bc;
+	--scrollbar-track: #0c0c0c;
+	--scrollbar-thumb: #242424;
 }
 
 * {
@@ -96,11 +109,11 @@ textarea,
 }
 
 ::-webkit-scrollbar-track {
-	background: transparent;
+	background: var(--scrollbar-track, transparent);
 }
 
 ::-webkit-scrollbar-thumb {
-	background: var(--border);
+	background: var(--scrollbar-thumb, var(--border));
 	border-radius: 10px;
 }
 

@@ -6,6 +6,7 @@
 	import { launchInstance } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
 	import { killInst } from "$lib/api/launcherService";
+	import { slide } from "svelte/transition";
 
 	let { selectedInstance } = $props<{ selectedInstance: InstanceDto }>();
 	let activeTab = $state("detalles");
@@ -224,7 +225,9 @@
 		</div>
 	</section>
 	{#if bannerState !== "Idle" && bannerState !== "Error"}
-		<StatusLog instance={selectedInstance} />
+		<div transition:slide={{ duration: 300, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
+			<StatusLog instance={selectedInstance} />
+		</div>
 	{/if}
 
 	<div class="tabs-nav">

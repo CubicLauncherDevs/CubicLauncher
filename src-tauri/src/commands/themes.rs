@@ -14,6 +14,8 @@ pub struct ThemeFile {
     #[serde(default)]
     pub author: CompactString,
     #[serde(default)]
+    pub version: CompactString,
+    #[serde(default)]
     pub r#type: CompactString,
     pub variables: std::collections::HashMap<String, String>,
     #[serde(default)]
@@ -31,6 +33,7 @@ pub struct ThemeEntry {
     pub id: CompactString,
     pub name: CompactString,
     pub author: CompactString,
+    pub version: CompactString,
     pub r#type: CompactString,
 }
 
@@ -72,6 +75,7 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
             id: id.into(),
             name: theme.name,
             author: theme.author,
+            version: theme.version,
             r#type: theme.r#type,
         });
     }
@@ -268,6 +272,7 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
         id: theme_id.into(),
         name: theme_file.name,
         author: theme_file.author,
+        version: theme_file.version,
         r#type: "user".into(),
     })
 }
@@ -452,6 +457,7 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
         id: theme_id.into(),
         name: theme_file.name,
         author: theme_file.author,
+        version: theme_file.version,
         r#type: "user".into(),
     })
 }

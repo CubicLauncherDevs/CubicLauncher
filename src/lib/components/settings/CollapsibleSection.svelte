@@ -75,7 +75,7 @@
 
 <style>
 	.cs-root {
-		background: var(--bg-card);
+		background: var(--bg-card-gradient), var(--bg-card);
 	}
 
 	.cs-header {
@@ -85,23 +85,30 @@
 		width: 100%;
 		background: none;
 		border: none;
-		border-bottom: 1px solid transparent;
 		color: inherit;
-		padding: 10px 14px;
+		padding: 8px 10px;
 		cursor: pointer;
+		border-radius: var(--border-radius-sm);
+		transition: background 0.15s ease;
 		user-select: none;
-		transition: border-color 0.2s;
+		font-family: "Cantarell", system-ui, sans-serif;
+	}
+
+	.cs-header:hover {
+		background: rgba(255, 255, 255, 0.03);
 	}
 
 	.cs-header.expanded {
-		border-bottom-color: var(--border-color);
+		border-bottom: 1px solid var(--border);
+		border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
 	}
 
 	.cs-header-left {
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 7px;
 		min-width: 0;
+		flex: 1;
 	}
 
 	.cs-icon {
@@ -135,7 +142,7 @@
 	}
 
 	.cs-content {
-		padding: 6px 14px 14px 14px;
+		padding: 4px 10px 10px 10px;
 		overflow: hidden;
 	}
 </style>

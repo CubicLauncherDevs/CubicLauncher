@@ -356,7 +356,7 @@
 	.sidebar {
 		width: var(--sidebar-width);
 		flex-shrink: 0;
-		background-color: var(--bg-sidebar);
+		background: var(--bg-sidebar-gradient, var(--bg-sidebar));
 		border-right: 1px solid var(--border);
 		display: flex;
 		flex-direction: column;
@@ -490,7 +490,7 @@
 	.sidebar-sections .section-full :global(.cs-root) {
 		background: transparent;
 		border: none;
-		border-bottom: 1px solid var(--border-color);
+		border-bottom: 1px solid var(--border);
 	}
 
 	.sidebar-sections .user-profile {

@@ -4,12 +4,13 @@ import { t } from "$lib/i18n";
 import { showWarning } from "$lib/state/state.svelte";
 
 const builtinThemes: ThemeEntry[] = [
-	{ id: "dark", name: "Oscuro", author: "CubicLauncher", type: "builtin" },
-	{ id: "lima", name: "Lima", author: "CubicLauncher", type: "builtin" },
+	{ id: "dark", name: "Oscuro", author: "CubicLauncher", version: "1.0", type: "builtin" },
+	{ id: "lima", name: "Lima", author: "CubicLauncher", version: "1.0", type: "builtin" },
 ];
 
 export interface UserTheme {
 	name: string;
+	version?: string;
 	variables: Record<string, string>;
 	bg_image?: string | null;
 	bg_image_blur?: string | null;

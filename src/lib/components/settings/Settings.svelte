@@ -132,7 +132,7 @@
 		availableThemes.map((t: ThemeEntry) => ({
 			value: t.id,
 			label: t.name,
-			badge: t.author,
+			badge: [t.author, t.version ? `v${t.version}` : ""].filter(Boolean).join(" "),
 		})),
 	);
 

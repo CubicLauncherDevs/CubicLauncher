@@ -108,11 +108,11 @@
 	.status-log-widget {
 		position: relative;
 		height: 44px;
-		border-bottom: 1px solid var(--border-color);
+		border-bottom: 1px solid var(--border);
 		background: var(--bg-card);
 		overflow: hidden;
 		cursor: default;
-		transition: background 0.2s;
+		transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 	}
 
 	.status-log-widget.running {
@@ -170,6 +170,7 @@
 	.status-log-text {
 		font-family: "Cantarell", system-ui, sans-serif;
 		text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+		animation: logFadeIn 0.3s ease-out;
 	}
 
 	.status-log-text.info {
@@ -195,6 +196,7 @@
 		width: 20px;
 		height: 20px;
 		flex-shrink: 0;
+		animation: iconPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
 
 	:global(.status-icon-spin) {
@@ -209,6 +211,7 @@
 		color: white;
 		height: 20px;
 		width: 20px;
+		animation: checkDraw 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 	}
 
 	.status-error-badge {
@@ -223,6 +226,7 @@
 		font-size: 0.65rem;
 		font-weight: 800;
 		line-height: 1;
+		animation: errorPulse 2s ease-in-out infinite;
 	}
 
 	.status-text {
@@ -238,6 +242,48 @@
 		}
 		to {
 			transform: rotate(-360deg);
+		}
+	}
+
+	@keyframes iconPop {
+		0% {
+			transform: scale(0);
+			opacity: 0;
+		}
+		100% {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+
+	@keyframes checkDraw {
+		0% {
+			transform: scale(0.5) rotate(-45deg);
+			opacity: 0;
+		}
+		100% {
+			transform: scale(1) rotate(0deg);
+			opacity: 1;
+		}
+	}
+
+	@keyframes errorPulse {
+		0%, 100% {
+			box-shadow: 0 0 0 0 rgba(var(--color-error-rgb), 0.4);
+		}
+		50% {
+			box-shadow: 0 0 0 6px rgba(var(--color-error-rgb), 0);
+		}
+	}
+
+	@keyframes logFadeIn {
+		0% {
+			opacity: 0;
+			transform: translateX(-8px);
+		}
+		100% {
+			opacity: 1;
+			transform: translateX(0);
 		}
 	}
 </style>
