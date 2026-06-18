@@ -67,18 +67,20 @@ export function addNotification(
 	const id = Math.random().toString(36).substring(2, 9);
 	const notification: Notification = { id, title, message, type, timeout };
 
-	launcherStore.notifications = [
-		...launcherStore.notifications.slice(-(MAX_NOTIFICATIONS - 1)),
-		notification,
-	];
+	launcherStore.notifications.push(notification);
+	if (launcherStore.notifications.length > MAX_NOTIFICATIONS) {
+		launcherStore.notifications.splice(
+			0,
+			launcherStore.notifications.length - MAX_NOTIFICATIONS,
+		);
+	}
 
 	return id;
 }
 
 export function removeNotification(id: string) {
-	launcherStore.notifications = launcherStore.notifications.filter(
-		(n) => n.id !== id,
-	);
+	const idx = launcherStore.notifications.findIndex((n) => n.id === id);
+	if (idx !== -1) launcherStore.notifications.splice(idx, 1);
 }
 
 export function showError(title: string, message: string) {

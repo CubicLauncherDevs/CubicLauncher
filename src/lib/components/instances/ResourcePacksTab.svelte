@@ -11,6 +11,7 @@
 	let { instanceId } = $props<{ instanceId: string }>();
 	let packs = $state<ModDto[]>([]);
 	let isLoading = $state(false);
+	let prevInstanceId = $state<string>("");
 
 	async function loadPacks() {
 		if (instanceId) {
@@ -21,7 +22,10 @@
 	}
 
 	$effect(() => {
-		loadPacks();
+		if (instanceId !== prevInstanceId) {
+			prevInstanceId = instanceId;
+			loadPacks();
+		}
 	});
 
 	async function handleDelete(pack: ModDto) {

@@ -7,6 +7,7 @@
 	let { instance } = $props<{ instance: InstanceDto }>();
 	let screenshots = $state<string[]>([]);
 	let selectedImage = $state<string | null>(null);
+	let prevInstanceId = $state<string>("");
 
 	async function loadScreenshots() {
 		if (instance) {
@@ -20,7 +21,10 @@
 	}
 
 	$effect(() => {
-		loadScreenshots();
+		if (instance.uuid !== prevInstanceId) {
+			prevInstanceId = instance.uuid;
+			loadScreenshots();
+		}
 	});
 
 	async function handleDelete(path: string) {

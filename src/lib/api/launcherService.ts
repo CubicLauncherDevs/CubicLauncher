@@ -39,20 +39,18 @@ export function initEventListeners(): void {
 
 		switch (payload.type) {
 			case "InstanceCreated":
-				launcherStore.loadedInstances = [
-					...launcherStore.loadedInstances,
-					payload.data.dto,
-				];
+				launcherStore.loadedInstances.push(payload.data.dto);
 				break;
 			case "InstanceEdited":
 				clearTimeout(_instanceTimer);
 				_instanceTimer = setTimeout(() => getVersions(), 100);
 				break;
-			case "InstanceDeleted":
-				launcherStore.loadedInstances =
-					launcherStore.loadedInstances.filter(
-						(i) => i.uuid !== payload.data.id,
-					);
+			case "InstanceDeleted": {
+				const idx = launcherStore.loadedInstances.findIndex(
+					(i) => i.uuid === payload.data.id,
+				);
+				if (idx !== -1) launcherStore.loadedInstances.splice(idx, 1);
+			}
 				break;
 			case "DFinishRuntime":
 				break;
@@ -76,7 +74,7 @@ export async function syncSettings(): Promise<void> {
 	}
 	const settings = await getSettings();
 	if (settings) {
-		launcherStore.settings = settings;
+		Object.assign(launcherStore.settings, settings);
 	}
 }
 
@@ -94,8 +92,8 @@ export async function saveSettings(): Promise<void> {
 export async function killInst(uuid: string): Promise<void> {
 	try {
 		await killInstance(uuid, () => {
-			launcherStore.runningInstances =
-				launcherStore.runningInstances.filter((item) => item !== uuid);
+			const idx = launcherStore.runningInstances.indexOf(uuid);
+			if (idx !== -1) launcherStore.runningInstances.splice(idx, 1);
 		});
 	} catch (err) {
 		showErrorParsed(err);
@@ -106,9 +104,10 @@ export async function deleteInst(uuid: string): Promise<void> {
 	try {
 		await invoke("delete_instance", { id: uuid });
 
-		launcherStore.loadedInstances = launcherStore.loadedInstances.filter(
-			(instance) => instance.uuid !== uuid,
+		const idx = launcherStore.loadedInstances.findIndex(
+			(instance) => instance.uuid === uuid,
 		);
+		if (idx !== -1) launcherStore.loadedInstances.splice(idx, 1);
 	} catch (err) {
 		showErrorParsed(err);
 	}
@@ -150,5 +149,9 @@ export async function updateInst(
 export async function getVersions(): Promise<void> {
 	const instances: InstanceDto[] = await invoke("get_instances");
 
-	launcherStore.loadedInstances = instances;
+	launcherStore.loadedInstances.splice(
+		0,
+		launcherStore.loadedInstances.length,
+		...instances,
+	);
 }

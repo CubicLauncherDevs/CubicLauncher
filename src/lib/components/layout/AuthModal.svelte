@@ -41,10 +41,7 @@
 				launcherStore.settings.user[idx] = user;
 				launcherStore.settings.active_user_idx = idx;
 			} else {
-				launcherStore.settings.user = [
-					...launcherStore.settings.user,
-					user,
-				];
+				launcherStore.settings.user.push(user);
 				launcherStore.settings.active_user_idx =
 					launcherStore.settings.user.length - 1;
 			}

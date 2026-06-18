@@ -74,20 +74,15 @@
 			(u) => u.username === username,
 		);
 		if (idx === -1) return;
-		launcherStore.settings.user = [
-			...launcherStore.settings.user.slice(0, idx),
-			...launcherStore.settings.user.slice(idx + 1),
-		];
+		launcherStore.settings.user.splice(idx, 1);
 		if (launcherStore.settings.user.length === 0) {
-			launcherStore.settings.user = [
-				{
-					username: "Steve",
-					uuid: "",
-					access_token: "",
-					refresh_token: null,
-					user_type: "Cracked",
-				},
-			];
+			launcherStore.settings.user.push({
+				username: "Steve",
+				uuid: "",
+				access_token: "",
+				refresh_token: null,
+				user_type: "Cracked",
+			});
 			launcherStore.settings.active_user_idx = 0;
 		} else if (idx <= launcherStore.settings.active_user_idx) {
 			launcherStore.settings.active_user_idx = Math.max(
@@ -103,16 +98,13 @@
 	async function handleAddOffline() {
 		const name = offlineName.trim();
 		if (!name) return;
-		launcherStore.settings.user = [
-			...launcherStore.settings.user,
-			{
-				username: name,
-				uuid: "",
-				access_token: "",
-				refresh_token: null,
-				user_type: "Cracked",
-			},
-		];
+		launcherStore.settings.user.push({
+			username: name,
+			uuid: "",
+			access_token: "",
+			refresh_token: null,
+			user_type: "Cracked",
+		});
 		launcherStore.settings.active_user_idx =
 			launcherStore.settings.user.length - 1;
 		addingOffline = false;
@@ -122,7 +114,7 @@
 
 	const avatarCache = new SvelteMap<string, string>();
 
-	let avatarSvgs = $state<Record<string, string>>({});
+	let avatarSvgs = new SvelteMap<string, string>();
 
 	async function loadAvatar(
 		username: string,
@@ -133,8 +125,8 @@
 
 		const cached = avatarCache.get(url);
 		if (cached !== undefined) {
-			if (avatarSvgs[username] !== cached) {
-				avatarSvgs = { ...avatarSvgs, [username]: cached };
+			if (avatarSvgs.get(username) !== cached) {
+				avatarSvgs.set(username, cached);
 			}
 			return;
 		}
@@ -143,9 +135,9 @@
 			const res = await fetch(url);
 			const svg = await res.text();
 			avatarCache.set(url, svg);
-			avatarSvgs = { ...avatarSvgs, [username]: svg };
+			avatarSvgs.set(username, svg);
 		} catch {
-			avatarSvgs = { ...avatarSvgs, [username]: "" };
+			avatarSvgs.set(username, "");
 		}
 	}
 
@@ -234,8 +226,8 @@
 					>
 						<div class="user-card-row">
 							<div class="user-avatar-wrapper">
-								{#if avatarSvgs[u.username]}
-									{@html avatarSvgs[u.username]}
+								{#if avatarSvgs.get(u.username)}
+									{@html avatarSvgs.get(u.username)}
 								{/if}
 							</div>
 							<div class="user-info">

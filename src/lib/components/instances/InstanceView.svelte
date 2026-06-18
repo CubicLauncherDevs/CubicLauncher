@@ -6,6 +6,7 @@
 	import { launchInstance } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
 	import { killInst } from "$lib/api/launcherService";
+	import { launcherStore } from "$lib/state/state.svelte";
 	import { slide } from "svelte/transition";
 
 	let { selectedInstance } = $props<{ selectedInstance: InstanceDto }>();
@@ -98,8 +99,9 @@
 		void bannerVersion;
 		fetchScreenshot();
 	});
+	const lang = $derived(launcherStore.settings.language);
 	const formatter = $derived(
-		new Intl.DateTimeFormat(t("id"), {
+		new Intl.DateTimeFormat(lang, {
 			year: "numeric",
 			month: "long",
 			day: "2-digit",

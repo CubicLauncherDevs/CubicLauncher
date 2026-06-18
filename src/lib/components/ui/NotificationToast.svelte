@@ -78,7 +78,7 @@
 	});
 
 	// ── Sub-texto para toasts de progreso ─────────────────────────────
-	const progressSub = $derived(() => {
+	const progressSub = $derived.by(() => {
 		const p = notification.progress;
 		if (typeof p !== "number") return null;
 		const total = notification.totalMb;
@@ -188,9 +188,9 @@
 		{#if notification.message}
 			<span class="notification-message">{notification.message}</span>
 		{/if}
-		{#if progressSub()}
+		{#if progressSub}
 			<span class="notification-sub" class:done={isDone}
-				>{progressSub()}</span
+				>{progressSub}</span
 			>
 		{/if}
 	</div>
