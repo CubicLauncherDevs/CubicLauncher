@@ -34,13 +34,19 @@
 				deviceCode.expires_in,
 			);
 
-			const idx = launcherStore.settings.user.findIndex((u) => u.username === user.username);
+			const idx = launcherStore.settings.user.findIndex(
+				(u) => u.username === user.username,
+			);
 			if (idx >= 0) {
 				launcherStore.settings.user[idx] = user;
 				launcherStore.settings.active_user_idx = idx;
 			} else {
-				launcherStore.settings.user = [...launcherStore.settings.user, user];
-				launcherStore.settings.active_user_idx = launcherStore.settings.user.length - 1;
+				launcherStore.settings.user = [
+					...launcherStore.settings.user,
+					user,
+				];
+				launcherStore.settings.active_user_idx =
+					launcherStore.settings.user.length - 1;
 			}
 			await saveSettings();
 			success = true;
@@ -267,7 +273,9 @@
 		background: var(--bg-card);
 		border-radius: var(--border-radius-sm);
 		border: 1px solid var(--border-color);
-		box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+		box-shadow:
+			var(--shadow-sm),
+			inset 0 1px 0 rgba(255, 255, 255, 0.03);
 		animation: slideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
@@ -387,7 +395,9 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
-		box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+		box-shadow:
+			var(--shadow-sm),
+			inset 0 1px 0 rgba(255, 255, 255, 0.03);
 	}
 
 	.field-group {
@@ -437,7 +447,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.2rem;
-	
+
 		font-size: 1.1rem;
 		font-weight: 800;
 		letter-spacing: 1px;
@@ -512,7 +522,9 @@
 		border-radius: var(--border-radius-sm);
 		width: 100%;
 		max-width: 340px;
-		box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+		box-shadow:
+			var(--shadow-sm),
+			inset 0 1px 0 rgba(255, 255, 255, 0.03);
 	}
 
 	.minimal-dot {

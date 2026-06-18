@@ -1,8 +1,13 @@
 <script lang="ts">
 	import { getInstalledVersions } from "$lib/api/cubicApi";
 	import { INSTANCE_LOGOS } from "$lib/icons/logos";
-	import { deleteInst, updateInst, getActiveUser } from "$lib/api/launcherService";
+	import {
+		deleteInst,
+		updateInst,
+		getActiveUser,
+	} from "$lib/api/launcherService";
 	import { launcherStore } from "$lib/state/state.svelte";
+	import { SvelteMap } from "svelte/reactivity";
 	import type { InstanceDto } from "$lib/types/types";
 	import UserMenu from "./UserMenu.svelte";
 	import ModalBase from "./ModalBase.svelte";
@@ -37,9 +42,15 @@
 	let username = $derived(activeUser?.username ?? "Steve");
 	let isPremium = $derived(activeUser?.user_type === "Microsoft");
 	let isYggdrasil = $derived(activeUser?.user_type === "Yggdrasil");
-	let userTypeLabel = $derived(isPremium ? t("userMenu.premium") : isYggdrasil ? t("userMenu.authInjector") : t("userMenu.offline"));
+	let userTypeLabel = $derived(
+		isPremium
+			? t("userMenu.premium")
+			: isYggdrasil
+				? t("userMenu.authInjector")
+				: t("userMenu.offline"),
+	);
 
-	const avatarCache = new Map<string, string>();
+	const avatarCache = new SvelteMap<string, string>();
 
 	let avatarSvg = $state("");
 
@@ -130,11 +141,18 @@
 				<div
 					class="instance-item"
 					class:active={selectedInstance?.uuid === instance.uuid}
-				onclick={() => (selectedInstance = selectedInstance?.uuid === instance.uuid ? null : instance)}
-				onkeydown={(e) => {
-					if (e.key === "Enter" || e.key === " ")
-						selectedInstance = selectedInstance?.uuid === instance.uuid ? null : instance;
-				}}
+					onclick={() =>
+						(selectedInstance =
+							selectedInstance?.uuid === instance.uuid
+								? null
+								: instance)}
+					onkeydown={(e) => {
+						if (e.key === "Enter" || e.key === " ")
+							selectedInstance =
+								selectedInstance?.uuid === instance.uuid
+									? null
+									: instance;
+					}}
 					role="button"
 					tabindex="0"
 					title={instance.name}
@@ -270,11 +288,11 @@
 				(e.key === "Enter" || e.key === " ") && (showUserMenu = true)}
 			style="cursor: pointer;"
 		>
-		<div class="user-avatar-wrapper">
-			{#if avatarSvg}
-				{@html avatarSvg}
-			{/if}
-		</div>
+			<div class="user-avatar-wrapper">
+				{#if avatarSvg}
+					{@html avatarSvg}
+				{/if}
+			</div>
 			<div class="user-info">
 				<div class="user-name-wrapper">
 					<span class="user-name">{username}</span>
@@ -437,7 +455,6 @@
 		color: var(--text-primary);
 		width: 100%;
 		text-align: left;
-	
 	}
 
 	.instance-item:hover {
@@ -544,7 +561,6 @@
 		transition:
 			background 0.15s ease,
 			color 0.15s ease;
-	
 	}
 
 	.tools-btn:hover {

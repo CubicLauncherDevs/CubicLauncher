@@ -88,7 +88,8 @@
 
 	async function setupDragDrop() {
 		try {
-			const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+			const { getCurrentWebview } =
+				await import("@tauri-apps/api/webview");
 			const webview = getCurrentWebview();
 			await webview.onDragDropEvent((event) => {
 				if (event.payload.type === "enter") {
@@ -104,12 +105,13 @@
 					dragPaths = [];
 				} else if (event.payload.type === "drop") {
 					isDragOver = false;
-					const paths = (event.payload as { paths: string[] }).paths ?? [];
-					const zipFile = paths.find(
-						(p: string) => p.endsWith(".zip"),
+					const paths =
+						(event.payload as { paths: string[] }).paths ?? [];
+					const zipFile = paths.find((p: string) =>
+						p.endsWith(".zip"),
 					);
-					const mrpackFile = paths.find(
-						(p: string) => p.endsWith(".mrpack"),
+					const mrpackFile = paths.find((p: string) =>
+						p.endsWith(".mrpack"),
 					);
 					if (zipFile) {
 						handleZipDrop(zipFile);
@@ -128,11 +130,17 @@
 	async function handleZipDrop(zipPath: string) {
 		try {
 			await importThemeZip(zipPath);
-			showSuccess(t("themes.importSuccess"), t("themes.importSuccessMessage"));
+			showSuccess(
+				t("themes.importSuccess"),
+				t("themes.importSuccessMessage"),
+			);
 			applyTheme(launcherStore.settings.theme);
 		} catch (e) {
 			const msg = String(e);
-			if (msg.includes("no se encontró theme.json") || msg.includes("no theme.json")) {
+			if (
+				msg.includes("no se encontró theme.json") ||
+				msg.includes("no theme.json")
+			) {
 				droppedMrpackPath = zipPath;
 				openCreateModal = true;
 			} else {
@@ -166,60 +174,73 @@
 </script>
 
 {#if logParams}
-	<LogWindow instanceId={logParams.instanceId} instanceName={logParams.instanceName} />
-{:else}
-<div class="app-container" class:drag-over={isDragOver}>
-	{#if isDragOver}
-		<div class="drag-overlay">
-			<div class="drag-overlay-content">
-				<span>📦</span>
-				<h2>Suelta tu modpack o theme aquí</h2>
-				<p>Los archivos .mrpack y .zip se importarán automáticamente</p>
-			</div>
-		</div>
-	{/if}
-
-	<Sidebar
-		bind:selectedInstance
-		onopenquickmenu={() => (quickMenuOpen = true)}
-		onopenversiondownloader={() => (versionDownloaderOpen = true)}
-		onopencreateinstance={() => (openCreateModal = true)}
+	<LogWindow
+		instanceId={logParams.instanceId}
+		instanceName={logParams.instanceName}
 	/>
-
-	<main class="main-content">
-		<div class="background-overlay"></div>
-
-		{#if selectedInstance}
-			<InstanceView {selectedInstance} />
-		{:else}
-			<div class="empty-state">
-				<img
-					src="/images/cubic.svg"
-					alt="Cubic"
-					style="width: 120px; opacity: 0.1; filter: grayscale(1);"
-				/>
-				<h2>{t("main.noInstanceTitle")}</h2>
-				<p>{t("main.noInstanceDesc")}</p>
+{:else}
+	<div class="app-container" class:drag-over={isDragOver}>
+		{#if isDragOver}
+			<div class="drag-overlay">
+				<div class="drag-overlay-content">
+					<span>📦</span>
+					<h2>Suelta tu modpack o theme aquí</h2>
+					<p>
+						Los archivos .mrpack y .zip se importarán
+						automáticamente
+					</p>
+				</div>
 			</div>
 		{/if}
-	</main>
-</div>
 
-<Drawer bind:open={quickMenuOpen} direction="right">
-	<SettingsComponent onclose={() => (quickMenuOpen = false)} />
-</Drawer>
+		<Sidebar
+			bind:selectedInstance
+			onopenquickmenu={() => (quickMenuOpen = true)}
+			onopenversiondownloader={() => (versionDownloaderOpen = true)}
+			onopencreateinstance={() => (openCreateModal = true)}
+		/>
 
-<Drawer bind:open={versionDownloaderOpen} direction="right">
-	<VersionDownloaderComponent
-		onclose={() => (versionDownloaderOpen = false)}
+		<main class="main-content">
+			<div class="background-overlay"></div>
+
+			{#if selectedInstance}
+				<InstanceView {selectedInstance} />
+			{:else}
+				<div class="empty-state">
+					<img
+						src="/images/cubic.svg"
+						alt="Cubic"
+						style="width: 120px; opacity: 0.1; filter: grayscale(1);"
+					/>
+					<h2>{t("main.noInstanceTitle")}</h2>
+					<p>{t("main.noInstanceDesc")}</p>
+				</div>
+			{/if}
+		</main>
+	</div>
+
+	<Drawer bind:open={quickMenuOpen} direction="right">
+		<SettingsComponent onclose={() => (quickMenuOpen = false)} />
+	</Drawer>
+
+	<Drawer bind:open={versionDownloaderOpen} direction="right">
+		<VersionDownloaderComponent
+			onclose={() => (versionDownloaderOpen = false)}
+		/>
+	</Drawer>
+
+	<CreateInstanceModal
+		bind:open={openCreateModal}
+		bind:mrpackPath={droppedMrpackPath}
 	/>
-</Drawer>
 
-<CreateInstanceModal bind:open={openCreateModal} bind:mrpackPath={droppedMrpackPath} />
+	<Tutorial
+		bind:open={showTutorial}
+		onclose={onTutorialClose}
+		onopensettings={() => (quickMenuOpen = true)}
+	/>
 
-<Tutorial bind:open={showTutorial} onclose={onTutorialClose} onopensettings={() => (quickMenuOpen = true)} />
-
-<NotificationContainer />
+	<NotificationContainer />
 {/if}
 
 <style>

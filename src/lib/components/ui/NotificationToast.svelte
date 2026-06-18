@@ -209,7 +209,7 @@
 		box-shadow:
 			inset 0 1px 0 rgba(255, 255, 255, 0.07),
 			0 4px 24px rgba(0, 0, 0, 0.5);
-	
+
 		position: relative;
 		overflow: hidden;
 		cursor: pointer;

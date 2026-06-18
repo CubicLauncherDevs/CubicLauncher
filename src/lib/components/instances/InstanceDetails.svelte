@@ -44,7 +44,6 @@
 			instanceName: instance.name,
 		});
 	}
-
 </script>
 
 <div class="details-panel">
@@ -174,11 +173,7 @@
 			</svg>
 			{t("instanceView.tabs.resources")}
 		</button>
-		<button
-			type="button"
-			class="action-chip"
-			onclick={() => openLogs()}
-		>
+		<button type="button" class="action-chip" onclick={() => openLogs()}>
 			<svg
 				width="14"
 				height="14"
@@ -196,7 +191,6 @@
 			{t("instanceView.tabs.logs")}
 		</button>
 	</div>
-
 </div>
 
 <style>
@@ -287,7 +281,7 @@
 	.path-text {
 		font-size: 0.68rem;
 		color: var(--text-secondary);
-	
+
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;

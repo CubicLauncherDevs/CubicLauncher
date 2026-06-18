@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { launcherStore, showError } from "$lib/state/state.svelte";
-	import { saveSettings, markLocalSettingsChange } from "$lib/api/launcherService";
+	import { SvelteMap } from "svelte/reactivity";
+	import {
+		saveSettings,
+		markLocalSettingsChange,
+	} from "$lib/api/launcherService";
 	import { t } from "$lib/i18n";
 	import { logout, switchUser, removeUser } from "$lib/api/cubicApi";
 	import AuthModal from "./AuthModal.svelte";
@@ -30,7 +34,10 @@
 	async function handleSaveName(idx: number) {
 		const regex = /^[a-zA-Z0-9_]{3,16}$/;
 		if (!regex.test(editingName)) {
-			showError("Nombre Inválido", "El nombre debe tener entre 3 y 16 caracteres y solo contener letras, números y guiones bajos (_).");
+			showError(
+				"Nombre Inválido",
+				"El nombre debe tener entre 3 y 16 caracteres y solo contener letras, números y guiones bajos (_).",
+			);
 			return;
 		}
 		const user = launcherStore.settings.user[idx];
@@ -43,7 +50,9 @@
 
 	function handleNameKeydown(e: KeyboardEvent, idx: number) {
 		if (e.key === "Enter") handleSaveName(idx);
-		if (e.key === "Escape") { editingIdx = null; }
+		if (e.key === "Escape") {
+			editingIdx = null;
+		}
 	}
 
 	async function handleLogout() {
@@ -61,14 +70,30 @@
 	}
 
 	async function handleRemoveUser(username: string) {
-		const idx = launcherStore.settings.user.findIndex((u) => u.username === username);
+		const idx = launcherStore.settings.user.findIndex(
+			(u) => u.username === username,
+		);
 		if (idx === -1) return;
-		launcherStore.settings.user = [...launcherStore.settings.user.slice(0, idx), ...launcherStore.settings.user.slice(idx + 1)];
+		launcherStore.settings.user = [
+			...launcherStore.settings.user.slice(0, idx),
+			...launcherStore.settings.user.slice(idx + 1),
+		];
 		if (launcherStore.settings.user.length === 0) {
-			launcherStore.settings.user = [{ username: "Steve", uuid: "", access_token: "", refresh_token: null, user_type: "Cracked" }];
+			launcherStore.settings.user = [
+				{
+					username: "Steve",
+					uuid: "",
+					access_token: "",
+					refresh_token: null,
+					user_type: "Cracked",
+				},
+			];
 			launcherStore.settings.active_user_idx = 0;
 		} else if (idx <= launcherStore.settings.active_user_idx) {
-			launcherStore.settings.active_user_idx = Math.max(0, launcherStore.settings.active_user_idx - 1);
+			launcherStore.settings.active_user_idx = Math.max(
+				0,
+				launcherStore.settings.active_user_idx - 1,
+			);
 		}
 		removingUser = null;
 		markLocalSettingsChange();
@@ -80,19 +105,29 @@
 		if (!name) return;
 		launcherStore.settings.user = [
 			...launcherStore.settings.user,
-			{ username: name, uuid: "", access_token: "", refresh_token: null, user_type: "Cracked" },
+			{
+				username: name,
+				uuid: "",
+				access_token: "",
+				refresh_token: null,
+				user_type: "Cracked",
+			},
 		];
-		launcherStore.settings.active_user_idx = launcherStore.settings.user.length - 1;
+		launcherStore.settings.active_user_idx =
+			launcherStore.settings.user.length - 1;
 		addingOffline = false;
 		offlineName = "";
 		await saveSettings();
 	}
 
-	const avatarCache = new Map<string, string>();
+	const avatarCache = new SvelteMap<string, string>();
 
 	let avatarSvgs = $state<Record<string, string>>({});
 
-	async function loadAvatar(username: string, userType: string): Promise<void> {
+	async function loadAvatar(
+		username: string,
+		userType: string,
+	): Promise<void> {
 		const endpoint = userType === "Yggdrasil" ? "elyby" : "mojang";
 		const url = `https://bohrium-js.cubiclauncher.com/api/${endpoint}/head/${username}`;
 
@@ -159,11 +194,24 @@
 						placeholder={t("userMenu.usernamePlaceholder")}
 						maxlength="16"
 						class="env-input"
-						onkeydown={(e) => e.key === "Enter" && handleAddOffline()}
+						onkeydown={(e) =>
+							e.key === "Enter" && handleAddOffline()}
 					/>
 					<div class="add-form-actions">
-						<button type="button" class="btn-primary" onclick={handleAddOffline}>{t("userMenu.add")}</button>
-						<button type="button" class="btn-secondary" onclick={() => { addingOffline = false; offlineName = ""; }}>{t("userMenu.cancel")}</button>
+						<button
+							type="button"
+							class="btn-primary"
+							onclick={handleAddOffline}
+							>{t("userMenu.add")}</button
+						>
+						<button
+							type="button"
+							class="btn-secondary"
+							onclick={() => {
+								addingOffline = false;
+								offlineName = "";
+							}}>{t("userMenu.cancel")}</button
+						>
 					</div>
 				</div>
 			{/if}
@@ -176,26 +224,32 @@
 				{#each launcherStore.settings.user as u, i (i)}
 					<div
 						class="card user-card"
-						class:active={i === launcherStore.settings.active_user_idx}
+						class:active={i ===
+							launcherStore.settings.active_user_idx}
 						onclick={() => handleSwitchUser(i)}
 						role="button"
 						tabindex="0"
-						onkeydown={(e) => e.key === "Enter" && handleSwitchUser(i)}
+						onkeydown={(e) =>
+							e.key === "Enter" && handleSwitchUser(i)}
 					>
 						<div class="user-card-row">
-						<div class="user-avatar-wrapper">
-							{#if avatarSvgs[u.username]}
-								{@html avatarSvgs[u.username]}
-							{/if}
-						</div>
+							<div class="user-avatar-wrapper">
+								{#if avatarSvgs[u.username]}
+									{@html avatarSvgs[u.username]}
+								{/if}
+							</div>
 							<div class="user-info">
 								{#if u.user_type === "Cracked" && editingIdx === i}
 									<!-- svelte-ignore a11y_autofocus -->
 									<input
 										type="text"
 										bind:value={editingName}
-										onkeydown={(e) => handleNameKeydown(e, i)}
-										onblur={() => { if (editingIdx === i) handleSaveName(i); }}
+										onkeydown={(e) =>
+											handleNameKeydown(e, i)}
+										onblur={() => {
+											if (editingIdx === i)
+												handleSaveName(i);
+										}}
 										maxlength="16"
 										class="user-name-input"
 										autofocus
@@ -204,7 +258,8 @@
 									<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 									<span
 										class="user-name"
-										class:clickable={u.user_type === "Cracked"}
+										class:clickable={u.user_type ===
+											"Cracked"}
 										onclick={(e) => {
 											if (u.user_type === "Cracked") {
 												e.stopPropagation();
@@ -212,52 +267,134 @@
 												editingName = u.username;
 											}
 										}}
-										role={u.user_type === "Cracked" ? "button" : undefined}
-										tabindex={u.user_type === "Cracked" ? 0 : undefined}
+										role={u.user_type === "Cracked"
+											? "button"
+											: undefined}
+										tabindex={u.user_type === "Cracked"
+											? 0
+											: undefined}
 										onkeydown={(e) => {
-											if (u.user_type === "Cracked" && (e.key === "Enter" || e.key === " ")) {
+											if (
+												u.user_type === "Cracked" &&
+												(e.key === "Enter" ||
+													e.key === " ")
+											) {
 												e.stopPropagation();
 												editingIdx = i;
 												editingName = u.username;
 											}
-										}}
-									>{u.username}</span>
+										}}>{u.username}</span
+									>
 								{/if}
 								<span class="user-type">
-							{#if u.user_type === "Yggdrasil"}
-								{t("userMenu.authInjector")} - {u.yggdrasil_server_url?.split("//")[1]?.split("/")[0] ?? "Servidor"}
-								{:else if u.user_type === "Microsoft"}
-									{t("userMenu.premium")}
-								{:else}
-									{t("userMenu.offline")}
-								{/if}
-							</span>
+									{#if u.user_type === "Yggdrasil"}
+										{t("userMenu.authInjector")} - {u.yggdrasil_server_url
+											?.split("//")[1]
+											?.split("/")[0] ?? "Servidor"}
+									{:else if u.user_type === "Microsoft"}
+										{t("userMenu.premium")}
+									{:else}
+										{t("userMenu.offline")}
+									{/if}
+								</span>
 							</div>
 							<div class="user-badges">
 								{#if i === launcherStore.settings.active_user_idx}
-									<span class="active-badge">{t("userMenu.active")}</span>
+									<span class="active-badge"
+										>{t("userMenu.active")}</span
+									>
 								{/if}
 							</div>
 							<div class="user-actions">
 								{#if i === launcherStore.settings.active_user_idx && u.user_type === "Microsoft"}
-									<button type="button" class="icon-btn" title={t("userMenu.logout")} onclick={(e) => { e.stopPropagation(); handleLogout(); }}>
-										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+									<button
+										type="button"
+										class="icon-btn"
+										title={t("userMenu.logout")}
+										onclick={(e) => {
+											e.stopPropagation();
+											handleLogout();
+										}}
+									>
+										<svg
+											width="14"
+											height="14"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											><path
+												d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+											/><polyline
+												points="16 17 21 12 16 7"
+											/><line
+												x1="21"
+												y1="12"
+												x2="9"
+												y2="12"
+											/></svg
+										>
 									</button>
 								{/if}
 								{#if removingUser === u.username}
 									<div class="confirm-group">
 										<!-- svelte-ignore a11y_consider_explicit_label -->
-										<button type="button" class="icon-btn confirm-yes" onclick={(e) => { e.stopPropagation(); handleRemoveUser(u.username); }}>
-											<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+										<button
+											type="button"
+											class="icon-btn confirm-yes"
+											onclick={(e) => {
+												e.stopPropagation();
+												handleRemoveUser(u.username);
+											}}
+										>
+											<svg
+												width="12"
+												height="12"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="3"
+												><polyline
+													points="20 6 9 17 4 12"
+												/></svg
+											>
 										</button>
-										<!-- svelte-ignore a11y_consider_explicit_label -->
-										<button type="button" class="icon-btn confirm-no" onclick={(e) => { e.stopPropagation(); removingUser = null; }}>
+										<button
+											type="button"
+											class="icon-btn confirm-no"
+											onclick={(e) => {
+												e.stopPropagation();
+												removingUser = null;
+											}}
+										>
 											<CloseIcon size={12} />
 										</button>
 									</div>
 								{:else}
-									<button type="button" class="icon-btn remove" title={t("userMenu.removeUser")} onclick={(e) => { e.stopPropagation(); removingUser = u.username; }}>
-										<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+									<button
+										type="button"
+										class="icon-btn remove"
+										title={t("userMenu.removeUser")}
+										onclick={(e) => {
+											e.stopPropagation();
+											removingUser = u.username;
+										}}
+									>
+										<svg
+											width="12"
+											height="12"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											><polyline
+												points="3 6 5 6 21 6"
+											/><path
+												d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+											/></svg
+										>
 									</button>
 								{/if}
 							</div>
@@ -285,7 +422,9 @@
 		background: var(--bg-card);
 		border: 1px solid var(--border-color);
 		border-radius: var(--border-radius-sm);
-		box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+		box-shadow:
+			var(--shadow-sm),
+			inset 0 1px 0 rgba(255, 255, 255, 0.03);
 		overflow: hidden;
 	}
 
@@ -563,5 +702,4 @@
 		background: rgba(255, 255, 255, 0.03);
 		color: var(--text-primary);
 	}
-
 </style>

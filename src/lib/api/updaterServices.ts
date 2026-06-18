@@ -1,6 +1,11 @@
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { showInfo, showSuccess, showError, showErrorParsed } from "$lib/state/state.svelte";
+import {
+	showInfo,
+	showSuccess,
+	showError,
+	showErrorParsed,
+} from "$lib/state/state.svelte";
 import { launcherStore } from "$lib/state/state.svelte";
 
 let cachedUpdate: Update | null = null;

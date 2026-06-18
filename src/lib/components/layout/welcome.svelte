@@ -30,13 +30,21 @@
 		{ sel: "[data-tutorial='download-versions']", key: "slide4" },
 		{ sel: "[data-tutorial='settings']", key: "slide5" },
 		{
-			sel: "[data-tutorial='settings-tabs']", key: "slide6", measureDelay: 400,
-			onEnter: () => { onopensettings?.(); },
+			sel: "[data-tutorial='settings-tabs']",
+			key: "slide6",
+			measureDelay: 400,
+			onEnter: () => {
+				onopensettings?.();
+			},
 		},
 		{
-			sel: "[data-tutorial='settings-scroll']", key: "slide7", measureDelay: 400,
+			sel: "[data-tutorial='settings-scroll']",
+			key: "slide7",
+			measureDelay: 400,
 			onEnter: () => {
-				const javaTab = document.querySelector("[data-tutorial='tab-java']") as HTMLElement;
+				const javaTab = document.querySelector(
+					"[data-tutorial='tab-java']",
+				) as HTMLElement;
 				if (javaTab) javaTab.click();
 			},
 		},
@@ -59,7 +67,10 @@
 
 	function close() {
 		active = false;
-		setTimeout(() => { open = false; onclose?.(); }, 150);
+		setTimeout(() => {
+			open = false;
+			onclose?.();
+		}, 150);
 	}
 
 	function goToStep(i: number) {
@@ -70,22 +81,30 @@
 		}, 150);
 	}
 
-	function next() { if (currentStep < steps.length - 1) goToStep(currentStep + 1); }
-	function prev() { if (currentStep > 0) goToStep(currentStep - 1); }
+	function next() {
+		if (currentStep < steps.length - 1) goToStep(currentStep + 1);
+	}
+	function prev() {
+		if (currentStep > 0) goToStep(currentStep - 1);
+	}
 
 	function expandTools() {
 		try {
 			if (localStorage.getItem("sidebar-tools") !== "true") {
 				localStorage.setItem("sidebar-tools", "true");
 			}
-		} catch { /* localStorage not available */ }
+		} catch {
+			/* localStorage not available */
+		}
 	}
 
 	function updatePosition() {
 		const step = steps[currentStep];
 		const el = document.querySelector(step.sel);
 		if (!el) {
-			console.warn(`[Tutorial] Element not found: "${step.sel}" (step ${currentStep + 1}: "${step.key}")`);
+			console.warn(
+				`[Tutorial] Element not found: "${step.sel}" (step ${currentStep + 1}: "${step.key}")`,
+			);
 			return;
 		}
 
@@ -149,7 +168,9 @@
 		if (!open || active) return;
 		expandTools();
 		positioning = true;
-		requestAnimationFrame(() => { active = true; });
+		requestAnimationFrame(() => {
+			active = true;
+		});
 	});
 
 	$effect(() => {
@@ -157,12 +178,14 @@
 		const step = steps[currentStep];
 		if (step.onEnter) step.onEnter();
 		const resume = step.measureDelay
-			? new Promise(r => setTimeout(r, step.measureDelay))
+			? new Promise((r) => setTimeout(r, step.measureDelay))
 			: Promise.resolve();
 		tick()
 			.then(() => resume)
 			.then(showTip)
-			.then(() => { positioning = false; });
+			.then(() => {
+				positioning = false;
+			});
 	});
 
 	async function setLanguage(lang: string) {
@@ -170,7 +193,9 @@
 		await saveSettings();
 	}
 
-	function onResize() { if (active && !positioning) updatePosition(); }
+	function onResize() {
+		if (active && !positioning) updatePosition();
+	}
 
 	onMount(() => window.addEventListener("resize", onResize));
 	onDestroy(() => window.removeEventListener("resize", onResize));
@@ -184,7 +209,10 @@
 		onclick={close}
 		role="presentation"
 	>
-		<div class="tut-spotlight" style="--sx:{sx}px;--sy:{sy}px;--sw:{sw}px;--sh:{sh}px"></div>
+		<div
+			class="tut-spotlight"
+			style="--sx:{sx}px;--sy:{sy}px;--sw:{sw}px;--sh:{sh}px"
+		></div>
 	</div>
 
 	<div
@@ -198,17 +226,36 @@
 	>
 		<div class="tut-arrow"></div>
 
-		<button type="button" class="tut-close" onclick={close} aria-label={t("tutorial.skip")}>
+		<button
+			type="button"
+			class="tut-close"
+			onclick={close}
+			aria-label={t("tutorial.skip")}
+		>
 			<CloseIcon size={20} />
 		</button>
 
 		<div class="tut-body">
-			<h3 class="tut-title">{t(`tutorial.${steps[currentStep].key}.title`)}</h3>
-			<p class="tut-desc">{t(`tutorial.${steps[currentStep].key}.desc`)}</p>
+			<h3 class="tut-title">
+				{t(`tutorial.${steps[currentStep].key}.title`)}
+			</h3>
+			<p class="tut-desc">
+				{t(`tutorial.${steps[currentStep].key}.desc`)}
+			</p>
 			{#if currentStep === 0}
 				<div class="tut-lang">
-					<button type="button" class="tut-lang-btn" class:active={launcherStore.settings.language === "en"} onclick={() => setLanguage("en")}>English</button>
-					<button type="button" class="tut-lang-btn" class:active={launcherStore.settings.language === "es"} onclick={() => setLanguage("es")}>Español</button>
+					<button
+						type="button"
+						class="tut-lang-btn"
+						class:active={launcherStore.settings.language === "en"}
+						onclick={() => setLanguage("en")}>English</button
+					>
+					<button
+						type="button"
+						class="tut-lang-btn"
+						class:active={launcherStore.settings.language === "es"}
+						onclick={() => setLanguage("es")}>Español</button
+					>
 				</div>
 			{/if}
 		</div>
@@ -216,17 +263,35 @@
 		<div class="tut-footer">
 			<div class="tut-dots">
 				{#each steps as _, i (i)}
-					<button type="button" class="tut-dot" class:active={i === currentStep} onclick={() => goToStep(i)} aria-label="Step {i + 1}"></button>
+					<button
+						type="button"
+						class="tut-dot"
+						class:active={i === currentStep}
+						onclick={() => goToStep(i)}
+						aria-label="Step {i + 1}"
+					></button>
 				{/each}
 			</div>
 			<div class="tut-nav">
 				{#if currentStep > 0}
-					<button type="button" class="btn-secondary tut-btn" onclick={prev}>{t("tutorial.prev")}</button>
+					<button
+						type="button"
+						class="btn-secondary tut-btn"
+						onclick={prev}>{t("tutorial.prev")}</button
+					>
 				{/if}
 				{#if currentStep < steps.length - 1}
-					<button type="button" class="btn-primary tut-btn" onclick={next}>{t("tutorial.next")}</button>
+					<button
+						type="button"
+						class="btn-primary tut-btn"
+						onclick={next}>{t("tutorial.next")}</button
+					>
 				{:else}
-					<button type="button" class="btn-primary tut-btn" onclick={close}>{t("tutorial.finish")}</button>
+					<button
+						type="button"
+						class="btn-primary tut-btn"
+						onclick={close}>{t("tutorial.finish")}</button
+					>
 				{/if}
 			</div>
 		</div>
@@ -237,7 +302,9 @@
 	.tut-tip {
 		opacity: 0;
 		transform: translateY(8px);
-		transition: opacity 150ms ease, transform 150ms ease;
+		transition:
+			opacity 150ms ease,
+			transform 150ms ease;
 		pointer-events: none;
 	}
 	.tut-tip.visible {

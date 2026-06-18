@@ -4,8 +4,20 @@ import { t } from "$lib/i18n";
 import { showWarning } from "$lib/state/state.svelte";
 
 const builtinThemes: ThemeEntry[] = [
-	{ id: "dark", name: "Oscuro", author: "CubicLauncher", version: "1.0", type: "builtin" },
-	{ id: "lima", name: "Lima", author: "CubicLauncher", version: "1.0", type: "builtin" },
+	{
+		id: "dark",
+		name: "Oscuro",
+		author: "CubicLauncher",
+		version: "1.0",
+		type: "builtin",
+	},
+	{
+		id: "lima",
+		name: "Lima",
+		author: "CubicLauncher",
+		version: "1.0",
+		type: "builtin",
+	},
 ];
 
 export interface FontFace {
@@ -194,15 +206,26 @@ export async function applyTheme(themeId: string) {
 			if (font.weight) descriptors.weight = font.weight;
 			if (font.style) descriptors.style = font.style;
 
-			const face = new FontFace(font.family, `url(${fontSrc})`, descriptors);
+			const face = new FontFace(
+				font.family,
+				`url(${fontSrc})`,
+				descriptors,
+			);
 			face.display = "swap";
 
 			loaded.push(
-				face.load().then(() => {
-					document.fonts.add(face);
-				}).catch((err) => {
-					console.warn(`Font "${font.family}" failed to load:`, err, `src: ${fontSrc}`);
-				}),
+				face
+					.load()
+					.then(() => {
+						document.fonts.add(face);
+					})
+					.catch((err) => {
+						console.warn(
+							`Font "${font.family}" failed to load:`,
+							err,
+							`src: ${fontSrc}`,
+						);
+					}),
 			);
 		}
 

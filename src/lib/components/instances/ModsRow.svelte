@@ -53,7 +53,8 @@
 					</div>
 					<div class="mod-info">
 						<div class="mod-name-row">
-							<span class="mod-name" title={mod.name}>{mod.name}</span
+							<span class="mod-name" title={mod.name}
+								>{mod.name}</span
 							>
 							<span class="mod-version"
 								>{mod.version ||

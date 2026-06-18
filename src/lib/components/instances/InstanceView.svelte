@@ -30,24 +30,32 @@
 	});
 
 	// Lazy loaded components — loaded on first tab switch
-	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-	let ModsRow: typeof import("./ModsRow.svelte").default | null = $state(null);
-	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-	let DownloadMods: typeof import("./DownloadMods.svelte").default | null = $state(null);
-	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-	let ResourcePacksTab: typeof import("./ResourcePacksTab.svelte").default | null = $state(null);
-	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-	let ScreenshotsTab: typeof import("./ScreenshotsTab.svelte").default | null = $state(null);
+	let ModsRow: typeof import("./ModsRow.svelte").default | null =
+		$state(null);
+	let DownloadMods: typeof import("./DownloadMods.svelte").default | null =
+		$state(null);
+	let ResourcePacksTab:
+		| typeof import("./ResourcePacksTab.svelte").default
+		| null = $state(null);
+	let ScreenshotsTab:
+		| typeof import("./ScreenshotsTab.svelte").default
+		| null = $state(null);
 
 	$effect(() => {
 		if (activeTab === "mods" && !ModsRow) {
 			import("./ModsRow.svelte").then((m) => (ModsRow = m.default));
 		} else if (activeTab === "download_mods" && !DownloadMods) {
-			import("./DownloadMods.svelte").then((m) => (DownloadMods = m.default));
+			import("./DownloadMods.svelte").then(
+				(m) => (DownloadMods = m.default),
+			);
 		} else if (activeTab === "resources" && !ResourcePacksTab) {
-			import("./ResourcePacksTab.svelte").then((m) => (ResourcePacksTab = m.default));
+			import("./ResourcePacksTab.svelte").then(
+				(m) => (ResourcePacksTab = m.default),
+			);
 		} else if (activeTab === "screenshots" && !ScreenshotsTab) {
-			import("./ScreenshotsTab.svelte").then((m) => (ScreenshotsTab = m.default));
+			import("./ScreenshotsTab.svelte").then(
+				(m) => (ScreenshotsTab = m.default),
+			);
 		}
 	});
 
@@ -225,7 +233,12 @@
 		</div>
 	</section>
 	{#if bannerState !== "Idle" && bannerState !== "Error"}
-		<div transition:slide={{ duration: 300, easing: (t) => 1 - Math.pow(1 - t, 3) }}>
+		<div
+			transition:slide={{
+				duration: 300,
+				easing: (t) => 1 - Math.pow(1 - t, 3),
+			}}
+		>
 			<StatusLog instance={selectedInstance} />
 		</div>
 	{/if}
@@ -542,7 +555,7 @@
 		transition:
 			background 0.2s ease,
 			box-shadow 0.2s ease;
-	
+
 		letter-spacing: 0.5px;
 		text-transform: uppercase;
 		box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);

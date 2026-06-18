@@ -118,18 +118,26 @@ export interface VersionStatus {
 	missing_deps: string[];
 }
 
-export async function checkVersionIntegrity(versionId: string): Promise<VersionIntegrity | null> {
+export async function checkVersionIntegrity(
+	versionId: string,
+): Promise<VersionIntegrity | null> {
 	try {
-		return await invoke<VersionIntegrity>("check_version_integrity", { versionId });
+		return await invoke<VersionIntegrity>("check_version_integrity", {
+			versionId,
+		});
 	} catch (err) {
 		showErrorParsed(err);
 		return null;
 	}
 }
 
-export async function getInstalledVersionsWithStatus(): Promise<VersionStatus[]> {
+export async function getInstalledVersionsWithStatus(): Promise<
+	VersionStatus[]
+> {
 	try {
-		return await invoke<VersionStatus[]>("get_installed_versions_with_status");
+		return await invoke<VersionStatus[]>(
+			"get_installed_versions_with_status",
+		);
 	} catch (err) {
 		showErrorParsed(err);
 		return [];
@@ -147,7 +155,11 @@ export function parseInstalledVersion(raw: string): McVersion {
 		const idx = raw.indexOf("-forge-");
 		const mcVersion = raw.substring(0, idx);
 		const forgeVersion = raw.substring(idx + 7);
-		return { loader: "forge", version: `${mcVersion}-forge-${forgeVersion}`, type: "" };
+		return {
+			loader: "forge",
+			version: `${mcVersion}-forge-${forgeVersion}`,
+			type: "",
+		};
 	}
 	return { loader: "vanilla", version: raw, type: "" };
 }
@@ -351,8 +363,12 @@ export async function getUserList(): Promise<MinecraftUser[]> {
 }
 
 // Yggdrasil Auth Commands
-export async function getYggdrasilServerInfo(url: string): Promise<YggdrasilServerInfo> {
-	return await invoke<YggdrasilServerInfo>("get_yggdrasil_server_info", { url });
+export async function getYggdrasilServerInfo(
+	url: string,
+): Promise<YggdrasilServerInfo> {
+	return await invoke<YggdrasilServerInfo>("get_yggdrasil_server_info", {
+		url,
+	});
 }
 
 export async function yggdrasilAuthenticate(
@@ -492,7 +508,10 @@ export async function getModrinthProjectVersions(
 		);
 		url.searchParams.append("loaders", loadersJson);
 		if (gameVersion) {
-			url.searchParams.append("game_versions", JSON.stringify([gameVersion]));
+			url.searchParams.append(
+				"game_versions",
+				JSON.stringify([gameVersion]),
+			);
 		}
 
 		const res = await fetch(url.toString());
@@ -508,7 +527,8 @@ export async function getModrinthProjectVersions(
 
 const CURSEFORGE_API_BASE = "https://api.curseforge.com/v1";
 const MINECRAFT_GAME_ID = 432;
-const CURSEFORGE_API_KEY = "$2a$10$v4G8m2LV2QhjUu5l.G24Ieqdp4JTEEQ6bRsZjvpa0YncCVaDaqBP6";
+const CURSEFORGE_API_KEY =
+	"$2a$10$v4G8m2LV2QhjUu5l.G24Ieqdp4JTEEQ6bRsZjvpa0YncCVaDaqBP6";
 
 export async function searchCurseForge(
 	query: string,
@@ -531,7 +551,10 @@ export async function searchCurseForge(
 		url.searchParams.append("classId", "6");
 
 		if (loader.toLowerCase() !== "vanilla") {
-			url.searchParams.append("modLoaderType", modLoaderNameToCurseForgeId(loader).toString());
+			url.searchParams.append(
+				"modLoaderType",
+				modLoaderNameToCurseForgeId(loader).toString(),
+			);
 		}
 		if (gameVersion) {
 			url.searchParams.append("gameVersion", gameVersion);
@@ -563,7 +586,8 @@ export async function searchCurseForge(
 		}
 		return (await res.json()) as CurseForgeSearchResult;
 	} catch (err) {
-		if (err instanceof DOMException && err.name === "AbortError") return null;
+		if (err instanceof DOMException && err.name === "AbortError")
+			return null;
 		showErrorParsed(err);
 		return null;
 	}
@@ -571,11 +595,16 @@ export async function searchCurseForge(
 
 function modLoaderNameToCurseForgeId(loader: string): number {
 	switch (loader.toLowerCase()) {
-		case "fabric": return 4;
-		case "forge": return 1;
-		case "neoforge": return 6;
-		case "quilt": return 5;
-		default: return 4;
+		case "fabric":
+			return 4;
+		case "forge":
+			return 1;
+		case "neoforge":
+			return 6;
+		case "quilt":
+			return 5;
+		default:
+			return 4;
 	}
 }
 
@@ -615,7 +644,10 @@ export async function getCurseForgeProjectFiles(
 			url.searchParams.append("gameVersion", gameVersion);
 		}
 		if (loader && loader.toLowerCase() !== "vanilla") {
-			url.searchParams.append("modLoaderType", modLoaderNameToCurseForgeId(loader).toString());
+			url.searchParams.append(
+				"modLoaderType",
+				modLoaderNameToCurseForgeId(loader).toString(),
+			);
 		}
 
 		const res = await fetch(url.toString(), {
@@ -728,9 +760,7 @@ export async function uninstallJre(version: number): Promise<void> {
 	}
 }
 
-export async function parseMrpack(
-	path: string,
-): Promise<MrpackInfo | null> {
+export async function parseMrpack(path: string): Promise<MrpackInfo | null> {
 	try {
 		return await invoke<MrpackInfo>("parse_mrpack", { path });
 	} catch (err) {
@@ -758,5 +788,3 @@ export async function installMrpack(
 		return null;
 	}
 }
-
-

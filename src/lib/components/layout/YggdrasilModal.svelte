@@ -56,14 +56,20 @@
 			);
 
 			const idx = launcherStore.settings.user.findIndex(
-				(u) => u.username === user.username && u.yggdrasil_server_url === user.yggdrasil_server_url,
+				(u) =>
+					u.username === user.username &&
+					u.yggdrasil_server_url === user.yggdrasil_server_url,
 			);
 			if (idx >= 0) {
 				launcherStore.settings.user[idx] = user;
 				launcherStore.settings.active_user_idx = idx;
 			} else {
-				launcherStore.settings.user = [...launcherStore.settings.user, user];
-				launcherStore.settings.active_user_idx = launcherStore.settings.user.length - 1;
+				launcherStore.settings.user = [
+					...launcherStore.settings.user,
+					user,
+				];
+				launcherStore.settings.active_user_idx =
+					launcherStore.settings.user.length - 1;
 			}
 			await saveSettings();
 			step = "success";
@@ -87,10 +93,18 @@
 <ModalBase bind:open title="Authlib Injector">
 	<div class="ygg-container">
 		<div class="ygg-logo-wrapper">
-			<svg class="ygg-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-				<path d="M12 2L2 7l10 5 10-5-10-5z"/>
-				<path d="M2 17l10 5 10-5"/>
-				<path d="M2 12l10 5 10-5"/>
+			<svg
+				class="ygg-logo"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<path d="M12 2L2 7l10 5 10-5-10-5z" />
+				<path d="M2 17l10 5 10-5" />
+				<path d="M2 12l10 5 10-5" />
 			</svg>
 		</div>
 
@@ -100,12 +114,17 @@
 				<h3 class="state-title">Conectando...</h3>
 				{#if serverInfo}
 					<p class="state-subtitle">{serverInfo.server_name}</p>
-			{/if}
+				{/if}
 			</div>
 		{:else if step === "error"}
 			<div class="state-container">
 				<div class="icon-wrapper error">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					>
 						<circle cx="12" cy="12" r="10"></circle>
 						<line x1="15" y1="9" x2="9" y2="15"></line>
 						<line x1="9" y1="9" x2="15" y2="15"></line>
@@ -116,7 +135,10 @@
 				<button
 					type="button"
 					class="action-btn retry"
-					onclick={() => { step = "server"; error = null; }}
+					onclick={() => {
+						step = "server";
+						error = null;
+					}}
 				>
 					Reintentar
 				</button>
@@ -124,7 +146,12 @@
 		{:else if step === "success"}
 			<div class="state-container">
 				<div class="icon-wrapper success">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					>
 						<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
 						<polyline points="22 4 12 14.01 9 11.01"></polyline>
 					</svg>
@@ -138,7 +165,9 @@
 					Ingresa la URL del servidor de autenticación Yggdrasil.
 				</p>
 				<div class="form-group">
-					<label class="form-label" for="ygg-server-url">Servidor</label>
+					<label class="form-label" for="ygg-server-url"
+						>Servidor</label
+					>
 					<input
 						id="ygg-server-url"
 						type="text"
@@ -161,7 +190,8 @@
 			<div class="state-container form-state">
 				{#if serverInfo}
 					<div class="server-badge">
-						<span class="server-name">{serverInfo.server_name}</span>
+						<span class="server-name">{serverInfo.server_name}</span
+						>
 					</div>
 				{/if}
 				<p class="instruction-text">
@@ -169,19 +199,25 @@
 				</p>
 				<div class="form-group">
 					<label class="form-label" for="ygg-username">
-						{serverInfo?.non_email_login ? "Usuario" : "Correo electrónico"}
+						{serverInfo?.non_email_login
+							? "Usuario"
+							: "Correo electrónico"}
 					</label>
 					<input
 						id="ygg-username"
 						type={serverInfo?.non_email_login ? "text" : "email"}
 						class="form-input"
-						placeholder={serverInfo?.non_email_login ? "Tu usuario" : "correo@ejemplo.com"}
+						placeholder={serverInfo?.non_email_login
+							? "Tu usuario"
+							: "correo@ejemplo.com"}
 						bind:value={username}
 						onkeydown={handleKeydown}
 					/>
 				</div>
 				<div class="form-group">
-					<label class="form-label" for="ygg-password">Contraseña</label>
+					<label class="form-label" for="ygg-password"
+						>Contraseña</label
+					>
 					<input
 						id="ygg-password"
 						type="password"
@@ -195,7 +231,10 @@
 					<button
 						type="button"
 						class="action-btn secondary"
-						onclick={() => { step = "server"; serverInfo = null; }}
+						onclick={() => {
+							step = "server";
+							serverInfo = null;
+						}}
 					>
 						Atrás
 					</button>
@@ -230,7 +269,9 @@
 		background: var(--bg-card);
 		border-radius: var(--border-radius-sm);
 		border: 1px solid var(--border-color);
-		box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+		box-shadow:
+			var(--shadow-sm),
+			inset 0 1px 0 rgba(255, 255, 255, 0.03);
 		animation: slideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
@@ -288,7 +329,9 @@
 	}
 
 	@keyframes spin {
-		to { transform: rotate(360deg); }
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.icon-wrapper {
@@ -322,7 +365,11 @@
 	}
 
 	.icon-wrapper.success::after {
-		background: radial-gradient(circle, rgba(var(--color-success-rgb), 0.5) 0%, transparent 70%);
+		background: radial-gradient(
+			circle,
+			rgba(var(--color-success-rgb), 0.5) 0%,
+			transparent 70%
+		);
 		animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 	}
 
@@ -332,7 +379,11 @@
 	}
 
 	.icon-wrapper.error::after {
-		background: radial-gradient(circle, rgba(var(--color-error-rgb), 0.5) 0%, transparent 70%);
+		background: radial-gradient(
+			circle,
+			rgba(var(--color-error-rgb), 0.5) 0%,
+			transparent 70%
+		);
 	}
 
 	.error-text {
@@ -450,18 +501,36 @@
 	}
 
 	@keyframes fadeIn {
-		from { opacity: 0; transform: translateY(8px); }
-		to { opacity: 1; transform: translateY(0); }
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	@keyframes slideDown {
-		from { opacity: 0; transform: translateY(-20px); }
-		to { opacity: 1; transform: translateY(0); }
+		from {
+			opacity: 0;
+			transform: translateY(-20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	@keyframes pop {
-		0% { transform: scale(0.8); opacity: 0; }
-		100% { transform: scale(1); opacity: 1; }
+		0% {
+			transform: scale(0.8);
+			opacity: 0;
+		}
+		100% {
+			transform: scale(1);
+			opacity: 1;
+		}
 	}
 
 	@media (max-height: 700px) {

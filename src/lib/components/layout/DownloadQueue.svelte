@@ -167,51 +167,74 @@
 		<span class="sd-header-left">
 			{#if activeCount > 0}
 				<span class="sd-spinner"></span>
-				<span class="sd-label">{activeCount} {t("sidebar.downloading")}</span>
+				<span class="sd-label"
+					>{activeCount} {t("sidebar.downloading")}</span
+				>
 			{:else if doneCount > 0}
 				<CheckIcon size={12} color="var(--color-success)" />
-				<span class="sd-label">{doneCount} {t("sidebar.completed")}</span>
+				<span class="sd-label"
+					>{doneCount} {t("sidebar.completed")}</span
+				>
 			{:else}
 				<DownloadIcon size={18} />
 				<span class="sd-label">{t("sidebar.noDownloads")}</span>
 			{/if}
 		</span>
-		<ChevronDownIcon size={16} class={"sd-chevron" + (open ? " open" : "")} />
+		<ChevronDownIcon
+			size={16}
+			class={"sd-chevron" + (open ? " open" : "")}
+		/>
 	</button>
 	{#if open}
 		<div class="sd-body" transition:slide={{ duration: 150 }}>
 			{#if downloads.size === 0}
 				<div class="sd-empty">{t("sidebar.noDownloadDesc")}</div>
 			{:else}
-		{#each [...downloads.values()] as item (item.version)}
-				{@const overall = pct(item.segs)}
-				<div class="sd-item" class:done={item.done} class:error={item.error}>
-					<div class="sd-item-header">
-						<span class="sd-item-left">
+				{#each [...downloads.values()] as item (item.version)}
+					{@const overall = pct(item.segs)}
+					<div
+						class="sd-item"
+						class:done={item.done}
+						class:error={item.error}
+					>
+						<div class="sd-item-header">
+							<span class="sd-item-left">
+								{#if item.error}
+									<span class="sd-error-icon">!</span>
+								{:else if item.done}
+									<CheckIcon size={8} />
+								{:else}
+									<span class="sd-spinner-sm"></span>
+								{/if}
+								<span class="sd-version"
+									>{item.version === "mods"
+										? t("sidebar.downloadingMods")
+										: item.version}</span
+								>
+							</span>
 							{#if item.error}
-								<span class="sd-error-icon">!</span>
-							{:else if item.done}
-								<CheckIcon size={8} />
+								<span class="sd-pct error"
+									>{t("sidebar.failed")}</span
+								>
 							{:else}
-								<span class="sd-spinner-sm"></span>
+								<span class="sd-pct" class:done={item.done}
+									>{overall}%</span
+								>
 							{/if}
-							<span class="sd-version">{item.version === "mods" ? t("sidebar.downloadingMods") : item.version}</span>
-						</span>
+						</div>
 						{#if item.error}
-							<span class="sd-pct error">{t("sidebar.failed")}</span>
+							<div class="sd-error-msg">{item.error}</div>
 						{:else}
-							<span class="sd-pct" class:done={item.done}>{overall}%</span>
+							<div class="sd-progress-track">
+								<div
+									class="sd-progress-fill"
+									class:done={item.done}
+									style:width="{overall}%"
+								></div>
+							</div>
 						{/if}
 					</div>
-					{#if item.error}
-						<div class="sd-error-msg">{item.error}</div>
-					{:else}
-						<div class="sd-progress-track">
-							<div class="sd-progress-fill" class:done={item.done} style:width="{overall}%"></div>
-						</div>
-					{/if}
-				</div>
-			{/each}
+				{/each}
 			{/if}
 		</div>
 	{/if}
@@ -235,7 +258,6 @@
 		border-radius: var(--border-radius-sm);
 		transition: background 0.15s ease;
 		user-select: none;
-	
 	}
 
 	.sd-header:hover {
@@ -288,7 +310,9 @@
 	}
 
 	@keyframes sd-spin {
-		to { transform: rotate(360deg); }
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	:global(.sd-chevron) {

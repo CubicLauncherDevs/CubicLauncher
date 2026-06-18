@@ -39,7 +39,7 @@
 	let activeCategory = $state<string | null>(null);
 	let sortIndex = $state<string>("downloads");
 
-	let basket = $state(new SvelteMap<string, ModrinthProject | CurseForgeProject>());
+	let basket = new SvelteMap<string, ModrinthProject | CurseForgeProject>();
 
 	let selectedMod = $state<ModrinthProject | CurseForgeProject | null>(null);
 
@@ -51,7 +51,7 @@
 	let selectedModVersions = $state<(ModrinthVersion | CurseForgeFile)[]>([]);
 	let selectedVersionId = $state<string>("");
 	let loadingVersions = $state(false);
-	let versionSelection = $state(new SvelteMap<string, string>());
+	let versionSelection = new SvelteMap<string, string>();
 
 	let installedModNames = $state<Set<string>>(new Set());
 
@@ -68,51 +68,75 @@
 	let abortController = $state<AbortController | null>(null);
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
-	function getProjectId(project: ModrinthProject | CurseForgeProject): string {
-		return "project_id" in project ? project.project_id : project.id.toString();
+	function getProjectId(
+		project: ModrinthProject | CurseForgeProject,
+	): string {
+		return "project_id" in project
+			? project.project_id
+			: project.id.toString();
 	}
 
-	function getProjectTitle(project: ModrinthProject | CurseForgeProject): string {
+	function getProjectTitle(
+		project: ModrinthProject | CurseForgeProject,
+	): string {
 		return "title" in project ? project.title : project.name;
 	}
 
-	function getProjectAuthor(project: ModrinthProject | CurseForgeProject): string {
-		return "author" in project ? project.author : project.authors.map(a => a.name).join(", ");
+	function getProjectAuthor(
+		project: ModrinthProject | CurseForgeProject,
+	): string {
+		return "author" in project
+			? project.author
+			: project.authors.map((a) => a.name).join(", ");
 	}
 
-	function getProjectDescription(project: ModrinthProject | CurseForgeProject): string {
+	function getProjectDescription(
+		project: ModrinthProject | CurseForgeProject,
+	): string {
 		return "description" in project ? project.description : project.summary;
 	}
 
-	function getProjectIcon(project: ModrinthProject | CurseForgeProject): string | null {
-		return "icon_url" in project ? project.icon_url : project.logo?.url ?? null;
+	function getProjectIcon(
+		project: ModrinthProject | CurseForgeProject,
+	): string | null {
+		return "icon_url" in project
+			? project.icon_url
+			: (project.logo?.url ?? null);
 	}
 
-	function getProjectDownloads(project: ModrinthProject | CurseForgeProject): number {
-		return "downloads" in project ? project.downloads : project.downloadCount;
+	function getProjectDownloads(
+		project: ModrinthProject | CurseForgeProject,
+	): number {
+		return "downloads" in project
+			? project.downloads
+			: project.downloadCount;
 	}
 
-	function isModrinthProject(p: ModrinthProject | CurseForgeProject): p is ModrinthProject {
+	function isModrinthProject(
+		p: ModrinthProject | CurseForgeProject,
+	): p is ModrinthProject {
 		return "project_id" in p;
 	}
 
-	function isCurseForgeProject(p: ModrinthProject | CurseForgeProject): p is CurseForgeProject {
+	function isCurseForgeProject(
+		p: ModrinthProject | CurseForgeProject,
+	): p is CurseForgeProject {
 		return "id" in p && !("project_id" in p);
 	}
 
-	function isCurseForgeFile(v: ModrinthVersion | CurseForgeFile): v is CurseForgeFile {
+	function isCurseForgeFile(
+		v: ModrinthVersion | CurseForgeFile,
+	): v is CurseForgeFile {
 		return "fileName" in v;
 	}
 
-	function getProjectCategories(project: ModrinthProject | CurseForgeProject): string[] {
+	function getProjectCategories(
+		project: ModrinthProject | CurseForgeProject,
+	): string[] {
 		if (isModrinthProject(project)) {
 			return project.categories;
 		}
-		return project.categories.map(c => c.slug);
-	}
-
-	function getProjectVersionsList(project: ModrinthProject | CurseForgeProject): string[] {
-		return "versions" in project ? project.versions : [];
+		return project.categories.map((c) => c.slug);
 	}
 
 	function isFromSource(
@@ -157,9 +181,10 @@
 					currentOffset = allHits.length;
 				}
 			} else {
-				const cfCategory = activeCategory && !isNaN(Number(activeCategory))
-					? activeCategory
-					: null;
+				const cfCategory =
+					activeCategory && !isNaN(Number(activeCategory))
+						? activeCategory
+						: null;
 				const result = await searchCurseForge(
 					query,
 					instance.loader,
@@ -299,7 +324,9 @@
 								(f: ModrinthFile) => f.primary,
 							) || targetVersion.files[0];
 						if (
-							!queue.find((q) => q.filename === primaryFile.filename)
+							!queue.find(
+								(q) => q.filename === primaryFile.filename,
+							)
 						) {
 							queue.push({
 								url: primaryFile.url,
@@ -333,9 +360,13 @@
 												depFile.filename.toLowerCase(),
 											);
 										const alreadyQueued = queue.find(
-											(q) => q.filename === depFile.filename,
+											(q) =>
+												q.filename === depFile.filename,
 										);
-										if (!alreadyInstalled && !alreadyQueued) {
+										if (
+											!alreadyInstalled &&
+											!alreadyQueued
+										) {
 											queue.push({
 												url: depFile.url,
 												filename: depFile.filename,
@@ -373,7 +404,9 @@
 						}
 						if (downloadUrl) {
 							if (
-								!queue.find((q) => q.filename === targetFile!.fileName)
+								!queue.find(
+									(q) => q.filename === targetFile!.fileName,
+								)
 							) {
 								queue.push({
 									url: downloadUrl,
@@ -410,7 +443,9 @@
 		return num.toString();
 	}
 
-	function isModInstalled(project: ModrinthProject | CurseForgeProject): boolean {
+	function isModInstalled(
+		project: ModrinthProject | CurseForgeProject,
+	): boolean {
 		return installedModNames.has(getProjectTitle(project).toLowerCase());
 	}
 
@@ -427,14 +462,18 @@
 		});
 	}
 
-	function isModCompatible(project: ModrinthProject | CurseForgeProject): boolean {
+	function isModCompatible(
+		project: ModrinthProject | CurseForgeProject,
+	): boolean {
 		if ("versions" in project) {
 			return project.versions.some((v) => v === gameVersion);
 		}
 		if ("latestFilesIndexes" in project) {
-			return project.latestFilesIndexes?.some(
-				(idx) => getGameVersion(idx.gameVersion) === gameVersion,
-			) ?? false;
+			return (
+				project.latestFilesIndexes?.some(
+					(idx) => getGameVersion(idx.gameVersion) === gameVersion,
+				) ?? false
+			);
 		}
 		return true;
 	}
@@ -485,21 +524,30 @@
 					...cfFiles.filter((f) => f.releaseType === 2),
 					...cfFiles.filter((f) => f.releaseType === 3),
 				];
-				selectedModVersions = prioritized.length > 0 ? prioritized : cfFiles;
+				selectedModVersions =
+					prioritized.length > 0 ? prioritized : cfFiles;
 				if (selectedModVersions.length > 0) {
 					const stored = versionSelection.get(projectId);
 					const first = selectedModVersions[0] as CurseForgeFile;
 					const storedMatch = stored
-						? selectedModVersions.find((f) => ("id" in f ? f.id.toString() === stored : false))
+						? selectedModVersions.find((f) =>
+								"id" in f ? f.id.toString() === stored : false,
+							)
 						: undefined;
 					if (storedMatch && stored) {
 						selectedVersionId = stored;
 					} else {
-						const compatible = selectedModVersions.find((f) =>
-							isCurseForgeFile(f) && isVersionCompatibleCurseForge(f),
-						) || first;
+						const compatible =
+							selectedModVersions.find(
+								(f) =>
+									isCurseForgeFile(f) &&
+									isVersionCompatibleCurseForge(f),
+							) || first;
 						selectedVersionId = compatible.id.toString();
-						versionSelection.set(projectId, compatible.id.toString());
+						versionSelection.set(
+							projectId,
+							compatible.id.toString(),
+						);
 					}
 				}
 			}
@@ -553,12 +601,6 @@
 		}
 	});
 
-	function getCurseForgeReleaseTypeName(releaseType: number): string {
-		if (releaseType === 1) return t("instanceView.downloadMods.curseForgeRelease");
-		if (releaseType === 2) return t("instanceView.downloadMods.curseForgeBeta");
-		if (releaseType === 3) return t("instanceView.downloadMods.curseForgeAlpha");
-		return "";
-	}
 </script>
 
 <div class="dm-root">
@@ -665,14 +707,18 @@
 					<div class="dm-source-tabs">
 						<button
 							type="button"
-							class="dm-source-tab {source === 'modrinth' ? 'active' : ''}"
+							class="dm-source-tab {source === 'modrinth'
+								? 'active'
+								: ''}"
 							onclick={() => switchSource("modrinth")}
 						>
 							{t("instanceView.downloadMods.sourceModrinth")}
 						</button>
 						<button
 							type="button"
-							class="dm-source-tab {source === 'curseforge' ? 'active' : ''}"
+							class="dm-source-tab {source === 'curseforge'
+								? 'active'
+								: ''}"
 							onclick={() => switchSource("curseforge")}
 						>
 							{t("instanceView.downloadMods.sourceCurseForge")}
@@ -744,7 +790,9 @@
 									<!-- svelte-ignore a11y_click_events_have_key_events -->
 									<!-- svelte-ignore a11y_no_static_element_interactions -->
 									<div
-										class="dm-mod-card-v {selectedMod && getProjectId(selectedMod) === getProjectId(project)
+										class="dm-mod-card-v {selectedMod &&
+										getProjectId(selectedMod) ===
+											getProjectId(project)
 											? 'selected'
 											: ''}"
 										onclick={() => (selectedMod = project)}
@@ -752,8 +800,12 @@
 										<div class="dm-mod-icon-v">
 											{#if getProjectIcon(project)}
 												<img
-													src={getProjectIcon(project)!}
-													alt={getProjectTitle(project)}
+													src={getProjectIcon(
+														project,
+													)!}
+													alt={getProjectTitle(
+														project,
+													)}
 													loading="lazy"
 												/>
 											{:else}
@@ -767,7 +819,9 @@
 											<div class="dm-mod-top-v">
 												<h4
 													class="dm-mod-title-v"
-													title={getProjectTitle(project)}
+													title={getProjectTitle(
+														project,
+													)}
 												>
 													{getProjectTitle(project)}
 												</h4>
@@ -812,7 +866,9 @@
 										<div class="dm-mod-actions-v">
 											<span class="dm-mod-stat"
 												>↓ {formatNumber(
-													getProjectDownloads(project),
+													getProjectDownloads(
+														project,
+													),
 												)}</span
 											>
 											<button
@@ -827,7 +883,9 @@
 													toggleBasket(project);
 												}}
 											>
-												{basket.has(getProjectId(project))
+												{basket.has(
+													getProjectId(project),
+												)
 													? t(
 															"instanceView.downloadMods.selected",
 														)
@@ -910,7 +968,9 @@
 								<span>📦</span>
 							{/if}
 						</div>
-						<h3 class="dm-details-title">{getProjectTitle(selectedMod)}</h3>
+						<h3 class="dm-details-title">
+							{getProjectTitle(selectedMod)}
+						</h3>
 						<p class="dm-details-author">
 							{t("instanceView.downloadMods.by")}
 							{getProjectAuthor(selectedMod)}
@@ -924,7 +984,9 @@
 									)}</span
 								>
 								<span class="dm-details-stat-value"
-									>{formatNumber(getProjectDownloads(selectedMod))}</span
+									>{formatNumber(
+										getProjectDownloads(selectedMod),
+									)}</span
 								>
 							</div>
 						</div>
@@ -970,7 +1032,9 @@
 							{/if}
 						</div>
 
-						<p class="dm-details-desc">{getProjectDescription(selectedMod)}</p>
+						<p class="dm-details-desc">
+							{getProjectDescription(selectedMod)}
+						</p>
 
 						<button
 							type="button"
@@ -1017,7 +1081,7 @@
 		margin: -32px -40px;
 		background: var(--bg-main);
 		color: var(--text-primary);
-	
+
 		overflow: hidden;
 	}
 
@@ -1075,7 +1139,7 @@
 		cursor: pointer;
 		font-size: 0.72rem;
 		font-weight: 600;
-	
+
 		border-radius: calc(var(--border-radius-sm) - 1px);
 		transition: all 0.15s;
 		white-space: nowrap;
@@ -1104,7 +1168,6 @@
 		color: var(--text-primary);
 		font-size: 0.9rem;
 		outline: none;
-	
 	}
 	.dm-search-input::placeholder {
 		color: var(--text-secondary);
@@ -1300,7 +1363,7 @@
 		cursor: pointer;
 		font-size: 0.75rem;
 		font-weight: 600;
-	
+
 		transition: all 0.15s;
 	}
 
@@ -1600,7 +1663,6 @@
 		opacity: 0.6;
 	}
 	.dm-queue-filename {
-	
 		font-size: 0.8rem;
 		color: var(--text-primary);
 		white-space: nowrap;
@@ -1640,7 +1702,7 @@
 		cursor: pointer;
 		font-size: 0.82rem;
 		font-weight: 700;
-	
+
 		letter-spacing: 0.3px;
 		transition: all 0.15s;
 	}
@@ -1670,7 +1732,7 @@
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
 		font-size: 0.82rem;
-	
+
 		transition: all 0.15s;
 	}
 	.dm-back-btn:hover:not(:disabled) {
@@ -1690,7 +1752,7 @@
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
 		font-size: 0.8rem;
-	
+
 		transition: all 0.15s;
 	}
 	.dm-ghost-btn:hover {

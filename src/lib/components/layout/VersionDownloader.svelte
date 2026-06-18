@@ -124,7 +124,8 @@
 			} else if (p.type === "DFinish") {
 				downloadingVersions.delete(p.data.version);
 				getInstalledVersions().then((raw) => {
-					const { vanilla, fabric, forge } = getInstalledMcVersions(raw);
+					const { vanilla, fabric, forge } =
+						getInstalledMcVersions(raw);
 					installedVanilla = vanilla;
 					installedFabric = fabric;
 					installedForge = forge;
@@ -197,7 +198,8 @@
 					const versionId = v.version_id;
 					const isInstalled = installedForge.has(versionId);
 
-					if (installStatusFilter === "installed" && !isInstalled) return false;
+					if (installStatusFilter === "installed" && !isInstalled)
+						return false;
 					if (installStatusFilter === "not_installed" && isInstalled)
 						return false;
 
@@ -215,14 +217,22 @@
 				.sort((a, b) => {
 					const aParts = a.game_version.split(".").map(Number);
 					const bParts = b.game_version.split(".").map(Number);
-					for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+					for (
+						let i = 0;
+						i < Math.max(aParts.length, bParts.length);
+						i++
+					) {
 						const aVal = aParts[i] ?? 0;
 						const bVal = bParts[i] ?? 0;
 						if (aVal !== bVal) return bVal - aVal;
 					}
-					return b.forge_version.localeCompare(a.forge_version, undefined, {
-						numeric: true,
-					});
+					return b.forge_version.localeCompare(
+						a.forge_version,
+						undefined,
+						{
+							numeric: true,
+						},
+					);
 				});
 		}
 
@@ -287,9 +297,14 @@
 
 	const displayVersions = $derived(
 		filteredVersions.map((v) => ({
-			id: (v as MinecraftVersion).id ?? (v as FabricGameVersion).version ?? (v as ForgeGameVersion).version_id,
+			id:
+				(v as MinecraftVersion).id ??
+				(v as FabricGameVersion).version ??
+				(v as ForgeGameVersion).version_id,
 			version:
-				(v as FabricGameVersion).version ?? (v as MinecraftVersion).id ?? (v as ForgeGameVersion).version_id,
+				(v as FabricGameVersion).version ??
+				(v as MinecraftVersion).id ??
+				(v as ForgeGameVersion).version_id,
 			game_version: (v as ForgeGameVersion).game_version ?? "",
 			forge_version: (v as ForgeGameVersion).forge_version ?? "",
 			type: (v as MinecraftVersion).type ?? "",
@@ -307,7 +322,11 @@
 		}
 	});
 
-	async function handleDownload(versionId: string, gameVersion?: string, forgeVersion?: string) {
+	async function handleDownload(
+		versionId: string,
+		gameVersion?: string,
+		forgeVersion?: string,
+	) {
 		if (filter === "fabric") {
 			await downloadFabric(versionId);
 		} else if (filter === "forge" && gameVersion && forgeVersion) {
@@ -414,8 +433,7 @@
 			class:active={filter === "forge"}
 			onclick={() => (filter = "forge")}
 		>
-			<span class="qm-tab-label"
-				>{t("versionDownloader.tabs.forge")}</span
+			<span class="qm-tab-label">{t("versionDownloader.tabs.forge")}</span
 			>
 		</button>
 	</div>
@@ -480,7 +498,9 @@
 	</div>
 
 	{#if filter === "forge"}
-		<div style="padding: 0 20px 8px; font-size: 0.75rem; color: var(--text-muted);">
+		<div
+			style="padding: 0 20px 8px; font-size: 0.75rem; color: var(--text-muted);"
+		>
 			{t("versionDownloader.forgeJavaHint")}
 		</div>
 	{/if}
@@ -493,7 +513,7 @@
 		{:else}
 			<VirtualList items={displayVersions} itemHeight={66} padding={20}>
 				{#snippet children(version, _index)}
-						{@const isInstalled =
+					{@const isInstalled =
 						filter === "fabric"
 							? installedFabric.has(version.version)
 							: filter === "forge"
@@ -514,9 +534,9 @@
 									<div
 										style="font-weight: 600; font-size: 0.9rem;"
 									>
-									{filter === "fabric"
-										? version.version
-										: version.id}
+										{filter === "fabric"
+											? version.version
+											: version.id}
 									</div>
 									{#if isInstalled}
 										<span class="inst-badge"
@@ -536,9 +556,9 @@
 									{:else if filter === "forge"}
 										Forge • MC {version.game_version}
 									{:else}
-										{version.type} • {dateFmt.format(new Date(
-											version.releaseTime,
-										))}
+										{version.type} • {dateFmt.format(
+											new Date(version.releaseTime),
+										)}
 									{/if}
 								</div>
 							</div>
@@ -547,11 +567,7 @@
 								<div class="inst-icon">
 									<CheckIcon size={10} />
 								</div>
-							{:else if downloadingVersions.has(
-								filter === "fabric"
-									? version.version
-									: version.id,
-							)}
+							{:else if downloadingVersions.has(filter === "fabric" ? version.version : version.id)}
 								<button
 									type="button"
 									class="download-btn"
@@ -618,7 +634,6 @@
 		display: flex;
 		align-items: center;
 		gap: 5px;
-	
 	}
 
 	.download-btn:hover {

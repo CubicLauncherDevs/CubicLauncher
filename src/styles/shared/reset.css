@@ -6,7 +6,11 @@
 	--bg-input: #0a0a0a;
 	--bg-overlay: rgba(0, 0, 0, 0.7);
 	--bg-sidebar-gradient: linear-gradient(180deg, #0f1010 0%, #0c0c0c 100%);
-	--bg-card-gradient: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+	--bg-card-gradient: linear-gradient(
+		135deg,
+		rgba(255, 255, 255, 0.03) 0%,
+		rgba(255, 255, 255, 0) 100%
+	);
 	--text-primary: #d8d8d8;
 	--text-secondary: #606060;
 	--text-muted: #444;

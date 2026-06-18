@@ -145,7 +145,8 @@
 		const l = loader.toLowerCase();
 		if (l === "fabric") return "/images/instances/fabric.png";
 		if (l === "forge") return "/images/instances/forge.png";
-		if (l === "neoforge" || l === "neo") return "/images/instances/modth.png";
+		if (l === "neoforge" || l === "neo")
+			return "/images/instances/modth.png";
 		if (l === "quilt") return "/images/instances/vanilla.png";
 		return null;
 	}
@@ -271,10 +272,14 @@
 		mrpackPath = null;
 		resetState();
 	}
-
 </script>
 
-<ModalBase bind:open title={t("createInstance.title")} width="700px" onclose={reset}>
+<ModalBase
+	bind:open
+	title={t("createInstance.title")}
+	width="700px"
+	onclose={reset}
+>
 	<!-- Step indicator -->
 	<div class="step-indicator">
 		{#each { length: TOTAL_STEPS } as _, i}
@@ -282,7 +287,16 @@
 			{@const done = i < currentStep}
 			<div class="step-dot" class:active class:done>
 				{#if done}
-					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+					<svg
+						width="12"
+						height="12"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="3"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
 						<polyline points="20 6 9 17 4 12"></polyline>
 					</svg>
 				{:else}
@@ -306,19 +320,52 @@
 		{#if currentStep === 0}
 			<div class="step1-layout">
 				<div class="icon-column">
-					<span class="input-label">{t("createInstance.iconLabel")}</span>
+					<span class="input-label"
+						>{t("createInstance.iconLabel")}</span
+					>
 					<div class="icon-preview">
 						{#if selectedIcon}
 							<img src={selectedIcon} alt="Logo" />
-							<button type="button" class="icon-clear" onclick={() => (selectedIcon = null)} title="Quitar icono">
-							<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-								<line x1="18" y1="6" x2="6" y2="18"></line>
-								<line x1="6" y1="6" x2="18" y2="18"></line>
-							</svg>
-						</button>
+							<button
+								type="button"
+								class="icon-clear"
+								onclick={() => (selectedIcon = null)}
+								title="Quitar icono"
+							>
+								<svg
+									width="10"
+									height="10"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="3"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<line x1="18" y1="6" x2="6" y2="18"></line>
+									<line x1="6" y1="6" x2="18" y2="18"></line>
+								</svg>
+							</button>
 						{:else}
-							<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary); opacity: 0.4;">
-								<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+							<svg
+								width="28"
+								height="28"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								style="color: var(--text-secondary); opacity: 0.4;"
+							>
+								<rect
+									x="3"
+									y="3"
+									width="18"
+									height="18"
+									rx="2"
+									ry="2"
+								></rect>
 								<circle cx="8.5" cy="8.5" r="1.5"></circle>
 								<polyline points="21 15 16 10 5 21"></polyline>
 							</svg>
@@ -331,7 +378,11 @@
 								type="button"
 								class="icon-option"
 								class:selected={selectedIcon === iconPath}
-								onclick={() => (selectedIcon = selectedIcon === iconPath ? null : iconPath)}
+								onclick={() =>
+									(selectedIcon =
+										selectedIcon === iconPath
+											? null
+											: iconPath)}
 								title={iconName}
 							>
 								<img src={iconPath} alt={iconName} />
@@ -341,7 +392,9 @@
 				</div>
 				<div class="fields-column">
 					<div class="input-group">
-						<span class="input-label">{t("createInstance.nameLabel")}</span>
+						<span class="input-label"
+							>{t("createInstance.nameLabel")}</span
+						>
 						<input
 							type="text"
 							class="text-input"
@@ -365,34 +418,62 @@
 		{#if currentStep === 1}
 			<div class="step2-layout">
 				{#if !mrpackPath}
-				<div class="source-toggle">
-					<button
-						type="button"
-						class="source-btn"
-						class:active={contentSource === "version"}
-						onclick={() => { contentSource = "version"; error = null; }}
-					>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-							<polyline points="7 10 12 15 17 10"></polyline>
-							<line x1="12" y1="15" x2="12" y2="3"></line>
-						</svg>
-						Version instalada
-					</button>
-					<button
-						type="button"
-						class="source-btn"
-						class:active={contentSource === "modpack"}
-						onclick={() => { contentSource = "modpack"; error = null; }}
-					>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-							<polyline points="17 8 12 3 7 8"></polyline>
-							<line x1="12" y1="3" x2="12" y2="15"></line>
-						</svg>
-						Importar modpack
-					</button>
-				</div>
+					<div class="source-toggle">
+						<button
+							type="button"
+							class="source-btn"
+							class:active={contentSource === "version"}
+							onclick={() => {
+								contentSource = "version";
+								error = null;
+							}}
+						>
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<path
+									d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+								></path>
+								<polyline points="7 10 12 15 17 10"></polyline>
+								<line x1="12" y1="15" x2="12" y2="3"></line>
+							</svg>
+							Version instalada
+						</button>
+						<button
+							type="button"
+							class="source-btn"
+							class:active={contentSource === "modpack"}
+							onclick={() => {
+								contentSource = "modpack";
+								error = null;
+							}}
+						>
+							<svg
+								width="16"
+								height="16"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<path
+									d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+								></path>
+								<polyline points="17 8 12 3 7 8"></polyline>
+								<line x1="12" y1="3" x2="12" y2="15"></line>
+							</svg>
+							Importar modpack
+						</button>
+					</div>
 				{/if}
 
 				{#if contentSource === "version" && !mrpackPath}
@@ -414,35 +495,59 @@
 						{:else if !mrpackPath}
 							<div class="drop-zone">
 								<p>{t("createInstance.dragOrDrop")}</p>
-								<span class="drop-or">{t("createInstance.or")}</span>
-								<button type="button" class="btn-secondary" onclick={selectMrpackFile}>
+								<span class="drop-or"
+									>{t("createInstance.or")}</span
+								>
+								<button
+									type="button"
+									class="btn-secondary"
+									onclick={selectMrpackFile}
+								>
 									{t("createInstance.selectFile")}
 								</button>
 							</div>
-
 						{:else if packInfo}
 							<div class="pack-info">
 								<div class="info-row">
 									<span class="info-label">Pack</span>
-									<span class="info-value">{getPackName(packInfo)}</span>
+									<span class="info-value"
+										>{getPackName(packInfo)}</span
+									>
 								</div>
 								<div class="info-row">
 									<span class="info-label">Versión</span>
-									<span class="info-value">{getPackVersion(packInfo)}</span>
+									<span class="info-value"
+										>{getPackVersion(packInfo)}</span
+									>
 								</div>
 								{#if getPackSummary(packInfo)}
 									<div class="info-row">
-										<span class="info-label">Descripción</span>
-										<span class="info-value summary">{getPackSummary(packInfo)}</span>
+										<span class="info-label"
+											>Descripción</span
+										>
+										<span class="info-value summary"
+											>{getPackSummary(packInfo)}</span
+										>
 									</div>
 								{/if}
 								<div class="info-row">
 									<span class="info-label">Minecraft</span>
-									<span class="info-value">{getPackMcVersion(packInfo) ?? "—"}</span>
+									<span class="info-value"
+										>{getPackMcVersion(packInfo) ??
+											"—"}</span
+									>
 								</div>
 								<div class="info-row">
 									<span class="info-label">Loader</span>
-									<span class="info-value">{getPackLoader(packInfo) ?? "Vanilla"}{getPackLoaderVersion(packInfo) ? " " + getPackLoaderVersion(packInfo) : ""}</span>
+									<span class="info-value"
+										>{getPackLoader(packInfo) ??
+											"Vanilla"}{getPackLoaderVersion(
+											packInfo,
+										)
+											? " " +
+												getPackLoaderVersion(packInfo)
+											: ""}</span
+									>
 								</div>
 								<div class="info-row">
 									<span class="info-label">Formato</span>
@@ -450,17 +555,29 @@
 								</div>
 								<div class="info-row">
 									<span class="info-label">Archivos</span>
-									<span class="info-value">{getPackFileCount(packInfo)} mods/archivos</span>
+									<span class="info-value"
+										>{getPackFileCount(packInfo)} mods/archivos</span
+									>
 								</div>
 							</div>
-							<button type="button" class="btn-change-file" onclick={selectMrpackFile}>
+							<button
+								type="button"
+								class="btn-change-file"
+								onclick={selectMrpackFile}
+							>
 								Cambiar archivo
 							</button>
 						{:else if error}
 							<div class="drop-zone">
 								<p>{t("createInstance.dragOrDrop")}</p>
-								<span class="drop-or">{t("createInstance.or")}</span>
-								<button type="button" class="btn-secondary" onclick={selectMrpackFile}>
+								<span class="drop-or"
+									>{t("createInstance.or")}</span
+								>
+								<button
+									type="button"
+									class="btn-secondary"
+									onclick={selectMrpackFile}
+								>
 									{t("createInstance.selectFile")}
 								</button>
 							</div>
@@ -478,7 +595,9 @@
 			onclick={currentStep > 0 ? prevStep : reset}
 			disabled={loading}
 		>
-			{currentStep > 0 ? t("createInstance.back") : t("createInstance.cancel")}
+			{currentStep > 0
+				? t("createInstance.back")
+				: t("createInstance.cancel")}
 		</button>
 		{#if !isLastStep()}
 			<button
@@ -494,11 +613,18 @@
 				type="button"
 				class="btn-primary"
 				onclick={handleFinalAction}
-				disabled={loading || (contentSource === "modpack" && (!mrpackPath || !name.trim())) || (contentSource === "version" && !selectedVersion)}
+				disabled={loading ||
+					(contentSource === "modpack" &&
+						(!mrpackPath || !name.trim())) ||
+					(contentSource === "version" && !selectedVersion)}
 			>
 				{loading
-					? (contentSource === "modpack" ? t("createInstance.importingBtn") : t("createInstance.creatingBtn"))
-					: (contentSource === "modpack" ? t("createInstance.importBtn") : t("createInstance.createBtn"))}
+					? contentSource === "modpack"
+						? t("createInstance.importingBtn")
+						: t("createInstance.creatingBtn")
+					: contentSource === "modpack"
+						? t("createInstance.importBtn")
+						: t("createInstance.createBtn")}
 			</button>
 		{/if}
 	{/snippet}
@@ -620,7 +746,9 @@
 		align-items: center;
 		justify-content: center;
 		box-shadow: var(--shadow-sm);
-		transition: transform 0.15s, background 0.15s;
+		transition:
+			transform 0.15s,
+			background 0.15s;
 		opacity: 0;
 	}
 
@@ -651,7 +779,9 @@
 		border: 2px solid var(--border);
 		cursor: pointer;
 		padding: 6px;
-		transition: border-color 0.15s, background 0.15s;
+		transition:
+			border-color 0.15s,
+			background 0.15s;
 	}
 
 	.icon-option:hover {
@@ -793,7 +923,9 @@
 		color: var(--text-secondary);
 		font-size: 0.75rem;
 		cursor: pointer;
-		transition: color 0.15s, border-color 0.15s;
+		transition:
+			color 0.15s,
+			border-color 0.15s;
 	}
 
 	.btn-change-file:hover {

@@ -11,9 +11,6 @@
 	let lastLevel = $state<"info" | "warn" | "error" | "default">("default");
 	let hovered = $state(false);
 
-	const isRunning = $derived(
-		instance.status === InstState.Starting || instance.status === InstState.Started,
-	);
 	const statusLabel = $derived.by(() => {
 		switch (instance.status) {
 			case InstState.Starting:
@@ -29,7 +26,12 @@
 
 	function computeLevel(line: string): "info" | "warn" | "error" | "default" {
 		const lower = line.toLowerCase();
-		if (lower.includes("[error]") || lower.includes("fatal") || lower.includes("exception") || lower.includes("stacktrace")) {
+		if (
+			lower.includes("[error]") ||
+			lower.includes("fatal") ||
+			lower.includes("exception") ||
+			lower.includes("stacktrace")
+		) {
 			return "error";
 		}
 		if (lower.includes("[warn") || lower.includes("warning")) {
@@ -45,18 +47,24 @@
 		const id = instance.uuid;
 		let destroyed = false;
 
-		const unlistenPromise = listen<{ id: string; lines: { line: string; stream: string; timestamp: number }[] }>(
-			"instance-log-batch",
-			(event) => {
-				if (!destroyed && event.payload.id === id && event.payload.lines.length > 0) {
-					const last = event.payload.lines[event.payload.lines.length - 1];
-					lastLog = last.line;
-					lastLevel = last.stream === "stderr"
+		const unlistenPromise = listen<{
+			id: string;
+			lines: { line: string; stream: string; timestamp: number }[];
+		}>("instance-log-batch", (event) => {
+			if (
+				!destroyed &&
+				event.payload.id === id &&
+				event.payload.lines.length > 0
+			) {
+				const last =
+					event.payload.lines[event.payload.lines.length - 1];
+				lastLog = last.line;
+				lastLevel =
+					last.stream === "stderr"
 						? "error"
 						: computeLevel(last.line);
-				}
-			},
-		);
+			}
+		});
 
 		return () => {
 			destroyed = true;
@@ -168,7 +176,6 @@
 	}
 
 	.status-log-text {
-	
 		text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 		animation: logFadeIn 0.3s ease-out;
 	}
@@ -268,7 +275,8 @@
 	}
 
 	@keyframes errorPulse {
-		0%, 100% {
+		0%,
+		100% {
 			box-shadow: 0 0 0 0 rgba(var(--color-error-rgb), 0.4);
 		}
 		50% {

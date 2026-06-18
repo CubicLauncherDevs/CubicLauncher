@@ -256,7 +256,7 @@
 		border-left: 1px solid var(--border-color);
 		color: var(--text-muted);
 		cursor: pointer;
-	
+
 		font-size: 0.75rem;
 		font-weight: 600;
 		user-select: none;

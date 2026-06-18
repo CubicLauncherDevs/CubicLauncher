@@ -106,6 +106,8 @@ export function showErrorParsed(rawError: unknown) {
 			addNotification(t("errors.title"), msg, "error", 8000);
 			return;
 		}
-	} catch {}
+	} catch {
+		// JSON parse failed, fall through
+	}
 	addNotification(t("errors.title"), String(rawError), "error", 8000);
 }

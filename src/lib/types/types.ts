@@ -186,6 +186,9 @@ export type AppEvent =
 			};
 	  }
 	| {
+			type: "JREChanged";
+	  }
+	| {
 			type: "STChanged";
 	  }
 	| {
@@ -345,5 +348,3 @@ export interface CurseForgeGameVersion {
 	name: string;
 	slug: string;
 }
-
-

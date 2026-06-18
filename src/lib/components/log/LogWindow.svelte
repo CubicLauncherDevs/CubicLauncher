@@ -3,7 +3,10 @@
 	import { invoke } from "@tauri-apps/api/core";
 	import { listen } from "@tauri-apps/api/event";
 
-	let { instanceId, instanceName }: { instanceId: string; instanceName: string } = $props();
+	let {
+		instanceId,
+		instanceName,
+	}: { instanceId: string; instanceName: string } = $props();
 
 	interface LogLine {
 		text: string;
@@ -20,14 +23,26 @@
 	let logContainer: HTMLDivElement | undefined = $state();
 	let unlistenFn: (() => void) | undefined;
 
-	function computeLevel(text: string): "info" | "warn" | "error" | "fatal" | "default" {
+	function computeLevel(
+		text: string,
+	): "info" | "warn" | "error" | "fatal" | "default" {
 		const m = text.match(/\[.*?\/(\w+)\]/);
 		if (m) {
 			const lv = m[1].toUpperCase();
 			if (["FATAL", "SEVERE"].includes(lv)) return "fatal";
 			if (lv === "ERROR") return "error";
 			if (["WARN", "WARNING"].includes(lv)) return "warn";
-			if (["INFO", "CONFIG", "FINE", "FINER", "FINEST", "DEBUG", "TRACE"].includes(lv))
+			if (
+				[
+					"INFO",
+					"CONFIG",
+					"FINE",
+					"FINER",
+					"FINEST",
+					"DEBUG",
+					"TRACE",
+				].includes(lv)
+			)
 				return "info";
 		}
 		const u = text.toUpperCase();
@@ -62,7 +77,8 @@
 		const start = container.children.length;
 		for (let i = start; i < lines.length; i++) {
 			const line = lines[i];
-			const level = line.stream === "stderr" ? "error" : computeLevel(line.text);
+			const level =
+				line.stream === "stderr" ? "error" : computeLevel(line.text);
 			const div = document.createElement("div");
 			div.className = `log-line ${level}${line.stream === "stderr" ? " stderr" : ""} new`;
 			const ts = document.createElement("span");
@@ -92,7 +108,9 @@
 		let destroyed = false;
 
 		(async () => {
-			const history: LogLine[] = await invoke("get_log_history_cmd", { instanceId });
+			const history: LogLine[] = await invoke("get_log_history_cmd", {
+				instanceId,
+			});
 			lines = history;
 			await tick();
 
@@ -102,12 +120,17 @@
 				if (container) {
 					const frag = document.createDocumentFragment();
 					for (const line of lines) {
-						const level = line.stream === "stderr" ? "error" : computeLevel(line.text);
+						const level =
+							line.stream === "stderr"
+								? "error"
+								: computeLevel(line.text);
 						const div = document.createElement("div");
 						div.className = `log-line ${level}${line.stream === "stderr" ? " stderr" : ""}`;
 						const ts = document.createElement("span");
 						ts.className = "line-ts";
-						ts.textContent = timeFmt.format(new Date(line.timestamp));
+						ts.textContent = timeFmt.format(
+							new Date(line.timestamp),
+						);
 						const txt = document.createElement("span");
 						txt.className = "line-text";
 						txt.textContent = line.text;
@@ -143,7 +166,8 @@
 	function handleScroll() {
 		if (!logContainer) return;
 		const el = logContainer;
-		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < SCROLL_THRESHOLD;
+		const atBottom =
+			el.scrollHeight - el.scrollTop - el.clientHeight < SCROLL_THRESHOLD;
 		if (atBottom && !isAtBottom) {
 			unseenCount = 0;
 		}
@@ -151,7 +175,12 @@
 		if (!isAtBottom) {
 			const container = el.querySelector(".log-lines");
 			if (container) {
-				unseenCount = Math.max(0, container.children.length - Math.floor(el.scrollTop / 20) - Math.floor(el.clientHeight / 20));
+				unseenCount = Math.max(
+					0,
+					container.children.length -
+						Math.floor(el.scrollTop / 20) -
+						Math.floor(el.clientHeight / 20),
+				);
 			}
 		}
 	}
@@ -190,14 +219,55 @@
 			{/if}
 		</div>
 		<div class="log-toolbar">
-			<button type="button" class="toolbar-btn" onclick={clearLog} disabled={lines.length === 0} title="Clear log">
-				<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+			<button
+				type="button"
+				class="toolbar-btn"
+				onclick={clearLog}
+				disabled={lines.length === 0}
+				title="Clear log"
+			>
+				<svg
+					width="13"
+					height="13"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<polyline points="3 6 5 6 21 6" /><path
+						d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+					/>
 				</svg>
 			</button>
-			<button type="button" class="toolbar-btn" onclick={copyLog} disabled={lines.length === 0} title="Copy log">
-				<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+			<button
+				type="button"
+				class="toolbar-btn"
+				onclick={copyLog}
+				disabled={lines.length === 0}
+				title="Copy log"
+			>
+				<svg
+					width="13"
+					height="13"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<rect
+						x="9"
+						y="9"
+						width="13"
+						height="13"
+						rx="2"
+						ry="2"
+					/><path
+						d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+					/>
 				</svg>
 			</button>
 			<button
@@ -207,14 +277,24 @@
 				onclick={scrollToBottom}
 				title="Auto-scroll"
 			>
-				<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" />
+				<svg
+					width="13"
+					height="13"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<line x1="12" y1="5" x2="12" y2="19" /><polyline
+						points="19 12 12 19 5 12"
+					/>
 				</svg>
 			</button>
 		</div>
 	</div>
 
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="log-viewport" bind:this={logContainer} onscroll={handleScroll}>
 		<div class="log-lines"></div>
 	</div>
@@ -236,7 +316,7 @@
 		padding: 0;
 		background: #0a0a0a;
 		color: #c8c8c8;
-	
+
 		font-size: 0.65rem;
 	}
 
@@ -430,7 +510,8 @@
 	}
 
 	@keyframes pulse {
-		0%, 100% {
+		0%,
+		100% {
 			opacity: 1;
 		}
 		50% {

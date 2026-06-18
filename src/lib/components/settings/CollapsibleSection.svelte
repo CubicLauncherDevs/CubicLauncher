@@ -64,7 +64,10 @@
 			{/if}
 			<span class="cs-title">{title}</span>
 		</span>
-		<ChevronDownIcon size={16} class={"cs-chevron" + (open ? " open" : "")} />
+		<ChevronDownIcon
+			size={16}
+			class={"cs-chevron" + (open ? " open" : "")}
+		/>
 	</button>
 	{#if open}
 		<div class="cs-content" transition:slide={{ duration: 150 }}>
@@ -91,7 +94,6 @@
 		border-radius: var(--border-radius-sm);
 		transition: background 0.15s ease;
 		user-select: none;
-	
 	}
 
 	.cs-header:hover {
