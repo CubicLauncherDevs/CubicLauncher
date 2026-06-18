@@ -301,7 +301,8 @@
 			"fabric": "Fabric",
 			"forge": "Forge"
 		},
-		"downloading": "Téléchargement..."
+		"downloading": "Téléchargement...",
+		"forgeJavaHint": "Forge nécessite Java 21, à configurer dans Paramètres > Java."
 	},
 	"themes": {
 		"warning": {

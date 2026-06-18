@@ -479,6 +479,12 @@
 		</div>
 	</div>
 
+	{#if filter === "forge"}
+		<div style="padding: 0 20px 8px; font-size: 0.75rem; color: var(--text-muted);">
+			{t("versionDownloader.forgeJavaHint")}
+		</div>
+	{/if}
+
 	<div class="qm-scroll" style="padding: 0;">
 		{#if loading || isCurrentManifestLoading}
 			<div class="qm-empty-state">{t("versionDownloader.loading")}</div>
