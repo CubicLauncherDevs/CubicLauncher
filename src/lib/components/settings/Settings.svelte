@@ -14,7 +14,6 @@
 	} from "$lib/api/updaterServices";
 	import { listThemes } from "$lib/api/themeManager";
 	import {
-		getInstallingJres,
 		getJreVersions,
 		installJre,
 		uninstallJre,
@@ -56,9 +55,9 @@
 		try {
 			await installJre(version);
 		} catch (e) {
-			console.error(`Failed to install JRE ${version}:`, e);
+			console.error(`Failed to queue JRE ${version}:`, e);
+			jreActionStates[version] = undefined;
 		}
-		jreActionStates[version] = undefined;
 	}
 
 	async function handleUninstallJre(version: number) {
@@ -146,17 +145,21 @@
 	onMount(() => {
 		loadThemes();
 		refreshJreStatus();
-		getInstallingJres().then((versions) => {
-			for (const v of versions) {
-				jreActionStates[v] = "downloading";
-			}
-		});
 
 		const unlisten = listen<AppEvent>("app-event", (event) => {
-			if (event.payload.type === "DFinishRuntime") {
-				const v = Number(event.payload.data.version);
-				jreActionStates[v] = undefined;
-				refreshJreStatus();
+			if (event.payload.type === "DEnqueue") {
+				const v = event.payload.data.version;
+				const match = v.match(/^jre-(\d+)$/);
+				if (match) {
+					jreActionStates[Number(match[1])] = "downloading";
+				}
+			} else if (event.payload.type === "DFinish") {
+				const v = event.payload.data.version;
+				const match = v.match(/^jre-(\d+)$/);
+				if (match) {
+					jreActionStates[Number(match[1])] = undefined;
+					refreshJreStatus();
+				}
 			} else if (event.payload.type === "JREChanged") {
 				refreshJreStatus();
 			}
@@ -583,6 +586,54 @@
 				</CollapsibleSection>
 			</div>
 		{/if}
+
+		<div class="section-group about-section-group">
+			<CollapsibleSection
+				title={t("settings.about.title")}
+				iconSrc="/images/cubic.svg"
+				storageKey="section_about"
+			>
+				<div class="about-content">
+					<p class="about-desc">
+						{t("settings.about.description")}
+					</p>
+					<img
+						src="/images/icons/discord.svg"
+						alt="Discord"
+						class="about-discord-icon"
+						role="button"
+						tabindex="0"
+						onclick={() =>
+							openUrl("https://discord.gg/XQrRFWRyp")}
+						onkeydown={(e) => {
+							if (e.key === "Enter")
+								openUrl("https://discord.gg/XQrRFWRyp");
+						}}
+					/>
+					<p class="about-credit">
+						{t("settings.about.creditMadeBy")}
+						<button
+							type="button"
+							class="about-link"
+							onclick={() =>
+								openUrl("https://github.com/staff6773")}
+						>
+							Notstaff
+						</button>
+						{t("settings.about.creditAnd")}
+						<button
+							type="button"
+							class="about-link"
+							onclick={() =>
+								openUrl("https://github.com/santiagolxx")}
+						>
+							Santiagolxx
+						</button>
+						{t("settings.about.creditSuffix")}
+					</p>
+				</div>
+			</CollapsibleSection>
+		</div>
 	</div>
 
 	<div class="save-footer">
@@ -881,5 +932,69 @@
 
 	.qm-themes-hint:hover {
 		color: var(--text-primary);
+	}
+
+	.about-section-group {
+		margin-top: -16px;
+	}
+
+	.about-section-group :global(.cs-content) {
+		display: flex;
+		justify-content: center;
+	}
+
+	.about-content {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 14px;
+		padding: 8px 4px;
+		text-align: center;
+	}
+
+	.about-desc {
+		font-size: 0.8rem;
+		color: var(--text-secondary);
+		line-height: 1.5;
+		max-width: 280px;
+		margin: 0;
+	}
+
+	.about-discord-icon {
+		width: 20px;
+		height: 20px;
+		cursor: pointer;
+		opacity: 0.5;
+		filter: var(--icon-filter);
+		flex-shrink: 0;
+		transition: opacity 0.15s;
+	}
+
+	.about-discord-icon:hover {
+		opacity: 0.8;
+	}
+
+	.about-credit {
+		font-size: 0.7rem;
+		color: var(--text-muted);
+		margin: 0;
+		opacity: 0.7;
+	}
+
+	.about-link {
+		background: none;
+		border: none;
+		color: var(--accent);
+		font-size: inherit;
+		font-family: inherit;
+		padding: 0;
+		cursor: pointer;
+		display: inline;
+		transition: opacity 0.15s;
+	}
+
+	.about-link:hover {
+		opacity: 0.8;
+		text-decoration: underline;
 	}
 </style>

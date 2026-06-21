@@ -1,6 +1,7 @@
 mod batch;
 mod fabric;
 mod forge;
+mod jre;
 mod minecraft;
 
 use std::path::PathBuf;
@@ -15,6 +16,7 @@ use tokio::task::JoinHandle;
 pub use batch::{DownloadBatch, DownloadItemSpec, GenericBatch};
 pub use fabric::FabricBatch;
 pub use forge::{ForgeBatch, ForgeVersionInfo};
+pub use jre::JreBatch;
 pub use minecraft::MinecraftBatch;
 
 use crate::types::{DownloadProgress, DownloadProgressInfo, DownloadProgressType, NormalizedVersion};

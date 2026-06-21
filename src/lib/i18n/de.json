@@ -45,6 +45,14 @@
 			"showSnapshots": "Mostrar versiones Snapshots",
 			"showAlpha": "Mostrar versiones Alpha"
 		},
+		"about": {
+			"title": "Über uns",
+			"description": "CubicLauncher ist ein Open-Source-Launcher, kostenlos und von Freiwilligen entwickelt.",
+			"discord": "Tritt unserem Discord bei",
+			"creditMadeBy": "erstellt von",
+			"creditAnd": "und",
+			"creditSuffix": "(mitkomm)"
+		},
 		"java": {
 			"configTitle": "Configuración de Java",
 			"runtimesTitle": "Java-Umgebungen (Runtimes)",
@@ -317,7 +325,16 @@
 		"invalidZip": "Theme inválido: no se encontró theme.json en el ZIP"
 	},
 	"downloadProgress": {
-		"items": "objetos"
+		"items": "Elemente",
+		"retrying": "Erneut versuchen {attempt}/{max}...",
+		"statusLibs": "Bibliotheken herunterladen",
+		"statusAssets": "Assets herunterladen",
+		"statusNatives": "Natives herunterladen",
+		"statusClient": "Client herunterladen",
+		"statusVerifying": "Dateien überprüfen",
+		"statusGeneric": "Herunterladen",
+		"statusProcessing": "Verarbeiten",
+		"statusJre": "Java herunterladen"
 	},
 	"welcome": {
 		"language": "Selecciona tu idioma",

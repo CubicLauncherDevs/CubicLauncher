@@ -71,7 +71,6 @@ pub fn run() {
             commands::java::install_jre,
             commands::java::uninstall_jre,
             commands::java::get_jre_versions,
-            commands::java::get_installing_jres,
             commands::log_window::open_log_window,
             commands::log_window::get_log_history_cmd,
         ])

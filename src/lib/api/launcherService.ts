@@ -52,8 +52,6 @@ export function initEventListeners(): void {
 				if (idx !== -1) launcherStore.loadedInstances.splice(idx, 1);
 			}
 				break;
-			case "DFinishRuntime":
-				break;
 			case "STChanged":
 				clearTimeout(_settingsTimer);
 				_settingsTimer = setTimeout(() => syncSettings(), 80);

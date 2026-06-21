@@ -1,14 +1,11 @@
 use crate::core::AppEvent;
 use crate::core::emit;
 use crate::services::java_manager::JavaManager;
-use aqua::JreStatus;
+use crate::services::DownloadQueue;
+use aqua::{JreBatch, JreStatus};
 use smallvec::SmallVec;
-use std::collections::HashSet;
-use std::sync::{LazyLock, Mutex};
 use tauri::command;
 use tracing::info;
-
-static INSTALLING_JRES: LazyLock<Mutex<HashSet<u8>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
 
 #[command]
 pub async fn get_jre_status(version: u8) -> Result<JreStatus, String> {
@@ -19,34 +16,19 @@ pub async fn get_jre_status(version: u8) -> Result<JreStatus, String> {
 }
 
 #[command]
-pub async fn get_installing_jres() -> Vec<u8> {
-    INSTALLING_JRES
-        .lock()
-        .expect("poisoned INSTALLING_JRES lock")
-        .iter()
-        .copied()
-        .collect()
-}
-
-#[command]
 pub async fn install_jre(version: u8) -> Result<(), String> {
     info!("Installing JRE {}", version);
-    INSTALLING_JRES
-        .lock()
-        .expect("poisoned INSTALLING_JRES lock")
-        .insert(version);
-    let result = JavaManager::install(version)
+
+    let pkg = JavaManager::get_latest_package(version)
         .await
-        .map_err(|e| e.to_string());
-    INSTALLING_JRES
-        .lock()
-        .expect("poisoned INSTALLING_JRES lock")
-        .remove(&version);
-    result?;
-    emit(AppEvent::DFinishRuntime {
-        version: version.to_string().into(),
-    });
-    emit(AppEvent::JREChanged);
+        .map_err(|e| e.to_string())?;
+    let dest_dir = JavaManager::get_jre_dir(version);
+
+    let batch = JreBatch::new(version, pkg, dest_dir);
+    DownloadQueue::get()
+        .enqueue_batch(format!("jre-{}", version), Box::new(batch))
+        .await;
+
     Ok(())
 }
 

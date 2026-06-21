@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::hash::{Hash, Hasher};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -110,9 +109,8 @@ impl Repo {
             buf.extend_from_slice(&data_crc.to_le_bytes());
             buf.extend_from_slice(&entry.data);
 
-            let mut h = std::collections::hash_map::DefaultHasher::new();
-            key.hash(&mut h);
-            index_entries.push(IndexEntry { key_hash: h.finish(), file_off });
+            let key_hash = fnv1a(key.as_bytes());
+            index_entries.push(IndexEntry { key_hash, file_off });
         }
 
         // --- index ---
@@ -151,6 +149,15 @@ impl Repo {
         self.dirty = false;
         Ok(())
     }
+}
+
+fn fnv1a(data: &[u8]) -> u64 {
+    let mut hash = 14695981039346656037u64;
+    for byte in data {
+        hash ^= *byte as u64;
+        hash = hash.wrapping_mul(1099511628211);
+    }
+    hash
 }
 
 impl Drop for Repo {

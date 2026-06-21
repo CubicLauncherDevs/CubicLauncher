@@ -52,15 +52,10 @@
 	>
 		<span class="cs-header-left">
 			{#if iconSrc}
-				<span class="cs-icon">
-					<img
-						src={iconSrc}
-						width="18"
-						height="18"
-						alt=""
-						style="filter: var(--icon-filter); display: block;"
-					/>
-				</span>
+				<span
+					class="cs-icon"
+					style="mask-image: url({iconSrc}); -webkit-mask-image: url({iconSrc});"
+				></span>
 			{/if}
 			<span class="cs-title">{title}</span>
 		</span>
@@ -114,11 +109,17 @@
 	}
 
 	.cs-icon {
-		display: flex;
-		align-items: center;
-		color: var(--text-muted);
+		display: block;
+		width: 18px;
+		height: 18px;
+		background: var(--text-primary);
+		mask-size: contain;
+		mask-repeat: no-repeat;
+		mask-position: center;
+		-webkit-mask-size: contain;
+		-webkit-mask-repeat: no-repeat;
+		-webkit-mask-position: center;
 		flex-shrink: 0;
-		line-height: 0;
 	}
 
 	.cs-title {

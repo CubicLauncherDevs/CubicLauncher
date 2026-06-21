@@ -2,6 +2,7 @@ use crate::errors::AquaError;
 use crate::jre::types::{JrePackage, ZuluPackage};
 use crate::utilities::HTTP_CLIENT;
 use std::path::Path;
+use tokio::sync::mpsc;
 
 pub struct ZuluApi;
 
@@ -60,6 +61,7 @@ impl ZuluApi {
     pub async fn download_and_extract(
         pkg: &JrePackage,
         dest_dir: &Path,
+        progress_tx: Option<mpsc::Sender<(u64, u64)>>,
     ) -> Result<(), AquaError> {
         let extract_dir = dest_dir.parent().unwrap_or(dest_dir);
         tokio::fs::create_dir_all(extract_dir).await?;
@@ -69,6 +71,8 @@ impl ZuluApi {
             .send()
             .await?
             .error_for_status()?;
+
+        let total = response.content_length().unwrap_or(0);
 
         let ext = if pkg.is_tar_gz() {
             "tar.gz"
@@ -87,9 +91,15 @@ impl ZuluApi {
             let mut file = tokio::fs::File::create(&archive_path).await?;
             let mut stream = response.bytes_stream();
             use futures::StreamExt;
+            let mut downloaded = 0u64;
             while let Some(chunk) = stream.next().await {
                 use tokio::io::AsyncWriteExt;
-                file.write_all(&chunk?).await?;
+                let chunk = chunk?;
+                downloaded += chunk.len() as u64;
+                file.write_all(&chunk).await?;
+                if let Some(ref tx) = progress_tx {
+                    let _ = tx.try_send((downloaded, total));
+                }
             }
         }
 

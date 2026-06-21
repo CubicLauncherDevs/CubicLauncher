@@ -64,7 +64,7 @@ impl JavaManager {
             })?;
         }
 
-        ZuluApi::download_and_extract(&pkg, &dest_dir)
+        ZuluApi::download_and_extract(&pkg, &dest_dir, None)
             .await
             .map_err(|e| {
                 error!("Failed to download/extract JRE {}: {:?}", version, e);

@@ -110,4 +110,5 @@ pub enum DownloadProgressType {
     Verifying,
     Generic,
     Processing,
+    Jre,
 }

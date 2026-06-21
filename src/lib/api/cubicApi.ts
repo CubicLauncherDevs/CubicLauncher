@@ -733,15 +733,6 @@ export async function getJreVersions(): Promise<JreStatus[]> {
 	}
 }
 
-export async function getInstallingJres(): Promise<number[]> {
-	try {
-		return await invoke<number[]>("get_installing_jres");
-	} catch (err) {
-		showErrorParsed(err);
-		return [];
-	}
-}
-
 export async function installJre(version: number): Promise<void> {
 	try {
 		await invoke("install_jre", { version });

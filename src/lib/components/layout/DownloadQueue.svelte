@@ -10,8 +10,8 @@
 	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
 
-	type SegKey = "Library" | "Asset" | "Native" | "Client";
-	const SEGS: SegKey[] = ["Library", "Asset", "Native", "Client"];
+	type SegKey = "Library" | "Asset" | "Native" | "Client" | "Verifying" | "Generic" | "Processing" | "Jre";
+	const SEGS: SegKey[] = ["Library", "Asset", "Native", "Client", "Verifying", "Generic", "Processing", "Jre"];
 
 	interface SegProg {
 		current: number;
@@ -23,6 +23,7 @@
 		segs: Record<SegKey, SegProg>;
 		done: boolean;
 		error: string | null;
+		retryMsg: string | null;
 	}
 
 	function emptySegs(): Record<SegKey, SegProg> {
@@ -31,6 +32,10 @@
 			Asset: { current: 0, total: 0 },
 			Native: { current: 0, total: 0 },
 			Client: { current: 0, total: 0 },
+			Verifying: { current: 0, total: 0 },
+			Generic: { current: 0, total: 0 },
+			Processing: { current: 0, total: 0 },
+			Jre: { current: 0, total: 0 },
 		};
 	}
 
@@ -49,6 +54,20 @@
 		return totalAll > 0 ? Math.round((curAll / totalAll) * 100) : 0;
 	}
 
+	function statusLabel(activeType: SegKey | null): string {
+		switch (activeType) {
+			case "Library": return t("downloadProgress.statusLibs");
+			case "Asset": return t("downloadProgress.statusAssets");
+			case "Native": return t("downloadProgress.statusNatives");
+			case "Client": return t("downloadProgress.statusClient");
+			case "Verifying": return t("downloadProgress.statusVerifying");
+			case "Generic": return t("downloadProgress.statusGeneric");
+			case "Processing": return t("downloadProgress.statusProcessing");
+			case "Jre": return t("downloadProgress.statusJre");
+			default: return t("downloadProgress.statusGeneric");
+		}
+	}
+
 	onMount(() => {
 		getDownloadQueue().then((queue) => {
 			for (const item of queue) {
@@ -59,6 +78,7 @@
 						segs: emptySegs(),
 						done: item.status === "done",
 						error: null,
+						retryMsg: null,
 					});
 				}
 			}
@@ -79,6 +99,7 @@
 							segs: emptySegs(),
 							done: false,
 							error: null,
+							retryMsg: null,
 						});
 						open = true;
 					}
@@ -92,6 +113,7 @@
 						segs: emptySegs(),
 						done: false,
 						error: null,
+						retryMsg: null,
 					};
 					const key = SEGS.includes(d_type as SegKey)
 						? (d_type as SegKey)
@@ -105,6 +127,23 @@
 						segs: newSegs,
 						activeType: key,
 						done: false,
+						retryMsg: null,
+					});
+					break;
+				}
+				case "DRetry": {
+					const { version, attempt, max } = p.data;
+					const existing = downloads.get(version) ?? {
+						version,
+						activeType: null,
+						segs: emptySegs(),
+						done: false,
+						error: null,
+						retryMsg: null,
+					};
+					downloads.set(version, {
+						...existing,
+						retryMsg: t("downloadProgress.retrying", { attempt, max }),
 					});
 					break;
 				}
@@ -116,6 +155,7 @@
 							...item,
 							done: true,
 							activeType: null,
+							retryMsg: null,
 						});
 					}
 					setTimeout(() => {
@@ -132,6 +172,7 @@
 							done: true,
 							activeType: null,
 							error: message,
+							retryMsg: null,
 						});
 					} else {
 						downloads.set(version, {
@@ -140,6 +181,7 @@
 							segs: emptySegs(),
 							done: true,
 							error: message,
+							retryMsg: null,
 						});
 					}
 					setTimeout(() => {
@@ -206,11 +248,16 @@
 								{:else}
 									<span class="sd-spinner-sm"></span>
 								{/if}
-								<span class="sd-version"
-									>{item.version === "mods"
-										? t("sidebar.downloadingMods")
-										: item.version}</span
-								>
+								<div class="sd-version-wrap">
+									<span class="sd-version"
+										>{item.version === "mods"
+											? t("sidebar.downloadingMods")
+											: item.version}</span
+									>
+									{#if !item.done && !item.error && item.activeType}
+										<span class="sd-status-label">{statusLabel(item.activeType)}</span>
+									{/if}
+								</div>
 							</span>
 							{#if item.error}
 								<span class="sd-pct error"
@@ -224,6 +271,15 @@
 						</div>
 						{#if item.error}
 							<div class="sd-error-msg">{item.error}</div>
+						{:else if item.retryMsg}
+							<div class="sd-retry-msg">{item.retryMsg}</div>
+							<div class="sd-progress-track">
+								<div
+									class="sd-progress-fill"
+									class:done={item.done}
+									style:width="{overall}%"
+								></div>
+							</div>
 						{:else}
 							<div class="sd-progress-track">
 								<div
@@ -355,10 +411,25 @@
 		flex: 1;
 	}
 
+	.sd-version-wrap {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		min-width: 0;
+	}
+
 	.sd-version {
 		font-size: 0.72rem;
 		font-weight: 700;
 		color: var(--text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.sd-status-label {
+		font-size: 0.6rem;
+		color: var(--text-muted);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -397,6 +468,13 @@
 	.sd-error-msg {
 		font-size: 0.65rem;
 		color: var(--color-error);
+		word-break: break-word;
+		line-height: 1.3;
+	}
+
+	.sd-retry-msg {
+		font-size: 0.65rem;
+		color: var(--color-warning);
 		word-break: break-word;
 		line-height: 1.3;
 	}

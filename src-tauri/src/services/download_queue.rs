@@ -1,13 +1,17 @@
 use crate::core::path_manager::PathManager;
 use crate::core::{AppEvent, emit};
 use crate::services::java_manager::JavaManager;
-use aqua::{DownloadManager, DownloadProgress, DownloadProgressType};
+use aqua::{DownloadBatch, DownloadManager, DownloadProgress, DownloadProgressType};
 use compact_str::CompactString;
 use dashmap::DashMap;
 use std::borrow::Cow;
 use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 use tokio::sync::mpsc;
-use tracing::{error, info};
+use tracing::{error, info, warn};
+
+const MAX_RETRIES: u8 = 3;
+const RETRY_DELAYS: [u64; 3] = [5, 15, 45];
 
 static DOWNLOAD_QUEUE: OnceLock<Arc<DownloadQueue>> = OnceLock::new();
 
@@ -18,6 +22,7 @@ pub enum DownloadStatus {
     Downloading,
     Done,
     Error(String),
+    Retrying(u8, u8),
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -41,7 +46,7 @@ impl DownloadState {
     pub fn is_active(&self) -> bool {
         matches!(
             self.status,
-            DownloadStatus::Pending | DownloadStatus::Downloading
+            DownloadStatus::Pending | DownloadStatus::Downloading | DownloadStatus::Retrying(..)
         )
     }
 }
@@ -49,6 +54,7 @@ impl DownloadState {
 pub struct DownloadQueue {
     sender: mpsc::Sender<Arc<str>>,
     active: DashMap<Arc<str>, DownloadState>,
+    pending_batches: DashMap<Arc<str>, Box<dyn DownloadBatch + 'static>>,
 }
 
 impl DownloadQueue {
@@ -64,6 +70,7 @@ impl DownloadQueue {
         let queue = Arc::new(Self {
             sender: tx,
             active: DashMap::new(),
+            pending_batches: DashMap::new(),
         });
 
         let queue_clone = queue.clone();
@@ -122,6 +129,34 @@ impl DownloadQueue {
         });
     }
 
+    pub async fn enqueue_batch(
+        &self,
+        version: impl Into<Arc<str>>,
+        batch: Box<dyn DownloadBatch + 'static>,
+    ) {
+        let version: Arc<str> = version.into();
+
+        if let Some(state) = self.active.get(&version)
+            && state.is_active()
+        {
+            return;
+        }
+
+        info!("Batch {} encolada", &*version);
+
+        self.pending_batches.insert(version.clone(), batch);
+        self.active
+            .insert(version.clone(), DownloadState::new(version.clone()));
+
+        emit(AppEvent::DEnqueue {
+            version: version.clone(),
+        });
+
+        if let Err(e) = self.sender.send(version).await {
+            error!("Error al encolar batch: {}", e);
+        }
+    }
+
     pub async fn finish_work(&self, label: &str) {
         let label: Arc<str> = label.into();
         if let Some(mut state) = self.active.get_mut(&label) {
@@ -135,112 +170,153 @@ impl DownloadQueue {
 
     async fn worker(mut rx: mpsc::Receiver<Arc<str>>, queue: Arc<DownloadQueue>) {
         while let Some(version) = rx.recv().await {
+            Self::process_with_retry(&queue, version).await;
+        }
+
+        error!("Worker de descargas terminó inesperadamente — el channel fue cerrado");
+    }
+
+    async fn process_with_retry(queue: &Arc<DownloadQueue>, version: Arc<str>) {
+        for attempt in 0..=MAX_RETRIES {
             let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
             let manager = DownloadManager::new(shared_dir.clone());
+
+            if attempt > 0 {
+                warn!(
+                    "Reintentando {} (intento {}/{})",
+                    version, attempt, MAX_RETRIES
+                );
+                if let Some(mut state) = queue.active.get_mut(&version) {
+                    state.status = DownloadStatus::Retrying(attempt, MAX_RETRIES);
+                }
+                emit(AppEvent::DRetry {
+                    version: version.clone(),
+                    attempt,
+                    max: MAX_RETRIES,
+                });
+                let delay = RETRY_DELAYS[(attempt - 1) as usize];
+                tokio::time::sleep(Duration::from_secs(delay)).await;
+            }
 
             if let Some(mut state) = queue.active.get_mut(&version) {
                 state.status = DownloadStatus::Downloading;
             } else {
                 error!("State no encontrado para {}, saltando", version);
-                continue;
+                break;
+            }
+
+            // Check if there's a pending batch for this version (e.g. JRE)
+            if let Some(batch) = queue.pending_batches.remove(&version) {
+                let (_, batch) = batch;
+                let (tx, progress_rx) = mpsc::channel::<DownloadProgress>(100);
+                let monitor =
+                    monitor_download_progress(version.clone(), progress_rx, queue.clone());
+
+                let (dl_result, ()) =
+                    tokio::join!(async { batch.finalize(Some(tx)).await }, monitor);
+
+                match dl_result {
+                    Ok(_) => {
+                        info!("Batch {} completado correctamente", version);
+                        if let Some(mut state) = queue.active.get_mut(&version) {
+                            state.status = DownloadStatus::Done;
+                        }
+                        emit(AppEvent::DFinish {
+                            version: version.clone(),
+                        });
+                        emit(AppEvent::JREChanged);
+                        break;
+                    }
+                    Err(e) => {
+                        if attempt < MAX_RETRIES {
+                            continue;
+                        }
+                        emit_and_set_error(
+                            queue,
+                            &version,
+                            format!("No se pudo completar el batch {}: {:?}", version, e),
+                        );
+                        break;
+                    }
+                }
             }
 
             // Detect Forge versions: "{mc}-forge-{forge}"
-            let download_handle = if version.contains("-forge-") {
-                let parts: Vec<&str> = version.split("-forge-").collect();
-                if parts.len() == 2 {
-                    let gv = parts[0];
-                    let fv = parts[1];
+            let download_handle = match version.contains("-forge-") {
+                true => {
+                    let parts: Vec<&str> = version.split("-forge-").collect();
+                    if parts.len() == 2 {
+                        let gv = parts[0];
+                        let fv = parts[1];
 
-                    // Ensure base MC version exists before Forge post-processors run
-                    let mc_jar = shared_dir
-                        .join("versions")
-                        .join(gv)
-                        .join(format!("{gv}.jar"));
-                    if !mc_jar.exists() {
-                        info!(
-                            "Base MC {gv} jar not found, downloading before Forge..."
-                        );
-                        match manager.prepare(gv).await {
-                            Ok(base_handle) => {
-                                if let Err(e) = base_handle.download_all(None).await {
-                                    error!("Failed to download base MC {gv}: {:?}", e);
-                                }
-                            }
-                            Err(e) => {
-                                error!("Failed to prepare base MC {gv}: {:?}", e);
+                        let mc_jar = shared_dir
+                            .join("versions")
+                            .join(gv)
+                            .join(format!("{gv}.jar"));
+                        if !mc_jar.exists() {
+                            info!("Base MC {gv} jar not found, downloading before Forge...");
+                            if let Ok(base_handle) = manager.prepare(gv).await {
+                                let _ = base_handle.download_all(None).await;
                             }
                         }
-                    }
 
-                    let java_path = [21u8, 17, 8]
-                        .into_iter()
-                        .find(|v| JavaManager::is_installed(*v))
-                        .map(|v| JavaManager::get_java_binary(v));
+                        let java_path = [21u8, 17, 8]
+                            .into_iter()
+                            .find(|v| JavaManager::is_installed(*v))
+                            .map(|v| JavaManager::get_java_binary(v));
 
-                    let installer_url =
-                        aqua::ForgeBatch::resolve_installer_url(gv, fv);
-                    match aqua::ForgeBatch::new(&shared_dir, gv, fv, &installer_url, java_path).await {
-                        Ok(batch) => match manager.prepare_batch(Box::new(batch)).await {
-                            Ok(h) => h,
-                            Err(e) => {
-                                emit_and_set_error(&queue, &version, format!("No se pudo preparar Forge: {:?}", e));
-                                continue;
-                            }
-                        },
-                        Err(e) => {
-                            emit_and_set_error(&queue, &version, format!("No se pudo crear Forge batch: {:?}", e));
-                            continue;
-                        }
-                    }
-                } else {
-                    emit_and_set_error(&queue, &version, format!("Forge version format invalid: {}", version));
-                    continue;
-                }
-            } else {
-                match manager.prepare(&version).await {
-                    Ok(h) => h,
-                    Err(_) => {
-                        // For loaders (Fabric, NeoForge, Quilt): download base MC first, then retry
-                        let deps = zellkern::resolve_dependencies(&version);
-                        let mc_version = deps.first().filter(|v| *v != version.as_ref()).cloned();
-
-                        if let Some(gv) = mc_version {
-                            info!(
-                                "Loader {} falló, descargando base MC {} primero...",
-                                version, gv
-                            );
-                            match manager.prepare(&gv).await {
-                                Ok(base_handle) => {
-                                    if let Err(e) = base_handle.download_all(None).await {
-                                        error!("Failed to download base MC {gv}: {:?}", e);
-                                    }
-                                }
-                                Err(e) => {
-                                    emit_and_set_error(&queue, &version, format!("No se pudo preparar base {} para loader: {:?}", gv, e));
-                                    continue;
-                                }
-                            }
-                            // Retry loader after base MC is available
-                            match manager.prepare(&version).await {
+                        let installer_url = aqua::ForgeBatch::resolve_installer_url(gv, fv);
+                        match aqua::ForgeBatch::new(&shared_dir, gv, fv, &installer_url, java_path).await {
+                            Ok(batch) => match manager.prepare_batch(Box::new(batch)).await {
                                 Ok(h) => h,
                                 Err(e) => {
-                                    emit_and_set_error(&queue, &version, format!("No se pudo descargar loader después de restaurar base: {:?}", e));
-                                    continue;
+                                    if attempt < MAX_RETRIES { continue; }
+                                    emit_and_set_error(queue, &version, format!("No se pudo preparar Forge: {:?}", e));
+                                    break;
                                 }
+                            },
+                            Err(e) => {
+                                if attempt < MAX_RETRIES { continue; }
+                                emit_and_set_error(queue, &version, format!("No se pudo crear Forge batch: {:?}", e));
+                                break;
                             }
-                        } else {
-                            emit_and_set_error(&queue, &version, format!("La versión solicitada no existe: {}", version));
-                            continue;
+                        }
+                    } else {
+                        emit_and_set_error(queue, &version, format!("Forge version format invalid: {}", version));
+                        break;
+                    }
+                }
+                false => {
+                    match manager.prepare(&version).await {
+                        Ok(h) => h,
+                        Err(_) => {
+                            let deps = zellkern::resolve_dependencies(&version);
+                            let mc_version = deps.first().filter(|v| *v != version.as_ref()).cloned();
+
+                            if let Some(gv) = mc_version {
+                                info!("Loader {} falló, descargando base MC {} primero...", version, gv);
+                                if let Ok(base_handle) = manager.prepare(&gv).await {
+                                    let _ = base_handle.download_all(None).await;
+                                }
+                                match manager.prepare(&version).await {
+                                    Ok(h) => h,
+                                    Err(e) => {
+                                        if attempt < MAX_RETRIES { continue; }
+                                        emit_and_set_error(queue, &version, format!("No se pudo descargar loader después de restaurar base: {:?}", e));
+                                        break;
+                                    }
+                                }
+                            } else {
+                                emit_and_set_error(queue, &version, format!("La versión solicitada no existe: {}", version));
+                                break;
+                            }
                         }
                     }
                 }
             };
 
             let (tx, progress_rx) = mpsc::channel::<DownloadProgress>(100);
-
             let monitor = monitor_download_progress(version.clone(), progress_rx, queue.clone());
-
             let (dl_result, ()) = tokio::join!(download_handle.download_all(Some(tx)), monitor);
 
             match dl_result {
@@ -250,16 +326,19 @@ impl DownloadQueue {
                         state.status = DownloadStatus::Done;
                     }
                     emit(AppEvent::DFinish { version });
+                    break;
                 }
                 Err(e) => {
-                    emit_and_set_error(&queue, &version, format!("No se pudo descargar {}: {:?}", version, e));
+                    if attempt < MAX_RETRIES {
+                        continue;
+                    }
+                    emit_and_set_error(queue, &version, format!("No se pudo descargar {}: {:?}", version, e));
+                    break;
                 }
             }
-
-            queue.active.retain(|_, s| s.is_active());
         }
 
-        error!("Worker de descargas terminó inesperadamente — el channel fue cerrado");
+        queue.active.retain(|_, s| s.is_active());
     }
 }
 
@@ -283,6 +362,7 @@ fn d_type_str(t: &DownloadProgressType) -> &'static str {
         DownloadProgressType::Verifying => "Verifying",
         DownloadProgressType::Generic => "Generic",
         DownloadProgressType::Processing => "Processing",
+        DownloadProgressType::Jre => "Jre",
     }
 }
 

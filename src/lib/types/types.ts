@@ -174,9 +174,11 @@ export type AppEvent =
 			};
 	  }
 	| {
-			type: "DFinishRuntime";
+			type: "DRetry";
 			data: {
 				version: string;
+				attempt: number;
+				max: number;
 			};
 	  }
 	| {

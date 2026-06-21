@@ -7,7 +7,7 @@ pub(crate) mod utilities;
 
 pub use downloaders::{
     DownloadBatch, DownloadHandle, DownloadItemSpec, DownloadManager, FabricBatch, ForgeBatch,
-    ForgeVersionInfo, GenericBatch, MinecraftBatch,
+    ForgeVersionInfo, GenericBatch, JreBatch, MinecraftBatch,
 };
 pub use errors::AquaError;
 pub use jre::{JrePackage, JreStatus, ZuluApi, ZuluPackage};

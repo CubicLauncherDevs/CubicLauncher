@@ -523,9 +523,7 @@ mod tests {
     }
 
     #[test]
-    fn buttons_split_into_labels_and_metadata() {
-        
-
+    fn buttons_include_url_in_activity() {
         let activity = Activity::builder()
             .button("GitHub", "https://github.com")
             .button("Docs", "https://docs.rs")
@@ -533,15 +531,15 @@ mod tests {
 
         let (val, meta) = build_activity_payload(&activity);
 
-        // Labels stay in activity
+        // Buttons include label AND url in the activity object
         let labels = val["buttons"].as_array().unwrap();
         assert_eq!(labels[0]["label"], "GitHub");
-        assert_eq!(labels[0].get("url"), None); // url must NOT be here
+        assert_eq!(labels[0]["url"], "https://github.com");
+        assert_eq!(labels[1]["label"], "Docs");
+        assert_eq!(labels[1]["url"], "https://docs.rs");
 
-        // URLs go in metadata
-        let meta = meta.unwrap();
-        assert_eq!(meta["button_urls"][0], "https://github.com");
-        assert_eq!(meta["button_urls"][1], "https://docs.rs");
+        // No separate metadata field
+        assert!(meta.is_none());
     }
 
     #[tokio::test]

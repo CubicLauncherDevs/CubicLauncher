@@ -4,18 +4,23 @@
 	import type { AppEvent } from "$lib/types/types";
 	import { getDownloadQueue } from "$lib/api/cubicApi";
 	import { SvelteMap } from "svelte/reactivity";
+	import { t } from "$lib/i18n";
 	import CheckIcon from "$lib/icons/CheckIcon.svelte";
 	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
 
-	type SegmentKey = "Library" | "Asset" | "Native" | "Client";
-	const SEGMENTS: SegmentKey[] = ["Library", "Asset", "Native", "Client"];
+	type SegmentKey = "Library" | "Asset" | "Native" | "Client" | "Verifying" | "Generic" | "Processing" | "Jre";
+	const SEGMENTS: SegmentKey[] = ["Library", "Asset", "Native", "Client", "Verifying", "Generic", "Processing", "Jre"];
 
 	const SEGMENT_COLORS: Record<SegmentKey, string> = {
 		Library: "#4ade80",
 		Asset: "#60a5fa",
 		Native: "#f59e0b",
 		Client: "#a78bfa",
+		Verifying: "#f472b6",
+		Generic: "#94a3b8",
+		Processing: "#fb923c",
+		Jre: "#22d3ee",
 	};
 
 	const SEGMENT_LABELS: Record<SegmentKey, string> = {
@@ -23,6 +28,10 @@
 		Asset: "ASSET",
 		Native: "NAT",
 		Client: "CLIENT",
+		Verifying: "VERIFY",
+		Generic: "DL",
+		Processing: "PROC",
+		Jre: "JAVA",
 	};
 
 	interface SegmentProgress {
@@ -43,7 +52,25 @@
 			Asset: { current: 0, total: 0 },
 			Native: { current: 0, total: 0 },
 			Client: { current: 0, total: 0 },
+			Verifying: { current: 0, total: 0 },
+			Generic: { current: 0, total: 0 },
+			Processing: { current: 0, total: 0 },
+			Jre: { current: 0, total: 0 },
 		};
+	}
+
+	function statusLabel(key: SegmentKey | null): string {
+		switch (key) {
+			case "Library": return t("downloadProgress.statusLibs");
+			case "Asset": return t("downloadProgress.statusAssets");
+			case "Native": return t("downloadProgress.statusNatives");
+			case "Client": return t("downloadProgress.statusClient");
+			case "Verifying": return t("downloadProgress.statusVerifying");
+			case "Generic": return t("downloadProgress.statusGeneric");
+			case "Processing": return t("downloadProgress.statusProcessing");
+			case "Jre": return t("downloadProgress.statusJre");
+			default: return t("downloadProgress.statusGeneric");
+		}
 	}
 
 	let downloads = new SvelteMap<string, DownloadItem>();
@@ -178,7 +205,12 @@
 							{:else}
 								<span class="dl-tray-spinner-sm"></span>
 							{/if}
-							<span class="dl-tray-version">{item.version}</span>
+							<div class="dl-tray-version-wrap">
+								<span class="dl-tray-version">{item.version}</span>
+								{#if !item.done && item.activeType}
+									<span class="dl-tray-status-label">{statusLabel(item.activeType)}</span>
+								{/if}
+							</div>
 						</div>
 						<span class="dl-tray-pct" class:done={item.done}
 							>{overall}%</span
@@ -383,6 +415,13 @@
 		gap: 7px;
 	}
 
+	.dl-tray-version-wrap {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		min-width: 0;
+	}
+
 	.dl-tray-version {
 		font-size: 0.8rem;
 		font-weight: 700;
@@ -391,6 +430,15 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		max-width: 220px;
+	}
+
+	.dl-tray-status-label {
+		font-size: 0.6rem;
+		color: var(--text-muted);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 180px;
 	}
 
 	.dl-tray-pct {
