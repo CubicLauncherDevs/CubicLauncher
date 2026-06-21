@@ -600,7 +600,6 @@
 			loadVersions(getProjectId(selectedMod));
 		}
 	});
-
 </script>
 
 <div class="dm-root">

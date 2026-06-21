@@ -348,6 +348,56 @@
 						>
 					</div>
 				</CollapsibleSection>
+
+				<CollapsibleSection
+					title={t("settings.about.title")}
+					iconSrc="/images/cubic.svg"
+					storageKey="section_about"
+				>
+					<div class="about-content">
+						<p class="about-desc">
+							{t("settings.about.description")}
+						</p>
+						<div
+							role="button"
+							tabindex="0"
+							onclick={() =>
+								openUrl("https://discord.gg/XQrRFWRyp")}
+							onkeydown={(e) => {
+								if (e.key === "Enter")
+									openUrl("https://discord.gg/XQrRFWRyp");
+							}}
+						>
+							<img
+								src="/images/icons/discord.svg"
+								alt="Discord"
+								class="about-discord-icon"
+								tabindex="-1    "
+							/>
+						</div>
+						<p class="about-credit">
+							{t("settings.about.creditMadeBy")}
+							<button
+								type="button"
+								class="about-link"
+								onclick={() =>
+									openUrl("https://github.com/staff6773")}
+							>
+								Notstaff
+							</button>
+							{t("settings.about.creditAnd")}
+							<button
+								type="button"
+								class="about-link"
+								onclick={() =>
+									openUrl("https://github.com/santiagolxx")}
+							>
+								Santiagolxx
+							</button>
+							{t("settings.about.creditSuffix")}
+						</p>
+					</div>
+				</CollapsibleSection>
 			</div>
 		{/if}
 
@@ -576,7 +626,8 @@
 							id="jvm-args"
 							bind:value={launcherStore.settings.jvm_args}
 							placeholder="-Xmx2G -Xms1G ..."
-							class="jvm-args-textarea"></textarea>
+							class="jvm-args-textarea"
+						></textarea>
 					</div>
 					<EnvVarEditor
 						initial={launcherStore.settings.env_vars}
@@ -586,54 +637,6 @@
 				</CollapsibleSection>
 			</div>
 		{/if}
-
-		<div class="section-group about-section-group">
-			<CollapsibleSection
-				title={t("settings.about.title")}
-				iconSrc="/images/cubic.svg"
-				storageKey="section_about"
-			>
-				<div class="about-content">
-					<p class="about-desc">
-						{t("settings.about.description")}
-					</p>
-					<img
-						src="/images/icons/discord.svg"
-						alt="Discord"
-						class="about-discord-icon"
-						role="button"
-						tabindex="0"
-						onclick={() =>
-							openUrl("https://discord.gg/XQrRFWRyp")}
-						onkeydown={(e) => {
-							if (e.key === "Enter")
-								openUrl("https://discord.gg/XQrRFWRyp");
-						}}
-					/>
-					<p class="about-credit">
-						{t("settings.about.creditMadeBy")}
-						<button
-							type="button"
-							class="about-link"
-							onclick={() =>
-								openUrl("https://github.com/staff6773")}
-						>
-							Notstaff
-						</button>
-						{t("settings.about.creditAnd")}
-						<button
-							type="button"
-							class="about-link"
-							onclick={() =>
-								openUrl("https://github.com/santiagolxx")}
-						>
-							Santiagolxx
-						</button>
-						{t("settings.about.creditSuffix")}
-					</p>
-				</div>
-			</CollapsibleSection>
-		</div>
 	</div>
 
 	<div class="save-footer">
@@ -932,15 +935,6 @@
 
 	.qm-themes-hint:hover {
 		color: var(--text-primary);
-	}
-
-	.about-section-group {
-		margin-top: -16px;
-	}
-
-	.about-section-group :global(.cs-content) {
-		display: flex;
-		justify-content: center;
 	}
 
 	.about-content {

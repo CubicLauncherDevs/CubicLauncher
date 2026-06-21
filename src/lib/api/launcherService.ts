@@ -45,12 +45,14 @@ export function initEventListeners(): void {
 				clearTimeout(_instanceTimer);
 				_instanceTimer = setTimeout(() => getVersions(), 100);
 				break;
-			case "InstanceDeleted": {
-				const idx = launcherStore.loadedInstances.findIndex(
-					(i) => i.uuid === payload.data.id,
-				);
-				if (idx !== -1) launcherStore.loadedInstances.splice(idx, 1);
-			}
+			case "InstanceDeleted":
+				{
+					const idx = launcherStore.loadedInstances.findIndex(
+						(i) => i.uuid === payload.data.id,
+					);
+					if (idx !== -1)
+						launcherStore.loadedInstances.splice(idx, 1);
+				}
 				break;
 			case "STChanged":
 				clearTimeout(_settingsTimer);

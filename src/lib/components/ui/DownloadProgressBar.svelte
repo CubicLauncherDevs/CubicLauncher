@@ -9,8 +9,25 @@
 	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
 
-	type SegmentKey = "Library" | "Asset" | "Native" | "Client" | "Verifying" | "Generic" | "Processing" | "Jre";
-	const SEGMENTS: SegmentKey[] = ["Library", "Asset", "Native", "Client", "Verifying", "Generic", "Processing", "Jre"];
+	type SegmentKey =
+		| "Library"
+		| "Asset"
+		| "Native"
+		| "Client"
+		| "Verifying"
+		| "Generic"
+		| "Processing"
+		| "Jre";
+	const SEGMENTS: SegmentKey[] = [
+		"Library",
+		"Asset",
+		"Native",
+		"Client",
+		"Verifying",
+		"Generic",
+		"Processing",
+		"Jre",
+	];
 
 	const SEGMENT_COLORS: Record<SegmentKey, string> = {
 		Library: "#4ade80",
@@ -61,15 +78,24 @@
 
 	function statusLabel(key: SegmentKey | null): string {
 		switch (key) {
-			case "Library": return t("downloadProgress.statusLibs");
-			case "Asset": return t("downloadProgress.statusAssets");
-			case "Native": return t("downloadProgress.statusNatives");
-			case "Client": return t("downloadProgress.statusClient");
-			case "Verifying": return t("downloadProgress.statusVerifying");
-			case "Generic": return t("downloadProgress.statusGeneric");
-			case "Processing": return t("downloadProgress.statusProcessing");
-			case "Jre": return t("downloadProgress.statusJre");
-			default: return t("downloadProgress.statusGeneric");
+			case "Library":
+				return t("downloadProgress.statusLibs");
+			case "Asset":
+				return t("downloadProgress.statusAssets");
+			case "Native":
+				return t("downloadProgress.statusNatives");
+			case "Client":
+				return t("downloadProgress.statusClient");
+			case "Verifying":
+				return t("downloadProgress.statusVerifying");
+			case "Generic":
+				return t("downloadProgress.statusGeneric");
+			case "Processing":
+				return t("downloadProgress.statusProcessing");
+			case "Jre":
+				return t("downloadProgress.statusJre");
+			default:
+				return t("downloadProgress.statusGeneric");
 		}
 	}
 
@@ -206,9 +232,13 @@
 								<span class="dl-tray-spinner-sm"></span>
 							{/if}
 							<div class="dl-tray-version-wrap">
-								<span class="dl-tray-version">{item.version}</span>
+								<span class="dl-tray-version"
+									>{item.version}</span
+								>
 								{#if !item.done && item.activeType}
-									<span class="dl-tray-status-label">{statusLabel(item.activeType)}</span>
+									<span class="dl-tray-status-label"
+										>{statusLabel(item.activeType)}</span
+									>
 								{/if}
 							</div>
 						</div>

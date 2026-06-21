@@ -10,8 +10,25 @@
 	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
 
-	type SegKey = "Library" | "Asset" | "Native" | "Client" | "Verifying" | "Generic" | "Processing" | "Jre";
-	const SEGS: SegKey[] = ["Library", "Asset", "Native", "Client", "Verifying", "Generic", "Processing", "Jre"];
+	type SegKey =
+		| "Library"
+		| "Asset"
+		| "Native"
+		| "Client"
+		| "Verifying"
+		| "Generic"
+		| "Processing"
+		| "Jre";
+	const SEGS: SegKey[] = [
+		"Library",
+		"Asset",
+		"Native",
+		"Client",
+		"Verifying",
+		"Generic",
+		"Processing",
+		"Jre",
+	];
 
 	interface SegProg {
 		current: number;
@@ -56,15 +73,24 @@
 
 	function statusLabel(activeType: SegKey | null): string {
 		switch (activeType) {
-			case "Library": return t("downloadProgress.statusLibs");
-			case "Asset": return t("downloadProgress.statusAssets");
-			case "Native": return t("downloadProgress.statusNatives");
-			case "Client": return t("downloadProgress.statusClient");
-			case "Verifying": return t("downloadProgress.statusVerifying");
-			case "Generic": return t("downloadProgress.statusGeneric");
-			case "Processing": return t("downloadProgress.statusProcessing");
-			case "Jre": return t("downloadProgress.statusJre");
-			default: return t("downloadProgress.statusGeneric");
+			case "Library":
+				return t("downloadProgress.statusLibs");
+			case "Asset":
+				return t("downloadProgress.statusAssets");
+			case "Native":
+				return t("downloadProgress.statusNatives");
+			case "Client":
+				return t("downloadProgress.statusClient");
+			case "Verifying":
+				return t("downloadProgress.statusVerifying");
+			case "Generic":
+				return t("downloadProgress.statusGeneric");
+			case "Processing":
+				return t("downloadProgress.statusProcessing");
+			case "Jre":
+				return t("downloadProgress.statusJre");
+			default:
+				return t("downloadProgress.statusGeneric");
 		}
 	}
 
@@ -143,7 +169,10 @@
 					};
 					downloads.set(version, {
 						...existing,
-						retryMsg: t("downloadProgress.retrying", { attempt, max }),
+						retryMsg: t("downloadProgress.retrying", {
+							attempt,
+							max,
+						}),
 					});
 					break;
 				}
@@ -255,7 +284,11 @@
 											: item.version}</span
 									>
 									{#if !item.done && !item.error && item.activeType}
-										<span class="sd-status-label">{statusLabel(item.activeType)}</span>
+										<span class="sd-status-label"
+											>{statusLabel(
+												item.activeType,
+											)}</span
+										>
 									{/if}
 								</div>
 							</span>
