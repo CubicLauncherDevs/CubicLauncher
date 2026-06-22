@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { dismissJreInstallPrompt, showInfo, setPendingJreLaunch, clearPendingJreLaunch } from "$lib/state/state.svelte";
+	import {
+		dismissJreInstallPrompt,
+		showInfo,
+		setPendingJreLaunch,
+		clearPendingJreLaunch,
+	} from "$lib/state/state.svelte";
 	import { installJre } from "$lib/api/cubicApi";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
@@ -40,11 +45,10 @@
 		title={t("settings.java.notInstalled")}
 	>
 		{#snippet children()}
-			<p
-				transition:fly={{ y: 8, duration: 200 }}
-				class="jre-dialog-text"
-			>
-				{t("launch.jreMissingBody", { version: String(prompt.version) })}
+			<p transition:fly={{ y: 8, duration: 200 }} class="jre-dialog-text">
+				{t("launch.jreMissingBody", {
+					version: String(prompt.version),
+				})}
 			</p>
 		{/snippet}
 		{#snippet footer()}

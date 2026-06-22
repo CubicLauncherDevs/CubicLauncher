@@ -214,10 +214,7 @@ export async function launchInstance(
 		const errorStr = err as string;
 		try {
 			const parsed = JSON.parse(errorStr);
-			if (
-				parsed.code === "INST_JRE_MISSING" &&
-				parsed.params?.version
-			) {
+			if (parsed.code === "INST_JRE_MISSING" && parsed.params?.version) {
 				const version = parseInt(parsed.params.version, 10);
 				if ([8, 17, 21, 25].includes(version)) {
 					showJreInstallPrompt(version, instance);

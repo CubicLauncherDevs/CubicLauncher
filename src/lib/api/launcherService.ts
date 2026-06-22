@@ -1,4 +1,9 @@
-import { launcherStore, showErrorParsed, showSuccess, clearPendingJreLaunch } from "../state/state.svelte";
+import {
+	launcherStore,
+	showErrorParsed,
+	showSuccess,
+	clearPendingJreLaunch,
+} from "../state/state.svelte";
 import { listen } from "@tauri-apps/api/event";
 import type { AppEvent, InstanceDto, MinecraftUser } from "../types/types";
 import {
