@@ -168,7 +168,8 @@
 					updated.name !== sel.name ||
 					updated.loader !== sel.loader ||
 					updated.version !== sel.version ||
-					updated.last_played !== sel.last_played)
+					updated.last_played !== sel.last_played ||
+					updated.icon !== sel.icon)
 			) {
 				selectedInstance = updated;
 			}
