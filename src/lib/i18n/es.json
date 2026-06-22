@@ -5,6 +5,7 @@
 	},
 	"settings": {
 		"title": "Ajustes",
+		"advanced": "Avanzado",
 		"tabs": {
 			"launcher": "Launcher",
 			"minecraft": "Minecraft",

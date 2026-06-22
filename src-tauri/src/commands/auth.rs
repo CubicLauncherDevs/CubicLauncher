@@ -1,3 +1,4 @@
+use crate::commands::others::open_url;
 use crate::core::errors::{AuthError, CoreError};
 use crate::services::SettingsManager;
 use launchwerk::auth::{MinecraftUser, microsoft::MicrosoftAuth, yggdrasil::YggdrasilAuth};
@@ -45,6 +46,7 @@ pub async fn authenticate_with_device_code(
     expires_in: u64,
 ) -> Result<MinecraftUser, String> {
     info!("Autenticando con código de dispositivo...");
+    open_url("https://www.microsoft.com/link".to_string())?;
     let user = tokio::task::spawn_blocking(move || {
         MicrosoftAuth::default()
             .authenticate_with_device_code(&device_code, interval, expires_in)

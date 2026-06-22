@@ -282,7 +282,7 @@
 >
 	<!-- Step indicator -->
 	<div class="step-indicator">
-		{#each { length: TOTAL_STEPS } as _, i}
+		{#each { length: TOTAL_STEPS } as _, i (i)}
 			{@const active = i === currentStep}
 			{@const done = i < currentStep}
 			<div class="step-dot" class:active class:done>

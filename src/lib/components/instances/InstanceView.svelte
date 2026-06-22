@@ -30,17 +30,15 @@
 		}
 	});
 
-	// Lazy loaded components — loaded on first tab switch
-	let ModsRow: typeof import("./ModsRow.svelte").default | null =
-		$state(null);
-	let DownloadMods: typeof import("./DownloadMods.svelte").default | null =
-		$state(null);
-	let ResourcePacksTab:
-		| typeof import("./ResourcePacksTab.svelte").default
-		| null = $state(null);
-	let ScreenshotsTab:
-		| typeof import("./ScreenshotsTab.svelte").default
-		| null = $state(null);
+	import type ModsRowType from "./ModsRow.svelte";
+	import type DownloadModsType from "./DownloadMods.svelte";
+	import type ResourcePacksTabType from "./ResourcePacksTab.svelte";
+	import type ScreenshotsTabType from "./ScreenshotsTab.svelte";
+
+	let ModsRow: typeof ModsRowType | null = $state(null);
+	let DownloadMods: typeof DownloadModsType | null = $state(null);
+	let ResourcePacksTab: typeof ResourcePacksTabType | null = $state(null);
+	let ScreenshotsTab: typeof ScreenshotsTabType | null = $state(null);
 
 	$effect(() => {
 		if (activeTab === "mods" && !ModsRow) {

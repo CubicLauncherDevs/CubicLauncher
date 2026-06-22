@@ -614,7 +614,7 @@
 				</CollapsibleSection>
 
 				<CollapsibleSection
-					title="Avanzado"
+					title={t("settings.advanced")}
 					iconSrc="/images/icons/settings.svg"
 					storageKey="section_advanced"
 				>
