@@ -16,6 +16,7 @@ use launchwerk::auth::{
 use launchwerk::models::VersionManifest;
 use launchwerk::{LaunchConfig, Launchwerk};
 use std::collections::VecDeque;
+use std::mem;
 use std::sync::{Arc, OnceLock};
 use tauri::Emitter;
 use tokio::fs;
@@ -544,7 +545,7 @@ fn spawn_io_forwarding(
                 }
                 _ = interval.tick() => {
                     if !batch.is_empty() {
-                        let lines: Vec<serde_json::Value> = batch.drain(..).collect();
+                        let lines: Vec<serde_json::Value> = mem::take(&mut batch);
                         let _ = app.emit(
                             "instance-log-batch",
                             serde_json::json!({ "id": id, "lines": lines }),
@@ -554,7 +555,7 @@ fn spawn_io_forwarding(
             }
         }
         if !batch.is_empty() {
-            let lines: Vec<serde_json::Value> = batch.drain(..).collect();
+            let lines: Vec<serde_json::Value> = mem::take(&mut batch);
             let _ = app.emit(
                 "instance-log-batch",
                 serde_json::json!({ "id": id, "lines": lines }),

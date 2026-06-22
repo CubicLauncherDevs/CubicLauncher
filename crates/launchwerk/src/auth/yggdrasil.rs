@@ -299,11 +299,11 @@ fn resolve_relative_url(base: &str, relative: &str) -> String {
     let base_clean = base.trim_end_matches('/');
     if relative.starts_with('/') {
         // Absolute path relative to origin
-        if let Some(origin_end) = base_clean.find("://") {
-            if let Some(slash_pos) = base_clean[origin_end + 3..].find('/') {
-                let origin = &base_clean[..origin_end + 3 + slash_pos];
-                return format!("{}{}", origin, relative);
-            }
+        if let Some(origin_end) = base_clean.find("://")
+            && let Some(slash_pos) = base_clean[origin_end + 3..].find('/')
+        {
+            let origin = &base_clean[..origin_end + 3 + slash_pos];
+            return format!("{}{}", origin, relative);
         }
         format!("{}{}", base_clean, relative)
     } else {

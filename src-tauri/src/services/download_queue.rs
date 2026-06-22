@@ -260,17 +260,17 @@ impl DownloadQueue {
                             }
                         }
 
-                        if !JavaManager::is_installed(21) {
-                            if let Err(e) = JavaManager::install(21).await {
-                                warn!(
-                                    "No se pudo instalar Java 21 automáticamente: {e}, usando fallback..."
-                                );
-                            }
+                        if !JavaManager::is_installed(21)
+                            && let Err(e) = JavaManager::install(21).await
+                        {
+                            warn!(
+                                "No se pudo instalar Java 21 automáticamente: {e}, usando fallback..."
+                            );
                         }
                         let java_path = [21u8, 17, 8]
                             .into_iter()
                             .find(|v| JavaManager::is_installed(*v))
-                            .map(|v| JavaManager::get_java_binary(v));
+                            .map(JavaManager::get_java_binary);
 
                         let installer_url = aqua::ForgeBatch::resolve_installer_url(gv, fv);
                         match aqua::ForgeBatch::new(&shared_dir, gv, fv, &installer_url, java_path)

@@ -398,14 +398,8 @@ impl DownloadBatch for ForgeBatch {
                     .map(|arg| resolve_arg(arg, &data, &mc_jar, &staging_libs, &staging_parent))
                     .collect();
 
-                run_java_process(
-                    &java_path,
-                    &classpath,
-                    &main_class,
-                    resolved_args,
-                    &proc.jar,
-                )
-                .await?;
+                run_java_process(java_path, &classpath, &main_class, resolved_args, &proc.jar)
+                    .await?;
 
                 // Verify outputs
                 for (out_coord, expected_sha) in &proc.outputs {

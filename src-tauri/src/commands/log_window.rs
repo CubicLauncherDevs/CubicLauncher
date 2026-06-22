@@ -19,11 +19,11 @@ pub async fn open_log_window(
     let label = format!("log-{}", instance_id);
 
     let map = LOG_WINDOWS.get_or_init(DashMap::new);
-    if let Some(existing) = map.get(&instance_id) {
-        if let Some(w) = app.get_webview_window(existing.value()) {
-            let _ = w.set_focus();
-            return Ok(());
-        }
+    if let Some(existing) = map.get(&instance_id)
+        && let Some(w) = app.get_webview_window(existing.value())
+    {
+        let _ = w.set_focus();
+        return Ok(());
     }
 
     let encoded_id = urlencoding::encode(&instance_id);

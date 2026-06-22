@@ -447,11 +447,11 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
         let out_path = theme_dir.join(&relative);
 
         // Crear directorio padre si necesario
-        if let Some(parent) = out_path.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
-                warn!("Error creando directorio {:?}: {}", parent, e);
-                continue;
-            }
+        if let Some(parent) = out_path.parent()
+            && let Err(e) = std::fs::create_dir_all(parent)
+        {
+            warn!("Error creando directorio {:?}: {}", parent, e);
+            continue;
         }
 
         let mut out_file = std::fs::File::create(&out_path).map_err(|e| {
