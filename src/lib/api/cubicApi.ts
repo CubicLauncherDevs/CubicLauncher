@@ -19,7 +19,7 @@ import {
 	type YggdrasilServerInfo,
 } from "../types/types";
 import { invoke } from "@tauri-apps/api/core";
-import { showErrorParsed } from "../state/state.svelte";
+import { showErrorParsed, showJreInstallPrompt } from "../state/state.svelte";
 
 export async function killInstance(
 	uuid: string,
@@ -211,6 +211,22 @@ export async function launchInstance(
 		await invoke("launch", { instanceId: instance.uuid });
 		callback?.();
 	} catch (err) {
+		const errorStr = err as string;
+		try {
+			const parsed = JSON.parse(errorStr);
+			if (
+				parsed.code === "INST_JRE_MISSING" &&
+				parsed.params?.version
+			) {
+				const version = parseInt(parsed.params.version, 10);
+				if ([8, 17, 21, 25].includes(version)) {
+					showJreInstallPrompt(version, instance);
+					return;
+				}
+			}
+		} catch {
+			// JSON parse failed, fall through
+		}
 		showErrorParsed(err);
 		onError?.(err);
 	}

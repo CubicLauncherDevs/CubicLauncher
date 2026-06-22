@@ -1,4 +1,4 @@
-use crate::core::errors::{FsError, InstanceError};
+use crate::core::errors::{AppError, FsError, InstanceError};
 use crate::services::{InstanceDto, InstanceManager, InstanceStatus, Launcher, signal_kill};
 use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
@@ -27,12 +27,12 @@ pub async fn launch(instance_id: String) -> Result<(), String> {
     let manager = InstanceManager::get();
     let Some(handle) = manager.get_handle(&instance_id).await else {
         error!("Instancia {} no encontrada para lanzar", instance_id);
-        return Err(InstanceError::NotFound.to_string());
+        return Err(AppError::Instance(InstanceError::NotFound).to_json());
     };
 
     Launcher::get().launch(handle.clone()).await.map_err(|e| {
         error!("Error lanzando instancia {}: {}", instance_id, e);
-        e.to_string()
+        e.to_json()
     })?;
 
     info!("Instancia {} lanzada exitosamente", instance_id);

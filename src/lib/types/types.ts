@@ -80,6 +80,16 @@ export interface YggdrasilServerInfo {
 	non_email_login: boolean;
 }
 
+export interface JreInstallPrompt {
+	version: number;
+	instance: InstanceDto;
+}
+
+export interface PendingJreLaunch {
+	version: number;
+	instance: InstanceDto;
+}
+
 export interface DeviceCode {
 	user_code: string;
 	device_code: string;

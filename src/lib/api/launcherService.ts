@@ -1,4 +1,4 @@
-import { launcherStore, showErrorParsed } from "../state/state.svelte";
+import { launcherStore, showErrorParsed, showSuccess, clearPendingJreLaunch } from "../state/state.svelte";
 import { listen } from "@tauri-apps/api/event";
 import type { AppEvent, InstanceDto, MinecraftUser } from "../types/types";
 import {
@@ -7,8 +7,10 @@ import {
 	updateSettings,
 	initDiscordPresence,
 	shutdownDiscordPresence,
+	launchInstance,
 } from "./cubicApi";
 import { applyTheme } from "./themeManager";
+import { t } from "$lib/i18n";
 
 import { invoke } from "@tauri-apps/api/core";
 
@@ -54,6 +56,26 @@ export function initEventListeners(): void {
 						launcherStore.loadedInstances.splice(idx, 1);
 				}
 				break;
+			case "DFinish": {
+				const pending = launcherStore.pendingJreLaunch;
+				if (pending) {
+					const jreVersionStr = `jre-${pending.version}`;
+					if (payload.data.version === jreVersionStr) {
+						handleJreInstalled(pending.version, pending.instance);
+					}
+				}
+				break;
+			}
+			case "DError": {
+				const pending = launcherStore.pendingJreLaunch;
+				if (pending) {
+					const jreVersionStr = `jre-${pending.version}`;
+					if (payload.data.version === jreVersionStr) {
+						clearPendingJreLaunch();
+					}
+				}
+				break;
+			}
 			case "STChanged":
 				clearTimeout(_settingsTimer);
 				_settingsTimer = setTimeout(() => syncSettings(), 80);
@@ -65,6 +87,31 @@ export function initEventListeners(): void {
 				break;
 		}
 	});
+}
+
+async function handleJreInstalled(version: number, instance: InstanceDto) {
+	const versionStr = String(version);
+	showSuccess(
+		t("settings.java.installedVersion", { version: versionStr }),
+		"",
+	);
+
+	if (version === 8 && !launcherStore.settings.jre8_managed) {
+		launcherStore.settings.jre8_managed = true;
+		await updateSettings(launcherStore.settings);
+	} else if (version === 17 && !launcherStore.settings.jre17_managed) {
+		launcherStore.settings.jre17_managed = true;
+		await updateSettings(launcherStore.settings);
+	} else if (version === 21 && !launcherStore.settings.jre21_managed) {
+		launcherStore.settings.jre21_managed = true;
+		await updateSettings(launcherStore.settings);
+	} else if (version === 25 && !launcherStore.settings.jre25_managed) {
+		launcherStore.settings.jre25_managed = true;
+		await updateSettings(launcherStore.settings);
+	}
+
+	clearPendingJreLaunch();
+	await launchInstance(instance);
 }
 
 export async function syncSettings(): Promise<void> {

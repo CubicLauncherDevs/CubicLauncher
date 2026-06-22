@@ -1,5 +1,8 @@
 {
 	"id": "en-US",
+	"common": {
+		"cancel": "Cancel"
+	},
 	"settings": {
 		"title": "Settings",
 		"tabs": {
@@ -66,6 +69,7 @@
 			"install": "Install",
 			"uninstall": "Uninstall",
 			"installing": "Installing...",
+			"installVersion": "Installing Java {version}...",
 			"uninstalling": "Uninstalling...",
 			"installedVersion": "Installed version: {version}",
 			"notInstalled": "Not installed",
@@ -134,6 +138,9 @@
 			"success": "Logged in successfully!",
 			"error": "Failed to login: {error}"
 		}
+	},
+	"launch": {
+		"jreMissingBody": "Java {version} is not installed. Would you like to install it now to launch this instance?"
 	},
 	"instanceView": {
 		"neverPlayed": "Never played",

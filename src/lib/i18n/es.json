@@ -1,5 +1,8 @@
 {
 	"id": "es-ES",
+	"common": {
+		"cancel": "Cancelar"
+	},
 	"settings": {
 		"title": "Ajustes",
 		"tabs": {
@@ -66,6 +69,7 @@
 			"install": "Instalar",
 			"uninstall": "Desinstalar",
 			"installing": "Instalando...",
+			"installVersion": "Instalando Java {version}...",
 			"uninstalling": "Desinstalando...",
 			"installedVersion": "Versión instalada: {version}",
 			"notInstalled": "No instalado",
@@ -134,6 +138,9 @@
 			"success": "¡Sesión iniciada correctamente!",
 			"error": "Error al iniciar sesión: {error}"
 		}
+	},
+	"launch": {
+		"jreMissingBody": "Java {version} no está instalado. ¿Quieres instalarlo ahora para iniciar esta instancia?"
 	},
 	"instanceView": {
 		"neverPlayed": "Nunca jugado",

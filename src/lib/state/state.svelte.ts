@@ -3,6 +3,8 @@ import type {
 	Settings,
 	Notification,
 	NotificationType,
+	JreInstallPrompt,
+	PendingJreLaunch,
 } from "../types/types";
 import { t } from "$lib/i18n";
 
@@ -20,6 +22,8 @@ export interface LauncherState {
 	notifications: Notification[];
 	pendingUpdate: PendingUpdate | null;
 	updateDownloaded: boolean;
+	jreInstallPrompt: JreInstallPrompt | null;
+	pendingJreLaunch: PendingJreLaunch | null;
 }
 
 export const launcherStore = $state<LauncherState>({
@@ -30,6 +34,8 @@ export const launcherStore = $state<LauncherState>({
 	updateProgress: 0,
 	pendingUpdate: null,
 	updateDownloaded: false,
+	jreInstallPrompt: null,
+	pendingJreLaunch: null,
 	settings: {
 		user: [],
 		active_user_idx: 0,
@@ -97,6 +103,22 @@ export function showWarning(title: string, message: string) {
 
 export function showInfo(title: string, message: string) {
 	return addNotification(title, message, "info", 4000);
+}
+
+export function showJreInstallPrompt(version: number, instance: InstanceDto) {
+	launcherStore.jreInstallPrompt = { version, instance };
+}
+
+export function dismissJreInstallPrompt() {
+	launcherStore.jreInstallPrompt = null;
+}
+
+export function setPendingJreLaunch(version: number, instance: InstanceDto) {
+	launcherStore.pendingJreLaunch = { version, instance };
+}
+
+export function clearPendingJreLaunch() {
+	launcherStore.pendingJreLaunch = null;
 }
 
 export function showErrorParsed(rawError: unknown) {
