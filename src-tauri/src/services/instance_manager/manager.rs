@@ -233,7 +233,7 @@ impl InstanceManager {
             handle.set_icon(icon).await;
         }
 
-        handle.set_overrides(new_overrides);
+        handle.set_overrides(new_overrides).await;
 
         handle
             .save_if_dirty()

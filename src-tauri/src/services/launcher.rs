@@ -18,13 +18,11 @@ use launchwerk::models::VersionManifest;
 use launchwerk::{LaunchConfig, Launchwerk};
 use std::collections::VecDeque;
 use std::mem;
-use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use tauri::Emitter;
 use tokio::fs;
 use tokio::sync::broadcast;
 use tracing::{error, info, trace, warn};
-use tracing_subscriber::fmt::format;
 use zellkern::Loader;
 
 use dashmap::DashMap;
