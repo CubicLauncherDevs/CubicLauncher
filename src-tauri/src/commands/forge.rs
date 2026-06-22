@@ -17,10 +17,12 @@ pub async fn install_forge(
         return Ok(version_id);
     }
 
-    let java_path = [21u8, 17, 8]
-        .into_iter()
-        .find(|v| JavaManager::is_installed(*v))
-        .map(|v| JavaManager::get_java_binary(v));
+    if !JavaManager::is_installed(21) {
+        JavaManager::install(21)
+            .await
+            .map_err(|e| format!("No se pudo instalar Java 21: {e}"))?;
+    }
+    let java_path = Some(JavaManager::get_java_binary(21));
 
     let manifest = aqua::ForgeBatch::install(shared_dir, &game_version, &forge_version, java_path)
         .await
