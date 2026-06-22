@@ -341,7 +341,6 @@
 	},
 	"downloadProgress": {
 		"items": "Elemente",
-		"retrying": "Erneut versuchen {attempt}/{max}...",
 		"statusLibs": "Bibliotheken herunterladen",
 		"statusAssets": "Assets herunterladen",
 		"statusNatives": "Natives herunterladen",

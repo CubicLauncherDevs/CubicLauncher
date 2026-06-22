@@ -341,7 +341,6 @@
 	},
 	"downloadProgress": {
 		"items": "objetos",
-		"retrying": "Reintentando {attempt}/{max}...",
 		"statusLibs": "Descargando librerías",
 		"statusAssets": "Descargando assets",
 		"statusNatives": "Descargando nativos",

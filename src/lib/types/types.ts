@@ -194,14 +194,6 @@ export type AppEvent =
 			};
 	  }
 	| {
-			type: "DRetry";
-			data: {
-				version: string;
-				attempt: number;
-				max: number;
-			};
-	  }
-	| {
 			type: "DEnqueue";
 			data: {
 				version: string;
