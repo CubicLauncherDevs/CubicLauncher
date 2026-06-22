@@ -2,6 +2,7 @@
 	import { slide } from "svelte/transition";
 	import type { Snippet } from "svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
+	import { derived } from "svelte/store";
 
 	let {
 		title,
@@ -28,8 +29,7 @@
 		return fallback;
 	}
 
-	// svelte-ignore state_referenced_locally
-	let open = $state(loadSaved(storageKey, defaultOpen));
+	let open = $derived(loadSaved(storageKey, defaultOpen));
 
 	$effect(() => {
 		if (storageKey) {

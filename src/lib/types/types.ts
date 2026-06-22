@@ -8,8 +8,18 @@ export interface InstanceDto {
 	icon: string | null;
 	uuid: string;
 	path: string;
+	overrides: InstOverrides | null;
 }
 
+export interface InstOverrides {
+	javaVersion: number | null;
+	memory: MemOverrides | null;
+}
+
+export interface MemOverrides {
+	minMem: number;
+	maxMem: number;
+}
 export enum InstState {
 	Started = "started",
 	Error = "error",

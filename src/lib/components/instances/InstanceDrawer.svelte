@@ -2,7 +2,7 @@
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import { t } from "$lib/i18n";
 	import Select from "$lib/components/layout/Select.svelte";
-	import type { InstanceDto } from "$lib/types/types";
+	import type { InstanceDto, InstOverrides } from "$lib/types/types";
 	import { INSTANCE_LOGOS } from "$lib/icons/logos";
 	import { onMount } from "svelte";
 	import { updateInst } from "$lib/api/launcherService";
@@ -21,6 +21,8 @@
 	let saving = $state(false);
 	let selectedJavaVersion = $state("");
 	let instGameVersion = $state("");
+	let useOverrides = $state(false);
+
 	// Esto no lo veo necesario traducir ya que se autoexplica.
 	let JavaOptions = [
 		{
@@ -28,22 +30,29 @@
 			label: "Default",
 			badge: t("instanceEditor.recommended"),
 		},
-		{ value: "jre8", label: "Java 8" },
-		{ value: "jre17", label: "Java 17" },
-		{ value: "jre21", label: "Java 21" },
-		{ value: "jre25", label: "Java 25" },
+		{ value: "8", label: "Java 8" },
+		{ value: "17", label: "Java 17" },
+		{ value: "21", label: "Java 21" },
+		{ value: "25", label: "Java 25" },
 	];
+
 	async function handleSave() {
 		saving = true;
-		console.log(
-			"SAVING: " +
-				instanceName +
-				" " +
-				instGameVersion +
-				" " +
-				selectedIcon,
+		let newOverrides = useOverrides
+			? {
+				javaVersion: selectedJavaVersion && selectedJavaVersion !== "default"
+					? Number(selectedJavaVersion)
+					: null,
+					memory: { minMem: Math.round(minMem * 1024), maxMem: Math.round(maxMem * 1024) },
+				}
+			: null;
+		await updateInst(
+			instance.uuid,
+			instanceName,
+			instGameVersion,
+			selectedIcon,
+			newOverrides,
 		);
-		updateInst(instance.uuid, instanceName, instGameVersion, selectedIcon);
 		setTimeout(() => {
 			saving = false;
 		}, 1000);
@@ -58,8 +67,16 @@
 	onMount(async () => {
 		selectedIcon = instance.icon;
 		instanceName = instance.name;
-		installedVersions = await getInstalledVersions();
 		instGameVersion = instance.version;
+		installedVersions = await getInstalledVersions();
+		if (instance.overrides) {
+			useOverrides = true;
+			selectedJavaVersion = instance.overrides.javaVersion != null
+				? String(instance.overrides.javaVersion)
+				: "default";
+			minMem = (instance.overrides.memory?.minMem ?? 1024) / 1024;
+			maxMem = (instance.overrides.memory?.maxMem ?? 2048) / 1024;
+		}
 	});
 </script>
 
@@ -122,71 +139,83 @@
 			</CollapsibleSection>
 			<CollapsibleSection
 				title={t("settings.advanced")}
-				iconSrc="/images/icons/settings.svg"
+				iconSrc="/images/icons/terminal.svg"
 				storageKey="instance_general"
 			>
-				<Select
-					value={selectedJavaVersion}
-					options={JavaOptions}
-					label={t("instanceEditor.javaVersion")}
-					onchange={handleSave}
-				/>
-				<span class="qm-themes-hint"
-					>{t("instanceEditor.javaHint")}</span
-				>
-				<div class="qm-field-group">
-					<div class="qm-field">
-						<label for="min-mem"
-							>{t("settings.minecraft.minRam")}</label
-						>
-						<div class="qm-ram-stepper">
-							<button
-								type="button"
-								class="qm-stepper-btn"
-								onclick={() => {
-									const v = minMem - 0.5;
-									if (v >= 0.5) minMem = v;
-								}}>−</button
-							>
-							<span class="qm-ram-value">{minMem} GB</span>
-							<button
-								type="button"
-								class="qm-stepper-btn"
-								onclick={() => {
-									const v = minMem + 0.5;
-									if (v <= maxMem) minMem = v;
-								}}>+</button
-							>
-						</div>
-					</div>
-					<div class="qm-field">
-						<label for="max-mem"
-							>{t("settings.minecraft.maxRam")}</label
-						>
-						<div class="qm-ram-stepper">
-							<button
-								type="button"
-								class="qm-stepper-btn"
-								onclick={() => {
-									const v = maxMem - 0.5;
-									if (v >= minMem) maxMem = v;
-								}}>−</button
-							>
-							<span class="qm-ram-value">{maxMem} GB</span>
-							<button
-								type="button"
-								class="qm-stepper-btn"
-								onclick={() => {
-									const v = maxMem + 0.5;
-									if (v <= 64) maxMem = v;
-								}}>+</button
-							>
-						</div>
-					</div>
+				<div class="qm-field-checkbox">
+					<input
+						type="checkbox"
+						id="use-overrides"
+						bind:checked={useOverrides}
+					/>
+					<label for="use-overrides"
+						>Usar configuración personalizada</label
+					>
 				</div>
-				<span class="qm-ram-hint"
-					>{t("settings.minecraft.ramHint")}</span
-				>
+				<fieldset disabled={!useOverrides}>
+					<Select
+						bind:value={selectedJavaVersion}
+						options={JavaOptions}
+						label={t("instanceEditor.javaVersion")}
+						onchange={handleSave}
+					/>
+					<span class="qm-themes-hint"
+						>{t("instanceEditor.javaHint")}</span
+					>
+					<div class="qm-field-group">
+						<div class="qm-field">
+							<label for="min-mem"
+								>{t("settings.minecraft.minRam")}</label
+							>
+							<div class="qm-ram-stepper">
+								<button
+									type="button"
+									class="qm-stepper-btn"
+									onclick={() => {
+										const v = minMem - 0.5;
+										if (v >= 0.5) minMem = v;
+									}}>−</button
+								>
+								<span class="qm-ram-value">{minMem} GB</span>
+								<button
+									type="button"
+									class="qm-stepper-btn"
+									onclick={() => {
+										const v = minMem + 0.5;
+										if (v <= maxMem) minMem = v;
+									}}>+</button
+								>
+							</div>
+						</div>
+						<div class="qm-field">
+							<label for="max-mem"
+								>{t("settings.minecraft.maxRam")}</label
+							>
+							<div class="qm-ram-stepper">
+								<button
+									type="button"
+									class="qm-stepper-btn"
+									onclick={() => {
+										const v = maxMem - 0.5;
+										if (v >= minMem) maxMem = v;
+									}}>−</button
+								>
+								<span class="qm-ram-value">{maxMem} GB</span>
+								<button
+									type="button"
+									class="qm-stepper-btn"
+									onclick={() => {
+										const v = maxMem + 0.5;
+										if (v <= 64) maxMem = v;
+									}}>+</button
+								>
+							</div>
+						</div>
+					</div>
+					<span class="qm-ram-hint"
+						>{t("settings.minecraft.ramHint")}</span
+					>
+				</fieldset>
 			</CollapsibleSection>
 		</div>
 	</div>
@@ -352,5 +381,70 @@
 	.save-footer {
 		padding: 12px 20px;
 		border-top: 1px solid var(--border-color);
+	}
+
+	.qm-field-checkbox {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-bottom: 12px;
+		margin-top: 8px;
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.qm-field-checkbox input[type="checkbox"] {
+		appearance: none;
+		-webkit-appearance: none;
+		width: 18px;
+		height: 18px;
+		background: var(--bg-input);
+		border: 1px solid var(--border-color);
+		border-radius: var(--border-radius-sm);
+		cursor: pointer;
+		position: relative;
+		transition: all 0.2s;
+	}
+
+	.qm-field-checkbox input[type="checkbox"]:checked {
+		background: var(--accent);
+		border-color: var(--accent);
+	}
+
+	.qm-field-checkbox input[type="checkbox"]:checked::after {
+		content: "✓";
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		color: var(--accent-text);
+		font-size: 11px;
+		font-weight: 800;
+	}
+
+	.qm-field-checkbox label {
+		font-size: 0.85rem;
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition: color 0.2s;
+	}
+
+	.qm-field-checkbox:hover label {
+		color: var(--text-primary);
+	}
+
+	.qm-field-checkbox input[type="checkbox"]:hover {
+		border-color: var(--text-muted);
+	}
+
+	.qm-scroll fieldset:disabled {
+		border: none;
+		padding: 0;
+		margin: 0;
+		opacity: 0.45;
+		pointer-events: none;
+	}
+	.qm-scroll fieldset {
+		border: none;
 	}
 </style>

@@ -26,15 +26,17 @@ pub(crate) struct InstanceData {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
 pub struct InstOverrides {
     pub java_version: Option<u8>,
     pub memory: Option<RamOverrides>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
 pub struct RamOverrides {
-    pub min_mem: u32,
-    pub max_mem: u32,
+    pub min_mem: u32,  // MB
+    pub max_mem: u32,  // MB
 }
 
 impl InstanceData {

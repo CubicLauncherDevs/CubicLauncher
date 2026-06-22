@@ -175,6 +175,17 @@
 			}
 		}
 	});
+
+	$effect(() => {
+		const instances = launcherStore.loadedInstances;
+		const ei = editingInstance;
+		if (ei) {
+			const updated = instances.find((i) => i.uuid === ei.uuid);
+			if (updated && updated.overrides !== ei.overrides) {
+				editingInstance = updated;
+			}
+		}
+	});
 </script>
 
 {#if logParams}
@@ -234,7 +245,10 @@
 	{#if editingInstance}
 		<Drawer bind:open={instanceEditorOpen} direction="right">
 			<InstanceDrawer
-				onclose={() => (instanceEditorOpen = false)}
+				onclose={() => {
+					instanceEditorOpen = false;
+					editingInstance = null;
+				}}
 				instance={editingInstance}
 			/>
 		</Drawer>

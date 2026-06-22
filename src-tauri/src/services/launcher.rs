@@ -258,7 +258,7 @@ impl Launcher {
                 java_version.to_string(),
             )))?;
         }
-
+        info!("Starting with {}", java_path.display());
         // Auto-refresh del token Microsoft — el lock de settings se toma y suelta rápido
         user = refresh_microsoft_token(user).await?;
 
@@ -269,12 +269,12 @@ impl Launcher {
         // let max_mem = format!("{}G", settings_m.max_memory);
 
         let (max_mem, min_mem) = if let Some(ram_overrides) = overrides.and_then(|o| o.memory) {
-            let max_memf = format!("{}G", ram_overrides.max_mem);
-            let min_memf = format!("{}G", ram_overrides.min_mem);
+            let max_memf = format!("{}M", ram_overrides.max_mem);
+            let min_memf = format!("{}M", ram_overrides.min_mem);
             (max_memf, min_memf)
         } else {
-            let min_memf = format!("{}G", settings_m.min_memory);
-            let max_memf = format!("{}G", settings_m.max_memory);
+            let min_memf = format!("{}M", settings_m.min_memory);
+            let max_memf = format!("{}M", settings_m.max_memory);
             (max_memf, min_memf)
         };
 

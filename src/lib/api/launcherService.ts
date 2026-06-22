@@ -5,7 +5,12 @@ import {
 	clearPendingJreLaunch,
 } from "../state/state.svelte";
 import { listen } from "@tauri-apps/api/event";
-import type { AppEvent, InstanceDto, MinecraftUser } from "../types/types";
+import type {
+	AppEvent,
+	InstanceDto,
+	InstOverrides,
+	MinecraftUser,
+} from "../types/types";
 import {
 	killInstance,
 	getSettings,
@@ -183,6 +188,7 @@ export async function updateInst(
 	newName?: string,
 	newVersion?: string,
 	newIcon?: string | null,
+	newOverrides?: InstOverrides | null,
 ): Promise<void> {
 	try {
 		await invoke("update_instance", {
@@ -190,6 +196,7 @@ export async function updateInst(
 			newName,
 			newVersion,
 			newIcon,
+			newOverrides,
 		});
 
 		await getVersions();
