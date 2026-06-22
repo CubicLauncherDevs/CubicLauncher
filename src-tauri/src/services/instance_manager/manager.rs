@@ -8,7 +8,7 @@ use tokio::sync::oneshot;
 use tokio::time::{self, Duration};
 use tracing::{error, info};
 
-use super::data::{InstanceData, validate_instance_name};
+use super::data::{InstOverrides, InstanceData, validate_instance_name};
 use super::handle::InstanceHandle;
 
 pub(crate) const SYNC_INTERVAL_SECS: u64 = 30;
@@ -191,6 +191,7 @@ impl InstanceManager {
         new_name: Option<String>,
         new_version: Option<String>,
         new_icon: Option<Option<String>>,
+        new_overrides: Option<InstOverrides>,
     ) -> Result<(), String> {
         let handle = self
             .get_handle(uuid)
@@ -231,6 +232,8 @@ impl InstanceManager {
         if let Some(icon) = new_icon {
             handle.set_icon(icon).await;
         }
+
+        handle.set_overrides(new_overrides);
 
         handle
             .save_if_dirty()

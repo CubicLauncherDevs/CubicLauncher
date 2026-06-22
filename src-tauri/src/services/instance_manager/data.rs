@@ -20,8 +20,21 @@ pub(crate) struct InstanceData {
     pub cover_image: Option<PathBuf>,
     pub icon: Option<Arc<str>>,
     pub uuid: Arc<str>,
+    pub overrides: Option<InstOverrides>,
     #[serde(skip)]
     pub dirty: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub struct InstOverrides {
+    pub java_version: Option<u8>,
+    pub memory: Option<RamOverrides>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub struct RamOverrides {
+    pub min_mem: u32,
+    pub max_mem: u32,
 }
 
 impl InstanceData {
@@ -35,6 +48,7 @@ impl InstanceData {
             cover_image: None,
             icon: icon.map(|s| s.into()),
             uuid: uuid::Uuid::new_v4().to_string().into(),
+            overrides: None,
             dirty: true,
         }
     }
@@ -84,6 +98,7 @@ pub struct InstanceDto {
     pub icon: Option<Arc<str>>,
     pub uuid: Arc<str>,
     pub path: PathBuf,
+    pub overrides: Option<InstOverrides>,
 }
 
 pub fn validate_instance_name(name: &str) -> Result<(), String> {
