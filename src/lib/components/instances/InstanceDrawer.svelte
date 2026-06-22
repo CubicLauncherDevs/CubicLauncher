@@ -15,7 +15,19 @@
 	let { onclose, instance }: Props = $props();
 
 	let saving = $state(false);
-
+	let selectedJavaVersion = $state("Nigasel");
+	// Esto no lo veo necesario traducir ya que se autoexplica.
+	let options = [
+		{
+			value: "default",
+			label: "Default",
+			badge: t("instanceEditor.recommended"),
+		},
+		{ value: "jre8", label: "Java 8" },
+		{ value: "jre17", label: "Java 17" },
+		{ value: "jre21", label: "Java 21" },
+		{ value: "jre25", label: "Java 25" },
+	];
 	async function handleSave() {
 		saving = true;
 		console.log("Guardando :v");
@@ -39,48 +51,15 @@
 				iconSrc="/images/icons/settings.svg"
 				storageKey="instance_general"
 			>
-				<div class="about-content">
-					<p class="about-desc">
-						{t("settings.about.description")}
-					</p>
-					<div
-						role="button"
-						tabindex="0"
-						onclick={() => openUrl("https://discord.gg/XQrRFWRyp")}
-						onkeydown={(e) => {
-							if (e.key === "Enter")
-								openUrl("https://discord.gg/XQrRFWRyp");
-						}}
-					>
-						<img
-							src="/images/icons/discord.svg"
-							alt="Discord"
-							class="about-discord-icon"
-							tabindex="-1    "
-						/>
-					</div>
-					<p class="about-credit">
-						{t("settings.about.creditMadeBy")}
-						<button
-							type="button"
-							class="about-link"
-							onclick={() =>
-								openUrl("https://github.com/staff6773")}
-						>
-							Notstaff
-						</button>
-						{t("settings.about.creditAnd")}
-						<button
-							type="button"
-							class="about-link"
-							onclick={() =>
-								openUrl("https://github.com/santiagolxx")}
-						>
-							Santiagolxx
-						</button>
-						{t("settings.about.creditSuffix")}
-					</p>
-				</div>
+				<Select
+					value={selectedJavaVersion}
+					{options}
+					label={t("instanceEditor.javaVersion")}
+					onchange={handleSave}
+				/>
+				<span class="qm-themes-hint"
+					>{t("instanceEditor.javaHint")}</span
+				>
 			</CollapsibleSection>
 
 			<CollapsibleSection

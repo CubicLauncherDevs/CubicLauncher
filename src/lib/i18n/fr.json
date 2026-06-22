@@ -259,6 +259,13 @@
 			"curseForgeAlpha": "Alpha"
 		}
 	},
+	"instanceEditor": {
+		"generalTitle": "Général",
+		"language": "Langue",
+		"javaVersion": "Version Java",
+		"javaHint": "Cubic choisira la version Java recommandée pour cette version de Minecraft. Certains mods peuvent être incompatibles et en nécessiter une autre.",
+		"recommended": "Recommandé"
+	},
 	"createInstance": {
 		"title": "Créer une Nouvelle Instance",
 		"emptyNameErr": "Le nom ne peut pas être vide",
