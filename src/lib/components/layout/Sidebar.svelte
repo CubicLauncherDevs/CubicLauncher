@@ -19,6 +19,7 @@
 	interface Props {
 		selectedInstance: InstanceDto | null;
 		onopenquickmenu?: () => void;
+		onopeneditinstance: () => void;
 		onopenversiondownloader?: () => void;
 		onopencreateinstance?: () => void;
 	}
@@ -27,11 +28,11 @@
 		selectedInstance = $bindable(),
 		onopenquickmenu,
 		onopenversiondownloader,
+		onopeneditinstance,
 		onopencreateinstance,
 	}: Props = $props();
 
 	let showUserMenu = $state(false);
-	let showRenameModal = $state(false);
 	let showDeleteModal = $state(false);
 	let instanceToActOn = $state<InstanceDto | null>(null);
 	let renameInput = $state("");
@@ -80,43 +81,9 @@
 
 	// ── Instance CRUD ─────────────────────────────────────────────────────
 
-	async function openRenameModal(instance: InstanceDto) {
-		instanceToActOn = instance;
-		renameInput = instance.name;
-		versionInput = instance.version;
-		selectedIcon = instance.icon;
-		installedVersions = await getInstalledVersions();
-		showRenameModal = true;
-	}
-
 	function openDeleteModal(instance: InstanceDto) {
 		instanceToActOn = instance;
 		showDeleteModal = true;
-	}
-
-	async function handleRename() {
-		if (!instanceToActOn) return;
-		const nameChanged = renameInput && renameInput !== instanceToActOn.name;
-		const versionChanged =
-			versionInput && versionInput !== instanceToActOn.version;
-
-		const iconChanged = selectedIcon !== instanceToActOn.icon;
-
-		if (nameChanged || versionChanged || iconChanged) {
-			await updateInst(
-				instanceToActOn.uuid,
-				nameChanged ? renameInput : undefined,
-				versionChanged ? versionInput : undefined,
-				iconChanged ? selectedIcon : undefined,
-			);
-
-			if (selectedInstance?.uuid === instanceToActOn.uuid) {
-				if (nameChanged) selectedInstance.name = renameInput;
-				if (versionChanged) selectedInstance.version = versionInput;
-				if (iconChanged) selectedInstance.icon = selectedIcon;
-			}
-		}
-		showRenameModal = false;
 	}
 
 	async function handleDelete() {
@@ -178,7 +145,7 @@
 							class="action-btn"
 							onclick={(e) => {
 								e.stopPropagation();
-								openRenameModal(instance);
+								onopeneditinstance();
 							}}
 							title={t("sidebar.rename")}
 						>
@@ -306,89 +273,6 @@
 </aside>
 
 <UserMenu bind:open={showUserMenu} />
-
-<ModalBase bind:open={showRenameModal} title={t("sidebar.modals.editTitle")}>
-	<div class="input-group" style="margin-top: 12px;">
-		<label class="input-label" for="icon-selector"
-			>{t("createInstance.iconLabel") || "Logo de la Instancia"}</label
-		>
-		<div id="icon-selector" class="icon-selector" style="margin-top: 8px;">
-			{#each INSTANCE_LOGOS as iconName (iconName)}
-				{@const iconPath = `/images/instances/${iconName}`}
-				<button
-					type="button"
-					class="icon-option"
-					class:selected={selectedIcon === iconPath}
-					onclick={() =>
-						(selectedIcon =
-							selectedIcon === iconPath ? null : iconPath)}
-					title={iconName}
-				>
-					<img src={iconPath} alt={iconName} />
-				</button>
-			{/each}
-		</div>
-	</div>
-
-	<div class="input-group">
-		<label class="input-label" for="rename-input"
-			>{t("sidebar.modals.nameLabel")}</label
-		>
-		<input
-			id="rename-input"
-			type="text"
-			class="text-input"
-			bind:value={renameInput}
-			onkeydown={(e) => e.key === "Enter" && handleRename()}
-		/>
-	</div>
-
-	<div class="input-group" style="margin-top: 12px;">
-		<Select
-			id="version-select"
-			label={t("sidebar.modals.versionLabel")}
-			options={versionOptions}
-			bind:value={versionInput}
-		/>
-	</div>
-
-	{#snippet footer()}
-		<button
-			type="button"
-			class="btn-secondary"
-			onclick={() => (showRenameModal = false)}
-			>{t("sidebar.modals.cancel")}</button
-		>
-		<button type="button" class="btn-primary" onclick={handleRename}
-			>{t("sidebar.modals.save")}</button
-		>
-	{/snippet}
-</ModalBase>
-
-<ModalBase bind:open={showDeleteModal} title={t("sidebar.modals.deleteTitle")}>
-	<p
-		style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4;"
-	>
-		{t("sidebar.modals.deleteDesc1")}
-		<strong style="color: var(--text-primary);"
-			>"{instanceToActOn?.name}"</strong
-		>{t("sidebar.modals.deleteDesc2")}
-	</p>
-	{#snippet footer()}
-		<button
-			type="button"
-			class="btn-secondary"
-			onclick={() => (showDeleteModal = false)}
-			>{t("sidebar.modals.cancel")}</button
-		>
-		<button
-			type="button"
-			class="btn-primary"
-			style="background: var(--color-error); color: white;"
-			onclick={handleDelete}>{t("sidebar.modals.deleteBtn")}</button
-		>
-	{/snippet}
-</ModalBase>
 
 <style>
 	.sidebar {

@@ -23,6 +23,7 @@
 	import { showSuccess, showError } from "$lib/state/state.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
 	import LogWindow from "$lib/components/log/LogWindow.svelte";
+	import InstanceDrawer from "$lib/components/instances/InstanceDrawer.svelte";
 
 	const logParams = $derived.by(() => {
 		if (typeof window === "undefined") return null;
@@ -37,6 +38,7 @@
 
 	let selectedInstance = $state<InstanceDto | null>(null);
 	let quickMenuOpen = $state(false);
+	let instanceEditorOpen = $state(false);
 	let versionDownloaderOpen = $state(false);
 	let openCreateModal = $state(false);
 	let droppedMrpackPath = $state<string | null>(null);
@@ -199,6 +201,7 @@
 			onopenquickmenu={() => (quickMenuOpen = true)}
 			onopenversiondownloader={() => (versionDownloaderOpen = true)}
 			onopencreateinstance={() => (openCreateModal = true)}
+			onopeneditinstance={() => (instanceEditorOpen = true)}
 		/>
 
 		<main class="main-content">
@@ -222,6 +225,10 @@
 
 	<Drawer bind:open={quickMenuOpen} direction="right">
 		<SettingsComponent onclose={() => (quickMenuOpen = false)} />
+	</Drawer>
+
+	<Drawer bind:open={instanceEditorOpen} direction="right">
+		<InstanceDrawer onclose={() => (instanceEditorOpen = false)} />
 	</Drawer>
 
 	<Drawer bind:open={versionDownloaderOpen} direction="right">
