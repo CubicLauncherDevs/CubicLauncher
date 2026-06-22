@@ -32,7 +32,11 @@ impl Repo {
         } else {
             HashMap::new()
         };
-        Repo { path, entries, dirty: false }
+        Repo {
+            path,
+            entries,
+            dirty: false,
+        }
     }
 
     pub fn get(&self, key: &str) -> Option<&Entry> {
@@ -129,8 +133,8 @@ impl Repo {
 
         // atomic write: temp + sync + rename
         let tmp_path = self.path.with_extension("crep.tmp");
-        let mut tmp = File::create(&tmp_path)
-            .map_err(|e| format!("Failed to create temp file: {}", e))?;
+        let mut tmp =
+            File::create(&tmp_path).map_err(|e| format!("Failed to create temp file: {}", e))?;
         tmp.write_all(&buf)
             .map_err(|e| format!("Failed to write temp file: {}", e))?;
         tmp.sync_all()
@@ -172,8 +176,7 @@ impl Drop for Repo {
 // Lector con soporte v1 (legacy) y v2 (con índice + version por entry)
 // ---------------------------------------------------------------------------
 fn read_all(path: &Path) -> Result<HashMap<String, Entry>, String> {
-    let mut file = File::open(path)
-        .map_err(|e| format!("Failed to open repo file: {}", e))?;
+    let mut file = File::open(path).map_err(|e| format!("Failed to open repo file: {}", e))?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)
         .map_err(|e| format!("Failed to read repo file: {}", e))?;
@@ -184,9 +187,7 @@ fn read_all(path: &Path) -> Result<HashMap<String, Entry>, String> {
 
     // file CRC (últimos 4 bytes)
     let file_crc_pos = buf.len() - 4;
-    let stored_file_crc = u32::from_le_bytes(
-        buf[file_crc_pos..].try_into().unwrap(),
-    );
+    let stored_file_crc = u32::from_le_bytes(buf[file_crc_pos..].try_into().unwrap());
     let computed_file_crc = crc32fast::hash(&buf[..file_crc_pos]);
     if stored_file_crc != computed_file_crc {
         return Err("File CRC mismatch".into());
@@ -225,38 +226,38 @@ fn read_v1(buf: &[u8], file_crc_pos: usize) -> Result<HashMap<String, Entry>, St
         if pos + 2 > file_crc_pos {
             return Err("Unexpected EOF in key length".into());
         }
-        let key_len = u16::from_le_bytes(buf[pos..pos+2].try_into().unwrap()) as usize;
+        let key_len = u16::from_le_bytes(buf[pos..pos + 2].try_into().unwrap()) as usize;
         pos += 2;
 
         if pos + key_len > file_crc_pos {
             return Err("Unexpected EOF in key".into());
         }
-        let key = String::from_utf8(buf[pos..pos+key_len].to_vec())
+        let key = String::from_utf8(buf[pos..pos + key_len].to_vec())
             .map_err(|_| String::from("Invalid UTF-8 key"))?;
         pos += key_len;
 
         if pos + 8 > file_crc_pos {
             return Err("Unexpected EOF in fingerprint".into());
         }
-        let fingerprint = u64::from_le_bytes(buf[pos..pos+8].try_into().unwrap());
+        let fingerprint = u64::from_le_bytes(buf[pos..pos + 8].try_into().unwrap());
         pos += 8;
 
         if pos + 4 > file_crc_pos {
             return Err("Unexpected EOF in data length".into());
         }
-        let data_len = u32::from_le_bytes(buf[pos..pos+4].try_into().unwrap()) as usize;
+        let data_len = u32::from_le_bytes(buf[pos..pos + 4].try_into().unwrap()) as usize;
         pos += 4;
 
         if pos + 4 > file_crc_pos {
             return Err("Unexpected EOF in data CRC".into());
         }
-        let data_crc = u32::from_le_bytes(buf[pos..pos+4].try_into().unwrap());
+        let data_crc = u32::from_le_bytes(buf[pos..pos + 4].try_into().unwrap());
         pos += 4;
 
         if pos + data_len > file_crc_pos {
             return Err("Unexpected EOF in data".into());
         }
-        let data = buf[pos..pos+data_len].to_vec();
+        let data = buf[pos..pos + data_len].to_vec();
         pos += data_len;
 
         let computed_data_crc = crc32fast::hash(&data);
@@ -264,7 +265,14 @@ fn read_v1(buf: &[u8], file_crc_pos: usize) -> Result<HashMap<String, Entry>, St
             continue; // entry corrupto, skip
         }
 
-        entries.insert(key, Entry { version: 0, fingerprint, data });
+        entries.insert(
+            key,
+            Entry {
+                version: 0,
+                fingerprint,
+                data,
+            },
+        );
     }
 
     Ok(entries)
@@ -287,17 +295,15 @@ fn read_v2(buf: &[u8], file_crc_pos: usize) -> Result<HashMap<String, Entry>, St
     }
 
     // read index offset (stored 4 bytes before file CRC)
-    let index_off = u32::from_le_bytes(
-        buf[file_crc_pos - 4..file_crc_pos].try_into().unwrap(),
-    ) as usize;
+    let index_off =
+        u32::from_le_bytes(buf[file_crc_pos - 4..file_crc_pos].try_into().unwrap()) as usize;
 
     // validate index
     if index_off + 4 > file_crc_pos - 4 {
         return Err("Invalid index offset".into());
     }
-    let index_count = u32::from_le_bytes(
-        buf[index_off..index_off + 4].try_into().unwrap(),
-    ) as usize;
+    let index_count =
+        u32::from_le_bytes(buf[index_off..index_off + 4].try_into().unwrap()) as usize;
     if index_count != count {
         return Err("Index entry count mismatch".into());
     }
@@ -314,13 +320,14 @@ fn read_v2(buf: &[u8], file_crc_pos: usize) -> Result<HashMap<String, Entry>, St
         if pos + 2 > index_off {
             return Err("Unexpected EOF in key length".into());
         }
-        let key_len = u16::from_le_bytes(buf[pos..pos+2].try_into().unwrap()) as usize;
+        let key_len = u16::from_le_bytes(buf[pos..pos + 2].try_into().unwrap()) as usize;
         pos += 2;
 
-        if pos + key_len + 1 > index_off { // + 1 for entry version
+        if pos + key_len + 1 > index_off {
+            // + 1 for entry version
             return Err("Unexpected EOF in key".into());
         }
-        let key = String::from_utf8(buf[pos..pos+key_len].to_vec())
+        let key = String::from_utf8(buf[pos..pos + key_len].to_vec())
             .map_err(|_| String::from("Invalid UTF-8 key"))?;
         pos += key_len;
 
@@ -330,25 +337,25 @@ fn read_v2(buf: &[u8], file_crc_pos: usize) -> Result<HashMap<String, Entry>, St
         if pos + 8 > index_off {
             return Err("Unexpected EOF in fingerprint".into());
         }
-        let fingerprint = u64::from_le_bytes(buf[pos..pos+8].try_into().unwrap());
+        let fingerprint = u64::from_le_bytes(buf[pos..pos + 8].try_into().unwrap());
         pos += 8;
 
         if pos + 4 > index_off {
             return Err("Unexpected EOF in data length".into());
         }
-        let data_len = u32::from_le_bytes(buf[pos..pos+4].try_into().unwrap()) as usize;
+        let data_len = u32::from_le_bytes(buf[pos..pos + 4].try_into().unwrap()) as usize;
         pos += 4;
 
         if pos + 4 > index_off {
             return Err("Unexpected EOF in data CRC".into());
         }
-        let data_crc = u32::from_le_bytes(buf[pos..pos+4].try_into().unwrap());
+        let data_crc = u32::from_le_bytes(buf[pos..pos + 4].try_into().unwrap());
         pos += 4;
 
         if pos + data_len > index_off {
             return Err("Unexpected EOF in data".into());
         }
-        let data = buf[pos..pos+data_len].to_vec();
+        let data = buf[pos..pos + data_len].to_vec();
         pos += data_len;
 
         let computed_data_crc = crc32fast::hash(&data);
@@ -356,7 +363,14 @@ fn read_v2(buf: &[u8], file_crc_pos: usize) -> Result<HashMap<String, Entry>, St
             continue;
         }
 
-        entries.insert(key, Entry { version: entry_version, fingerprint, data });
+        entries.insert(
+            key,
+            Entry {
+                version: entry_version,
+                fingerprint,
+                data,
+            },
+        );
     }
 
     // también validar índice contra entries parseadas
@@ -365,7 +379,7 @@ fn read_v2(buf: &[u8], file_crc_pos: usize) -> Result<HashMap<String, Entry>, St
         if idx_pos + 12 > file_crc_pos - 4 {
             return Err("Truncated index".into());
         }
-        let idx_hash = u64::from_le_bytes(buf[idx_pos..idx_pos+8].try_into().unwrap());
+        let idx_hash = u64::from_le_bytes(buf[idx_pos..idx_pos + 8].try_into().unwrap());
         idx_pos += 12;
 
         // verificar que el hash existe en entries (sin usar el índice para lookup,

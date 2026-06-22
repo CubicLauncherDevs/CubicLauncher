@@ -262,7 +262,9 @@ impl DownloadQueue {
 
                         if !JavaManager::is_installed(21) {
                             if let Err(e) = JavaManager::install(21).await {
-                                warn!("No se pudo instalar Java 21 automáticamente: {e}, usando fallback...");
+                                warn!(
+                                    "No se pudo instalar Java 21 automáticamente: {e}, usando fallback..."
+                                );
                             }
                         }
                         let java_path = [21u8, 17, 8]
@@ -271,53 +273,85 @@ impl DownloadQueue {
                             .map(|v| JavaManager::get_java_binary(v));
 
                         let installer_url = aqua::ForgeBatch::resolve_installer_url(gv, fv);
-                        match aqua::ForgeBatch::new(&shared_dir, gv, fv, &installer_url, java_path).await {
+                        match aqua::ForgeBatch::new(&shared_dir, gv, fv, &installer_url, java_path)
+                            .await
+                        {
                             Ok(batch) => match manager.prepare_batch(Box::new(batch)).await {
                                 Ok(h) => h,
                                 Err(e) => {
-                                    if attempt < MAX_RETRIES { continue; }
-                                    emit_and_set_error(queue, &version, format!("No se pudo preparar Forge: {:?}", e));
+                                    if attempt < MAX_RETRIES {
+                                        continue;
+                                    }
+                                    emit_and_set_error(
+                                        queue,
+                                        &version,
+                                        format!("No se pudo preparar Forge: {:?}", e),
+                                    );
                                     break;
                                 }
                             },
                             Err(e) => {
-                                if attempt < MAX_RETRIES { continue; }
-                                emit_and_set_error(queue, &version, format!("No se pudo crear Forge batch: {:?}", e));
+                                if attempt < MAX_RETRIES {
+                                    continue;
+                                }
+                                emit_and_set_error(
+                                    queue,
+                                    &version,
+                                    format!("No se pudo crear Forge batch: {:?}", e),
+                                );
                                 break;
                             }
                         }
                     } else {
-                        emit_and_set_error(queue, &version, format!("Forge version format invalid: {}", version));
+                        emit_and_set_error(
+                            queue,
+                            &version,
+                            format!("Forge version format invalid: {}", version),
+                        );
                         break;
                     }
                 }
-                false => {
-                    match manager.prepare(&version).await {
-                        Ok(h) => h,
-                        Err(_) => {
-                            let deps = zellkern::resolve_dependencies(&version);
-                            let mc_version = deps.first().filter(|v| *v != version.as_ref()).cloned();
+                false => match manager.prepare(&version).await {
+                    Ok(h) => h,
+                    Err(_) => {
+                        let deps = zellkern::resolve_dependencies(&version);
+                        let mc_version = deps.first().filter(|v| *v != version.as_ref()).cloned();
 
-                            if let Some(gv) = mc_version {
-                                info!("Loader {} falló, descargando base MC {} primero...", version, gv);
-                                if let Ok(base_handle) = manager.prepare(&gv).await {
-                                    let _ = base_handle.download_all(None).await;
-                                }
-                                match manager.prepare(&version).await {
-                                    Ok(h) => h,
-                                    Err(e) => {
-                                        if attempt < MAX_RETRIES { continue; }
-                                        emit_and_set_error(queue, &version, format!("No se pudo descargar loader después de restaurar base: {:?}", e));
-                                        break;
-                                    }
-                                }
-                            } else {
-                                emit_and_set_error(queue, &version, format!("La versión solicitada no existe: {}", version));
-                                break;
+                        if let Some(gv) = mc_version {
+                            info!(
+                                "Loader {} falló, descargando base MC {} primero...",
+                                version, gv
+                            );
+                            if let Ok(base_handle) = manager.prepare(&gv).await {
+                                let _ = base_handle.download_all(None).await;
                             }
+                            match manager.prepare(&version).await {
+                                Ok(h) => h,
+                                Err(e) => {
+                                    if attempt < MAX_RETRIES {
+                                        continue;
+                                    }
+                                    emit_and_set_error(
+                                        queue,
+                                        &version,
+                                        format!(
+                                            "No se pudo descargar loader después de restaurar base: {:?}",
+                                            e
+                                        ),
+                                    );
+                                    break;
+                                }
+                            }
+                        } else {
+                            emit_and_set_error(
+                                queue,
+                                &version,
+                                format!("La versión solicitada no existe: {}", version),
+                            );
+                            break;
                         }
                     }
-                }
+                },
             };
 
             let (tx, progress_rx) = mpsc::channel::<DownloadProgress>(100);
@@ -337,7 +371,11 @@ impl DownloadQueue {
                     if attempt < MAX_RETRIES {
                         continue;
                     }
-                    emit_and_set_error(queue, &version, format!("No se pudo descargar {}: {:?}", version, e));
+                    emit_and_set_error(
+                        queue,
+                        &version,
+                        format!("No se pudo descargar {}: {:?}", version, e),
+                    );
                     break;
                 }
             }

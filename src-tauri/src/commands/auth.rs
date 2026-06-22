@@ -249,7 +249,13 @@ pub async fn yggdrasil_refresh_token(idx: usize) -> Result<(), String> {
 
     let auth = YggdrasilAuth::new();
     let refreshed = auth
-        .refresh(&server_url, &user.access_token, &client_token, &user.uuid, &user.username)
+        .refresh(
+            &server_url,
+            &user.access_token,
+            &client_token,
+            &user.uuid,
+            &user.username,
+        )
         .await
         .map_err(|e| e.to_string())?;
 

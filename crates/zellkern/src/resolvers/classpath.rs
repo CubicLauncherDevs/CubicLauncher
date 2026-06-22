@@ -78,10 +78,7 @@ impl<'a> ClasspathResolver<'a> {
                 if let Some(forge_jar) = self.find_forge_universal() {
                     self.push_if_exists(paths, &forge_jar);
                 }
-                let shared = self
-                    .lib_dir
-                    .parent()
-                    .unwrap_or(Path::new("."));
+                let shared = self.lib_dir.parent().unwrap_or(Path::new("."));
                 let vanilla_jar = shared
                     .join("versions")
                     .join(self.base_id)
@@ -137,11 +134,7 @@ impl<'a> ClasspathResolver<'a> {
                 let version = parts[2];
                 let classifier = parts.get(3);
 
-                let base = self
-                    .lib_dir
-                    .join(&group_path)
-                    .join(artifact)
-                    .join(version);
+                let base = self.lib_dir.join(&group_path).join(artifact).join(version);
 
                 if let Some(cls) = classifier {
                     let jar = base.join(format!("{artifact}-{version}-{cls}.jar"));

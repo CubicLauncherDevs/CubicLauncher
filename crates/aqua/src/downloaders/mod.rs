@@ -5,8 +5,8 @@ mod jre;
 mod minecraft;
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use futures::stream::{FuturesUnordered, StreamExt};
 use tokio::sync::mpsc::Sender;
@@ -19,9 +19,11 @@ pub use forge::{ForgeBatch, ForgeVersionInfo};
 pub use jre::JreBatch;
 pub use minecraft::MinecraftBatch;
 
-use crate::types::{DownloadProgress, DownloadProgressInfo, DownloadProgressType, NormalizedVersion};
-use crate::utilities::download_file;
 use crate::AquaError;
+use crate::types::{
+    DownloadProgress, DownloadProgressInfo, DownloadProgressType, NormalizedVersion,
+};
+use crate::utilities::download_file;
 
 const DEFAULT_MAX_HANDLES: usize = 2;
 const DEFAULT_DOWNLOADS_PER_HANDLE: usize = 128;

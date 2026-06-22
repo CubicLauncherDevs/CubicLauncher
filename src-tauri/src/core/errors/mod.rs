@@ -44,11 +44,7 @@ fn json_error(code: &str, params: &[(&str, String)]) -> String {
             )
         })
         .collect();
-    format!(
-        r#"{{"code":"{}","params":{{{}}}}}"#,
-        code,
-        inner.join(",")
-    )
+    format!(r#"{{"code":"{}","params":{{{}}}}}"#, code, inner.join(","))
 }
 
 impl AppError {
@@ -113,7 +109,10 @@ mod tests {
     #[test]
     fn test_app_error_with_params() {
         let s: String = AppError::Instance(InstanceError::JreNotFound("17".into())).into();
-        assert_eq!(s, r#"{"code":"INST_JRE_MISSING","params":{"version":"17"}}"#);
+        assert_eq!(
+            s,
+            r#"{"code":"INST_JRE_MISSING","params":{"version":"17"}}"#
+        );
     }
 
     #[test]
@@ -125,7 +124,10 @@ mod tests {
     #[test]
     fn test_auth_error() {
         let s: String = AppError::Auth(AuthError::SaveTokensFailed("oops".into())).into();
-        assert_eq!(s, r#"{"code":"AUTH_TOKENS_SAVE","params":{"error":"oops"}}"#);
+        assert_eq!(
+            s,
+            r#"{"code":"AUTH_TOKENS_SAVE","params":{"error":"oops"}}"#
+        );
     }
 
     #[test]
@@ -148,7 +150,8 @@ mod tests {
 
     #[test]
     fn test_fs_nested_in_instance() {
-        let s: String = AppError::Instance(InstanceError::Fs(FsError::NotFound("/tmp".into()))).into();
+        let s: String =
+            AppError::Instance(InstanceError::Fs(FsError::NotFound("/tmp".into()))).into();
         assert_eq!(s, r#"{"code":"FS_NOT_FOUND","params":{"path":"/tmp"}}"#);
     }
 

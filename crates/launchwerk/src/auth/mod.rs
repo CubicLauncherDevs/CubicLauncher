@@ -4,9 +4,9 @@
 #![cfg(feature = "auth")]
 pub mod microsoft;
 pub mod storage;
-pub mod yggdrasil;
 #[cfg(test)]
 mod tests;
+pub mod yggdrasil;
 
 use serde::{Deserialize, Serialize};
 use storage::SecureStorage;

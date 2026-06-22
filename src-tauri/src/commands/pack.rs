@@ -96,8 +96,12 @@ pub async fn install_mrpack(path: String, instance_name: String) -> Result<Mrpac
         }
     });
 
-    let install_result =
-        cubrinth::mrpack::install_mrpack(std::path::Path::new(&path), &instance_dir, Some(progress_tx)).await;
+    let install_result = cubrinth::mrpack::install_mrpack(
+        std::path::Path::new(&path),
+        &instance_dir,
+        Some(progress_tx),
+    )
+    .await;
 
     let _ = progress_task.await;
 

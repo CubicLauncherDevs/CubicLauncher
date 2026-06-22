@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use crate::version::MCVersion;
 use crate::Error;
+use crate::version::MCVersion;
 
 // ─── OS / arch rules ──────────────────────────────────────────────────────────
 
@@ -398,7 +398,10 @@ impl VersionManifest {
                         Some(VersionArgType {
                             jvm: Some(jvm),
                             game: Some(game),
-                            default_user_jvm: c.default_user_jvm.clone().or(p.default_user_jvm.clone()),
+                            default_user_jvm: c
+                                .default_user_jvm
+                                .clone()
+                                .or(p.default_user_jvm.clone()),
                         })
                     }
                 }

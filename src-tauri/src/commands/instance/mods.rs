@@ -228,17 +228,18 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
             // update cache for this entry
             if let Some(meta) = &meta_option
                 && repo.get(&filename).map(|e| e.fingerprint) != Some(fp)
-                && let Ok(data) = postcard::to_stdvec(meta) {
-                    repo.put(
-                        filename,
-                        ablage::Entry {
-                            version: 1,
-                            fingerprint: fp,
-                            data,
-                        },
-                    );
-                    dirty = true;
-                }
+                && let Ok(data) = postcard::to_stdvec(meta)
+            {
+                repo.put(
+                    filename,
+                    ablage::Entry {
+                        version: 1,
+                        fingerprint: fp,
+                        data,
+                    },
+                );
+                dirty = true;
+            }
             ModDto {
                 name: md_name,
                 filename: entry.filename,

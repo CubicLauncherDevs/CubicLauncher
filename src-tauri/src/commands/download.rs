@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 const MOJANG_MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
-const FORGE_MAVEN_METADATA_URL: &str = "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml";
+const FORGE_MAVEN_METADATA_URL: &str =
+    "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml";
 
 fn manifest_cache_path() -> std::path::PathBuf {
     PathManager::get().get_settings_dir().join("manifest.crep")
@@ -313,9 +314,7 @@ fn group_forge_versions(all_versions: Vec<String>) -> Vec<ForgeGameVersion> {
 
         // Strip MC version suffix if present (e.g., "12.17.0.2317-1.9.4" → "12.17.0.2317")
         let suffix = format!("-{mc_part}");
-        let forge_part = rest
-            .strip_suffix(&suffix)
-            .unwrap_or(rest);
+        let forge_part = rest.strip_suffix(&suffix).unwrap_or(rest);
 
         if !forge_part.is_empty() {
             groups
@@ -327,7 +326,10 @@ fn group_forge_versions(all_versions: Vec<String>) -> Vec<ForgeGameVersion> {
 
     let mut result = Vec::new();
     for (mc_version, forge_versions) in groups.into_iter().rev() {
-        let latest = forge_versions.into_iter().max_by(|a, b| version_cmp(a, b)).unwrap_or_default();
+        let latest = forge_versions
+            .into_iter()
+            .max_by(|a, b| version_cmp(a, b))
+            .unwrap_or_default();
         let version_id = format!("{mc_version}-forge-{latest}");
         result.push(ForgeGameVersion {
             version_id,
@@ -351,7 +353,10 @@ async fn fetch_forge_versions_from_maven() -> Result<Vec<ForgeGameVersion>, Stri
         .map_err(|e| DownloadError::ReadResponse(e.to_string()).to_string())?;
 
     let all_versions = parse_maven_metadata(&xml);
-    info!("Forge maven-metadata.xml parseado: {} versiones totales", all_versions.len());
+    info!(
+        "Forge maven-metadata.xml parseado: {} versiones totales",
+        all_versions.len()
+    );
     Ok(group_forge_versions(all_versions))
 }
 

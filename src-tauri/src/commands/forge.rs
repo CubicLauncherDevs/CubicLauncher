@@ -1,14 +1,11 @@
 use crate::core::path_manager::PathManager;
-use crate::services::java_manager::JavaManager;
 use crate::services::DownloadQueue;
+use crate::services::java_manager::JavaManager;
 
 /// Install a Forge version. Downloads the installer, extracts, downloads libraries,
 /// and runs post-processors. The version will be available for launch afterward.
 #[tauri::command]
-pub async fn install_forge(
-    game_version: String,
-    forge_version: String,
-) -> Result<String, String> {
+pub async fn install_forge(game_version: String, forge_version: String) -> Result<String, String> {
     let shared_dir = PathManager::get().get_shared_dir();
     let version_id = format!("{game_version}-forge-{forge_version}");
 
@@ -33,10 +30,7 @@ pub async fn install_forge(
 
 /// Queue a Forge installation through the download queue.
 #[tauri::command]
-pub async fn download_forge(
-    game_version: String,
-    forge_version: String,
-) -> Result<(), String> {
+pub async fn download_forge(game_version: String, forge_version: String) -> Result<(), String> {
     let version_id = format!("{game_version}-forge-{forge_version}");
     DownloadQueue::get().enqueue(version_id).await;
     Ok(())

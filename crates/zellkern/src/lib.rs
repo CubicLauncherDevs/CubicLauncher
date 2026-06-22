@@ -18,5 +18,7 @@ pub use manifest::{
     LibraryDownloads, Natives, OsRule, Rule, RuleAction, VersionArgType, VersionDownloads,
     VersionManifest,
 };
-pub use resolvers::{ClasspathResolver, CommandBuilder, extract_jar, extract_natives, is_native_file};
+pub use resolvers::{
+    ClasspathResolver, CommandBuilder, extract_jar, extract_natives, is_native_file,
+};
 pub use version::{GameVersion, MCVersion, ResolvedVersion, parse_version, resolve_dependencies};

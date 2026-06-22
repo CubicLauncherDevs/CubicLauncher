@@ -281,9 +281,7 @@ pub async fn check_version_integrity(version_id: String) -> Result<VersionIntegr
     .map_err(|e| e.to_string())?;
 
     let complete = missing.is_empty();
-    let dependencies = zellkern::resolve_dependencies(
-        missing.first().unwrap_or(&version_id),
-    );
+    let dependencies = zellkern::resolve_dependencies(missing.first().unwrap_or(&version_id));
 
     Ok(VersionIntegrity {
         version_id,

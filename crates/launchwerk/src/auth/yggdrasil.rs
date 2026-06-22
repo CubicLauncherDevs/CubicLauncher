@@ -254,12 +254,7 @@ impl YggdrasilAuth {
     }
 
     /// Validate an access token.
-    pub async fn validate(
-        &self,
-        api_root: &str,
-        access_token: &str,
-        client_token: &str,
-    ) -> bool {
+    pub async fn validate(&self, api_root: &str, access_token: &str, client_token: &str) -> bool {
         let url = format!("{}authserver/validate", normalize_url(api_root));
 
         let body = serde_json::json!({
@@ -374,7 +369,10 @@ pub async fn download_authlib_injector(shared_dir: &Path) -> Result<PathBuf, Str
 
     // Check if already cached
     if jar_path.exists() {
-        log::info!("authlib-injector.jar already cached at {}", jar_path.display());
+        log::info!(
+            "authlib-injector.jar already cached at {}",
+            jar_path.display()
+        );
         return Ok(jar_path);
     }
 
@@ -408,7 +406,10 @@ pub async fn download_authlib_injector(shared_dir: &Path) -> Result<PathBuf, Str
         .and_then(|d| d.strip_prefix("sha256:"))
         .map(String::from);
 
-    log::info!("Downloading authlib-injector from {}", asset.browser_download_url);
+    log::info!(
+        "Downloading authlib-injector from {}",
+        asset.browser_download_url
+    );
 
     // Download the JAR
     let response = client

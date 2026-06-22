@@ -4,10 +4,10 @@ use std::path::Path;
 use log::info;
 use uuid::Uuid;
 
+use crate::Error;
 use crate::launch_config::LaunchConfig;
 use crate::manifest::{Argument, VersionManifest};
 use crate::resolvers::ClasspathResolver;
-use crate::Error;
 
 pub struct CommandBuilder<'a> {
     manifest: &'a VersionManifest,

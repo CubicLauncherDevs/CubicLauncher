@@ -106,13 +106,19 @@ impl ActivityBuilder {
     // ── Timestamps ───────────────────────────────────────────────────────────
 
     pub fn start_timestamp(mut self, secs: u64) -> Self {
-        let ts = self.inner.timestamps.get_or_insert_with(Timestamps::default);
+        let ts = self
+            .inner
+            .timestamps
+            .get_or_insert_with(Timestamps::default);
         ts.start = Some(secs);
         self
     }
 
     pub fn end_timestamp(mut self, secs: u64) -> Self {
-        let ts = self.inner.timestamps.get_or_insert_with(Timestamps::default);
+        let ts = self
+            .inner
+            .timestamps
+            .get_or_insert_with(Timestamps::default);
         ts.end = Some(secs);
         self
     }
@@ -133,7 +139,6 @@ impl ActivityBuilder {
         self
     }
 
-
     pub fn button(mut self, label: impl Into<String>, url: impl Into<String>) -> Self {
         let buttons = self.inner.buttons.get_or_insert_with(Vec::new);
         if buttons.len() < 2 {
@@ -144,7 +149,6 @@ impl ActivityBuilder {
         }
         self
     }
-
 
     pub fn party(mut self, id: impl Into<String>, current: u32, max: u32) -> Self {
         self.inner.party = Some(Party {

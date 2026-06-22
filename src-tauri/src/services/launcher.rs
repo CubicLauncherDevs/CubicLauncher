@@ -8,9 +8,12 @@ use crate::services::instance_manager::{
     InstanceHandle, InstanceStatus, register_kill_sender, unregister_kill_sender,
 };
 use crate::services::java_manager::JavaManager;
-use launchwerk::auth::{AccountType, MinecraftUser, microsoft::MicrosoftAuth, yggdrasil::{self, YggdrasilAuth}};
+use launchwerk::auth::{
+    AccountType, MinecraftUser,
+    microsoft::MicrosoftAuth,
+    yggdrasil::{self, YggdrasilAuth},
+};
 use launchwerk::models::VersionManifest;
-use zellkern::Loader;
 use launchwerk::{LaunchConfig, Launchwerk};
 use std::collections::VecDeque;
 use std::sync::{Arc, OnceLock};
@@ -18,6 +21,7 @@ use tauri::Emitter;
 use tokio::fs;
 use tokio::sync::broadcast;
 use tracing::{error, info, trace, warn};
+use zellkern::Loader;
 
 use dashmap::DashMap;
 
@@ -178,7 +182,9 @@ impl Launcher {
             );
             DownloadQueue::get().enqueue(version.clone()).await;
             handle.set_status(InstanceStatus::Off);
-            return Err(AppError::Instance(InstanceError::VersionNotFound(version.to_string())));
+            return Err(AppError::Instance(InstanceError::VersionNotFound(
+                version.to_string(),
+            )));
         }
 
         let version_json = shared_dir.join(format!("versions/{}/{}.json", version, version));
@@ -192,8 +198,7 @@ impl Launcher {
             manifest.java_version.clone()
         } else {
             manifest.inherits_from.as_ref().and_then(|parent_id| {
-                let parent_path =
-                    shared_dir.join(format!("versions/{parent_id}/{parent_id}.json"));
+                let parent_path = shared_dir.join(format!("versions/{parent_id}/{parent_id}.json"));
                 VersionManifest::from_file(parent_path)
                     .ok()
                     .and_then(|p| p.java_version)
@@ -227,8 +232,7 @@ impl Launcher {
             }
         }
 
-        let (java_version, java_path) =
-            resolve_java_path(&settings_m, java_version_req.as_ref());
+        let (java_version, java_path) = resolve_java_path(&settings_m, java_version_req.as_ref());
 
         if !java_path.exists() {
             handle.set_status(InstanceStatus::Error(
@@ -281,31 +285,30 @@ impl Launcher {
                                 .unwrap_or_else(|_| server_url.clone());
                             match yggdrasil::fetch_metadata_prefetch(&api_root).await {
                                 Ok(metadata_b64) => {
-                                    let agent_arg = format!(
-                                        "-javaagent:{}={}",
-                                        jar_path.display(),
-                                        api_root
-                                    );
+                                    let agent_arg =
+                                        format!("-javaagent:{}={}", jar_path.display(), api_root);
                                     builder = builder
                                         .authlib_injector_path(jar_path)
                                         .yggdrasil_metadata_b64(metadata_b64);
                                     extra_jvm_args.push(agent_arg);
                                 }
                                 Err(e) => {
-                                    warn!("Failed to fetch Yggdrasil metadata for prefetch: {}. Launching without prefetch.", e);
-                                    let agent_arg = format!(
-                                        "-javaagent:{}={}",
-                                        jar_path.display(),
-                                        server_url
+                                    warn!(
+                                        "Failed to fetch Yggdrasil metadata for prefetch: {}. Launching without prefetch.",
+                                        e
                                     );
-                                    builder = builder
-                                        .authlib_injector_path(jar_path);
+                                    let agent_arg =
+                                        format!("-javaagent:{}={}", jar_path.display(), server_url);
+                                    builder = builder.authlib_injector_path(jar_path);
                                     extra_jvm_args.push(agent_arg);
                                 }
                             }
                         }
                         Err(e) => {
-                            warn!("Failed to download authlib-injector: {}. Launching without it.", e);
+                            warn!(
+                                "Failed to download authlib-injector: {}. Launching without it.",
+                                e
+                            );
                         }
                     }
                 }
@@ -572,9 +575,7 @@ fn is_forge_version_safe(version_id: &str) -> bool {
         .filter_map(|p| p.parse().ok())
         .collect();
     match parts.as_slice() {
-        [major, minor, patch, ..] => {
-            (*major, *minor, *patch) > (36, 2, 25)
-        }
+        [major, minor, patch, ..] => (*major, *minor, *patch) > (36, 2, 25),
         _ => true,
     }
 }

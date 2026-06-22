@@ -4,8 +4,8 @@ use std::pin::Pin;
 
 use tokio::sync::mpsc::Sender;
 
-use crate::types::DownloadProgress;
 use crate::AquaError;
+use crate::types::DownloadProgress;
 
 #[derive(Debug, Clone)]
 pub struct DownloadItemSpec {

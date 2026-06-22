@@ -101,7 +101,10 @@ pub fn validate_instance_name(name: &str) -> Result<(), String> {
     }
     let forbidden = ['/', '\\', '\0', '<', '>', ':', '"', '|', '?', '*'];
     if name.contains(&"..") || name.chars().any(|c| forbidden.contains(&c)) {
-        return Err("El nombre contiene caracteres no permitidos (/, \\, <, >, :, \", |, ?, *, .., \\0).".into());
+        return Err(
+            "El nombre contiene caracteres no permitidos (/, \\, <, >, :, \", |, ?, *, .., \\0)."
+                .into(),
+        );
     }
     Ok(())
 }

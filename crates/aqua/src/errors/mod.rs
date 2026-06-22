@@ -48,10 +48,7 @@ pub enum AquaError {
     ForgeProfileParse(String),
 
     #[error("Forge processor '{processor}' failed: {detail}")]
-    ForgeProcessor {
-        processor: String,
-        detail: String,
-    },
+    ForgeProcessor { processor: String, detail: String },
 
     #[error("Forge output verification failed: {file} (expected {expected}, got {actual})")]
     ForgeOutputVerification {

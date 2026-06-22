@@ -11,11 +11,11 @@ use zellkern::{
 };
 
 use super::batch::{DownloadBatch, DownloadItemSpec};
+use crate::AquaError;
 use crate::types::DownloadProgress;
 use crate::utilities::{
     compute_sha1_sync, extract_zip_to_dir, read_jar_main_class, run_java_process,
 };
-use crate::AquaError;
 
 #[derive(Debug, Clone)]
 pub struct ForgeVersionInfo {
@@ -27,12 +27,8 @@ pub struct ForgeVersionInfo {
 
 /// Internal representation — either modern or legacy Forge.
 enum ProfileKind {
-    Modern {
-        profile: InstallProfile,
-    },
-    Legacy {
-        profile: LegacyInstallProfile,
-    },
+    Modern { profile: InstallProfile },
+    Legacy { profile: LegacyInstallProfile },
 }
 
 pub struct ForgeBatch {
@@ -57,9 +53,7 @@ impl ForgeBatch {
         java_path: Option<PathBuf>,
     ) -> Result<Self, AquaError> {
         let version_id = format!("{game_version}-forge-{forge_version}");
-        let temp_dir = shared_dir
-            .join("temp")
-            .join(format!("forge-{version_id}"));
+        let temp_dir = shared_dir.join("temp").join(format!("forge-{version_id}"));
         let staging_dir = temp_dir.join("staging");
 
         if temp_dir.exists() {
@@ -111,9 +105,8 @@ impl ForgeBatch {
                     profile.libraries.len()
                 );
                 // Inject INSTALLER data entry (XMCL-style)
-                let installer_maven = format!(
-                    "net.minecraftforge:forge:{game_version}-{forge_version}:installer"
-                );
+                let installer_maven =
+                    format!("net.minecraftforge:forge:{game_version}-{forge_version}:installer");
                 let installer_entry = zellkern::DataEntry {
                     client: Some(serde_json::Value::String(format!("[{installer_maven}]"))),
                     server: Some(serde_json::Value::String(format!("[{installer_maven}]"))),
@@ -122,20 +115,18 @@ impl ForgeBatch {
 
                 // Modern: read separate version.json
                 let version_json_path = extract_dir.join("version.json");
-                version_json_text = tokio::fs::read_to_string(&version_json_path).await.map_err(
-                    |e| AquaError::ForgeExtract(format!("Cannot read version.json: {e}")),
-                )?;
+                version_json_text = tokio::fs::read_to_string(&version_json_path)
+                    .await
+                    .map_err(|e| {
+                        AquaError::ForgeExtract(format!("Cannot read version.json: {e}"))
+                    })?;
                 profile_kind = ProfileKind::Modern { profile };
             }
             Err(e) => {
-                info!(
-                    "Modern parse failed ({e}), trying legacy install_profile.json format"
-                );
-                let legacy: LegacyInstallProfile = serde_json::from_slice(&profile_bytes)
-                    .map_err(|e2| {
-                        AquaError::ForgeProfileParse(format!(
-                            "Not modern ({e}) or legacy ({e2})"
-                        ))
+                info!("Modern parse failed ({e}), trying legacy install_profile.json format");
+                let legacy: LegacyInstallProfile =
+                    serde_json::from_slice(&profile_bytes).map_err(|e2| {
+                        AquaError::ForgeProfileParse(format!("Not modern ({e}) or legacy ({e2})"))
                     })?;
                 info!(
                     "Forge profile (legacy): target={}, minecraft={}, {} libs",
@@ -162,7 +153,12 @@ impl ForgeBatch {
         match &profile_kind {
             ProfileKind::Modern { profile } => {
                 // Modern profile libs (from install_profile.json)
-                add_modern_libs(&profile.libraries, &mut items, &mut seen_paths, &staging_libs)?;
+                add_modern_libs(
+                    &profile.libraries,
+                    &mut items,
+                    &mut seen_paths,
+                    &staging_libs,
+                )?;
 
                 // Also collect libs from version.json
                 let vj: serde_json::Value = serde_json::from_str(&version_json_text)
@@ -206,7 +202,14 @@ impl ForgeBatch {
         java_path: Option<PathBuf>,
     ) -> Result<VersionManifest, AquaError> {
         let installer_url = Self::resolve_installer_url(game_version, forge_version);
-        let batch = Self::new(shared_dir, game_version, forge_version, &installer_url, java_path).await?;
+        let batch = Self::new(
+            shared_dir,
+            game_version,
+            forge_version,
+            &installer_url,
+            java_path,
+        )
+        .await?;
         batch.run(shared_dir).await
     }
 
@@ -265,8 +268,7 @@ impl DownloadBatch for ForgeBatch {
                 let staging_libs = staging_dir.join("libraries");
                 let maven = maven_dir.clone();
                 let libs = staging_libs.clone();
-                tokio::task::spawn_blocking(move || copy_dir_recursive(&maven, &libs))
-                    .await??;
+                tokio::task::spawn_blocking(move || copy_dir_recursive(&maven, &libs)).await??;
                 info!("Copied maven/ to staging/libraries/");
             }
 
@@ -362,10 +364,7 @@ impl DownloadBatch for ForgeBatch {
                 if !processor_jar.exists() {
                     return Err(AquaError::ForgeProcessor {
                         processor: proc.jar.clone(),
-                        detail: format!(
-                            "Processor JAR not found: {}",
-                            processor_jar.display()
-                        ),
+                        detail: format!("Processor JAR not found: {}", processor_jar.display()),
                     });
                 }
 
@@ -382,7 +381,11 @@ impl DownloadBatch for ForgeBatch {
                         });
                     }
                 }
-                let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+                let separator = if cfg!(target_os = "windows") {
+                    ";"
+                } else {
+                    ":"
+                };
                 let classpath = cp_parts.join(separator);
 
                 let main_class = read_jar_main_class(&processor_jar)?;
@@ -392,15 +395,7 @@ impl DownloadBatch for ForgeBatch {
                 let resolved_args: Vec<String> = proc
                     .args
                     .iter()
-                    .map(|arg| {
-                        resolve_arg(
-                            arg,
-                            &data,
-                            &mc_jar,
-                            &staging_libs,
-                            &staging_parent,
-                        )
-                    })
+                    .map(|arg| resolve_arg(arg, &data, &mc_jar, &staging_libs, &staging_parent))
                     .collect();
 
                 run_java_process(
@@ -414,20 +409,10 @@ impl DownloadBatch for ForgeBatch {
 
                 // Verify outputs
                 for (out_coord, expected_sha) in &proc.outputs {
-                    let out_path = resolve_arg(
-                        out_coord,
-                        &data,
-                        &mc_jar,
-                        &staging_libs,
-                        &staging_parent,
-                    );
-                    let expected_resolved = resolve_arg(
-                        expected_sha,
-                        &data,
-                        &mc_jar,
-                        &staging_libs,
-                        &staging_parent,
-                    );
+                    let out_path =
+                        resolve_arg(out_coord, &data, &mc_jar, &staging_libs, &staging_parent);
+                    let expected_resolved =
+                        resolve_arg(expected_sha, &data, &mc_jar, &staging_libs, &staging_parent);
                     let expected_clean = expected_resolved.trim_matches('\'');
 
                     let out_path = Path::new(&out_path);
@@ -450,10 +435,7 @@ impl DownloadBatch for ForgeBatch {
 
                     info!(
                         "Output verified: {}",
-                        out_path
-                            .file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
+                        out_path.file_name().unwrap_or_default().to_string_lossy()
                     );
                 }
             }
@@ -527,9 +509,7 @@ fn add_modern_libs(
         }
         // Fallback: lib has `url` base but no `downloads.artifact` — compute path from name
         if let Some(ref base_url) = lib.url {
-            let path = maven_to_path(&lib.name)
-                .to_string_lossy()
-                .into_owned();
+            let path = maven_to_path(&lib.name).to_string_lossy().into_owned();
             if !seen.contains(&path) {
                 let full_url = format!("{}/{path}", base_url.trim_end_matches('/'));
                 let dest = staging_libs.join(&path);
@@ -573,9 +553,7 @@ fn add_vj_lib(
         if !path.is_empty() && !seen.contains(&path) {
             if !url.is_empty() {
                 let dest = staging_libs.join(&path);
-                items.push(
-                    DownloadItemSpec::new(url, dest, &name).with_hash(sha1),
-                );
+                items.push(DownloadItemSpec::new(url, dest, &name).with_hash(sha1));
             }
             seen.insert(path);
         }
@@ -613,9 +591,7 @@ fn add_legacy_libs(
             .and_then(|c| c.first().cloned())
             .unwrap_or_default();
         let dest = staging_libs.join(&path);
-        items.push(
-            DownloadItemSpec::new(url, dest, &lib.name).with_hash(sha1),
-        );
+        items.push(DownloadItemSpec::new(url, dest, &lib.name).with_hash(sha1));
         seen.insert(path);
     }
     Ok(())
@@ -703,18 +679,19 @@ fn resolve_data_value(
 ) -> String {
     match val {
         serde_json::Value::String(s) => {
-            let resolved = if let Some(coord) = s.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
-                lib_dir
-                    .join(maven_to_path(coord))
-                    .to_string_lossy()
-                    .to_string()
-            } else if let Some(lit) = s.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')) {
-                lit.to_string()
-            } else if let Some(rest) = s.strip_prefix('/') {
-                root.join(rest).to_string_lossy().to_string()
-            } else {
-                s.clone()
-            };
+            let resolved =
+                if let Some(coord) = s.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+                    lib_dir
+                        .join(maven_to_path(coord))
+                        .to_string_lossy()
+                        .to_string()
+                } else if let Some(lit) = s.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')) {
+                    lit.to_string()
+                } else if let Some(rest) = s.strip_prefix('/') {
+                    root.join(rest).to_string_lossy().to_string()
+                } else {
+                    s.clone()
+                };
             resolve_var_refs(&resolved, data, mc_jar, lib_dir, root)
         }
         _ => val.to_string(),
@@ -759,9 +736,8 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), AquaError> {
     for entry in std::fs::read_dir(from)
         .map_err(|e| AquaError::ForgeExtract(format!("Cannot read dir: {e}")))?
     {
-        let entry = entry.map_err(|e| {
-            AquaError::ForgeExtract(format!("Cannot read dir entry: {e}"))
-        })?;
+        let entry =
+            entry.map_err(|e| AquaError::ForgeExtract(format!("Cannot read dir entry: {e}")))?;
         let src = entry.path();
         let dst = to.join(entry.file_name());
 

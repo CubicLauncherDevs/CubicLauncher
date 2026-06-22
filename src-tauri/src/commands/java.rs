@@ -1,7 +1,7 @@
 use crate::core::AppEvent;
 use crate::core::emit;
-use crate::services::java_manager::JavaManager;
 use crate::services::DownloadQueue;
+use crate::services::java_manager::JavaManager;
 use aqua::{JreBatch, JreStatus};
 use smallvec::SmallVec;
 use tauri::command;

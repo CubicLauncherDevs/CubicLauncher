@@ -161,7 +161,10 @@ pub fn get_user_theme(id: String) -> Result<ThemeFile, String> {
     // Resolver rutas de fuentes relativas al directorio del theme
     for font in &mut theme.fonts {
         if !font.src.starts_with('/') && !font.src.starts_with("file:") {
-            let abs_path = PathManager::get().get_themes_dir().join(&id).join(&font.src);
+            let abs_path = PathManager::get()
+                .get_themes_dir()
+                .join(&id)
+                .join(&font.src);
             font.src = abs_path.to_string_lossy().to_string().into();
         }
     }
@@ -316,9 +319,8 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
         .to_string()
     })?;
 
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| {
-        CoreError::Other(format!("Archivo ZIP inválido: {}", e)).to_string()
-    })?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| CoreError::Other(format!("Archivo ZIP inválido: {}", e)).to_string())?;
 
     // Buscar theme.json en la raíz o en un único subdirectorio
     let theme_json_name = {
@@ -327,9 +329,9 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
         let mut invalid = false;
 
         for i in 0..archive.len() {
-            let entry = archive.by_index(i).map_err(|e| {
-                CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string()
-            })?;
+            let entry = archive
+                .by_index(i)
+                .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
             let name = entry.name().to_string();
 
             if name == "theme.json" {
@@ -344,10 +346,10 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
         }
 
         if invalid || (found_root && found_subdir.is_some()) {
-            return Err(CoreError::Other(
-                "ZIP inválido: múltiples theme.json encontrados".into(),
-            )
-            .to_string());
+            return Err(
+                CoreError::Other("ZIP inválido: múltiples theme.json encontrados".into())
+                    .to_string(),
+            );
         }
 
         match (found_root, found_subdir) {
@@ -360,10 +362,9 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
     let theme_json_name = match theme_json_name {
         Some(name) => name,
         None => {
-            return Err(CoreError::Other(
-                "ZIP inválido: no se encontró theme.json".into(),
-            )
-            .to_string());
+            return Err(
+                CoreError::Other("ZIP inválido: no se encontró theme.json".into()).to_string(),
+            );
         }
     };
 
@@ -379,9 +380,8 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
         buf
     };
 
-    let theme_file: ThemeFile = serde_json::from_str(&theme_json_content).map_err(|e| {
-        CoreError::Other(format!("theme.json inválido: {}", e)).to_string()
-    })?;
+    let theme_file: ThemeFile = serde_json::from_str(&theme_json_content)
+        .map_err(|e| CoreError::Other(format!("theme.json inválido: {}", e)).to_string())?;
 
     let theme_id = if theme_file.author.is_empty() {
         theme_file.name.to_lowercase().replace(' ', "_")
@@ -428,9 +428,9 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
 
     // Extraer todos los archivos del ZIP
     for i in 0..archive.len() {
-        let mut entry = archive.by_index(i).map_err(|e| {
-            CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string()
-        })?;
+        let mut entry = archive
+            .by_index(i)
+            .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
 
         let entry_name = entry.name().to_string();
 

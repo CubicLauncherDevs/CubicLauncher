@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::Loader;
 
@@ -12,7 +12,11 @@ pub struct MCVersion {
 
 impl MCVersion {
     pub fn new(major: u8, minor: u8, patch: Option<u8>) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
 }
 
@@ -47,7 +51,11 @@ pub fn parse_version(s: &str) -> Option<MCVersion> {
     let major = digits[0].parse::<u8>().ok()?;
     let minor = digits[1].parse::<u8>().ok()?;
     let patch = digits.get(2).and_then(|p| p.parse().ok());
-    Some(MCVersion { major, minor, patch })
+    Some(MCVersion {
+        major,
+        minor,
+        patch,
+    })
 }
 
 /// A structured Minecraft version with loader information.
@@ -138,10 +146,7 @@ pub fn resolve_dependencies(version_id: &str) -> Vec<String> {
     let game_version = GameVersion::from_version_id(version_id);
     match &game_version.loader {
         Loader::Vanilla => vec![version_id.to_string()],
-        Loader::Fabric(_)
-        | Loader::Forge(_)
-        | Loader::NeoForge(_)
-        | Loader::Quilt(_) => {
+        Loader::Fabric(_) | Loader::Forge(_) | Loader::NeoForge(_) | Loader::Quilt(_) => {
             vec![game_version.mc_version.clone(), version_id.to_string()]
         }
     }
@@ -170,7 +175,10 @@ mod tests {
     fn extract_fabric_version() {
         let gv = GameVersion::from_version_id("fabric-loader-0.15.11-1.20.1");
         assert_eq!(gv.mc_version, "1.20.1");
-        assert_eq!(gv.loader, Loader::Fabric("fabric-loader-0.15.11-1.20.1".into()));
+        assert_eq!(
+            gv.loader,
+            Loader::Fabric("fabric-loader-0.15.11-1.20.1".into())
+        );
     }
 
     #[test]

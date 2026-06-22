@@ -56,9 +56,7 @@ impl LegacyLibrary {
     /// Construct full download URL from base Maven URL + maven path.
     pub fn download_url(&self) -> Option<String> {
         let base = self.url.as_deref()?;
-        let path = maven_to_path(&self.name)
-            .to_string_lossy()
-            .into_owned();
+        let path = maven_to_path(&self.name).to_string_lossy().into_owned();
         let base = base.trim_end_matches('/');
         Some(format!("{base}/{path}"))
     }
@@ -176,10 +174,7 @@ mod tests {
     #[test]
     fn simple_maven_coord() {
         let path = maven_to_path("org.ow2.asm:asm:9.9.1");
-        assert_eq!(
-            path,
-            PathBuf::from("org/ow2/asm/asm/9.9.1/asm-9.9.1.jar")
-        );
+        assert_eq!(path, PathBuf::from("org/ow2/asm/asm/9.9.1/asm-9.9.1.jar"));
     }
 
     #[test]
@@ -196,7 +191,9 @@ mod tests {
         let path = maven_to_path("de.oceanlabs.mcp:mcp_config:1.12.2-20200226.224830@zip");
         assert_eq!(
             path,
-            PathBuf::from("de/oceanlabs/mcp/mcp_config/1.12.2-20200226.224830/mcp_config-1.12.2-20200226.224830.zip")
+            PathBuf::from(
+                "de/oceanlabs/mcp/mcp_config/1.12.2-20200226.224830/mcp_config-1.12.2-20200226.224830.zip"
+            )
         );
     }
 

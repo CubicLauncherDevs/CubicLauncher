@@ -6,9 +6,9 @@ use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 
 use super::batch::{DownloadBatch, DownloadItemSpec};
+use crate::AquaError;
 use crate::jre::{JrePackage, ZuluApi};
 use crate::types::{DownloadProgress, DownloadProgressInfo, DownloadProgressType};
-use crate::AquaError;
 
 pub struct JreBatch {
     pub version: u8,

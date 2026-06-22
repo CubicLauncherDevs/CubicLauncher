@@ -6,12 +6,9 @@ use tokio::time;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)?
-        .as_secs();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
 
     let mut client = DiscordRpcClient::new("1305247641252397059");
-
 
     client.connect().await?;
 

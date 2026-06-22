@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use log::{debug, info, warn};
 
-use crate::{MCVersion, VersionManifest, Error};
+use crate::{Error, MCVersion, VersionManifest};
 
 /// Determine the native subdirectory based on Minecraft version.
 /// Versions >= 26w02a use "java" subdirectory.
@@ -70,7 +70,10 @@ fn get_native_subdir(lib_name: &str) -> &'static str {
         "lwjgl"
     } else if name_lower.contains("netty") {
         "netty"
-    } else if name_lower.contains("jna") || name_lower.contains("java-objc-bridge") || name_lower.contains("jtracy") {
+    } else if name_lower.contains("jna")
+        || name_lower.contains("java-objc-bridge")
+        || name_lower.contains("jtracy")
+    {
         "java"
     } else {
         ""
@@ -87,9 +90,9 @@ pub fn extract_jar(jar_path: &Path, dest_dir: &Path) -> Result<(), Error> {
     })?;
 
     for i in 0..archive.len() {
-        let mut entry = archive.by_index(i).map_err(|e| {
-            std::io::Error::other(e.to_string())
-        })?;
+        let mut entry = archive
+            .by_index(i)
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
 
         let name = entry.name().to_string();
 
@@ -109,13 +112,7 @@ pub fn extract_jar(jar_path: &Path, dest_dir: &Path) -> Result<(), Error> {
 
         let out_path = dest_dir.join(&file_name);
 
-        if out_path.exists()
-            && out_path
-                .metadata()
-                .map(|m| m.len())
-                .unwrap_or(0)
-                == entry.size()
-        {
+        if out_path.exists() && out_path.metadata().map(|m| m.len()).unwrap_or(0) == entry.size() {
             debug!("Native already extracted: {}", out_path.display());
             continue;
         }

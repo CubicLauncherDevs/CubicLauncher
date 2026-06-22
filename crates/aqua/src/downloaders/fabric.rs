@@ -6,8 +6,8 @@ use log::info;
 use serde::Deserialize;
 
 use super::batch::{DownloadBatch, DownloadItemSpec};
-use crate::utilities::HTTP_CLIENT;
 use crate::AquaError;
+use crate::utilities::HTTP_CLIENT;
 
 #[derive(Deserialize)]
 #[allow(dead_code)]
@@ -71,8 +71,7 @@ impl FabricBatch {
         game_version: &str,
         loader_version: &str,
     ) -> Result<Self, AquaError> {
-        let fabric_version_id =
-            format!("fabric-loader-{}-{}", loader_version, game_version);
+        let fabric_version_id = format!("fabric-loader-{}-{}", loader_version, game_version);
 
         let profile_url = format!(
             "https://meta.fabricmc.net/v2/versions/loader/{}/{}/profile/json",

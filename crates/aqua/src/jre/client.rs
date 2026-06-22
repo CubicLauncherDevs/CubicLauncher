@@ -36,11 +36,13 @@ impl ZuluApi {
                     p.name.ends_with(".tar.gz")
                 }
             })
-            .ok_or_else(|| AquaError::Other(format!(
-                "No Zulu JRE ({}) found for Java {}",
-                if is_windows { "zip" } else { "tar.gz" },
-                java_version
-            )))?;
+            .ok_or_else(|| {
+                AquaError::Other(format!(
+                    "No Zulu JRE ({}) found for Java {}",
+                    if is_windows { "zip" } else { "tar.gz" },
+                    java_version
+                ))
+            })?;
 
         let java_ver = pkg
             .java_version
@@ -111,7 +113,10 @@ impl ZuluApi {
 
         tokio::fs::remove_file(&archive_path).await?;
 
-        let extracted_name = pkg.filename.trim_end_matches(".tar.gz").trim_end_matches(".zip");
+        let extracted_name = pkg
+            .filename
+            .trim_end_matches(".tar.gz")
+            .trim_end_matches(".zip");
         let extracted_dir = extract_dir.join(extracted_name);
         if extracted_dir.exists() {
             if dest_dir.exists() {
@@ -146,11 +151,7 @@ fn current_arch() -> &'static str {
     }
 }
 
-async fn extract_tar_gz(
-    archive: &Path,
-    dest: &Path,
-    _filename: &str,
-) -> Result<(), AquaError> {
+async fn extract_tar_gz(archive: &Path, dest: &Path, _filename: &str) -> Result<(), AquaError> {
     let archive = archive.to_path_buf();
     let dest = dest.to_path_buf();
 
@@ -174,7 +175,8 @@ async fn extract_zip(archive: &Path, dest: &Path, _filename: &str) -> Result<(),
             .map_err(|e| AquaError::Other(format!("Failed to open ZIP: {}", e)))?;
 
         for i in 0..archive.len() {
-            let mut entry = archive.by_index(i)
+            let mut entry = archive
+                .by_index(i)
                 .map_err(|e| AquaError::Other(format!("Failed to read ZIP entry: {}", e)))?;
 
             let name = entry.name().to_string();

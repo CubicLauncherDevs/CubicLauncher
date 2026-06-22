@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 use uuid::Uuid;
 use zellkern::resolvers::CommandBuilder;
-use zellkern::{extract_natives, LaunchConfig};
+use zellkern::{LaunchConfig, extract_natives};
 
 // ─── Internal state ───────────────────────────────────────────────────────────
 

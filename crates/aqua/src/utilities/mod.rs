@@ -237,37 +237,30 @@ pub fn extract_zip_to_dir(zip_path: &Path, dest_dir: &Path) -> Result<(), AquaEr
 
 /// Read the Main-Class attribute from a JAR file's META-INF/MANIFEST.MF.
 pub fn read_jar_main_class(jar_path: &Path) -> Result<String, AquaError> {
-    let file = std::fs::File::open(jar_path).map_err(|e| {
-        AquaError::ForgeProcessor {
-            processor: jar_path.display().to_string(),
-            detail: format!("Cannot open JAR: {e}"),
-        }
+    let file = std::fs::File::open(jar_path).map_err(|e| AquaError::ForgeProcessor {
+        processor: jar_path.display().to_string(),
+        detail: format!("Cannot open JAR: {e}"),
     })?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| {
-        AquaError::ForgeProcessor {
-            processor: jar_path.display().to_string(),
-            detail: format!("Invalid JAR: {e}"),
-        }
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| AquaError::ForgeProcessor {
+        processor: jar_path.display().to_string(),
+        detail: format!("Invalid JAR: {e}"),
     })?;
 
-    let manifest = archive.by_name("META-INF/MANIFEST.MF").map_err(|e| {
-        AquaError::ForgeProcessor {
-            processor: jar_path.display().to_string(),
-            detail: format!("No MANIFEST.MF: {e}"),
-        }
-    })?;
+    let manifest =
+        archive
+            .by_name("META-INF/MANIFEST.MF")
+            .map_err(|e| AquaError::ForgeProcessor {
+                processor: jar_path.display().to_string(),
+                detail: format!("No MANIFEST.MF: {e}"),
+            })?;
 
     let mut content = String::new();
-    std::io::Read::read_to_string(
-        &mut std::io::BufReader::new(manifest),
-        &mut content,
-    )
-    .map_err(|e| {
-        AquaError::ForgeProcessor {
+    std::io::Read::read_to_string(&mut std::io::BufReader::new(manifest), &mut content).map_err(
+        |e| AquaError::ForgeProcessor {
             processor: jar_path.display().to_string(),
             detail: format!("Cannot read MANIFEST.MF: {e}"),
-        }
-    })?;
+        },
+    )?;
 
     for line in content.lines() {
         if let Some(mc) = line.strip_prefix("Main-Class:") {
@@ -301,11 +294,9 @@ pub async fn run_java_process(
         .args(&args)
         .status()
         .await
-        .map_err(|e| {
-            AquaError::ForgeProcessor {
-                processor: processor_name.clone(),
-                detail: format!("Failed to start Java: {e}"),
-            }
+        .map_err(|e| AquaError::ForgeProcessor {
+            processor: processor_name.clone(),
+            detail: format!("Failed to start Java: {e}"),
         })?;
 
     if !status.success() {
@@ -322,12 +313,10 @@ pub async fn run_java_process(
 pub fn compute_sha1_sync(path: &Path) -> Result<String, AquaError> {
     use sha1::{Digest, Sha1};
 
-    let mut file = std::fs::File::open(path).map_err(|e| {
-        AquaError::ForgeOutputVerification {
-            file: path.display().to_string(),
-            expected: "N/A".into(),
-            actual: format!("Cannot open file: {e}"),
-        }
+    let mut file = std::fs::File::open(path).map_err(|e| AquaError::ForgeOutputVerification {
+        file: path.display().to_string(),
+        expected: "N/A".into(),
+        actual: format!("Cannot open file: {e}"),
     })?;
     let mut hasher = Sha1::new();
     let mut buf = [0u8; 8192];

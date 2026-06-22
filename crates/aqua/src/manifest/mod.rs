@@ -1,11 +1,11 @@
+use crate::AquaError;
 use crate::types::{
     AssetMeta, Downloadable, LibraryFile, MOJANG_MANIFEST_URL, NormalizedArguments,
     NormalizedVersion, VersionAssets,
 };
 use crate::utilities::HTTP_CLIENT;
-use crate::AquaError;
-use zellkern::VersionManifest;
 use serde::Deserialize;
+use zellkern::VersionManifest;
 
 #[derive(Deserialize)]
 struct ManifestV2 {
@@ -215,9 +215,7 @@ fn resolve_normalized(version: VersionManifest) -> Result<NormalizedVersion, Aqu
     })
 }
 
-pub async fn resolve_asset_index(
-    version: &NormalizedVersion,
-) -> Result<VersionAssets, AquaError> {
+pub async fn resolve_asset_index(version: &NormalizedVersion) -> Result<VersionAssets, AquaError> {
     let res = HTTP_CLIENT
         .get(&version.asset_index.url)
         .send()

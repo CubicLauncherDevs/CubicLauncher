@@ -198,7 +198,9 @@ impl InstanceManager {
             .ok_or_else(|| "Instancia no encontrada".to_string())?;
 
         if handle.is_busy() {
-            return Err("No se puede modificar una instancia mientras está en ejecución".to_string());
+            return Err(
+                "No se puede modificar una instancia mientras está en ejecución".to_string(),
+            );
         }
 
         if let Some(name) = new_name {

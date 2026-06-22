@@ -77,13 +77,31 @@ impl FsError {
 
     pub fn params(&self) -> Vec<(&'static str, String)> {
         match self {
-            Self::ReadDir { path, source } => vec![("path", path.clone()), ("error", source.to_string())],
-            Self::ReadFile { path, source } => vec![("path", path.clone()), ("error", source.to_string())],
-            Self::CreateDir { path, source } => vec![("path", path.clone()), ("error", source.to_string())],
-            Self::WriteFile { path, source } => vec![("path", path.clone()), ("error", source.to_string())],
-            Self::Copy { from, to, source } => vec![("from", from.clone()), ("to", to.clone()), ("error", source.to_string())],
-            Self::Rename { from, to, source } => vec![("from", from.clone()), ("to", to.clone()), ("error", source.to_string())],
-            Self::Remove { path, source } => vec![("path", path.clone()), ("error", source.to_string())],
+            Self::ReadDir { path, source } => {
+                vec![("path", path.clone()), ("error", source.to_string())]
+            }
+            Self::ReadFile { path, source } => {
+                vec![("path", path.clone()), ("error", source.to_string())]
+            }
+            Self::CreateDir { path, source } => {
+                vec![("path", path.clone()), ("error", source.to_string())]
+            }
+            Self::WriteFile { path, source } => {
+                vec![("path", path.clone()), ("error", source.to_string())]
+            }
+            Self::Copy { from, to, source } => vec![
+                ("from", from.clone()),
+                ("to", to.clone()),
+                ("error", source.to_string()),
+            ],
+            Self::Rename { from, to, source } => vec![
+                ("from", from.clone()),
+                ("to", to.clone()),
+                ("error", source.to_string()),
+            ],
+            Self::Remove { path, source } => {
+                vec![("path", path.clone()), ("error", source.to_string())]
+            }
             Self::NotFound(p) => vec![("path", p.clone())],
             Self::InvalidPath(p) => vec![("path", p.clone())],
         }

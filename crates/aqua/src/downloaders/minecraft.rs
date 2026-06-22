@@ -7,12 +7,12 @@ use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 
 use super::batch::{DownloadBatch, DownloadItemSpec};
+use crate::AquaError;
 use crate::manifest::{resolve_asset_index, resolve_version_data};
 use crate::types::{AssetMeta, DownloadProgress, NormalizedVersion, RESOURCES_BASE_URL};
-use zellkern::resolvers::natives_subdir;
-use crate::utilities::download_file;
-use crate::AquaError;
 use crate::utilities::HTTP_CLIENT;
+use crate::utilities::download_file;
+use zellkern::resolvers::natives_subdir;
 
 #[derive(Clone)]
 struct DirPaths {
@@ -58,9 +58,7 @@ impl MinecraftBatch {
 
         for lib in &version.libraries {
             let lib_path = dirs.libraries_dir.join(&lib.path);
-            items.push(
-                DownloadItemSpec::new(&lib.url, lib_path, &lib.name).with_hash(&lib.sha1),
-            );
+            items.push(DownloadItemSpec::new(&lib.url, lib_path, &lib.name).with_hash(&lib.sha1));
         }
 
         for native in &version.natives {
@@ -150,12 +148,7 @@ impl DownloadBatch for MinecraftBatch {
             .natives
             .iter()
             .map(|n| {
-                let filename = n
-                    .path
-                    .split('/')
-                    .next_back()
-                    .unwrap_or(&n.path)
-                    .to_string();
+                let filename = n.path.split('/').next_back().unwrap_or(&n.path).to_string();
                 temp_dir.join(&filename)
             })
             .collect();
@@ -163,10 +156,10 @@ impl DownloadBatch for MinecraftBatch {
         Box::pin(async move {
             #[cfg(feature = "extract-natives")]
             {
-                use futures::stream::{FuturesUnordered, StreamExt};
-                use tokio::sync::Semaphore;
-                use std::sync::Arc;
                 use crate::utilities::extract_native;
+                use futures::stream::{FuturesUnordered, StreamExt};
+                use std::sync::Arc;
+                use tokio::sync::Semaphore;
 
                 const MAX_CONCURRENT_EXTRACTIONS: usize = 8;
                 let extract_sem = Arc::new(Semaphore::new(MAX_CONCURRENT_EXTRACTIONS));
@@ -200,10 +193,7 @@ impl DownloadBatch for MinecraftBatch {
     }
 }
 
-async fn download_version_json(
-    version_id: &str,
-    dirs: &DirPaths,
-) -> Result<(), AquaError> {
+async fn download_version_json(version_id: &str, dirs: &DirPaths) -> Result<(), AquaError> {
     let path = dirs.versions_dir.join(format!("{}.json", version_id));
     if path.exists() {
         return Ok(());
@@ -241,11 +231,6 @@ async fn download_asset_index_json(
         }
     }
 
-    download_file(
-        &asset_index.url,
-        &path,
-        &asset_index.sha1,
-    )
-    .await?;
+    download_file(&asset_index.url, &path, &asset_index.sha1).await?;
     Ok(())
 }
