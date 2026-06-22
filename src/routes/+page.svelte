@@ -44,7 +44,7 @@
 	let droppedMrpackPath = $state<string | null>(null);
 	let isDragOver = $state(false);
 	let dragPaths = $state<string[]>([]);
-
+	let editingInstance = $state<InstanceDto | null>(null);
 	let showTutorial = $state(false);
 	let SettingsComponent = $state<Component<{ onclose: () => void }> | null>(
 		null,
@@ -201,7 +201,10 @@
 			onopenquickmenu={() => (quickMenuOpen = true)}
 			onopenversiondownloader={() => (versionDownloaderOpen = true)}
 			onopencreateinstance={() => (openCreateModal = true)}
-			onopeneditinstance={() => (instanceEditorOpen = true)}
+			onopeneditinstance={(inst) => {
+				instanceEditorOpen = true;
+				editingInstance = inst;
+			}}
 		/>
 
 		<main class="main-content">
@@ -227,9 +230,14 @@
 		<SettingsComponent onclose={() => (quickMenuOpen = false)} />
 	</Drawer>
 
-	<Drawer bind:open={instanceEditorOpen} direction="right">
-		<InstanceDrawer onclose={() => (instanceEditorOpen = false)} />
-	</Drawer>
+	{#if editingInstance}
+		<Drawer bind:open={instanceEditorOpen} direction="right">
+			<InstanceDrawer
+				onclose={() => (instanceEditorOpen = false)}
+				instance={editingInstance}
+			/>
+		</Drawer>
+	{/if}
 
 	<Drawer bind:open={versionDownloaderOpen} direction="right">
 		<VersionDownloaderComponent

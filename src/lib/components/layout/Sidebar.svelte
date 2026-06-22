@@ -1,17 +1,10 @@
 <script lang="ts">
-	import { getInstalledVersions } from "$lib/api/cubicApi";
-	import { INSTANCE_LOGOS } from "$lib/icons/logos";
-	import {
-		deleteInst,
-		updateInst,
-		getActiveUser,
-	} from "$lib/api/launcherService";
+	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { SvelteMap } from "svelte/reactivity";
 	import type { InstanceDto } from "$lib/types/types";
 	import UserMenu from "./UserMenu.svelte";
 	import ModalBase from "./ModalBase.svelte";
-	import Select from "./Select.svelte";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import DownloadQueue from "./DownloadQueue.svelte";
 	import { t } from "$lib/i18n";
@@ -19,7 +12,7 @@
 	interface Props {
 		selectedInstance: InstanceDto | null;
 		onopenquickmenu?: () => void;
-		onopeneditinstance: () => void;
+		onopeneditinstance: (instance: InstanceDto) => void;
 		onopenversiondownloader?: () => void;
 		onopencreateinstance?: () => void;
 	}
@@ -35,10 +28,6 @@
 	let showUserMenu = $state(false);
 	let showDeleteModal = $state(false);
 	let instanceToActOn = $state<InstanceDto | null>(null);
-	let renameInput = $state("");
-	let versionInput = $state("");
-	let selectedIcon = $state<string | null>(null);
-	let installedVersions = $state<string[]>([]);
 	let activeUser = $derived(getActiveUser());
 	let username = $derived(activeUser?.username ?? "Steve");
 	let isPremium = $derived(activeUser?.user_type === "Microsoft");
@@ -75,9 +64,6 @@
 			})
 			.catch(() => {});
 	});
-	let versionOptions = $derived(
-		installedVersions.map((v) => ({ value: v, label: v })),
-	);
 
 	// ── Instance CRUD ─────────────────────────────────────────────────────
 
@@ -145,7 +131,7 @@
 							class="action-btn"
 							onclick={(e) => {
 								e.stopPropagation();
-								onopeneditinstance();
+								onopeneditinstance?.(instance);
 							}}
 							title={t("sidebar.rename")}
 						>
@@ -271,6 +257,31 @@
 		</div>
 	</div>
 </aside>
+
+<ModalBase bind:open={showDeleteModal} title={t("sidebar.modals.deleteTitle")}>
+	<p
+		style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4;"
+	>
+		{t("sidebar.modals.deleteDesc1")}
+		<strong style="color: var(--text-primary);"
+			>"{instanceToActOn?.name}"</strong
+		>{t("sidebar.modals.deleteDesc2")}
+	</p>
+	{#snippet footer()}
+		<button
+			type="button"
+			class="btn-secondary"
+			onclick={() => (showDeleteModal = false)}
+			>{t("sidebar.modals.cancel")}</button
+		>
+		<button
+			type="button"
+			class="btn-primary"
+			style="background: var(--color-error); color: white;"
+			onclick={handleDelete}>{t("sidebar.modals.deleteBtn")}</button
+		>
+	{/snippet}
+</ModalBase>
 
 <UserMenu bind:open={showUserMenu} />
 

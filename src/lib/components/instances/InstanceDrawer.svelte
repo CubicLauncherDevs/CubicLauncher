@@ -1,23 +1,24 @@
 <script lang="ts">
 	import { invoke } from "@tauri-apps/api/core";
-	import { launcherStore } from "$lib/state/state.svelte";
-	import { killInst, saveSettings } from "$lib/api/launcherService";
+
 	import { openUrl } from "$lib/api/cubicApi";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import { t } from "$lib/i18n";
 	import Select from "$lib/components/layout/Select.svelte";
+	import type { InstanceDto } from "$lib/types/types";
 
 	interface Props {
 		onclose?: () => void;
+		instance: InstanceDto;
 	}
 
-	let { onclose }: Props = $props();
+	let { onclose, instance }: Props = $props();
 
 	let saving = $state(false);
 
 	async function handleSave() {
 		saving = true;
-		await saveSettings();
+		console.log("Guardando :v");
 		setTimeout(() => {
 			saving = false;
 		}, 1000);
@@ -27,80 +28,60 @@
 <div class="qm-root">
 	<!-- Header -->
 	<div class="qm-header">
-		<span class="qm-label">{t("settings.title")}</span>
+		<span class="qm-label">{instance.name}</span>
 		<button type="button" class="qm-close-btn" onclick={onclose}>✕</button>
 	</div>
 
 	<div class="qm-scroll" data-tutorial="settings-scroll">
 		<div class="section-group">
-			<!-- <CollapsibleSection
-				title={t("settings.launcher.themes")}
-				iconSrc="/images/icons/pencil.svg"
-				storageKey="section_themes"
-			>
-				<Select
-					id="theme"
-					label={t("settings.launcher.themesActive")}
-					options={themeOptions}
-					bind:value={launcherStore.settings.theme}
-					onchange={async () => {
-						try {
-							await invoke("set_theme", {
-								id: launcherStore.settings.theme,
-							});
-						} catch (e) {
-							console.error("Error setting theme:", e);
-						}
-					}}
-				/>
-				<span
-					class="qm-themes-hint"
-					onclick={() =>
-						openUrl("https://www.cubiclauncher.com/themes")}
-					role="link"
-					tabindex="0"
-					onkeydown={(e) => {
-						if (e.key === "Enter")
-							openUrl("https://www.cubiclauncher.com/themes");
-					}}>{t("settings.launcher.themesSpan")}</span
-				>
-			</CollapsibleSection> -->
-
-			<!-- <CollapsibleSection
+			<CollapsibleSection
 				title={t("settings.launcher.generalTitle")}
-				iconSrc="/images/icons/sliders.svg"
-				storageKey="section_general"
+				iconSrc="/images/icons/settings.svg"
+				storageKey="instance_general"
 			>
-				<Select
-					id="language"
-					label={t("settings.launcher.language")}
-					options={languageOptions}
-					bind:value={launcherStore.settings.language}
-					onchange={handleSave}
-				/>
-				<div class="qm-field-checkbox">
-					<input
-						type="checkbox"
-						id="auto-updates"
-						bind:checked={launcherStore.settings.auto_updates}
-						onchange={handleSave}
-					/>
-					<label for="auto-updates"
-						>{t("settings.launcher.autoUpdates")}</label
+				<div class="about-content">
+					<p class="about-desc">
+						{t("settings.about.description")}
+					</p>
+					<div
+						role="button"
+						tabindex="0"
+						onclick={() => openUrl("https://discord.gg/XQrRFWRyp")}
+						onkeydown={(e) => {
+							if (e.key === "Enter")
+								openUrl("https://discord.gg/XQrRFWRyp");
+						}}
 					>
+						<img
+							src="/images/icons/discord.svg"
+							alt="Discord"
+							class="about-discord-icon"
+							tabindex="-1    "
+						/>
+					</div>
+					<p class="about-credit">
+						{t("settings.about.creditMadeBy")}
+						<button
+							type="button"
+							class="about-link"
+							onclick={() =>
+								openUrl("https://github.com/staff6773")}
+						>
+							Notstaff
+						</button>
+						{t("settings.about.creditAnd")}
+						<button
+							type="button"
+							class="about-link"
+							onclick={() =>
+								openUrl("https://github.com/santiagolxx")}
+						>
+							Santiagolxx
+						</button>
+						{t("settings.about.creditSuffix")}
+					</p>
 				</div>
-				<div class="qm-field-checkbox">
-					<input
-						type="checkbox"
-						id="discord-presence"
-						bind:checked={launcherStore.settings.discord_presence}
-						onchange={handleSave}
-					/>
-					<label for="discord-presence"
-						>{t("settings.launcher.discordPresence")}</label
-					>
-				</div>
-			</CollapsibleSection> -->
+			</CollapsibleSection>
 
 			<CollapsibleSection
 				title={t("settings.about.title")}
