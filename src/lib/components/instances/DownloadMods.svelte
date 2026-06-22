@@ -56,9 +56,16 @@
 	let installedModNames = $state<Set<string>>(new Set());
 
 	function getGameVersion(versionStr: string): string {
-		const segments = versionStr.split("-");
-		if (segments.length > 1) {
-			return segments[segments.length - 1];
+		const lower = versionStr.toLowerCase();
+		if (lower.includes("-forge-") || lower.includes("-neoforge-") || lower.includes("-quilt-")) {
+			for (const sep of ["-forge-", "-neoforge-", "-quilt-"]) {
+				const idx = lower.indexOf(sep);
+				if (idx !== -1) return versionStr.slice(0, idx);
+			}
+		}
+		if (lower.startsWith("fabric-loader-")) {
+			const lastDash = versionStr.lastIndexOf("-");
+			if (lastDash !== -1) return versionStr.slice(lastDash + 1);
 		}
 		return versionStr;
 	}
