@@ -347,6 +347,17 @@
 							>{t("settings.launcher.discordPresence")}</label
 						>
 					</div>
+					<div class="qm-field-checkbox">
+						<input
+							type="checkbox"
+							id="hide-on-launch"
+							bind:checked={launcherStore.settings.hide_on_launch}
+							onchange={handleSave}
+						/>
+						<label for="hide-on-launch"
+							>{t("settings.launcher.hideOnLaunch")}</label
+						>
+					</div>
 				</CollapsibleSection>
 
 				<CollapsibleSection

@@ -97,6 +97,8 @@ pub struct SettingsManager {
     #[serde(default = "default_true")]
     pub close_launcher_on_play: bool,
     #[serde(default)]
+    pub hide_on_launch: bool,
+    #[serde(default)]
     pub show_snapshots: bool,
     #[serde(default)]
     pub show_alpha: bool,
@@ -170,6 +172,7 @@ impl Default for SettingsManager {
             auto_updates: true,
             show_error_console: false,
             close_launcher_on_play: true,
+            hide_on_launch: false,
             show_snapshots: false,
             show_alpha: false,
             jvm_args: CompactString::default(),

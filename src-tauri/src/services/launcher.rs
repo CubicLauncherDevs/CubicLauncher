@@ -19,7 +19,7 @@ use launchwerk::{LaunchConfig, Launchwerk};
 use std::collections::VecDeque;
 use std::mem;
 use std::sync::{Arc, OnceLock};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio::fs;
 use tokio::sync::broadcast;
 use tracing::{error, info, trace, warn};
@@ -150,6 +150,7 @@ impl Launcher {
         handle.set_status(InstanceStatus::Starting);
 
         let settings_m = SettingsManager::launch_snapshot();
+        let hide_on_launch = SettingsManager::read().hide_on_launch;
 
         let version = handle.get_version().await;
         let name = handle.get_name().await;
@@ -377,17 +378,22 @@ impl Launcher {
                 )
                 .await;
 
-                {
-                    let guard = self.app_handle.lock().unwrap_or_else(|e| e.into_inner());
-                    if let Some(ref app) = *guard {
-                        let id = handle.uuid.clone();
-                        let stdout_rx = lw_handle.subscribe_stdout();
-                        let stderr_rx = lw_handle.subscribe_stderr();
-                        spawn_io_forwarding(app.clone(), id.clone(), stdout_rx, "stdout");
-                        spawn_io_forwarding(app.clone(), id, stderr_rx, "stderr");
-                    } else {
-                        warn!("AppHandle no disponible, no se reenviará stdout/stderr");
+                let app_handle = self
+                    .app_handle
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone();
+                if let Some(ref app) = app_handle {
+                    let id = handle.uuid.clone();
+                    let stdout_rx = lw_handle.subscribe_stdout();
+                    let stderr_rx = lw_handle.subscribe_stderr();
+                    spawn_io_forwarding(app.clone(), id.clone(), stdout_rx, "stdout");
+                    spawn_io_forwarding(app.clone(), id, stderr_rx, "stderr");
+                    if hide_on_launch && let Some(w) = app.get_webview_window("main") {
+                        let _ = w.hide();
                     }
+                } else {
+                    warn!("AppHandle no disponible, no se reenviará stdout/stderr");
                 }
 
                 let (kill_tx, kill_rx) = tokio::sync::oneshot::channel::<()>();
@@ -396,6 +402,7 @@ impl Launcher {
                 let uuid = handle.uuid.clone();
                 let h = handle.clone();
                 let inst_name = instance_name.clone();
+                let app_for_show = app_handle.clone();
                 tokio::spawn(async move {
                     tokio::select! {
                         _ = kill_rx => {
@@ -413,6 +420,14 @@ impl Launcher {
                     discord_presence::on_instance_stop(&inst_name).await;
                     remove_log_ring(&uuid);
                     h.set_status(InstanceStatus::Off);
+                    // Volver a mostrar la ventana principal cuando el juego cierra
+                    if hide_on_launch
+                        && let Some(app) = app_for_show
+                        && let Some(w) = app.get_webview_window("main")
+                    {
+                        let _ = w.show();
+                        let _ = w.set_focus();
+                    }
                 });
             }
             Err(e) => {

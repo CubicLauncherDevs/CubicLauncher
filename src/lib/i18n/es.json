@@ -19,6 +19,7 @@
 			"language": "Idioma",
 			"autoUpdates": "Actualizaciones Automáticas",
 			"discordPresence": "Presencia de Discord",
+			"hideOnLaunch": "Ocultar el launcher al jugar",
 			"updatesTitle": "Actualizaciones",
 			"currentVersion": "Versión Actual",
 			"available": "Actualización Disponible",

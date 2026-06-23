@@ -58,6 +58,7 @@ export interface Settings {
 	language: string;
 	auto_updates: boolean;
 	close_launcher_on_play: boolean;
+	hide_on_launch: boolean;
 	show_snapshots: boolean;
 	show_alpha: boolean;
 	jvm_args: string;

@@ -52,6 +52,7 @@ export const launcherStore = $state<LauncherState>({
 		language: "es",
 		auto_updates: true,
 		close_launcher_on_play: true,
+		hide_on_launch: false,
 		show_snapshots: false,
 		show_alpha: false,
 		jvm_args: "",
