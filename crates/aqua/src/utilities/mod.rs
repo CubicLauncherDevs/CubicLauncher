@@ -51,11 +51,6 @@ pub async fn download_file(url: &str, path: &Path, expected_hash: &str) -> Resul
     let temp_file = path.with_extension(format!("tmp.{}", uuid::Uuid::new_v4()));
 
     for attempt in 1..=MAX_DOWNLOAD_ATTEMPTS {
-        // Ensure parent dir exists
-        if let Some(parent) = path.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-
         // Clean temp from previous attempts
         let _ = tokio::fs::remove_file(&temp_file).await;
 
@@ -156,20 +151,23 @@ pub async fn download_file(url: &str, path: &Path, expected_hash: &str) -> Resul
 }
 
 pub async fn verify_file_hash(path: &Path, expected_hash: &str) -> Result<bool, AquaError> {
-    let mut file = tokio::fs::File::open(path).await?;
-    let mut hasher = Sha1::new();
-    let mut buf = [0u8; 8192];
-
-    loop {
-        let n = tokio::io::AsyncReadExt::read(&mut file, &mut buf).await?;
-        if n == 0 {
-            break;
+    let path = path.to_path_buf();
+    let expected = expected_hash.to_string();
+    tokio::task::spawn_blocking(move || {
+        use std::io::Read;
+        let mut file = std::io::BufReader::with_capacity(1 << 18, std::fs::File::open(&path)?);
+        let mut hasher = Sha1::new();
+        let mut buf = [0u8; 1 << 16];
+        loop {
+            let n = file.read(&mut buf)?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buf[..n]);
         }
-        hasher.update(&buf[..n]);
-    }
-
-    let actual_hash = hex_encode(hasher.finalize().as_slice());
-    Ok(actual_hash == expected_hash)
+        Ok::<_, AquaError>(hex_encode(hasher.finalize().as_slice()) == expected)
+    })
+    .await?
 }
 
 #[cfg(feature = "extract-natives")]
@@ -194,9 +192,11 @@ pub async fn extract_native(jar_path: &Path, destino: &Path) -> Result<(), AquaE
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut s = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        s.push_str(&format!("{:02x}", b));
+    for &b in bytes {
+        s.push(HEX[(b >> 4) as usize] as char);
+        s.push(HEX[(b & 0x0f) as usize] as char);
     }
     s
 }

@@ -5,9 +5,8 @@ use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let base_dir =
-        env::var("BASE_DIR").unwrap_or_else(|_| "/home/santiagolxx/.cubic/shared".to_string());
-    let version = env::var("VERSION").unwrap_or_else(|_| "26.2-snapshot-5".to_string());
+    let base_dir = env::var("BASE_DIR").unwrap_or_else(|_| "/tmp/xd".to_string());
+    let version = env::var("VERSION").unwrap_or_else(|_| "1.12.2".to_string());
     let max_handles: usize = env::var("MAX_HANDLES")
         .unwrap_or_else(|_| "1".to_string())
         .parse()
@@ -72,10 +71,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  base_dir:  {base_dir}");
         println!();
 
+        let instant = std::time::Instant::now();
         handle.start(Some(tx)).await?;
         handle.wait().await?;
         progress_handle.await?;
-
+        println!("{:#?}", instant.elapsed());
         println!("\n✓ Descarga completada: {}", handle.name());
     }
 

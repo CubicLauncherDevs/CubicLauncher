@@ -31,12 +31,15 @@ async fn fetch_manifest_v2() -> Result<ManifestV2, AquaError> {
     Ok(resp)
 }
 
-async fn fetch_version_json(url: &str) -> Result<VersionManifest, AquaError> {
+async fn fetch_version_json(url: &str) -> Result<(VersionManifest, Vec<u8>), AquaError> {
     let bytes = HTTP_CLIENT.get(url).send().await?.bytes().await?;
-    Ok(VersionManifest::from_bytes(&bytes)?)
+    let manifest = VersionManifest::from_bytes(&bytes)?;
+    Ok((manifest, bytes.to_vec()))
 }
 
-pub async fn resolve_version_data(version_id: &str) -> Result<NormalizedVersion, AquaError> {
+pub async fn resolve_version_data(
+    version_id: &str,
+) -> Result<(NormalizedVersion, Vec<u8>), AquaError> {
     let manifest = fetch_manifest_v2().await?;
 
     let entry = manifest
@@ -45,8 +48,9 @@ pub async fn resolve_version_data(version_id: &str) -> Result<NormalizedVersion,
         .find(|v| v.id == version_id)
         .ok_or_else(|| AquaError::VersionNotFound(version_id.to_string()))?;
 
-    let version = fetch_version_json(&entry.url).await?;
-    resolve_normalized(version)
+    let (version, raw_json) = fetch_version_json(&entry.url).await?;
+    let normalized = resolve_normalized(version)?;
+    Ok((normalized, raw_json))
 }
 
 fn resolve_normalized(version: VersionManifest) -> Result<NormalizedVersion, AquaError> {
@@ -215,14 +219,13 @@ fn resolve_normalized(version: VersionManifest) -> Result<NormalizedVersion, Aqu
     })
 }
 
-pub async fn resolve_asset_index(version: &NormalizedVersion) -> Result<VersionAssets, AquaError> {
-    let res = HTTP_CLIENT
-        .get(&version.asset_index.url)
-        .send()
-        .await?
-        .json::<VersionAssets>()
-        .await?;
-    Ok(res)
+pub async fn resolve_asset_index(
+    version: &NormalizedVersion,
+) -> Result<(VersionAssets, Vec<u8>), AquaError> {
+    let res = HTTP_CLIENT.get(&version.asset_index.url).send().await?;
+    let bytes = res.bytes().await?;
+    let assets: VersionAssets = serde_json::from_slice(&bytes)?;
+    Ok((assets, bytes.to_vec()))
 }
 
 #[cfg(test)]

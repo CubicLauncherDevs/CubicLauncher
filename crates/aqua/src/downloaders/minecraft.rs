@@ -9,9 +9,7 @@ use uuid::Uuid;
 use super::batch::{DownloadBatch, DownloadItemSpec};
 use crate::AquaError;
 use crate::manifest::{resolve_asset_index, resolve_version_data};
-use crate::types::{AssetMeta, DownloadProgress, NormalizedVersion, RESOURCES_BASE_URL};
-use crate::utilities::HTTP_CLIENT;
-use crate::utilities::download_file;
+use crate::types::{DownloadProgress, NormalizedVersion, RESOURCES_BASE_URL};
 use zellkern::resolvers::natives_subdir;
 
 #[derive(Clone)]
@@ -39,11 +37,13 @@ pub struct MinecraftBatch {
     dirs: DirPaths,
     temp_dir: PathBuf,
     items: Vec<DownloadItemSpec>,
+    version_json_bytes: Vec<u8>,
+    asset_index_bytes: Vec<u8>,
 }
 
 impl MinecraftBatch {
     pub async fn new(game_path: &Path, version_id: &str) -> Result<Self, AquaError> {
-        let version = resolve_version_data(version_id).await?;
+        let (version, version_json_bytes) = resolve_version_data(version_id).await?;
         let mc_version = &version.parsed_version;
         let dirs = compute_dirs(game_path, version_id, mc_version);
 
@@ -74,12 +74,12 @@ impl MinecraftBatch {
             );
         }
 
-        let asset_index = resolve_asset_index(&version).await?;
+        let (asset_index, asset_index_bytes) = resolve_asset_index(&version).await?;
         for (name, asset) in asset_index.into_vec() {
             let hash = asset.hash;
-            let subhash: String = hash.chars().take(2).collect();
-            let url = format!("{}/{}/{}", RESOURCES_BASE_URL, subhash, hash);
-            let path = dirs.objects_dir.join(&subhash).join(&hash);
+            let subhash = &hash[..2];
+            let url = format!("{}{}/{}", RESOURCES_BASE_URL, subhash, hash);
+            let path = dirs.objects_dir.join(subhash).join(&hash);
             items.push(DownloadItemSpec::new(url, path, name).with_hash(hash));
         }
 
@@ -100,6 +100,8 @@ impl MinecraftBatch {
             dirs,
             temp_dir,
             items,
+            version_json_bytes,
+            asset_index_bytes,
         })
     }
 
@@ -120,8 +122,10 @@ impl DownloadBatch for MinecraftBatch {
     fn prepare(&self) -> Pin<Box<dyn Future<Output = Result<(), AquaError>> + Send + '_>> {
         let dirs = self.dirs.clone();
         let version_id = self.version.id.clone();
-        let asset_index = self.version.asset_index.clone();
         let temp_dir = self.temp_dir.clone();
+        let version_json_bytes = self.version_json_bytes.clone();
+        let asset_index = self.version.asset_index.clone();
+        let asset_index_bytes = self.asset_index_bytes.clone();
         Box::pin(async move {
             tokio::fs::create_dir_all(&dirs.natives_dir).await?;
             tokio::fs::create_dir_all(&dirs.objects_dir).await?;
@@ -130,8 +134,21 @@ impl DownloadBatch for MinecraftBatch {
             tokio::fs::create_dir_all(&dirs.assets_indexes_dir).await?;
             tokio::fs::create_dir_all(&temp_dir).await?;
 
-            download_version_json(&version_id, &dirs).await?;
-            download_asset_index_json(&asset_index, &dirs).await?;
+            // Write version JSON from cached bytes (avoids re-fetching)
+            let vj_path = dirs.versions_dir.join(format!("{version_id}.json"));
+            if !vj_path.exists() {
+                tokio::fs::write(&vj_path, &version_json_bytes).await?;
+                info!("Saved version JSON: {:?}", vj_path);
+            }
+
+            // Write asset index JSON from cached bytes (avoids re-fetching)
+            let ai_path = dirs
+                .assets_indexes_dir
+                .join(format!("{}.json", asset_index.id));
+            if !ai_path.exists() {
+                tokio::fs::write(&ai_path, &asset_index_bytes).await?;
+                info!("Saved asset index JSON: {:?}", ai_path);
+            }
 
             Ok(())
         })
@@ -193,44 +210,4 @@ impl DownloadBatch for MinecraftBatch {
     }
 }
 
-async fn download_version_json(version_id: &str, dirs: &DirPaths) -> Result<(), AquaError> {
-    let path = dirs.versions_dir.join(format!("{}.json", version_id));
-    if path.exists() {
-        return Ok(());
-    }
 
-    let v2_url = crate::types::MOJANG_MANIFEST_URL;
-    let v2: serde_json::Value = HTTP_CLIENT.get(v2_url).send().await?.json().await?;
-    let entry = v2["versions"]
-        .as_array()
-        .and_then(|arr| arr.iter().find(|v| v["id"] == version_id))
-        .ok_or_else(|| AquaError::VersionNotFound(version_id.to_string()))?;
-    let detail_url = entry["url"]
-        .as_str()
-        .ok_or_else(|| AquaError::Other("No URL in manifest".into()))?;
-
-    let detail = HTTP_CLIENT.get(detail_url).send().await?.text().await?;
-    tokio::fs::write(&path, detail).await?;
-    info!("Saved version JSON: {:?}", path);
-    Ok(())
-}
-
-async fn download_asset_index_json(
-    asset_index: &AssetMeta,
-    dirs: &DirPaths,
-) -> Result<(), AquaError> {
-    let path = dirs
-        .assets_indexes_dir
-        .join(format!("{}.json", asset_index.id));
-    if path.exists() {
-        let ok = crate::utilities::verify_file_hash(&path, &asset_index.sha1)
-            .await
-            .unwrap_or(false);
-        if ok {
-            return Ok(());
-        }
-    }
-
-    download_file(&asset_index.url, &path, &asset_index.sha1).await?;
-    Ok(())
-}

@@ -4,11 +4,12 @@ mod forge;
 mod jre;
 mod minecraft;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use futures::stream::{FuturesUnordered, StreamExt};
+use futures::stream::{self, StreamExt};
+use futures::TryStreamExt;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{Mutex, Semaphore};
 use tokio::task::JoinHandle;
@@ -20,9 +21,7 @@ pub use jre::JreBatch;
 pub use minecraft::MinecraftBatch;
 
 use crate::AquaError;
-use crate::types::{
-    DownloadProgress, DownloadProgressInfo, DownloadProgressType, NormalizedVersion,
-};
+use crate::types::{DownloadProgress, DownloadProgressInfo, DownloadProgressType, NormalizedVersion};
 use crate::utilities::download_file;
 
 const DEFAULT_MAX_HANDLES: usize = 2;
@@ -70,7 +69,7 @@ impl DownloadManager {
                 version,
                 batch: Box::new(batch),
                 handle_sem: Arc::clone(&self.handle_semaphore),
-                download_sem: Arc::new(Semaphore::new(self.downloads_per_handle)),
+                max_downloads: self.downloads_per_handle,
                 cancel_flag: AtomicBool::new(false),
                 join_handle: Mutex::new(None),
                 completed_items: Arc::new(AtomicUsize::new(0)),
@@ -94,7 +93,7 @@ impl DownloadManager {
                 version: None,
                 batch,
                 handle_sem: Arc::clone(&self.handle_semaphore),
-                download_sem: Arc::new(Semaphore::new(self.downloads_per_handle)),
+                max_downloads: self.downloads_per_handle,
                 cancel_flag: AtomicBool::new(false),
                 join_handle: Mutex::new(None),
                 completed_items: Arc::new(AtomicUsize::new(0)),
@@ -112,7 +111,7 @@ struct DownloadInner {
     version: Option<NormalizedVersion>,
     batch: Box<dyn DownloadBatch>,
     handle_sem: Arc<Semaphore>,
-    download_sem: Arc<Semaphore>,
+    max_downloads: usize,
     cancel_flag: AtomicBool,
     join_handle: Mutex<Option<JoinHandle<Result<(), AquaError>>>>,
     completed_items: Arc<AtomicUsize>,
@@ -191,56 +190,66 @@ async fn run_download(
     inner: Arc<DownloadInner>,
     progress_tx: Option<Sender<DownloadProgress>>,
 ) -> Result<(), AquaError> {
+    if inner.cancel_flag.load(Ordering::Relaxed) {
+        return Err(AquaError::Cancelled);
+    }
+
     inner.batch.prepare().await?;
 
-    let items = inner.batch.items();
-    inner.total_items.store(items.len(), Ordering::Relaxed);
+    let total = inner.batch.items().len();
+    inner.total_items.store(total, Ordering::Relaxed);
 
-    let mut tasks = FuturesUnordered::new();
-    let sem = Arc::clone(&inner.download_sem);
+    // Pre-create unique parent directories once
+    let mut parents: Vec<&Path> = inner
+        .batch
+        .items()
+        .iter()
+        .filter_map(|item| item.destination.parent())
+        .collect();
+    parents.sort();
+    parents.dedup();
+    for parent in parents {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+
     let completed = Arc::clone(&inner.completed_items);
     let batch_name = inner.batch.name();
+    let version_arc = Arc::new(batch_name);
+    let max_concurrent = inner.max_downloads;
+    let items_vec: Vec<_> = inner.batch.items().to_vec();
 
-    for item in items {
-        if inner.cancel_flag.load(Ordering::Relaxed) {
-            return Err(AquaError::Cancelled);
-        }
+    let inner_for_finalize = Arc::clone(&inner);
+    let progress_tx_for_stream = progress_tx.clone();
 
-        let s = Arc::clone(&sem);
+    stream::iter(items_vec.into_iter().map(move |item| {
         let c = Arc::clone(&completed);
-        let ti = Arc::clone(&inner.total_items);
-        let tx = progress_tx.clone();
-        let url = item.url.clone();
-        let dest = item.destination.clone();
-        let hash = item.expected_hash.clone();
-        let label = item.label.clone();
-        let name = batch_name.clone();
+        let tx = progress_tx_for_stream.clone();
+        let version_arc = Arc::clone(&version_arc);
+        let inner = Arc::clone(&inner);
 
-        tasks.push(tokio::spawn(async move {
-            let _p = s.acquire_owned().await;
-            if let Some(parent) = dest.parent() {
-                tokio::fs::create_dir_all(parent).await?;
+        async move {
+            if inner.cancel_flag.load(Ordering::Relaxed) {
+                return Err(AquaError::Cancelled);
             }
-            download_file(&url, &dest, &hash).await?;
+            download_file(&item.url, &item.destination, &item.expected_hash).await?;
             let count = c.fetch_add(1, Ordering::Relaxed) + 1;
             report_progress(
                 &tx,
                 count,
-                ti.load(Ordering::Relaxed),
+                inner.total_items.load(Ordering::Relaxed),
                 DownloadProgressType::Generic,
-                &name,
-                label,
+                item.label,
+                &version_arc,
             )
             .await;
             Ok::<_, AquaError>(())
-        }));
-    }
+        }
+    }))
+    .buffer_unordered(max_concurrent)
+    .try_collect::<()>()
+    .await?;
 
-    while let Some(res) = tasks.next().await {
-        res??;
-    }
-
-    inner.batch.finalize(progress_tx).await?;
+    inner_for_finalize.batch.finalize(progress_tx).await?;
 
     Ok(())
 }
@@ -252,8 +261,8 @@ async fn report_progress(
     current: usize,
     total: usize,
     dtype: DownloadProgressType,
-    version_id: &str,
     name: impl Into<String>,
+    version: &Arc<String>,
 ) {
     if let Some(tx) = tx {
         let _ = tx
@@ -262,7 +271,7 @@ async fn report_progress(
                 total,
                 info: DownloadProgressInfo {
                     name: name.into(),
-                    version: Arc::new(version_id.to_string()),
+                    version: Arc::clone(version),
                 },
                 download_type: dtype,
             })
