@@ -44,13 +44,11 @@
 		onclose={close}
 		title={t("settings.java.notInstalled")}
 	>
-		{#snippet children()}
-			<p transition:fly={{ y: 8, duration: 200 }} class="jre-dialog-text">
-				{t("launch.jreMissingBody", {
-					version: String(prompt.version),
-				})}
-			</p>
-		{/snippet}
+		<p transition:fly={{ y: 8, duration: 200 }} class="jre-dialog-text">
+			{t("launch.jreMissingBody", {
+				version: String(prompt.version),
+			})}
+		</p>
 		{#snippet footer()}
 			<button
 				type="button"

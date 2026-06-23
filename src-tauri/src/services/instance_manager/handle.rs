@@ -1,5 +1,5 @@
 use crate::core::{AppEvent, InstanceError, emit};
-use crate::services::SettingsManager;
+use crate::services::{InstOverrides, SettingsManager};
 use compact_str::ToCompactString;
 use std::io;
 use std::path::PathBuf;
@@ -88,6 +88,10 @@ impl InstanceHandle {
         self.data.read().await.icon.clone()
     }
 
+    pub async fn get_overrides(&self) -> Option<InstOverrides> {
+        self.data.read().await.overrides.clone()
+    }
+
     pub async fn to_dto(&self) -> InstanceDto {
         let data = self.data.read().await;
         InstanceDto {
@@ -100,12 +104,19 @@ impl InstanceHandle {
             icon: data.icon.clone(),
             uuid: self.uuid.clone(),
             path: data.get_instance_dir(),
+            overrides: data.overrides,
         }
     }
 
     pub async fn set_name(&self, name: String) {
         let mut data = self.data.write().await;
         data.name = name.into();
+        data.dirty = true;
+    }
+
+    pub async fn set_overrides(&self, overrides: Option<InstOverrides>) {
+        let mut data = self.data.write().await;
+        data.overrides = overrides;
         data.dirty = true;
     }
 

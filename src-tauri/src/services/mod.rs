@@ -8,6 +8,8 @@ pub(crate) mod settings_manager;
 
 pub use addon_manager::*;
 pub use download_queue::{DownloadQueue, DownloadState};
-pub use instance_manager::{InstanceDto, InstanceManager, InstanceStatus, signal_kill};
+pub use instance_manager::{
+    InstOverrides, InstanceDto, InstanceManager, InstanceStatus, signal_kill,
+};
 pub use launcher::Launcher;
 pub use settings_manager::{SettingsManager, SettingsSnapshot};

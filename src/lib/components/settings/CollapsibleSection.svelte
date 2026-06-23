@@ -2,6 +2,7 @@
 	import { slide } from "svelte/transition";
 	import type { Snippet } from "svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
+	import { derived } from "svelte/store";
 
 	let {
 		title,
@@ -28,8 +29,7 @@
 		return fallback;
 	}
 
-	// svelte-ignore state_referenced_locally
-	let open = $state(loadSaved(storageKey, defaultOpen));
+	let open = $derived(loadSaved(storageKey, defaultOpen));
 
 	$effect(() => {
 		if (storageKey) {
@@ -53,7 +53,7 @@
 		<span class="cs-header-left">
 			{#if iconSrc}
 				<span
-					class="cs-icon"
+					class={"cs-icon" + (open ? " open" : "")}
 					style="mask-image: url({iconSrc}); -webkit-mask-image: url({iconSrc});"
 				></span>
 			{/if}
@@ -120,6 +120,11 @@
 		-webkit-mask-repeat: no-repeat;
 		-webkit-mask-position: center;
 		flex-shrink: 0;
+		transition: transform 0.5s;
+	}
+
+	.cs-icon.open {
+		transform: rotate(360deg);
 	}
 
 	.cs-title {

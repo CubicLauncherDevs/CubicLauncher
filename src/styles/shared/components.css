@@ -268,9 +268,9 @@
 	height: 48px;
 	border-radius: var(--border-radius-sm);
 	background: rgba(255, 255, 255, 0.05);
-	border: 2px solid transparent;
+	border: 1px solid transparent;
 	cursor: pointer;
-	padding: 8px;
+	padding: 6px;
 	transition: all 0.2s ease;
 	display: flex;
 	align-items: center;

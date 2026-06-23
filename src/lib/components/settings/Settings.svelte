@@ -418,30 +418,33 @@
 									type="button"
 									class="qm-stepper-btn"
 									onclick={() => {
-										const v =
-											launcherStore.settings.min_memory -
-											0.5;
+										const gb =
+											launcherStore.settings.min_memory /
+											1024;
+										const v = gb - 0.5;
 										if (v >= 0.5)
 											launcherStore.settings.min_memory =
-												v;
+												Math.round(v * 1024);
 									}}>−</button
 								>
 								<span class="qm-ram-value"
-									>{launcherStore.settings.min_memory} GB</span
+									>{launcherStore.settings.min_memory / 1024} GB</span
 								>
 								<button
 									type="button"
 									class="qm-stepper-btn"
 									onclick={() => {
-										const v =
-											launcherStore.settings.min_memory +
-											0.5;
+										const gb =
+											launcherStore.settings.min_memory /
+											1024;
+										const v = gb + 0.5;
 										if (
 											v <=
-											launcherStore.settings.max_memory
+											launcherStore.settings.max_memory /
+												1024
 										)
 											launcherStore.settings.min_memory =
-												v;
+												Math.round(v * 1024);
 									}}>+</button
 								>
 							</div>
@@ -455,30 +458,33 @@
 									type="button"
 									class="qm-stepper-btn"
 									onclick={() => {
-										const v =
-											launcherStore.settings.max_memory -
-											0.5;
+										const gb =
+											launcherStore.settings.max_memory /
+											1024;
+										const v = gb - 0.5;
 										if (
 											v >=
-											launcherStore.settings.min_memory
+											launcherStore.settings.min_memory /
+												1024
 										)
 											launcherStore.settings.max_memory =
-												v;
+												Math.round(v * 1024);
 									}}>−</button
 								>
 								<span class="qm-ram-value"
-									>{launcherStore.settings.max_memory} GB</span
+									>{launcherStore.settings.max_memory / 1024} GB</span
 								>
 								<button
 									type="button"
 									class="qm-stepper-btn"
 									onclick={() => {
-										const v =
-											launcherStore.settings.max_memory +
-											0.5;
+										const gb =
+											launcherStore.settings.max_memory /
+											1024;
+										const v = gb + 0.5;
 										if (v <= 64)
 											launcherStore.settings.max_memory =
-												v;
+												Math.round(v * 1024);
 									}}>+</button
 								>
 							</div>
@@ -614,7 +620,7 @@
 				</CollapsibleSection>
 
 				<CollapsibleSection
-					title="Avanzado"
+					title={t("settings.advanced")}
 					iconSrc="/images/icons/settings.svg"
 					storageKey="section_advanced"
 				>

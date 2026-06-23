@@ -5,6 +5,7 @@
 	},
 	"settings": {
 		"title": "Settings",
+		"advanced": "Advanced",
 		"tabs": {
 			"launcher": "Launcher",
 			"minecraft": "Minecraft",
@@ -259,6 +260,13 @@
 			"curseForgeAlpha": "Alpha"
 		}
 	},
+	"instanceEditor": {
+		"generalTitle": "General",
+		"language": "Language",
+		"javaVersion": "Java Version",
+		"javaHint": "Cubic will select the recommended Java version for this Minecraft version. Some mods may be incompatible and require a different one.",
+		"recommended": "Recommended"
+	},
 	"createInstance": {
 		"title": "Create New Instance",
 		"emptyNameErr": "Name cannot be empty",
@@ -333,7 +341,6 @@
 	},
 	"downloadProgress": {
 		"items": "items",
-		"retrying": "Retrying {attempt}/{max}...",
 		"statusLibs": "Downloading libraries",
 		"statusAssets": "Downloading assets",
 		"statusNatives": "Downloading natives",

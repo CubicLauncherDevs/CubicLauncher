@@ -39,8 +39,8 @@ export const launcherStore = $state<LauncherState>({
 	settings: {
 		user: [],
 		active_user_idx: 0,
-		min_memory: 1,
-		max_memory: 2,
+		min_memory: 1024,
+		max_memory: 2048,
 		jre8_path: "",
 		jre8_managed: true,
 		jre17_path: "",

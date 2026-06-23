@@ -23,6 +23,7 @@
 	import { showSuccess, showError } from "$lib/state/state.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
 	import LogWindow from "$lib/components/log/LogWindow.svelte";
+	import InstanceDrawer from "$lib/components/instances/InstanceDrawer.svelte";
 
 	const logParams = $derived.by(() => {
 		if (typeof window === "undefined") return null;
@@ -37,12 +38,13 @@
 
 	let selectedInstance = $state<InstanceDto | null>(null);
 	let quickMenuOpen = $state(false);
+	let instanceEditorOpen = $state(false);
 	let versionDownloaderOpen = $state(false);
 	let openCreateModal = $state(false);
 	let droppedMrpackPath = $state<string | null>(null);
 	let isDragOver = $state(false);
 	let dragPaths = $state<string[]>([]);
-
+	let editingInstance = $state<InstanceDto | null>(null);
 	let showTutorial = $state(false);
 	let SettingsComponent = $state<Component<{ onclose: () => void }> | null>(
 		null,
@@ -166,9 +168,21 @@
 					updated.name !== sel.name ||
 					updated.loader !== sel.loader ||
 					updated.version !== sel.version ||
-					updated.last_played !== sel.last_played)
+					updated.last_played !== sel.last_played ||
+					updated.icon !== sel.icon)
 			) {
 				selectedInstance = updated;
+			}
+		}
+	});
+
+	$effect(() => {
+		const instances = launcherStore.loadedInstances;
+		const ei = editingInstance;
+		if (ei) {
+			const updated = instances.find((i) => i.uuid === ei.uuid);
+			if (updated && updated.overrides !== ei.overrides) {
+				editingInstance = updated;
 			}
 		}
 	});
@@ -199,6 +213,10 @@
 			onopenquickmenu={() => (quickMenuOpen = true)}
 			onopenversiondownloader={() => (versionDownloaderOpen = true)}
 			onopencreateinstance={() => (openCreateModal = true)}
+			onopeneditinstance={(inst) => {
+				instanceEditorOpen = true;
+				editingInstance = inst;
+			}}
 		/>
 
 		<main class="main-content">
@@ -223,6 +241,18 @@
 	<Drawer bind:open={quickMenuOpen} direction="right">
 		<SettingsComponent onclose={() => (quickMenuOpen = false)} />
 	</Drawer>
+
+	{#if editingInstance}
+		<Drawer bind:open={instanceEditorOpen} direction="right">
+			<InstanceDrawer
+				onclose={() => {
+					instanceEditorOpen = false;
+					editingInstance = null;
+				}}
+				instance={editingInstance}
+			/>
+		</Drawer>
+	{/if}
 
 	<Drawer bind:open={versionDownloaderOpen} direction="right">
 		<VersionDownloaderComponent

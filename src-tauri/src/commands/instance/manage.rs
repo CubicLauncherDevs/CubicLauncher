@@ -1,12 +1,12 @@
+use super::launch::sanitize_sub_path;
 use super::launch::validate_uuid;
 use crate::core::errors::{FsError, InstanceError};
 use crate::core::{AppEvent, PathManager, emit};
+use crate::services::InstOverrides;
 use crate::services::InstanceManager;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
-
-use super::launch::sanitize_sub_path;
 
 #[tauri::command]
 pub async fn create_instance(
@@ -117,7 +117,7 @@ pub async fn rename_instance(id: String, new_name: String) -> Result<(), String>
     validate_uuid(&id)?;
     info!("Renombrando instancia {} a '{}'", id, new_name);
     let result = InstanceManager::get()
-        .update_instance(&id, Some(new_name), None, None)
+        .update_instance(&id, Some(new_name), None, None, None)
         .await;
     if let Err(ref e) = result {
         error!("Error renombrando instancia {}: {}", id, e);
@@ -131,6 +131,7 @@ pub async fn update_instance(
     new_name: Option<String>,
     new_version: Option<String>,
     new_icon: Option<Option<String>>,
+    new_overrides: Option<InstOverrides>,
 ) -> Result<(), String> {
     validate_uuid(&id)?;
     info!(
@@ -138,7 +139,7 @@ pub async fn update_instance(
         id, new_name, new_version, new_icon
     );
     let result = InstanceManager::get()
-        .update_instance(&id, new_name, new_version, new_icon)
+        .update_instance(&id, new_name, new_version, new_icon, new_overrides)
         .await;
     if let Err(ref e) = result {
         error!("Error actualizando instancia {}: {}", id, e);

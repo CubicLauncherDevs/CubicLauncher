@@ -39,7 +39,7 @@
 	let activeCategory = $state<string | null>(null);
 	let sortIndex = $state<string>("downloads");
 
-	let basket = new SvelteMap<string, ModrinthProject | CurseForgeProject>();
+	let basket = $state(new SvelteMap<string, ModrinthProject | CurseForgeProject>());
 
 	let selectedMod = $state<ModrinthProject | CurseForgeProject | null>(null);
 
@@ -51,14 +51,21 @@
 	let selectedModVersions = $state<(ModrinthVersion | CurseForgeFile)[]>([]);
 	let selectedVersionId = $state<string>("");
 	let loadingVersions = $state(false);
-	let versionSelection = new SvelteMap<string, string>();
+	let versionSelection = $state(new SvelteMap<string, string>());
 
 	let installedModNames = $state<Set<string>>(new Set());
 
 	function getGameVersion(versionStr: string): string {
-		const segments = versionStr.split("-");
-		if (segments.length > 1) {
-			return segments[segments.length - 1];
+		const lower = versionStr.toLowerCase();
+		if (lower.includes("-forge-") || lower.includes("-neoforge-") || lower.includes("-quilt-")) {
+			for (const sep of ["-forge-", "-neoforge-", "-quilt-"]) {
+				const idx = lower.indexOf(sep);
+				if (idx !== -1) return versionStr.slice(0, idx);
+			}
+		}
+		if (lower.startsWith("fabric-loader-")) {
+			const lastDash = versionStr.lastIndexOf("-");
+			if (lastDash !== -1) return versionStr.slice(lastDash + 1);
 		}
 		return versionStr;
 	}

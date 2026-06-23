@@ -33,11 +33,6 @@ pub enum AppEvent {
         version: Arc<str>,
         message: CompactString,
     },
-    DRetry {
-        version: Arc<str>,
-        attempt: u8,
-        max: u8,
-    },
     JREChanged,
     STChanged,
     ThemeChanged {

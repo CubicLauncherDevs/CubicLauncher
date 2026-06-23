@@ -37,10 +37,10 @@ pub fn init_auto_save() {
 // ── Defaults (serde) ──────────────────────────────────────────────────────────
 
 fn default_min_mem() -> u32 {
-    1
+    1024
 }
 fn default_max_mem() -> u32 {
-    2
+    2048
 }
 fn default_lang() -> CompactString {
     CompactString::from("es")
@@ -61,7 +61,7 @@ fn default_user() -> Vec<MinecraftUser> {
 // ── SettingsManager ───────────────────────────────────────────────────────────
 
 /// Configuración persistida del launcher.
-/// La memoria se almacena en GB.
+/// La memoria se almacena en MB.
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SettingsManager {
     #[serde(default = "default_user")]
@@ -156,8 +156,8 @@ impl Default for SettingsManager {
                 vec
             },
             active_user_idx: 0,
-            min_memory: 1,
-            max_memory: 2,
+            min_memory: 1024,
+            max_memory: 2048,
             jre8_path: PathBuf::new(),
             jre8_managed: true,
             jre17_path: PathBuf::new(),
@@ -355,6 +355,15 @@ impl SettingsManager {
             self.max_memory = (self.max_memory / 1024).max(1);
             self.dirty = true;
         }
+        // v2 → v3: GB a MB
+        if self.min_memory <= 64 {
+            self.min_memory *= 1024;
+            self.dirty = true;
+        }
+        if self.max_memory <= 64 {
+            self.max_memory *= 1024;
+            self.dirty = true;
+        }
     }
 }
 
@@ -372,8 +381,8 @@ mod tests {
         let s = SettingsManager::default();
         assert_eq!(s.get_user().username, "Steve");
         assert_eq!(s.active_user_idx, 0);
-        assert_eq!(s.min_memory, 1);
-        assert_eq!(s.max_memory, 2);
+        assert_eq!(s.min_memory, 1024);
+        assert_eq!(s.max_memory, 2048);
         assert_eq!(s.language, "es");
         assert!(s.auto_updates);
         assert!(s.close_launcher_on_play);
@@ -385,58 +394,56 @@ mod tests {
         assert!(s.jvm_args.is_empty());
     }
 
-    /// Cuando los valores ya están en GB (min=2, max=4), `migrate()` no debe
-    /// modificarlos y debe dejar `dirty` como `false`.
+    /// Valores en GB (min=2, max=4) deben convertirse a MB (2048, 4096)
+    /// y marcar `dirty` como `true`.
     #[test]
-    fn test_migrate_noop_when_already_gb() {
+    fn test_migrate_converts_gb_to_mb() {
         let mut s = SettingsManager::default();
         s.min_memory = 2;
         s.max_memory = 4;
         s.dirty = false;
         s.migrate();
-        assert_eq!(s.min_memory, 2);
-        assert_eq!(s.max_memory, 4);
-        assert!(!s.dirty);
+        assert_eq!(s.min_memory, 2048);
+        assert_eq!(s.max_memory, 4096);
+        assert!(s.dirty);
     }
 
-    /// Valores en MB (min=2048, max=4096) deben convertirse a GB (min=2,
-    /// max=4) y marcar `dirty` como `true` para forzar el guardado.
-    /// Esta migración existe porque en versiones anteriores del launcher
-    /// la memoria se almacenaba en MB y ahora se almacena en GB.
+    /// Valores legacy en MB (min=2048, max=4096) pasan por v1→v2 (÷1024)
+    /// y luego v2→v3 (×1024), dando el mismo resultado (idempotente).
     #[test]
-    fn test_migrate_converts_mb_to_gb() {
+    fn test_migrate_legacy_mb_roundtrip() {
         let mut s = SettingsManager::default();
         s.min_memory = 2048;
         s.max_memory = 4096;
         s.dirty = false;
         s.migrate();
-        assert_eq!(s.min_memory, 2);
-        assert_eq!(s.max_memory, 4);
+        assert_eq!(s.min_memory, 2048);
+        assert_eq!(s.max_memory, 4096);
         assert!(s.dirty);
     }
 
-    /// Un valor impar en MB como 1500 debe convertirse a 1 GB
-    /// (1500 / 1024 = 1.46, `max(1)` asegura que no quede en 0).
+    /// Un valor impar legacy en MB como 1500 debe pasar por v1→v2 (→1)
+    /// y luego v2→v3 (→1024).
     #[test]
-    fn test_migrate_converts_odd_mb() {
+    fn test_migrate_odd_legacy_mb() {
         let mut s = SettingsManager::default();
         s.min_memory = 1500;
         s.dirty = false;
         s.migrate();
-        assert_eq!(s.min_memory, 1);
+        assert_eq!(s.min_memory, 1024);
     }
 
-    /// Un valor de max_memory = 128 NO debe convertirse porque la condición
-    /// del `if` es `> 128`. Esto evita falsos positivos con valores
-    /// pequeños que casualmente están en el rango MB pero son válidos en GB.
+    /// Un valor de max_memory = 128 es ambiguo (128 MB o 128 GB).
+    /// Como está fuera de ambos rangos (no >128 para v1, no <=64 para v2),
+    /// se deja intacto.
     #[test]
-    fn test_migrate_does_not_touch_normal_values() {
+    fn test_migrate_ambiguous_128() {
         let mut s = SettingsManager::default();
         s.min_memory = 2;
         s.max_memory = 128;
         s.dirty = false;
         s.migrate();
-        assert_eq!(s.min_memory, 2);
+        assert_eq!(s.min_memory, 2048);
         assert_eq!(s.max_memory, 128);
     }
 

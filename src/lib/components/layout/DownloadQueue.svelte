@@ -40,7 +40,6 @@
 		segs: Record<SegKey, SegProg>;
 		done: boolean;
 		error: string | null;
-		retryMsg: string | null;
 	}
 
 	function emptySegs(): Record<SegKey, SegProg> {
@@ -104,7 +103,7 @@
 						segs: emptySegs(),
 						done: item.status === "done",
 						error: null,
-						retryMsg: null,
+
 					});
 				}
 			}
@@ -125,7 +124,7 @@
 							segs: emptySegs(),
 							done: false,
 							error: null,
-							retryMsg: null,
+	
 						});
 						open = true;
 					}
@@ -139,7 +138,7 @@
 						segs: emptySegs(),
 						done: false,
 						error: null,
-						retryMsg: null,
+
 					};
 					const key = SEGS.includes(d_type as SegKey)
 						? (d_type as SegKey)
@@ -153,26 +152,7 @@
 						segs: newSegs,
 						activeType: key,
 						done: false,
-						retryMsg: null,
-					});
-					break;
-				}
-				case "DRetry": {
-					const { version, attempt, max } = p.data;
-					const existing = downloads.get(version) ?? {
-						version,
-						activeType: null,
-						segs: emptySegs(),
-						done: false,
-						error: null,
-						retryMsg: null,
-					};
-					downloads.set(version, {
-						...existing,
-						retryMsg: t("downloadProgress.retrying", {
-							attempt,
-							max,
-						}),
+
 					});
 					break;
 				}
@@ -184,7 +164,7 @@
 							...item,
 							done: true,
 							activeType: null,
-							retryMsg: null,
+	
 						});
 					}
 					setTimeout(() => {
@@ -201,7 +181,7 @@
 							done: true,
 							activeType: null,
 							error: message,
-							retryMsg: null,
+	
 						});
 					} else {
 						downloads.set(version, {
@@ -210,7 +190,7 @@
 							segs: emptySegs(),
 							done: true,
 							error: message,
-							retryMsg: null,
+	
 						});
 					}
 					setTimeout(() => {
@@ -304,15 +284,6 @@
 						</div>
 						{#if item.error}
 							<div class="sd-error-msg">{item.error}</div>
-						{:else if item.retryMsg}
-							<div class="sd-retry-msg">{item.retryMsg}</div>
-							<div class="sd-progress-track">
-								<div
-									class="sd-progress-fill"
-									class:done={item.done}
-									style:width="{overall}%"
-								></div>
-							</div>
 						{:else}
 							<div class="sd-progress-track">
 								<div
@@ -501,13 +472,6 @@
 	.sd-error-msg {
 		font-size: 0.65rem;
 		color: var(--color-error);
-		word-break: break-word;
-		line-height: 1.3;
-	}
-
-	.sd-retry-msg {
-		font-size: 0.65rem;
-		color: var(--color-warning);
 		word-break: break-word;
 		line-height: 1.3;
 	}

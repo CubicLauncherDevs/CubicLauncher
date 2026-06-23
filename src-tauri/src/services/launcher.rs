@@ -8,6 +8,7 @@ use crate::services::instance_manager::{
     InstanceHandle, InstanceStatus, register_kill_sender, unregister_kill_sender,
 };
 use crate::services::java_manager::JavaManager;
+use aqua::JavaVersion;
 use launchwerk::auth::{
     AccountType, MinecraftUser,
     microsoft::MicrosoftAuth,
@@ -232,8 +233,22 @@ impl Launcher {
                 );
             }
         }
-
-        let (java_version, java_path) = resolve_java_path(&settings_m, java_version_req.as_ref());
+        let overrides = handle.get_overrides().await;
+        let (java_version, java_path) = if let Some(overrides) = overrides {
+            if let Some(java_meta) = overrides.java_version {
+                resolve_java_path(
+                    &settings_m,
+                    Some(&JavaVersion {
+                        component: String::new(),
+                        major_version: java_meta,
+                    }),
+                )
+            } else {
+                resolve_java_path(&settings_m, java_version_req.as_ref())
+            }
+        } else {
+            resolve_java_path(&settings_m, java_version_req.as_ref())
+        };
 
         if !java_path.exists() {
             handle.set_status(InstanceStatus::Error(
@@ -243,15 +258,25 @@ impl Launcher {
                 java_version.to_string(),
             )))?;
         }
-
+        info!("Starting with {}", java_path.display());
         // Auto-refresh del token Microsoft — el lock de settings se toma y suelta rápido
         user = refresh_microsoft_token(user).await?;
 
         // Auto-refresh del token Yggdrasil
         user = refresh_yggdrasil_token(user).await?;
 
-        let min_mem = format!("{}G", settings_m.min_memory);
-        let max_mem = format!("{}G", settings_m.max_memory);
+        // let min_mem = format!("{}G", settings_m.min_memory);
+        // let max_mem = format!("{}G", settings_m.max_memory);
+
+        let (max_mem, min_mem) = if let Some(ram_overrides) = overrides.and_then(|o| o.memory) {
+            let max_memf = format!("{}M", ram_overrides.max_mem);
+            let min_memf = format!("{}M", ram_overrides.min_mem);
+            (max_memf, min_memf)
+        } else {
+            let min_memf = format!("{}M", settings_m.min_memory);
+            let max_memf = format!("{}M", settings_m.max_memory);
+            (max_memf, min_memf)
+        };
 
         let mut builder = LaunchConfig::builder()
             .java_path(java_path)
