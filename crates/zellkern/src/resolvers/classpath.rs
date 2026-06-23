@@ -79,16 +79,20 @@ impl<'a> ClasspathResolver<'a> {
                     self.push_if_exists(paths, &forge_jar);
                 }
                 let shared = self.lib_dir.parent().unwrap_or(Path::new("."));
-                let vanilla_jar = shared
-                    .join("versions")
-                    .join(self.base_id)
-                    .join(format!("{}.jar", self.base_id));
-                self.push_if_exists(paths, &vanilla_jar);
+
                 let version_jar = shared
                     .join("versions")
                     .join(&*self.manifest.id_raw)
                     .join(format!("{}.jar", &*self.manifest.id_raw));
-                self.push_if_exists(paths, &version_jar);
+                if version_jar.exists() {
+                    self.push_if_exists(paths, &version_jar);
+                } else {
+                    let vanilla_jar = shared
+                        .join("versions")
+                        .join(self.base_id)
+                        .join(format!("{}.jar", self.base_id));
+                    self.push_if_exists(paths, &vanilla_jar);
+                }
             }
             _ => {
                 let version_jar = self
