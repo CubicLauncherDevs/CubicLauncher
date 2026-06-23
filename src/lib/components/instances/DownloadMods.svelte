@@ -39,7 +39,8 @@
 	let activeCategory = $state<string | null>(null);
 	let sortIndex = $state<string>("downloads");
 
-	let basket = $state(new SvelteMap<string, ModrinthProject | CurseForgeProject>());
+	// ignore
+	let basket = new SvelteMap<string, ModrinthProject | CurseForgeProject>();
 
 	let selectedMod = $state<ModrinthProject | CurseForgeProject | null>(null);
 
@@ -51,13 +52,17 @@
 	let selectedModVersions = $state<(ModrinthVersion | CurseForgeFile)[]>([]);
 	let selectedVersionId = $state<string>("");
 	let loadingVersions = $state(false);
-	let versionSelection = $state(new SvelteMap<string, string>());
+	let versionSelection = new SvelteMap<string, string>();
 
 	let installedModNames = $state<Set<string>>(new Set());
 
 	function getGameVersion(versionStr: string): string {
 		const lower = versionStr.toLowerCase();
-		if (lower.includes("-forge-") || lower.includes("-neoforge-") || lower.includes("-quilt-")) {
+		if (
+			lower.includes("-forge-") ||
+			lower.includes("-neoforge-") ||
+			lower.includes("-quilt-")
+		) {
 			for (const sep of ["-forge-", "-neoforge-", "-quilt-"]) {
 				const idx = lower.indexOf(sep);
 				if (idx !== -1) return versionStr.slice(0, idx);
@@ -238,8 +243,8 @@
 		currentOffset = 0;
 		searching = true;
 		selectedMod = null;
-		basket = new SvelteMap();
-		versionSelection = new SvelteMap();
+		basket.clear();
+		versionSelection.clear();
 		reviewing = false;
 		performSearch(true);
 	}
@@ -253,7 +258,7 @@
 		loadingMore = false;
 		activeCategory = null;
 		sortIndex = "downloads";
-		basket = new SvelteMap();
+		basket.clear();
 		selectedMod = null;
 		reviewing = false;
 		resolvingDeps = false;
@@ -262,7 +267,7 @@
 		selectedModVersions = [];
 		selectedVersionId = "";
 		loadingVersions = false;
-		versionSelection = new SvelteMap();
+		versionSelection.clear();
 		installedModNames = new Set();
 	}
 

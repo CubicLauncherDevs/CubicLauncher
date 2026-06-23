@@ -2,7 +2,6 @@
 	import { slide } from "svelte/transition";
 	import type { Snippet } from "svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
-	import { derived } from "svelte/store";
 
 	let {
 		title,

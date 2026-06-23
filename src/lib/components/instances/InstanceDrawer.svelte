@@ -2,7 +2,7 @@
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import { t } from "$lib/i18n";
 	import Select from "$lib/components/layout/Select.svelte";
-	import type { InstanceDto, InstOverrides } from "$lib/types/types";
+	import type { InstanceDto } from "$lib/types/types";
 	import { INSTANCE_LOGOS } from "$lib/icons/logos";
 	import { onMount } from "svelte";
 	import { updateInst } from "$lib/api/launcherService";
@@ -40,10 +40,14 @@
 		saving = true;
 		let newOverrides = useOverrides
 			? {
-				javaVersion: selectedJavaVersion && selectedJavaVersion !== "default"
-					? Number(selectedJavaVersion)
-					: null,
-					memory: { minMem: Math.round(minMem * 1024), maxMem: Math.round(maxMem * 1024) },
+					javaVersion:
+						selectedJavaVersion && selectedJavaVersion !== "default"
+							? Number(selectedJavaVersion)
+							: null,
+					memory: {
+						minMem: Math.round(minMem * 1024),
+						maxMem: Math.round(maxMem * 1024),
+					},
 				}
 			: null;
 		await updateInst(
@@ -71,9 +75,10 @@
 		installedVersions = await getInstalledVersions();
 		if (instance.overrides) {
 			useOverrides = true;
-			selectedJavaVersion = instance.overrides.javaVersion != null
-				? String(instance.overrides.javaVersion)
-				: "default";
+			selectedJavaVersion =
+				instance.overrides.javaVersion != null
+					? String(instance.overrides.javaVersion)
+					: "default";
 			minMem = (instance.overrides.memory?.minMem ?? 1024) / 1024;
 			maxMem = (instance.overrides.memory?.maxMem ?? 2048) / 1024;
 		}
