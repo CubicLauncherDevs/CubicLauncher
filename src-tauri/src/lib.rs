@@ -75,6 +75,7 @@ pub fn run() {
             commands::log_window::get_log_history_cmd,
         ])
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .setup(|app| {
             if let Err(errors) = core::PathManager::ensure_dirs() {
                 use tauri_plugin_dialog::DialogExt;
