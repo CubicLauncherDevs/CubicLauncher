@@ -8,7 +8,7 @@ description = "Minecraft launcher library for CubicLauncher"
 
 [features]
 default = []
-auth = ["dep:reqwest", "dep:aes-gcm", "dep:rand", "dep:sha2", "dep:dirs", "dep:base64"]
+auth = ["dep:reqwest", "dep:aes-gcm", "dep:rand", "dep:sha2", "dep:dirs", "dep:base64", "dep:url"]
 
 [dependencies]
 dashmap = "6.2.1"
@@ -26,6 +26,7 @@ rand = { version = "0.9", optional = true }
 sha2 = { version = "0.10", optional = true }
 dirs = { version = "6", optional = true }
 base64 = { version = "0.22", optional = true }
+url = { version = "2", optional = true }
 
 [dev-dependencies]
 env_logger = "0.11"

@@ -2,10 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 use crate::auth::MinecraftUser;
+use base64::{Engine as _, engine::general_purpose};
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::time::{Duration, Instant};
+use url::Url;
 
-pub const DEFAULT_CLIENT_ID: &str = "c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb"; // Minecraft Launcher Client ID
+pub const DEFAULT_CLIENT_ID: &str = "cb4acffe-727f-4dd1-ad5e-fd3553d84a7f";
+pub const WEBVIEW_CLIENT_ID: &str = "cb4acffe-727f-4dd1-ad5e-fd3553d84a7f"; // estoy feliz de que mojang nos acepto nuestros Cids :D
+pub const REDIRECT_URI: &str = "http://localhost/callback";
 const SCOPE: &str = "XboxLive.SignIn XboxLive.offline_access";
 
 #[derive(Debug, Deserialize)]
@@ -120,6 +126,68 @@ impl MicrosoftAuth {
     /// Útil si has registrado tu propia aplicación en el portal de Azure.
     pub fn new(client_id: String) -> Self {
         Self { client_id }
+    }
+
+    /// Genera un code_verifier y code_challenge para PKCE (SHA-256).
+    pub fn generate_pkce() -> (String, String) {
+        let mut bytes = vec![0u8; 32];
+        rand::rng().fill_bytes(&mut bytes);
+        let code_verifier = general_purpose::URL_SAFE_NO_PAD.encode(&bytes);
+
+        let hash = Sha256::digest(code_verifier.as_bytes());
+        let code_challenge = general_purpose::URL_SAFE_NO_PAD.encode(hash);
+
+        (code_verifier, code_challenge)
+    }
+
+    /// Construye la URL de autorización para el flujo WebView con PKCE.
+    pub fn get_webview_auth_url(&self, code_challenge: &str, state: &str) -> String {
+        let mut url =
+            Url::parse("https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize")
+                .expect("static auth URL");
+        url.query_pairs_mut()
+            .append_pair("client_id", &self.client_id)
+            .append_pair("response_type", "code")
+            .append_pair("redirect_uri", REDIRECT_URI)
+            .append_pair("scope", SCOPE)
+            .append_pair("code_challenge", code_challenge)
+            .append_pair("code_challenge_method", "S256")
+            .append_pair("state", state);
+        url.to_string()
+    }
+
+    /// Intercambia un código de autorización por tokens mediante PKCE.
+    pub fn exchange_code(
+        &self,
+        code: &str,
+        code_verifier: &str,
+        redirect_uri: &str,
+    ) -> crate::Result<MinecraftUser> {
+        let client = reqwest::blocking::Client::new();
+        let params = [
+            ("client_id", self.client_id.as_str()),
+            ("code", code),
+            ("code_verifier", code_verifier),
+            ("redirect_uri", redirect_uri),
+            ("grant_type", "authorization_code"),
+        ];
+
+        let res = client
+            .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token")
+            .form(&params)
+            .send()?;
+
+        if !res.status().is_success() {
+            let status = res.status();
+            let err_body = res.text().unwrap_or_default();
+            return Err(crate::Error::AuthError(format!(
+                "Failed to exchange code: {} - {}",
+                status, err_body
+            )));
+        }
+
+        let token_res = res.json::<MicrosoftTokenResponse>()?;
+        Self::complete_login(&token_res.access_token, token_res.refresh_token)
     }
 
     pub fn get_device_code(&self) -> crate::Result<DeviceCodeResponse> {

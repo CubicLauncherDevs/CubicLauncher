@@ -17,6 +17,9 @@ pub enum AuthError {
     #[error("La tarea bloqueante falló: {0}")]
     SpawnBlocking(String),
 
+    #[error("La autenticación fue cancelada o expiró: {0}")]
+    AuthCancelled(String),
+
     #[error(transparent)]
     CoreError(#[from] crate::core::errors::CoreError),
 }
@@ -29,6 +32,7 @@ impl AuthError {
             Self::SaveTokensFailed(_) => "AUTH_TOKENS_SAVE",
             Self::DeleteTokensFailed(_) => "AUTH_TOKENS_DEL",
             Self::SpawnBlocking(_) => "AUTH_BLOCKED",
+            Self::AuthCancelled(_) => "AUTH_CANCELLED",
             Self::CoreError(e) => e.code(),
         }
     }
@@ -39,7 +43,8 @@ impl AuthError {
             | Self::AuthFailed(s)
             | Self::SaveTokensFailed(s)
             | Self::DeleteTokensFailed(s)
-            | Self::SpawnBlocking(s) => vec![("error", s.clone())],
+            | Self::SpawnBlocking(s)
+            | Self::AuthCancelled(s) => vec![("error", s.clone())],
             Self::CoreError(e) => e.params(),
         }
     }

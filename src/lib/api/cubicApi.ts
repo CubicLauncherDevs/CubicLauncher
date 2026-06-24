@@ -355,6 +355,10 @@ export async function authenticateWithDeviceCode(
 	});
 }
 
+export async function startWebviewAuth(): Promise<MinecraftUser> {
+	return await invoke<MinecraftUser>("start_webview_auth");
+}
+
 export async function getCurrentUser(): Promise<MinecraftUser | null> {
 	return await invoke<MinecraftUser | null>("get_current_user");
 }

@@ -45,6 +45,7 @@ pub fn run() {
             commands::settings::detect_java_paths,
             commands::auth::get_device_code,
             commands::auth::authenticate_with_device_code,
+            commands::auth::start_webview_auth,
             commands::auth::get_current_user,
             commands::auth::logout,
             commands::auth::switch_user,
