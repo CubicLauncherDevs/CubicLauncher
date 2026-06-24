@@ -348,7 +348,7 @@ fn build_user_from_response(
 // ── Authlib Injector Download ───────────────────────────────────────────────
 
 const AUTHLIB_INJECTOR_RELEASES_URL: &str =
-    "https://api.github.com/repos/CubicLauncher/authlib-injector/releases/latest";
+    "https://api.github.com/repos/CubicLauncherDevs/authlib-injector/releases/latest";
 
 #[derive(Debug, Deserialize)]
 struct GitHubRelease {
