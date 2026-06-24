@@ -8,6 +8,7 @@ use crate::Error;
 use crate::launch_config::LaunchConfig;
 use crate::manifest::{Argument, VersionManifest};
 use crate::resolvers::ClasspathResolver;
+use crate::resolvers::natives::natives_subdir;
 
 pub struct CommandBuilder<'a> {
     manifest: &'a VersionManifest,
@@ -113,7 +114,8 @@ impl<'a> CommandBuilder<'a> {
             )));
         }
 
-        let natives_dir = self.shared_dir.join("natives").join(base_id);
+        let sub = natives_subdir(&final_manifest.id);
+        let natives_dir = self.shared_dir.join("natives").join(base_id).join(sub);
         if !natives_dir.exists() {
             std::fs::create_dir_all(&natives_dir)?;
         }
@@ -139,7 +141,8 @@ impl<'a> CommandBuilder<'a> {
 
         let lib_dir = self.shared_dir.join("libraries");
         let assets_dir = self.shared_dir.join("assets");
-        let natives_dir = self.shared_dir.join("natives").join(&base_id);
+        let sub = natives_subdir(&final_manifest.id);
+        let natives_dir = self.shared_dir.join("natives").join(&base_id).join(sub);
 
         let classpath = ClasspathResolver::new(&final_manifest, &base_id, &lib_dir).build();
         if classpath.is_empty() {

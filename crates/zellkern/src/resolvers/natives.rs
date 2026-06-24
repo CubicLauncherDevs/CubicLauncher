@@ -7,9 +7,13 @@ use log::{debug, info, warn};
 use crate::{Error, MCVersion, VersionManifest};
 
 /// Determine the native subdirectory based on Minecraft version.
-/// Versions >= 26w02a use "java" subdirectory.
+/// Versions >= 26w02a (snapshot) or >= 1.21.2 (release) use "java" subdirectory.
 pub fn natives_subdir(version: &MCVersion) -> &'static str {
-    if version.major > 26 || (version.major == 26 && version.minor >= 2) {
+    if version.major > 26
+        || (version.major == 26 && version.minor >= 2)
+        || (version.major == 1 && version.minor > 21)
+        || (version.major == 1 && version.minor == 21 && version.patch.map_or(false, |p| p >= 2))
+    {
         "java"
     } else {
         ""
@@ -38,10 +42,7 @@ pub fn extract_natives(
                 if lib.is_native() {
                     let jar_path = lib_dir.join(lib.get_path());
                     if jar_path.exists() {
-                        let subdir = get_native_subdir(&lib.name);
-                        let target_dir = natives_dir.join(subdir);
-                        fs::create_dir_all(&target_dir)?;
-                        extract_jar(&jar_path, &target_dir)?;
+                        extract_jar(&jar_path, natives_dir)?;
                     } else {
                         warn!("Legacy native JAR not found: {}", jar_path.display());
                     }
@@ -56,28 +57,9 @@ pub fn extract_natives(
             continue;
         }
 
-        let subdir = get_native_subdir(&lib.name);
-        let target_dir = natives_dir.join(subdir);
-        fs::create_dir_all(&target_dir)?;
-        extract_jar(&jar_path, &target_dir)?;
+        extract_jar(&jar_path, natives_dir)?;
     }
     Ok(())
-}
-
-fn get_native_subdir(lib_name: &str) -> &'static str {
-    let name_lower = lib_name.to_lowercase();
-    if name_lower.contains("lwjgl") {
-        "lwjgl"
-    } else if name_lower.contains("netty") {
-        "netty"
-    } else if name_lower.contains("jna")
-        || name_lower.contains("java-objc-bridge")
-        || name_lower.contains("jtracy")
-    {
-        "java"
-    } else {
-        ""
-    }
 }
 
 pub fn extract_jar(jar_path: &Path, dest_dir: &Path) -> Result<(), Error> {

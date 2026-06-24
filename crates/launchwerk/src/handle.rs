@@ -11,6 +11,7 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 use uuid::Uuid;
+use zellkern::resolvers::natives::natives_subdir;
 use zellkern::resolvers::CommandBuilder;
 use zellkern::{LaunchConfig, extract_natives};
 
@@ -82,10 +83,12 @@ impl InstanceHandle {
 
         // ── Extract natives ───────────────────────────────────────────────
         let lib_dir = inner.shared_dir.join("libraries");
+        let sub = natives_subdir(&inner.manifest.id);
         let natives_dir = inner
             .shared_dir
             .join("natives")
-            .join(&inner.manifest.id_raw);
+            .join(&inner.manifest.id_raw)
+            .join(sub);
 
         extract_natives(&inner.manifest, &lib_dir, &natives_dir)?;
 

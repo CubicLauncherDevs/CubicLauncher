@@ -70,10 +70,9 @@ impl GameVersion {
         let loader = Loader::from_version_id(id);
         let mc_version = match &loader {
             Loader::Vanilla => id.to_string(),
-            Loader::Fabric(full_id)
-            | Loader::Forge(full_id)
-            | Loader::NeoForge(full_id)
-            | Loader::Quilt(full_id) => extract_mc_version(full_id),
+            Loader::Fabric(_) | Loader::Forge(_) | Loader::NeoForge(_) | Loader::Quilt(_) => {
+                extract_mc_version(id)
+            }
         };
         Self { mc_version, loader }
     }
@@ -175,10 +174,7 @@ mod tests {
     fn extract_fabric_version() {
         let gv = GameVersion::from_version_id("fabric-loader-0.15.11-1.20.1");
         assert_eq!(gv.mc_version, "1.20.1");
-        assert_eq!(
-            gv.loader,
-            Loader::Fabric("fabric-loader-0.15.11-1.20.1".into())
-        );
+        assert_eq!(gv.loader, Loader::Fabric("0.15.11".into()));
     }
 
     #[test]
