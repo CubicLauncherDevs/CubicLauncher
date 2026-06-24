@@ -190,8 +190,20 @@
 		},
 		"resources": {
 			"title": "Ressourcenpakete",
-			"addBtn": "Añadir Pack",
-			"empty": "Keine Ressourcenpakete installiert"
+			"addBtn": "Pack hinzufügen",
+			"getPacks": "Packs holen",
+			"empty": "Keine Ressourcenpakete installiert",
+			"sectionLabel": "Ressourcenpaket-Verwaltung",
+			"backToList": "Zurück zu den Paketen",
+			"searchPlaceholder": "Ressourcenpakete durchsuchen...",
+			"searching": "Suche nach Ressourcenpaketen...",
+			"resultsFound": "Ressourcenpakete gefunden",
+			"loadingMore": "Weitere Ressourcenpakete laden...",
+			"endOfResults": "Ende der Ergebnisse ({count} Pakete)",
+			"noResults": "Keine Ressourcenpakete gefunden",
+			"clearFilters": "Filter zurücksetzen",
+			"noSelection": "Keine Ressourcenpakete ausgewählt",
+			"toDownload": "zum Herunterladen"
 		},
 		"logs": {
 			"title": "Instanzprotokolle",

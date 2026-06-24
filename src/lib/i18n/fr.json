@@ -189,9 +189,21 @@
 			"noDescription": "Aucune description disponible"
 		},
 		"resources": {
-			"title": "Pack de Ressources",
+			"title": "Packs de Ressources",
 			"addBtn": "Ajouter un Pack",
-			"empty": "Aucun pack de ressources installé"
+			"getPacks": "Obtenir des Packs",
+			"empty": "Aucun pack de ressources installé",
+			"sectionLabel": "Gestionnaire de Packs de Ressources",
+			"backToList": "Retour aux packs",
+			"searchPlaceholder": "Rechercher des packs de ressources...",
+			"searching": "Recherche de packs de ressources...",
+			"resultsFound": "packs de ressources trouvés",
+			"loadingMore": "Chargement de plus de packs...",
+			"endOfResults": "Fin des résultats ({count} packs)",
+			"noResults": "Aucun pack de ressources trouvé",
+			"clearFilters": "Effacer les filtres",
+			"noSelection": "Aucun pack de ressources sélectionné",
+			"toDownload": "à télécharger"
 		},
 		"logs": {
 			"title": "Journaux de l'Instance",
