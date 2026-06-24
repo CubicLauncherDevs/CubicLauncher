@@ -238,6 +238,7 @@
 			rgba(var(--color-success-rgb), 0.6) 0%,
 			transparent 70%
 		);
+		box-shadow: var(--glow-success);
 		animation: flashGlow 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 	}
 
@@ -253,6 +254,7 @@
 			rgba(var(--color-error-rgb), 0.6) 0%,
 			transparent 70%
 		);
+		box-shadow: var(--glow-error);
 		animation: flashGlow 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 	}
 

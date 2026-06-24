@@ -195,6 +195,8 @@ export async function applyTheme(themeId: string) {
 	if (theme.fonts && theme.fonts.length > 0) {
 		removeDefaultFonts();
 
+		root.style.setProperty("--font-loaded", "0");
+
 		const loaded: Promise<void>[] = [];
 
 		for (const font of theme.fonts) {

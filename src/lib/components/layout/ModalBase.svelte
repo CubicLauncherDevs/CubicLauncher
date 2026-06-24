@@ -74,7 +74,7 @@
 	.modal-overlay {
 		position: fixed;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.75);
+		background: var(--bg-overlay, rgba(0, 0, 0, 0.75));
 		z-index: 1000;
 		display: flex;
 		align-items: center;
@@ -85,7 +85,7 @@
 	.modal {
 		background: var(--bg-sidebar);
 		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
+		border-radius: var(--border-radius, 8px);
 		width: min(400px, 90vw);
 		max-height: 90vh;
 		overflow-y: auto;
@@ -93,7 +93,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 20px;
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+		box-shadow: var(--shadow-lg, 0 20px 40px rgba(0, 0, 0, 0.4));
 	}
 
 	:global(.modal::-webkit-scrollbar) {
