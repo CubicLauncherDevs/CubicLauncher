@@ -2,11 +2,11 @@
   <img src="static/images/cubic.svg" width="120" alt="CubicLauncher" />
   <h1>CubicLauncher</h1>
 
-![License](https://img.shields.io/badge/Licence-GPL--3.0-blue)
-[![dependency status](https://deps.rs/repo/github/cubiclauncher/cubiclauncher/status.svg?path=src-tauri)](https://deps.rs/repo/github/cubiclauncher/cubiclauncher?path=src-tauri)
-![Discord](https://img.shields.io/discord/1366945511273398342)
-![Website](https://img.shields.io/website/https/www.cubiclauncher.com)
-
+[<img src="https://img.shields.io/badge/Licence-GPL--3.0-blue" alt="License">](https://github.com/CubicLauncherDevs/CubicLauncher/blob/main/LICENSE)
+[![dependency status](https://deps.rs/repo/github/cubiclauncherdevs/cubiclauncher/status.svg?path=src-tauri)](https://deps.rs/repo/github/cubiclauncherdevs/cubiclauncher?path=src-tauri)
+[<img src="https://img.shields.io/discord/1366945511273398342" alt="Discord">](https://discord.gg/3xPwpUdPWT)
+[<img src="https://img.shields.io/github/downloads/CubicLauncherdevs/cubiclauncher/total.svg" alt="Downloads">](https://www.cubiclauncher.org/install)
+[<img src="https://img.shields.io/website/https/www.cubiclauncher.org" alt="Web">](https://cubiclauncher.org)
 </div>
 
 ---
