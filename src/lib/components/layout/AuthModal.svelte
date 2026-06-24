@@ -280,25 +280,20 @@
 		0% {
 			opacity: 0;
 			transform: scale(0);
-			filter: brightness(4) saturate(2);
 		}
 		15% {
 			opacity: 1;
 			transform: scale(1.15);
-			filter: brightness(4) saturate(2);
 		}
 		35% {
 			transform: scale(0.95);
-			filter: brightness(1.5) saturate(1.3);
 		}
 		55% {
 			transform: scale(1.03);
-			filter: brightness(1.1) saturate(1.05);
 		}
 		100% {
 			opacity: 1;
 			transform: scale(1);
-			filter: brightness(1) saturate(1);
 		}
 	}
 
