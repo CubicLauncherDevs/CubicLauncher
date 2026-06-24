@@ -307,7 +307,11 @@
 		{:else if activeTab === "resources"}
 			<div class="tab-pane">
 				{#if ResourcePacksTab}
-					<ResourcePacksTab instanceId={selectedInstance.uuid} />
+					<ResourcePacksTab
+						instanceId={selectedInstance.uuid}
+						gameVersion={selectedInstance.version}
+						loader={selectedInstance.loader}
+					/>
 				{/if}
 			</div>
 		{:else if activeTab === "screenshots"}

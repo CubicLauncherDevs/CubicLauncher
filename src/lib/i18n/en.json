@@ -191,7 +191,19 @@
 		"resources": {
 			"title": "Resource Packs",
 			"addBtn": "Add Pack",
-			"empty": "No resource packs installed"
+			"getPacks": "Get Packs",
+			"empty": "No resource packs installed",
+			"sectionLabel": "Resource Pack Manager",
+			"backToList": "Back to packs",
+			"searchPlaceholder": "Search resource packs...",
+			"searching": "Searching resource packs...",
+			"resultsFound": "resource packs found",
+			"loadingMore": "Loading more resource packs...",
+			"endOfResults": "End of results ({count} packs)",
+			"noResults": "No resource packs found",
+			"clearFilters": "Clear Filters",
+			"noSelection": "No resource packs selected",
+			"toDownload": "to download"
 		},
 		"logs": {
 			"title": "Instance Logs",

@@ -478,16 +478,17 @@ export async function searchModrinth(
 	limit: number = 24,
 	offset: number = 0,
 	signal?: AbortSignal,
+	projectType: string = "mod",
 ): Promise<ModrinthSearchResult | null> {
 	try {
 		const facets = [];
-		if (loader.toLowerCase() !== "vanilla") {
+		if (loader && loader.toLowerCase() !== "vanilla") {
 			facets.push([`categories:${loader.toLowerCase()}`]);
 		}
 		if (gameVersion) {
 			facets.push([`versions:${gameVersion}`]);
 		}
-		facets.push(["project_type:mod"]);
+		facets.push([`project_type:${projectType}`]);
 
 		if (category) {
 			facets.push([`categories:${category.toLowerCase()}`]);
@@ -515,15 +516,16 @@ export async function searchModrinth(
 
 export async function getModrinthProjectVersions(
 	projectId: string,
-	loader: string,
+	loader?: string,
 	gameVersion?: string,
 ): Promise<ModrinthVersion[]> {
 	try {
-		const loadersJson = JSON.stringify([loader.toLowerCase()]);
 		const url = new URL(
 			`https://api.modrinth.com/v2/project/${projectId}/version`,
 		);
-		url.searchParams.append("loaders", loadersJson);
+		if (loader) {
+			url.searchParams.append("loaders", JSON.stringify([loader.toLowerCase()]));
+		}
 		if (gameVersion) {
 			url.searchParams.append(
 				"game_versions",
@@ -725,6 +727,21 @@ export async function downloadMods(
 		await invoke("download_mods", {
 			instanceId,
 			mods,
+		});
+	} catch (err) {
+		showErrorParsed(err);
+		throw err;
+	}
+}
+
+export async function downloadResourcePacks(
+	instanceId: string,
+	packs: ModDownloadInfo[],
+): Promise<void> {
+	try {
+		await invoke("download_resourcepacks", {
+			instanceId,
+			packs,
 		});
 	} catch (err) {
 		showErrorParsed(err);

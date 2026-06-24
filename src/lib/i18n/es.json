@@ -191,7 +191,19 @@
 		"resources": {
 			"title": "Paquetes de Recursos",
 			"addBtn": "Añadir Pack",
-			"empty": "No hay paquetes de recursos instalados"
+			"getPacks": "Obtener Packs",
+			"empty": "No hay paquetes de recursos instalados",
+			"sectionLabel": "Gestor de Paquetes de Recursos",
+			"backToList": "Volver a packs",
+			"searchPlaceholder": "Buscar paquetes de recursos...",
+			"searching": "Buscando paquetes de recursos...",
+			"resultsFound": "paquetes de recursos encontrados",
+			"loadingMore": "Cargando más paquetes de recursos...",
+			"endOfResults": "Fin de resultados ({count} packs)",
+			"noResults": "No se encontraron paquetes de recursos",
+			"clearFilters": "Limpiar filtros",
+			"noSelection": "No hay paquetes de recursos seleccionados",
+			"toDownload": "para descargar"
 		},
 		"logs": {
 			"title": "Registros de la Instancia",
