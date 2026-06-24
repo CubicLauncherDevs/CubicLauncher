@@ -39,7 +39,6 @@
 	let activeCategory = $state<string | null>(null);
 	let sortIndex = $state<string>("downloads");
 
-	// ignore
 	let basket = new SvelteMap<string, ModrinthProject | CurseForgeProject>();
 
 	let selectedMod = $state<ModrinthProject | CurseForgeProject | null>(null);
@@ -1234,7 +1233,7 @@
 		overflow: hidden;
 		display: flex;
 		flex-direction: column;
-		padding: 4px 20px 16px;
+		padding: 4px 16px 0px 16px;
 	}
 	.dm-vlist-loading,
 	.dm-vlist-end {
