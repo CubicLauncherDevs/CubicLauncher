@@ -8,20 +8,22 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use futures::stream::{self, StreamExt};
+pub use batch::{DownloadBatch, DownloadItemSpec, GenericBatch};
+pub use fabric::FabricBatch;
+pub use forge::{ForgeBatch, ForgeVersionInfo};
 use futures::TryStreamExt;
+use futures::stream::{self, StreamExt};
+pub use jre::JreBatch;
+use log::warn;
+pub use minecraft::MinecraftBatch;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{Mutex, Semaphore};
 use tokio::task::JoinHandle;
 
-pub use batch::{DownloadBatch, DownloadItemSpec, GenericBatch};
-pub use fabric::FabricBatch;
-pub use forge::{ForgeBatch, ForgeVersionInfo};
-pub use jre::JreBatch;
-pub use minecraft::MinecraftBatch;
-
 use crate::AquaError;
-use crate::types::{DownloadProgress, DownloadProgressInfo, DownloadProgressType, NormalizedVersion};
+use crate::types::{
+    DownloadProgress, DownloadProgressInfo, DownloadProgressType, NormalizedVersion,
+};
 use crate::utilities::download_file;
 
 const DEFAULT_MAX_HANDLES: usize = 2;
@@ -231,7 +233,26 @@ async fn run_download(
             if inner.cancel_flag.load(Ordering::Relaxed) {
                 return Err(AquaError::Cancelled);
             }
-            download_file(&item.url, &item.destination, &item.expected_hash).await?;
+            if let Err(e) = download_file(&item.url, &item.destination, &item.expected_hash).await {
+                if let Some(ref fallback) = item.fallback_url {
+                    warn!("Main URL failed. Using fallback: {fallback}");
+                    if let Err(_) =
+                        download_file(fallback, &item.destination, &item.expected_hash).await
+                    {
+                        warn!("Fallback failed, using fallback with universal.");
+                        download_file(
+                            &fallback.replace(".jar", "-universal.jar"),
+                            &item.destination,
+                            &item.expected_hash,
+                        )
+                        .await?
+                    }
+                } else {
+                    warn!("Main URL failed but there's no fallback. Aborting");
+                    return Err(e);
+                }
+            }
+
             let count = c.fetch_add(1, Ordering::Relaxed) + 1;
             report_progress(
                 &tx,

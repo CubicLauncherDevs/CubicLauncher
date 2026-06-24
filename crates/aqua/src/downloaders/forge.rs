@@ -579,13 +579,18 @@ fn add_legacy_libs(
         if seen.contains(&path) {
             continue;
         }
+        let fallback_url = format!("https://maven.minecraftforge.net/{path}");
         let sha1 = lib
             .checksums
             .as_ref()
             .and_then(|c| c.first().cloned())
             .unwrap_or_default();
         let dest = staging_libs.join(&path);
-        items.push(DownloadItemSpec::new(url, dest, &lib.name).with_hash(sha1));
+        items.push(
+            DownloadItemSpec::new(url, dest, &lib.name)
+                .with_hash(sha1)
+                .with_fallback_url(fallback_url),
+        );
         seen.insert(path);
     }
     Ok(())
