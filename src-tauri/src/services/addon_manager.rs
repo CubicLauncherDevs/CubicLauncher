@@ -115,6 +115,34 @@ impl AddonManager {
             })
         })
     }
+    pub fn get_shaderpack_info(path: &Path) -> Option<AddonMetadata> {
+        Self::cached_or_parse(path, |archive| {
+            let json: serde_json::Value = {
+                let mut file = archive.by_name("pack.mcmeta").ok()?;
+                let mut content = String::new();
+                file.read_to_string(&mut content).ok()?;
+                serde_json::from_str(&content).ok()?
+            };
+
+            let description = json["pack"]["description"]
+                .as_str()
+                .or_else(|| json["pack"]["description"]["text"].as_str())
+                .map(|s| s.to_string());
+
+            let icon = Self::extract_icon(archive, "pack.png");
+            let name = path.file_stem()?.to_string_lossy().to_string();
+
+            debug!("Shaderpack '{}' cargado: {:?}", name, description);
+            Some(AddonMetadata {
+                name,
+                version: None,
+                description,
+                authors: None,
+                icon,
+            })
+        })
+    }
+
     fn read_zip_json(archive: &mut ZipArchive<File>, path: &str) -> Result<serde_json::Value, ()> {
         let mut file = archive.by_name(path).map_err(|_| ())?;
         let mut content = String::new();

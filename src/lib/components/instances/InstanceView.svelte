@@ -23,6 +23,7 @@
 		return "Idle";
 	});
 	const supportsMods = $derived(selectedInstance.loader !== "Vanilla");
+	const supportsShaders = $derived(selectedInstance.loader !== "Vanilla");
 
 	$effect(() => {
 		if (!supportsMods && activeTab === "mods") {
@@ -311,6 +312,7 @@
 						instanceId={selectedInstance.uuid}
 						gameVersion={selectedInstance.version}
 						loader={selectedInstance.loader}
+						supportsShaders={supportsShaders}
 					/>
 				{/if}
 			</div>

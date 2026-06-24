@@ -205,6 +205,23 @@
 			"noSelection": "Aucun pack de ressources sélectionné",
 			"toDownload": "à télécharger"
 		},
+		"shaders": {
+			"title": "Shaders",
+			"addBtn": "Ajouter un Shader",
+			"getPacks": "Obtenir des Shaders",
+			"empty": "Aucun shader installé",
+			"sectionLabel": "Gestionnaire de Shaders",
+			"backToList": "Retour aux shaders",
+			"searchPlaceholder": "Rechercher des shaders...",
+			"searching": "Recherche de shaders...",
+			"resultsFound": "shaders trouvés",
+			"loadingMore": "Chargement de plus de shaders...",
+			"endOfResults": "Fin des résultats ({count} shaders)",
+			"noResults": "Aucun shader trouvé",
+			"clearFilters": "Effacer les filtres",
+			"noSelection": "Aucun shader sélectionné",
+			"toDownload": "à télécharger"
+		},
 		"logs": {
 			"title": "Journaux de l'Instance",
 			"empty": "Aucun fichier journal",

@@ -205,6 +205,23 @@
 			"noSelection": "No resource packs selected",
 			"toDownload": "to download"
 		},
+		"shaders": {
+			"title": "Shaders",
+			"addBtn": "Add Shader",
+			"getPacks": "Get Shaders",
+			"empty": "No shaders installed",
+			"sectionLabel": "Shader Manager",
+			"backToList": "Back to shaders",
+			"searchPlaceholder": "Search shaders...",
+			"searching": "Searching shaders...",
+			"resultsFound": "shaders found",
+			"loadingMore": "Loading more shaders...",
+			"endOfResults": "End of results ({count} shaders)",
+			"noResults": "No shaders found",
+			"clearFilters": "Clear Filters",
+			"noSelection": "No shaders selected",
+			"toDownload": "to download"
+		},
 		"logs": {
 			"title": "Instance Logs",
 			"empty": "No log files found",

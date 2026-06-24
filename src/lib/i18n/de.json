@@ -205,6 +205,23 @@
 			"noSelection": "Keine Ressourcenpakete ausgewählt",
 			"toDownload": "zum Herunterladen"
 		},
+		"shaders": {
+			"title": "Shader",
+			"addBtn": "Shader hinzufügen",
+			"getPacks": "Shader holen",
+			"empty": "Keine Shader installiert",
+			"sectionLabel": "Shader-Verwaltung",
+			"backToList": "Zurück zu den Shadern",
+			"searchPlaceholder": "Shader durchsuchen...",
+			"searching": "Suche nach Shadern...",
+			"resultsFound": "Shader gefunden",
+			"loadingMore": "Weitere Shader laden...",
+			"endOfResults": "Ende der Ergebnisse ({count} Shader)",
+			"noResults": "Keine Shader gefunden",
+			"clearFilters": "Filter zurücksetzen",
+			"noSelection": "Keine Shader ausgewählt",
+			"toDownload": "zum Herunterladen"
+		},
 		"logs": {
 			"title": "Instanzprotokolle",
 			"empty": "Keine Protokolldateien",

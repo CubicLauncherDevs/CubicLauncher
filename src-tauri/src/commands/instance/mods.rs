@@ -375,3 +375,66 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
     );
     resourcepacks
 }
+
+#[tauri::command]
+pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
+    if let Err(e) = validate_uuid(&id) {
+        warn!("{}", e);
+        return Vec::new();
+    }
+    let manager = InstanceManager::get();
+    let Some(handle) = manager.get_handle(&id).await else {
+        warn!("Instancia {} no encontrada para listar shaderpacks", id);
+        return Vec::new();
+    };
+
+    let shaderpacks_dir = handle.get_instance_dir().await.join("shaderpacks");
+
+    let sp_paths = tokio::task::spawn_blocking(move || -> Vec<PathBuf> {
+        match std::fs::read_dir(&shaderpacks_dir) {
+            Ok(entries) => entries
+                .flatten()
+                .filter(|e| e.path().is_file())
+                .map(|e| e.path())
+                .collect(),
+            Err(_) => Vec::new(),
+        }
+    })
+    .await
+    .unwrap_or_default();
+
+    let mut shaderpacks = Vec::new();
+    for path in sp_paths {
+        let Some(file_name) = path.file_name() else {
+            continue;
+        };
+        let filename = file_name.to_string_lossy().to_string();
+        let path_clone = path.clone();
+        let metadata =
+            tokio::task::spawn_blocking(move || AddonManager::get_shaderpack_info(&path_clone))
+                .await
+                .unwrap_or(None);
+
+        let (md_name, md_desc, md_icon) = match metadata {
+            Some(m) => (m.name, m.description, m.icon),
+            None => (filename.clone(), None, None),
+        };
+
+        shaderpacks.push(ModDto {
+            name: md_name,
+            filename,
+            version: None,
+            description: md_desc,
+            authors: None,
+            icon: md_icon.map(|s| (*s).clone()),
+            enabled: true,
+        });
+    }
+    shaderpacks.sort_by_key(|a| a.name.to_lowercase());
+    info!(
+        "{} shaderpacks encontrados en instancia {}",
+        shaderpacks.len(),
+        id
+    );
+    shaderpacks
+}

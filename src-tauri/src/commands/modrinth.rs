@@ -113,3 +113,57 @@ pub async fn download_resourcepacks(
     );
     Ok(())
 }
+
+#[tauri::command]
+pub async fn download_shaderpacks(
+    instance_id: String,
+    packs: Vec<ModDownloadInfo>,
+) -> Result<(), String> {
+    let manager = InstanceManager::get();
+    let handle = manager
+        .get_handle(&instance_id)
+        .await
+        .ok_or_else(|| InstanceError::NotFound.to_string())?;
+    let sp_dir = handle.get_instance_dir().await.join("shaderpacks");
+
+    tokio::fs::create_dir_all(&sp_dir).await.map_err(|e| {
+        FsError::CreateDir {
+            path: sp_dir.to_string_lossy().to_string(),
+            source: e,
+        }
+        .to_string()
+    })?;
+
+    let count = packs.len();
+    let items: Vec<DownloadItemSpec> = packs
+        .into_iter()
+        .map(|m| {
+            info!(
+                "Encolando shaderpack: {} -> {:?}",
+                m.filename,
+                sp_dir.join(&m.filename)
+            );
+            DownloadItemSpec::new(m.url, sp_dir.join(m.filename), "shaderpack")
+        })
+        .collect();
+
+    let batch = GenericBatch::new(format!("shaderpacks-{}", instance_id), items);
+
+    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let dm = DownloadManager::new(shared_dir);
+    let handle = dm
+        .prepare_batch(Box::new(batch))
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    handle
+        .download_all(None)
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    info!(
+        "{} shaderpacks descargados correctamente en {:?}",
+        count, sp_dir
+    );
+    Ok(())
+}

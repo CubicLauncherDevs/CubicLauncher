@@ -749,6 +749,34 @@ export async function downloadResourcePacks(
 	}
 }
 
+export async function getInstanceShaderPacks(
+	instanceId: string,
+): Promise<ModDto[]> {
+	try {
+		return await invoke<ModDto[]>("get_instance_shaderpacks", {
+			id: instanceId,
+		});
+	} catch (err) {
+		showErrorParsed(err);
+		return [];
+	}
+}
+
+export async function downloadShaderPacks(
+	instanceId: string,
+	packs: ModDownloadInfo[],
+): Promise<void> {
+	try {
+		await invoke("download_shaderpacks", {
+			instanceId,
+			packs,
+		});
+	} catch (err) {
+		showErrorParsed(err);
+		throw err;
+	}
+}
+
 export async function getJreStatus(version: number): Promise<JreStatus | null> {
 	try {
 		return await invoke<JreStatus>("get_jre_status", { version });

@@ -1,11 +1,13 @@
 <script lang="ts">
 	import {
 		getInstanceResourcePacks,
+		getInstanceShaderPacks,
 		deleteInstanceFile,
 		addInstanceFile,
 		searchModrinth,
 		getModrinthProjectVersions,
 		downloadResourcePacks,
+		downloadShaderPacks,
 		type ModDownloadInfo,
 	} from "$lib/api/cubicApi";
 	import type { ModrinthProject, ModrinthVersion, ModrinthFile } from "$lib/types/types";
@@ -17,10 +19,14 @@
 	import VirtualList from "../layout/VirtualList.svelte";
 	import { SvelteMap } from "svelte/reactivity";
 
-	let { instanceId, gameVersion, loader } = $props<{
+	type ContentType = "resourcepacks" | "shaders";
+
+	let { instanceId, gameVersion, loader, contentType = $bindable("resourcepacks" as ContentType), supportsShaders = false } = $props<{
 		instanceId: string;
 		gameVersion?: string;
 		loader?: string;
+		contentType?: ContentType;
+		supportsShaders?: boolean;
 	}>();
 
 	let packs = $state<ModDto[]>([]);
@@ -55,7 +61,9 @@
 	async function loadPacks() {
 		if (instanceId) {
 			isLoading = true;
-			packs = await getInstanceResourcePacks(instanceId);
+			packs = contentType === "shaders"
+				? await getInstanceShaderPacks(instanceId)
+				: await getInstanceResourcePacks(instanceId);
 			installedPackNames = new Set(packs.map((p) => p.name.toLowerCase()));
 			isLoading = false;
 		}
@@ -68,9 +76,13 @@
 		}
 	});
 
+	const subDir = $derived(contentType === "shaders" ? "shaderpacks" : "resourcepacks");
+	const modrinthProjectType = $derived(contentType === "shaders" ? "shader" : "resourcepack");
+	const i18nPrefix = $derived(contentType === "shaders" ? "instanceView.shaders" : "instanceView.resources");
+
 	async function handleDelete(pack: ModDto) {
 		if (confirm(`¿Estás seguro de que deseas eliminar ${pack.filename}?`)) {
-			await deleteInstanceFile(instanceId, "resourcepacks", pack.filename);
+			await deleteInstanceFile(instanceId, subDir, pack.filename);
 			await loadPacks();
 		}
 	}
@@ -78,7 +90,7 @@
 	async function handleAdd() {
 		const selected = await open({
 			multiple: true,
-			filters: [{ name: "Resource Pack", extensions: ["zip"] }],
+			filters: [{ name: contentType === "shaders" ? "Shader Pack" : "Resource Pack", extensions: ["zip"] }],
 		});
 		if (selected && Array.isArray(selected)) {
 			for (const path of selected) {
@@ -142,7 +154,7 @@
 				PAGE_SIZE,
 				resetResults ? 0 : currentOffset,
 				signal,
-				"resourcepack",
+				modrinthProjectType,
 			);
 			if (result) {
 				totalHits = result.total_hits;
@@ -219,7 +231,11 @@
 	async function confirmDownload() {
 		downloading = true;
 		try {
-			await downloadResourcePacks(instanceId, downloadQueue);
+			if (contentType === "shaders") {
+				await downloadShaderPacks(instanceId, downloadQueue);
+			} else {
+				await downloadResourcePacks(instanceId, downloadQueue);
+			}
 			basket = new SvelteMap();
 			mode = "list";
 			selectedMod = null;
@@ -318,7 +334,7 @@
 	<div class="rp-review">
 		<div class="rp-review-header">
 			<div>
-				<span class="rp-section-label">{t("instanceView.resources.sectionLabel")}</span>
+		<span class="rp-section-label">{t(i18nPrefix + ".sectionLabel")}</span>
 				<h2 class="rp-review-title">{t("instanceView.downloadMods.reviewTitle")}</h2>
 			</div>
 			<button type="button" class="rp-back-btn" onclick={() => (mode = "browse")} disabled={downloading}>
@@ -329,14 +345,14 @@
 		<div class="rp-review-body">
 			{#if downloadQueue.length === 0}
 				<div class="rp-center-state">
-					<p>{t("instanceView.resources.noSelection")}</p>
+					<p>{t(i18nPrefix + ".noSelection")}</p>
 				</div>
 			{:else}
 				<div class="rp-queue-box">
 					<p class="rp-queue-subtitle">
 						{downloadQueue.length}
 						{downloadQueue.length === 1 ? t("instanceView.downloadMods.file_one") : t("instanceView.downloadMods.file_other")}
-						{t("instanceView.resources.toDownload")}
+						{t(i18nPrefix + ".toDownload")}
 					</p>
 					<div class="rp-queue-list">
 						{#each downloadQueue as item (item.filename)}
@@ -377,9 +393,9 @@
 {:else if mode === "browse"}
 	<div class="rp-browse">
 		<div class="rp-browse-header">
-			<span class="rp-section-label">{t("instanceView.resources.sectionLabel")}</span>
+			<span class="rp-section-label">{t(i18nPrefix + ".sectionLabel")}</span>
 			<button type="button" class="rp-back-btn" onclick={() => (mode = "list")}>
-				{t("instanceView.resources.backToList")}
+				{t(i18nPrefix + ".backToList")}
 			</button>
 		</div>
 
@@ -392,7 +408,7 @@
 			<input
 				class="rp-search-input"
 				type="text"
-				placeholder={t("instanceView.resources.searchPlaceholder")}
+				placeholder={t(i18nPrefix + ".searchPlaceholder")}
 				oninput={(e) => onSearchInput(e.currentTarget.value)}
 				onkeydown={(e) => e.key === "Enter" && performSearch(true)}
 			/>
@@ -403,7 +419,7 @@
 
 		{#if totalHits > 0 && !searching}
 			<div class="rp-results-meta">
-				<span>{totalHits.toLocaleString()} {t("instanceView.resources.resultsFound")}</span>
+				<span>{totalHits.toLocaleString()} {t(i18nPrefix + ".resultsFound")}</span>
 			</div>
 		{/if}
 
@@ -411,7 +427,7 @@
 			{#if searching}
 				<div class="rp-center-state">
 					<Loading />
-					<p>{t("instanceView.resources.searching")}</p>
+					<p>{t(i18nPrefix + ".searching")}</p>
 				</div>
 			{:else if allHits.length > 0}
 				<div class="rp-vlist-wrap">
@@ -466,21 +482,21 @@
 					{#if loadingMore}
 						<div class="rp-vlist-loading">
 							<Loading class="rp-spinning" />
-							<span>{t("instanceView.resources.loadingMore")}</span>
+							<span>{t(i18nPrefix + ".loadingMore")}</span>
 						</div>
 					{:else if allHits.length >= totalHits && totalHits > 0}
 						<div class="rp-vlist-end">
 							<span class="rp-end-label">
-								— {t("instanceView.resources.endOfResults").replace("{count}", allHits.length.toString())} —
+								— {t(i18nPrefix + ".endOfResults").replace("{count}", allHits.length.toString())} —
 							</span>
 						</div>
 					{/if}
 				</div>
 			{:else}
 				<div class="rp-center-state">
-				<p>{t("instanceView.resources.noResults")}</p>
+				<p>{t(i18nPrefix + ".noResults")}</p>
 				<button type="button" class="rp-ghost-btn" onclick={() => { query = ""; performSearch(true); }}>
-					{t("instanceView.resources.clearFilters")}
+					{t(i18nPrefix + ".clearFilters")}
 				</button>
 				</div>
 			{/if}
@@ -566,14 +582,32 @@
 	</div>
 {:else}
 	<div class="resources-section">
+		{#if supportsShaders}
+			<div class="rp-subtabs">
+				<button
+					type="button"
+					class="rp-subtab {contentType === 'resourcepacks' ? 'active' : ''}"
+					onclick={() => { contentType = "resourcepacks"; loadPacks(); }}
+				>
+					{t("instanceView.resources.title")}
+				</button>
+				<button
+					type="button"
+					class="rp-subtab {contentType === 'shaders' ? 'active' : ''}"
+					onclick={() => { contentType = "shaders"; loadPacks(); }}
+				>
+					{t("instanceView.shaders.title")}
+				</button>
+			</div>
+		{/if}
 		<div class="section-header">
-			<span class="section-title">{t("instanceView.resources.title")} ({packs.length})</span>
+			<span class="section-title">{t(i18nPrefix + ".title")} ({packs.length})</span>
 			<div class="section-actions">
 				<button type="button" class="browse-btn" onclick={openBrowser}>
-					{t("instanceView.resources.getPacks")}
+					{t(i18nPrefix + ".getPacks")}
 				</button>
 				<button type="button" class="add-btn" onclick={handleAdd}>
-					{t("instanceView.resources.addBtn")}
+					{t(i18nPrefix + ".addBtn")}
 				</button>
 			</div>
 		</div>
@@ -607,7 +641,7 @@
 
 			{#if packs.length === 0 && !isLoading}
 				<div class="empty-state">
-					{t("instanceView.resources.empty")}
+					{t(i18nPrefix + ".empty")}
 				</div>
 			{/if}
 		</div>
@@ -625,6 +659,38 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+	}
+
+	.rp-subtabs {
+		display: flex;
+		gap: 2px;
+		background: rgba(255, 255, 255, 0.04);
+		border-radius: var(--border-radius-sm);
+		padding: 2px;
+		align-self: flex-start;
+	}
+
+	.rp-subtab {
+		padding: 4px 14px;
+		background: transparent;
+		border: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+		font-size: 0.72rem;
+		font-weight: 600;
+		border-radius: calc(var(--border-radius-sm) - 1px);
+		transition: all 0.15s;
+		white-space: nowrap;
+	}
+
+	.rp-subtab:hover {
+		color: var(--text-primary);
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	.rp-subtab.active {
+		background: var(--accent);
+		color: var(--bg-main);
 	}
 
 	.section-title {
