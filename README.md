@@ -4,8 +4,7 @@
 
 [<img src="https://img.shields.io/badge/Licence-GPL--3.0-blue" alt="License">](https://github.com/CubicLauncherDevs/CubicLauncher/blob/main/LICENSE)
 [![dependency status](https://deps.rs/repo/github/cubiclauncherdevs/cubiclauncher/status.svg?path=src-tauri)](https://deps.rs/repo/github/cubiclauncherdevs/cubiclauncher?path=src-tauri)
-[<img src="https://img.shields.io/discord/1366945511273398342" alt="Discord">](https://discord.gg/3xPwpUdPWT)
-[<img src="https://img.shields.io/github/downloads/CubicLauncherdevs/cubiclauncher/total.svg" alt="Downloads">](https://www.cubiclauncher.org/install)
+[<img src="https://img.shields.io/github/downloads/cubiclauncherdevs/cubiclauncher/total" alt="Discord">](https://discord.gg/3xPwpUdPWT)
 [<img src="https://img.shields.io/website/https/www.cubiclauncher.org" alt="Web">](https://cubiclauncher.org)
 </div>
 
