@@ -21,11 +21,22 @@ impl<'a> ClasspathResolver<'a> {
     }
 
     pub fn build(&self) -> String {
+        debug!(
+            "Building classpath for version '{}' (base_id={})",
+            self.manifest.id_raw, self.base_id
+        );
         let mut paths: Vec<String> = Vec::new();
         let mut seen: HashMap<String, String> = HashMap::new();
 
         self.collect_libraries(&mut paths, &mut seen);
         self.add_version_jars(&mut paths);
+
+        debug!(
+            "Classpath: {} entries, {} bytes total",
+            paths.len(),
+            paths.iter().map(|s| s.len()).sum::<usize>()
+                + paths.len().saturating_sub(1) // separators
+        );
 
         #[cfg(target_os = "windows")]
         return paths.join(";");
@@ -65,6 +76,7 @@ impl<'a> ClasspathResolver<'a> {
                 paths.push(path_str.clone());
                 seen.insert(key, path_str);
             } else {
+                debug!("  cp[{}] {} -> {}", paths.len(), lib.name, path_str);
                 seen.insert(key, path_str.clone());
                 paths.push(path_str);
             }
@@ -73,10 +85,14 @@ impl<'a> ClasspathResolver<'a> {
 
     fn add_version_jars(&self, paths: &mut Vec<String>) {
         let loader = Loader::from_version_id(&self.manifest.id_raw);
+        debug!("add_version_jars: detected loader={:?}", loader);
         match loader {
             Loader::Forge(_) | Loader::NeoForge(_) => {
                 if let Some(forge_jar) = self.find_forge_universal() {
+                    debug!("  Forge universal jar found: {}", forge_jar.display());
                     self.push_if_exists(paths, &forge_jar);
+                } else {
+                    warn!("  Forge universal jar NOT found in libraries");
                 }
                 let shared = self.lib_dir.parent().unwrap_or(Path::new("."));
 
@@ -85,12 +101,17 @@ impl<'a> ClasspathResolver<'a> {
                     .join(&*self.manifest.id_raw)
                     .join(format!("{}.jar", &*self.manifest.id_raw));
                 if version_jar.exists() {
+                    debug!("  Forge version jar: {}", version_jar.display());
                     self.push_if_exists(paths, &version_jar);
                 } else {
                     let vanilla_jar = shared
                         .join("versions")
                         .join(self.base_id)
                         .join(format!("{}.jar", self.base_id));
+                    debug!(
+                        "  Forge version jar not found, falling back to vanilla: {}",
+                        vanilla_jar.display()
+                    );
                     self.push_if_exists(paths, &vanilla_jar);
                 }
             }
@@ -102,6 +123,7 @@ impl<'a> ClasspathResolver<'a> {
                     .join("versions")
                     .join(self.base_id)
                     .join(format!("{}.jar", self.base_id));
+                debug!("  Vanilla version jar: {}", version_jar.display());
                 self.push_if_exists(paths, &version_jar);
             }
         }
@@ -129,6 +151,7 @@ impl<'a> ClasspathResolver<'a> {
             if name.contains("net.minecraftforge:forge:")
                 || name.contains("net.minecraftforge:minecraftforge:")
             {
+                debug!("  Searching for forge jar in library: {name}");
                 let parts: Vec<&str> = name.splitn(4, ':').collect();
                 if parts.len() < 3 {
                     continue;
@@ -142,16 +165,19 @@ impl<'a> ClasspathResolver<'a> {
 
                 if let Some(cls) = classifier {
                     let jar = base.join(format!("{artifact}-{version}-{cls}.jar"));
+                    debug!("    Trying classified: {}", jar.display());
                     if jar.exists() {
                         return Some(jar);
                     }
                 }
 
                 let universal = base.join(format!("{artifact}-{version}-universal.jar"));
+                debug!("    Trying universal: {}", universal.display());
                 if universal.exists() {
                     return Some(universal);
                 }
                 let normal = base.join(format!("{artifact}-{version}.jar"));
+                debug!("    Trying normal: {}", normal.display());
                 if normal.exists() {
                     return Some(normal);
                 }

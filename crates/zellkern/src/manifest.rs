@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::env::consts::{ARCH, OS};
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::Error;
 use crate::version::MCVersion;
@@ -27,20 +27,20 @@ trait Evaluable {
     }
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum RuleAction {
     Allow,
     Disallow,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct OsRule {
     pub name: Option<String>,
     pub arch: Option<String>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Rule {
     pub action: RuleAction,
     pub os: Option<OsRule>,
@@ -81,14 +81,14 @@ impl Rule {
 
 // ─── Arguments ────────────────────────────────────────────────────────────────
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum ArgumentValue {
     Single(String),
     Many(Vec<String>),
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum Argument {
     WithRule {
@@ -282,7 +282,7 @@ pub struct JavaVersion {
     pub major_version: u8,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetIndex {
     pub id: String,
@@ -292,7 +292,7 @@ pub struct AssetIndex {
     pub total_size: Option<u64>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionArgType {
     pub game: Option<Vec<Argument>>,

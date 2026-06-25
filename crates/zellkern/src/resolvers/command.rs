@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use log::info;
+use log::{debug, info};
 use uuid::Uuid;
 
 use crate::Error;
@@ -62,9 +62,6 @@ impl<'a> CommandBuilder<'a> {
         final_manifest: &VersionManifest,
         base_id: &str,
     ) -> Result<(), Error> {
-        let lib_dir = self.shared_dir.join("libraries");
-        let classpath = final_manifest.get_classpath(&lib_dir);
-
         let java_path = &self.config.java_path;
         if !java_path.exists() {
             return Err(Error::JavaNotFound(format!(
@@ -77,22 +74,6 @@ impl<'a> CommandBuilder<'a> {
                 "Java binary not executable: {}",
                 java_path.display()
             )));
-        }
-
-        let separator = if cfg!(windows) { ';' } else { ':' };
-        let mut missing_files = Vec::new();
-        for entry in classpath.split(separator) {
-            let p = Path::new(entry);
-            if !p.exists() {
-                missing_files.push(entry.to_string());
-            }
-        }
-        if !missing_files.is_empty() {
-            let msg = format!(
-                "Missing classpath entries:\n  {}",
-                missing_files.join("\n  ")
-            );
-            return Err(Error::MissingFile(msg));
         }
 
         let version_jar = self
@@ -139,16 +120,31 @@ impl<'a> CommandBuilder<'a> {
     pub fn build(&self) -> Result<Vec<String>, Error> {
         let (final_manifest, base_id) = self.resolve_manifest()?;
 
+        debug!(
+            "CommandBuilder: resolved manifest id='{}', inherits_from='{:?}', base_id='{}'",
+            final_manifest.id_raw, final_manifest.inherits_from, base_id
+        );
+
         let lib_dir = self.shared_dir.join("libraries");
         let assets_dir = self.shared_dir.join("assets");
         let sub = natives_subdir(&final_manifest.id);
         let natives_dir = self.shared_dir.join("natives").join(&base_id).join(sub);
+        let natives_base = self.shared_dir.join("natives").join(&base_id);
+
+        debug!("CommandBuilder: lib_dir={}, assets_dir={}, natives_dir={}", lib_dir.display(), assets_dir.display(), natives_dir.display());
 
         let classpath = ClasspathResolver::new(&final_manifest, &base_id, &lib_dir).build();
         if classpath.is_empty() {
             return Err(Error::EmptyClasspath);
         }
         self.verify_requirements(&final_manifest, &base_id)?;
+
+        let main_class = final_manifest
+            .main_class
+            .as_ref()
+            .ok_or(Error::MainClassNotFound)?
+            .clone();
+        debug!("CommandBuilder: main_class='{main_class}'");
 
         let uuid = self
             .config
@@ -157,7 +153,7 @@ impl<'a> CommandBuilder<'a> {
             .unwrap_or_else(|| Uuid::new_v4().to_string());
         let vars = self.build_vars(
             &assets_dir,
-            &natives_dir,
+            &natives_base,
             &uuid,
             &classpath,
             &final_manifest,
@@ -165,24 +161,36 @@ impl<'a> CommandBuilder<'a> {
 
         let mut cmd: Vec<String> = Vec::new();
         let java = self.config.java_path.to_string_lossy().to_string();
+        debug!("CommandBuilder: java_path='{java}'");
         cmd.push(java);
 
         self.add_jvm_flags(&mut cmd, &natives_dir, &vars, &final_manifest);
         cmd.push("-cp".to_string());
-        cmd.push(classpath);
-        cmd.push(
-            final_manifest
-                .main_class
-                .as_ref()
-                .ok_or(Error::MainClassNotFound)?
-                .clone(),
-        );
+        cmd.push(classpath.clone());
+        debug!("CommandBuilder: -cp length={} chars", classpath.len());
+        cmd.push(main_class.clone());
 
         self.add_game_args(&mut cmd, &vars, &final_manifest);
         self.add_default_game_args(&mut cmd, &assets_dir, &final_manifest);
         self.add_optional_args(&mut cmd);
+
+        if main_class == "net.minecraft.launchwrapper.Launch"
+            && !cmd.iter().any(|a| a == "--tweakClass")
+        {
+            let loader = crate::Loader::from_version_id(&final_manifest.id_raw);
+            match loader {
+                crate::Loader::Forge(_) | crate::Loader::NeoForge(_) => {
+                    debug!("Injecting --tweakClass cpw.mods.fml.relauncher.FMLTweaker for legacy Forge");
+                    cmd.push("--tweakClass".into());
+                    cmd.push("cpw.mods.fml.relauncher.FMLTweaker".into());
+                }
+                _ => {}
+            }
+        }
+
         self.cleanup_unresolved(&mut cmd);
 
+        debug!("CommandBuilder: {} total args", cmd.len());
         Ok(cmd)
     }
 
@@ -193,6 +201,7 @@ impl<'a> CommandBuilder<'a> {
         vars: &HashMap<String, String>,
         manifest: &VersionManifest,
     ) {
+        debug!("JVM flags: java.library.path={}", natives_dir.display());
         cmd.push(format!("-Djava.library.path={}", natives_dir.display()));
         cmd.push("-Dminecraft.launcher.brand=CubicLauncher".to_string());
         cmd.push("-Dminecraft.launcher.version=2.0".to_string());
@@ -245,8 +254,12 @@ impl<'a> CommandBuilder<'a> {
             }
         }
 
-        for arg in &self.config.extra_jvm_args {
-            cmd.push(arg.clone());
+        if !self.config.extra_jvm_args.is_empty() {
+            debug!("extra_jvm_args ({}):", self.config.extra_jvm_args.len());
+            for arg in &self.config.extra_jvm_args {
+                debug!("  extra: {arg}");
+                cmd.push(arg.clone());
+            }
         }
     }
 
@@ -257,6 +270,7 @@ impl<'a> CommandBuilder<'a> {
         manifest: &VersionManifest,
     ) {
         if let Some(args) = manifest.arguments.as_ref().and_then(|a| a.game.as_ref()) {
+            let before = cmd.len();
             for arg in args {
                 if let Argument::Plain(s) = arg
                     && self.should_skip_arg(s)
@@ -269,12 +283,15 @@ impl<'a> CommandBuilder<'a> {
                     }
                 }
             }
+            debug!("Game args: {} entries from manifest.arguments.game", cmd.len() - before);
             return;
         }
         if let Some(legacy) = &manifest.minecraft_arguments {
+            let before = cmd.len();
             for token in legacy.split_whitespace() {
                 cmd.push(replace_vars(token, vars));
             }
+            debug!("Game args: {} entries from legacy minecraft_arguments", cmd.len() - before);
         }
     }
 
@@ -360,7 +377,7 @@ impl<'a> CommandBuilder<'a> {
     fn build_vars(
         &self,
         assets_dir: &Path,
-        natives_dir: &Path,
+        natives_base: &Path,
         uuid: &str,
         classpath: &str,
         manifest: &VersionManifest,
@@ -400,7 +417,7 @@ impl<'a> CommandBuilder<'a> {
         vars.insert("version_type".into(), "release".into());
         vars.insert(
             "natives_directory".into(),
-            natives_dir.display().to_string(),
+            natives_base.display().to_string(),
         );
         vars.insert(
             "library_directory".into(),

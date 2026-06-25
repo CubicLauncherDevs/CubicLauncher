@@ -11,22 +11,36 @@ use crate::types::DownloadProgress;
 pub struct DownloadItemSpec {
     pub url: String,
     pub destination: PathBuf,
+    pub fallback_url: Option<String>,
     pub expected_hash: String,
     pub label: String,
+    pub required: bool,
 }
 
 impl DownloadItemSpec {
     pub fn new(url: impl Into<String>, destination: PathBuf, label: impl Into<String>) -> Self {
         Self {
             url: url.into(),
+            fallback_url: None,
             destination,
             expected_hash: String::new(),
             label: label.into(),
+            required: true,
         }
     }
 
     pub fn with_hash(mut self, hash: impl Into<String>) -> Self {
         self.expected_hash = hash.into();
+        self
+    }
+
+    pub fn with_fallback_url(mut self, fallback_url: impl Into<String>) -> Self {
+        self.fallback_url = Some(fallback_url.into());
+        self
+    }
+
+    pub fn non_required(mut self) -> Self {
+        self.required = false;
         self
     }
 }
