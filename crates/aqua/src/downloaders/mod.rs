@@ -240,13 +240,22 @@ async fn run_download(
                         download_file(fallback, &item.destination, &item.expected_hash).await
                     {
                         warn!("Fallback failed, using fallback with universal.");
-                        download_file(
+                        if download_file(
                             &fallback.replace(".jar", "-universal.jar"),
                             &item.destination,
                             &item.expected_hash,
                         )
-                        .await?
+                        .await
+                        .is_err()
+                            && !item.required
+                        {
+                            warn!("Non-required library {} failed all URLs, skipping", item.label);
+                        } else if !item.required {
+                            // universal succeeded
+                        }
                     }
+                } else if !item.required {
+                    warn!("Non-required library {} download failed (no fallback), skipping", item.label);
                 } else {
                     warn!("Main URL failed but there's no fallback. Aborting");
                     return Err(e);

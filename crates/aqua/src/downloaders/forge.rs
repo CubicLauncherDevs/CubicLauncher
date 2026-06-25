@@ -135,8 +135,29 @@ impl ForgeBatch {
                     legacy.version_info.libraries.len()
                 );
                 // Legacy: version.json content is the versionInfo
+                // Ensure --tweakClass is present for legacy Forge
+                let mut vi = legacy.version_info.clone();
+                let tweak_class = "cpw.mods.fml.relauncher.FMLTweaker";
+                let tweak_arg = format!("--tweakClass {tweak_class}");
+                match vi.minecraft_arguments {
+                    Some(ref mut ma) => {
+                        if !ma.contains("--tweakClass") {
+                            ma.push(' ');
+                            ma.push_str(&tweak_arg);
+                        }
+                    }
+                    None => {
+                        vi.minecraft_arguments = Some(format!(
+                            "--username ${{auth_player_name}} --version ${{version_name}} \
+                             --gameDir ${{game_directory}} --assetsDir ${{assets_root}} \
+                             --assetIndex ${{assets_index_name}} --uuid ${{auth_uuid}} \
+                             --accessToken ${{auth_access_token}} --userType ${{user_type}} \
+                             {tweak_arg}"
+                        ));
+                    }
+                }
                 version_json_text =
-                    serde_json::to_string_pretty(&legacy.version_info).map_err(|e| {
+                    serde_json::to_string_pretty(&vi).map_err(|e| {
                         AquaError::ForgeProfileParse(format!(
                             "Failed to serialize legacy versionInfo: {e}"
                         ))
@@ -571,25 +592,40 @@ fn add_legacy_libs(
     staging_libs: &Path,
 ) -> Result<(), AquaError> {
     for lib in libs {
-        // Skip libs without a URL (e.g., "net.minecraft:launchwrapper" bundled with MC)
-        let Some(url) = lib.download_url() else {
-            continue;
-        };
         let path = lib.lib_path().to_string_lossy().into_owned();
         if seen.contains(&path) {
             continue;
         }
-        let fallback_url = format!("https://maven.minecraftforge.net/{path}");
         let sha1 = lib
             .checksums
             .as_ref()
             .and_then(|c| c.first().cloned())
             .unwrap_or_default();
         let dest = staging_libs.join(&path);
+        let mojang_url = format!("https://libraries.minecraft.net/{path}");
+        let forge_url = format!("https://maven.minecraftforge.net/{path}");
+
+        let url = match lib.download_url() {
+            Some(url) => url,
+            None => {
+                // Forge legacy installer uses https://libraries.minecraft.net/ as
+                // default URL for libs without an explicit url field (launchwrapper,
+                // asm-all, lzma, etc).  Forge Maven is the fallback.
+                info!("Library {} has no url, using libraries.minecraft.net", lib.name);
+                items.push(
+                    DownloadItemSpec::new(mojang_url, dest, &lib.name)
+                        .with_hash(sha1)
+                        .with_fallback_url(forge_url)
+                        .non_required(),
+                );
+                seen.insert(path);
+                continue;
+            }
+        };
         items.push(
             DownloadItemSpec::new(url, dest, &lib.name)
                 .with_hash(sha1)
-                .with_fallback_url(fallback_url),
+                .with_fallback_url(forge_url),
         );
         seen.insert(path);
     }

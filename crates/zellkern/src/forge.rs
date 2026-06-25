@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::LibraryDownloads;
+use crate::{AssetIndex, LibraryDownloads, VersionArgType};
 
 // ── Legacy Forge (pre-1.13, spec 0) ──────────────────────────────────────
 
@@ -38,6 +38,14 @@ pub struct LegacyVersionInfo {
     pub inherits_from: Option<String>,
     #[serde(default)]
     pub libraries: Vec<LegacyLibrary>,
+    #[serde(rename = "minecraftArguments")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minecraft_arguments: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<VersionArgType>,
+    #[serde(rename = "assetIndex")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset_index: Option<AssetIndex>,
 }
 
 /// Old-format library entry: `url` is a base Maven URL, not a full download URL.

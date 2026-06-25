@@ -22,7 +22,7 @@ use std::sync::{Arc, OnceLock};
 use tauri::{Emitter, Manager};
 use tokio::fs;
 use tokio::sync::broadcast;
-use tracing::{error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 use zellkern::Loader;
 
 use dashmap::DashMap;
@@ -226,12 +226,14 @@ impl Launcher {
                     "Forge/NeoForge detected (Java {} requested), upgrading to Java 17",
                     jv.major_version
                 );
+                debug!("Forge version safe for Java 17 bump, setting major_version to 17");
                 jv.major_version = 17;
             } else {
                 info!(
-                    "Old Forge detected (Java {} requested), keeping Java 8 (ModLauncher < 8.1 incompatible with Java 17+)",
+                    "Old Forge detected (Java {} requested), keeping Java 8",
                     jv.major_version
                 );
+                debug!("Forge version NOT safe for Java 17, staying at Java 8");
             }
         }
         let overrides = handle.get_overrides().await;
@@ -604,21 +606,23 @@ fn spawn_io_forwarding(
     });
 }
 
-/// Returns true if the Forge version ID indicates a version >= 36.2.26
+/// Returns true if the Forge version indicates a version >= 36.2.26
 /// (which bundles ModLauncher 8.1.3+ with the fixed ManifestEntryVerifier).
-fn is_forge_version_safe(version_id: &str) -> bool {
-    let Some(idx) = version_id.rfind("-forge-") else {
-        return true;
-    };
-    let forge_ver = &version_id[idx + 7..];
+/// Note: `forge_ver` is just the forge version string (e.g. "14.22.1.2485"),
+/// extracted by `Loader::from_version_id()`.
+fn is_forge_version_safe(forge_ver: &str) -> bool {
     let parts: Vec<u32> = forge_ver
         .split('.')
         .filter_map(|p| p.parse().ok())
         .collect();
-    match parts.as_slice() {
-        [major, minor, patch, ..] => (*major, *minor, *patch) > (36, 2, 25),
-        _ => true,
-    }
+    let safe = match parts.as_slice() {
+        [major, minor, patch, ..] => (*major, *minor, *patch) >= (36, 2, 26),
+        _ => false,
+    };
+    debug!(
+        "Forge version safety check: forge_ver={forge_ver}, parts={parts:?}, safe={safe}"
+    );
+    safe
 }
 
 fn resolve_java_path(
