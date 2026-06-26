@@ -8,6 +8,7 @@
 	import { t } from "$lib/i18n";
 	import ModalBase from "../layout/ModalBase.svelte";
 	import { SvelteSet } from "svelte/reactivity";
+	import Trash from "$lib/icons/Trash.svelte";
 
 	let { instanceId } = $props<{ instanceId: string }>();
 	let mods = $state<ModDto[]>([]);
@@ -88,17 +89,8 @@
 					bulkDeleteModal = true;
 				}}
 			>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					width="14"
-					height="14"
-					fill="currentColor"
-					viewBox="0 0 256 256"
-				>
-					<path
-						d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"
-					></path>
-				</svg>
+				<Trash width="14" height="14" />
+
 				{t("instanceView.deleteSelected")}
 			</button>
 		</div>
@@ -178,7 +170,7 @@
 	<p
 		style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4;"
 	>
-		"hola"
+		{t("instanceView.mods.bulkDelete")}
 	</p>
 	{#snippet footer()}
 		<button
@@ -317,46 +309,6 @@
 		filter: grayscale(100%);
 	}
 
-	.mod-select {
-		display: flex;
-		align-items: center;
-		padding-top: 2px;
-	}
-
-	.mod-select input[type="checkbox"] {
-		appearance: none;
-		width: 16px;
-		height: 16px;
-		background: rgba(255, 255, 255, 0.05);
-		border: 1px solid var(--border);
-		border-radius: 3px;
-		cursor: pointer;
-		position: relative;
-		transition: all 0.15s;
-		flex-shrink: 0;
-	}
-
-	.mod-select input[type="checkbox"]:checked {
-		background: var(--accent);
-		border-color: var(--accent);
-	}
-
-	.mod-select input[type="checkbox"]:checked::after {
-		content: "";
-		position: absolute;
-		left: 4px;
-		top: 1px;
-		width: 5px;
-		height: 9px;
-		border: solid var(--bg-main);
-		border-width: 0 2px 2px 0;
-		transform: rotate(45deg);
-	}
-
-	.mod-select input[type="checkbox"]:hover {
-		border-color: rgba(255, 255, 255, 0.2);
-	}
-
 	.mod-icon {
 		width: 44px;
 		height: 44px;
@@ -368,10 +320,6 @@
 		justify-content: center;
 		flex-shrink: 0;
 		overflow: hidden;
-	}
-
-	.mod-icon.placeholder {
-		width: 24;
 	}
 
 	.mod-icon img {
@@ -446,29 +394,6 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 6px;
-	}
-
-	.delete-btn {
-		background: transparent;
-		border: none;
-		color: #ff4444;
-		cursor: pointer;
-		padding: 4px;
-		border-radius: var(--border-radius-sm);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: background 0.2s;
-		opacity: 0.5;
-	}
-
-	.mod-card:hover .delete-btn {
-		opacity: 1;
-	}
-
-	.delete-btn:hover {
-		background: rgba(255, 68, 68, 0.1);
-		opacity: 1;
 	}
 
 	.mod-status-toggle {
