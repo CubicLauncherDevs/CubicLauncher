@@ -190,6 +190,7 @@
 			"title": "Mods Instalados",
 			"jarFile": "Archivo .JAR",
 			"empty": "No hay mods instalados en esta instancia",
+			"bulkDelete": "Quieres eliminar los mods seleccionados?",
 			"authors": "Autores",
 			"noDescription": "Sin descripción disponible"
 		},

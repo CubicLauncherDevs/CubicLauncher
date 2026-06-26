@@ -258,6 +258,7 @@
 	</div>
 </aside>
 
+<!-- Hacer capaz sea buena idea mover esto -->
 <ModalBase bind:open={showDeleteModal} title={t("sidebar.modals.deleteTitle")}>
 	<p
 		style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4;"

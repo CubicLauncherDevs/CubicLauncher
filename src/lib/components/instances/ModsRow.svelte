@@ -1,14 +1,22 @@
 <script lang="ts">
-	import { getInstanceMods, toggleInstanceMod, deleteInstanceFile } from "$lib/api/cubicApi";
+	import {
+		getInstanceMods,
+		toggleInstanceMod,
+		deleteInstanceFile,
+	} from "$lib/api/cubicApi";
 	import { type ModDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
+	import ModalBase from "../layout/ModalBase.svelte";
+	import { SvelteSet } from "svelte/reactivity";
 
 	let { instanceId } = $props<{ instanceId: string }>();
 	let mods = $state<ModDto[]>([]);
-	let selected = $state(new Set<string>());
+	// Ignorar, svelte que jode con esos falsos positivos
+	// dios mioooo
+	let selected = new SvelteSet<string>();
 	let prevInstanceId = $state<string>("");
 	let loading = $state(true);
-
+	let bulkDeleteModal = $state(false);
 	$effect(() => {
 		if (instanceId && instanceId !== prevInstanceId) {
 			prevInstanceId = instanceId;
@@ -26,19 +34,23 @@
 	function toggleSelect(filename: string) {
 		if (selected.has(filename)) {
 			selected.delete(filename);
+			return;
 		} else {
 			selected.add(filename);
+			return;
 		}
-		selected = new Set(selected);
 	}
 
-	function toggleSelectAll() {
-		if (selected.size === mods.length) {
-			selected = new Set();
-		} else {
-			selected = new Set(mods.map((m) => m.filename));
-		}
-	}
+	// function toggleSelectAll() {
+	// 	if (selected.size === mods.length) {
+	// 		selected.clear();
+	// 	} else {
+	// 		selected.clear();
+	// 		for (const m of mods) {
+	// 			selected.add(m.filename);
+	// 		}
+	// 	}
+	// }
 
 	async function handleToggle(mod: ModDto) {
 		const newEnabled = !mod.enabled;
@@ -49,23 +61,15 @@
 		mods = await getInstanceMods(instanceId);
 	}
 
-	async function handleDelete(mod: ModDto) {
-		await deleteInstanceFile(instanceId, "mods", mod.filename);
-		selected.delete(mod.filename);
-		selected = new Set(selected);
-		mods = await getInstanceMods(instanceId);
-	}
-
 	async function handleBulkDelete() {
 		const count = selected.size;
 		if (count === 0) return;
-		if (confirm(t("instanceView.deleteSelectedConfirm").replace("{count}", String(count)))) {
-			for (const filename of selected) {
-				await deleteInstanceFile(instanceId, "mods", filename);
-			}
-			selected = new Set();
-			mods = await getInstanceMods(instanceId);
+		for (const filename of selected) {
+			await deleteInstanceFile(instanceId, "mods", filename);
 		}
+		selected.clear();
+		bulkDeleteModal = false;
+		mods = await getInstanceMods(instanceId);
 	}
 </script>
 
@@ -74,17 +78,30 @@
 		<span class="section-title"
 			>{t("instanceView.mods.title")} ({mods.length})</span
 		>
-		{#if selected.size > 0}
-			<div class="selection-actions">
-				<span class="selection-count">{selected.size}</span>
-				<button type="button" class="delete-selected-btn" onclick={handleBulkDelete}>
-					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256">
-						<path d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"></path>
-					</svg>
-					{t("instanceView.deleteSelected")}
-				</button>
-			</div>
-		{/if}
+		<div class="selection-actions">
+			<span class="selection-count">{selected.size}</span>
+			<button
+				type="button"
+				class="delete-selected-btn"
+				disabled={selected.size == 0}
+				onclick={() => {
+					bulkDeleteModal = true;
+				}}
+			>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="14"
+					height="14"
+					fill="currentColor"
+					viewBox="0 0 256 256"
+				>
+					<path
+						d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"
+					></path>
+				</svg>
+				{t("instanceView.deleteSelected")}
+			</button>
+		</div>
 	</div>
 	{#if loading}
 		<div class="mods-loading">
@@ -93,20 +110,24 @@
 	{:else}
 		<div class="mods-grid">
 			{#each mods as mod (mod.filename)}
-				<div class="mod-card" class:disabled={!mod.enabled} class:selected={selected.has(mod.filename)}>
-					<div class="mod-select">
-						<input
-							type="checkbox"
-							checked={selected.has(mod.filename)}
-							onchange={() => toggleSelect(mod.filename)}
-							title={t("instanceView.selectAll")}
-						/>
-					</div>
+				<div
+					class="mod-card"
+					class:disabled={!mod.enabled}
+					class:selected={selected.has(mod.filename)}
+					role="button"
+					tabindex="0"
+					onkeydown={() => {
+						toggleSelect(mod.filename);
+					}}
+					onclick={() => {
+						toggleSelect(mod.filename);
+					}}
+				>
 					<div class="mod-icon">
 						{#if mod.icon}
 							<img src={mod.icon} alt={mod.name} />
 						{:else}
-							<div class="mod-icon-placeholder">📦</div>
+							<img src="/images/cubic.svg" alt={mod.name} />
 						{/if}
 					</div>
 					<div class="mod-info">
@@ -135,16 +156,6 @@
 						{/if}
 					</div>
 					<div class="mod-actions">
-						<button
-							type="button"
-							class="delete-btn"
-							onclick={() => handleDelete(mod)}
-							title={t("instanceView.deleteConfirm").replace("{name}", mod.filename)}
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256">
-								<path d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"></path>
-							</svg>
-						</button>
 						<div class="mod-status-toggle">
 							<input
 								type="checkbox"
@@ -163,6 +174,27 @@
 		</div>
 	{/if}
 </div>
+<ModalBase bind:open={bulkDeleteModal} title={t("sidebar.modals.deleteTitle")}>
+	<p
+		style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4;"
+	>
+		"hola"
+	</p>
+	{#snippet footer()}
+		<button
+			type="button"
+			class="btn-secondary"
+			onclick={() => (bulkDeleteModal = false)}
+			>{t("sidebar.modals.cancel")}</button
+		>
+		<button
+			type="button"
+			class="btn-primary"
+			style="background: var(--color-error); color: white;"
+			onclick={handleBulkDelete}>{t("sidebar.modals.deleteBtn")}</button
+		>
+	{/snippet}
+</ModalBase>
 
 <style>
 	.mods-section {
@@ -213,7 +245,15 @@
 		transition: all 0.2s;
 	}
 
-	.delete-selected-btn:hover {
+	.delete-selected-btn:disabled {
+		background: rgba(255, 255, 255, 0.05);
+		border-color: rgba(255, 255, 255, 0.1);
+		color: rgba(255, 255, 255, 0.35);
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	.delete-selected-btn::not(:disabled):hover {
 		background: rgba(255, 68, 68, 0.2);
 		border-color: rgba(255, 68, 68, 0.4);
 	}
@@ -258,6 +298,7 @@
 		align-items: flex-start;
 		transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 		position: relative;
+		cursor: pointer;
 	}
 
 	.mod-card:hover {
@@ -267,8 +308,8 @@
 	}
 
 	.mod-card.selected {
-		border-color: var(--accent);
-		background: rgba(99, 102, 241, 0.05);
+		border-color: var(--text-secondary);
+		background: var(--bg-card-gradient);
 	}
 
 	.mod-card.disabled {
@@ -317,8 +358,8 @@
 	}
 
 	.mod-icon {
-		width: 48px;
-		height: 48px;
+		width: 44px;
+		height: 44px;
 		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
@@ -327,6 +368,10 @@
 		justify-content: center;
 		flex-shrink: 0;
 		overflow: hidden;
+	}
+
+	.mod-icon.placeholder {
+		width: 24;
 	}
 
 	.mod-icon img {
