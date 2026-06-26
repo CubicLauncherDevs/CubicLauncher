@@ -1,3 +1,8 @@
+<!--
+Este codigo no esta apto para prod !!!!
+ATT:SANTIAGOLXX
+-->
+
 <script lang="ts">
 	import {
 		getInstanceResourcePacks,
@@ -10,18 +15,29 @@
 		downloadShaderPacks,
 		type ModDownloadInfo,
 	} from "$lib/api/cubicApi";
-	import type { ModrinthProject, ModrinthVersion, ModrinthFile } from "$lib/types/types";
+	import type {
+		ModrinthProject,
+		ModrinthVersion,
+		ModrinthFile,
+	} from "$lib/types/types";
 	import { type ModDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
 	import { open } from "@tauri-apps/plugin-dialog";
-	import Loading from "../../icons/Loading.svelte";
-	import Dropdown from "../layout/Dropdown.svelte";
-	import VirtualList from "../layout/VirtualList.svelte";
-	import { SvelteMap } from "svelte/reactivity";
+	import Loading from "../../../icons/Loading.svelte";
+	import Dropdown from "../../layout/Dropdown.svelte";
+	import VirtualList from "../../layout/VirtualList.svelte";
+	import { SvelteMap, SvelteSet } from "svelte/reactivity";
+	import Review from "./Review.svelte";
 
 	type ContentType = "resourcepacks" | "shaders";
 
-	let { instanceId, gameVersion, loader, contentType = $bindable("resourcepacks" as ContentType), supportsShaders = false } = $props<{
+	let {
+		instanceId,
+		gameVersion,
+		loader,
+		contentType = $bindable("resourcepacks" as ContentType),
+		supportsShaders = false,
+	} = $props<{
 		instanceId: string;
 		gameVersion?: string;
 		loader?: string;
@@ -44,6 +60,7 @@
 	let searching = $state(false);
 	let loadingMore = $state(false);
 	let sortIndex = $state<string>("downloads");
+	// IGNORAR
 	let basket = new SvelteMap<string, ModrinthProject>();
 	let selectedMod = $state<ModrinthProject | null>(null);
 	let downloading = $state(false);
@@ -52,9 +69,11 @@
 	let selectedVersionId = $state<string>("");
 	let loadingVersions = $state(false);
 	let versionSelection = new SvelteMap<string, string>();
-	let installedPackNames = $state<Set<string>>(new Set());
+	let installedPackNames = new SvelteSet<string>();
 
-	const cleanGameVersion = $derived(gameVersion ? getGameVersion(gameVersion) : undefined);
+	const cleanGameVersion = $derived(
+		gameVersion ? getGameVersion(gameVersion) : undefined,
+	);
 
 	let abortController = $state<AbortController | null>(null);
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -62,10 +81,15 @@
 	async function loadPacks() {
 		if (instanceId) {
 			isLoading = true;
-			packs = contentType === "shaders"
-				? await getInstanceShaderPacks(instanceId)
-				: await getInstanceResourcePacks(instanceId);
-			installedPackNames = new Set(packs.map((p) => p.name.toLowerCase()));
+			packs =
+				contentType === "shaders"
+					? await getInstanceShaderPacks(instanceId)
+					: await getInstanceResourcePacks(instanceId);
+			installedPackNames.clear();
+			// installedPackNames = packs.map((p) => p.name.toLowerCase());
+			for (const p of packs) {
+				installedPackNames.add(p.name.toLocaleLowerCase());
+			}
 			isLoading = false;
 		}
 	}
@@ -77,9 +101,17 @@
 		}
 	});
 
-	const subDir = $derived(contentType === "shaders" ? "shaderpacks" : "resourcepacks");
-	const modrinthProjectType = $derived(contentType === "shaders" ? "shader" : "resourcepack");
-	const i18nPrefix = $derived(contentType === "shaders" ? "instanceView.shaders" : "instanceView.resources");
+	const subDir = $derived(
+		contentType === "shaders" ? "shaderpacks" : "resourcepacks",
+	);
+	const modrinthProjectType = $derived(
+		contentType === "shaders" ? "shader" : "resourcepack",
+	);
+	const i18nPrefix = $derived(
+		contentType === "shaders"
+			? "instanceView.shaders"
+			: "instanceView.resources",
+	);
 
 	function toggleSelect(filename: string) {
 		if (selected.has(filename)) {
@@ -87,32 +119,41 @@
 		} else {
 			selected.add(filename);
 		}
-		selected = new Set(selected);
 	}
 
 	function toggleSelectAll() {
 		if (selected.size === packs.length) {
-			selected = new Set();
+			selected.clear();
 		} else {
-			selected = new Set(packs.map((p) => p.filename));
+			// selected = new Set(packs.map((p) => p.filename));
+			for (const pack of packs) {
+				selected.add(pack.filename);
+			}
 		}
 	}
 
 	async function handleDelete(pack: ModDto) {
 		await deleteInstanceFile(instanceId, subDir, pack.filename);
 		selected.delete(pack.filename);
-		selected = new Set(selected);
+		selected.clear();
 		await loadPacks();
 	}
 
 	async function handleBulkDelete() {
 		const count = selected.size;
 		if (count === 0) return;
-		if (confirm(t("instanceView.deleteSelectedConfirm").replace("{count}", String(count)))) {
+		if (
+			confirm(
+				t("instanceView.deleteSelectedConfirm").replace(
+					"{count}",
+					String(count),
+				),
+			)
+		) {
 			for (const filename of selected) {
 				await deleteInstanceFile(instanceId, subDir, filename);
 			}
-			selected = new Set();
+			selected.clear();
 			await loadPacks();
 		}
 	}
@@ -120,7 +161,15 @@
 	async function handleAdd() {
 		const selected = await open({
 			multiple: true,
-			filters: [{ name: contentType === "shaders" ? "Shader Pack" : "Resource Pack", extensions: ["zip"] }],
+			filters: [
+				{
+					name:
+						contentType === "shaders"
+							? "Shader Pack"
+							: "Resource Pack",
+					extensions: ["zip"],
+				},
+			],
 		});
 		if (selected && Array.isArray(selected)) {
 			for (const path of selected) {
@@ -147,7 +196,11 @@
 
 	function getGameVersion(versionStr: string): string {
 		const lower = versionStr.toLowerCase();
-		if (lower.includes("-forge-") || lower.includes("-neoforge-") || lower.includes("-quilt-")) {
+		if (
+			lower.includes("-forge-") ||
+			lower.includes("-neoforge-") ||
+			lower.includes("-quilt-")
+		) {
 			for (const sep of ["-forge-", "-neoforge-", "-quilt-"]) {
 				const idx = lower.indexOf(sep);
 				if (idx !== -1) return versionStr.slice(0, idx);
@@ -188,7 +241,9 @@
 			);
 			if (result) {
 				totalHits = result.total_hits;
-				allHits = resetResults ? result.hits : [...allHits, ...result.hits];
+				allHits = resetResults
+					? result.hits
+					: [...allHits, ...result.hits];
 				currentOffset = allHits.length;
 			}
 		} finally {
@@ -239,12 +294,16 @@
 				let targetVersion: ModrinthVersion | undefined;
 				const storedVersionId = versionSelection.get(id);
 				if (storedVersionId) {
-					targetVersion = versions.find((v) => v.id === storedVersionId);
+					targetVersion = versions.find(
+						(v) => v.id === storedVersionId,
+					);
 				}
 				if (!targetVersion) {
 					targetVersion = versions[0];
 				}
-				const primaryFile = targetVersion.files.find((f: ModrinthFile) => f.primary) || targetVersion.files[0];
+				const primaryFile =
+					targetVersion.files.find((f: ModrinthFile) => f.primary) ||
+					targetVersion.files[0];
 				if (!queue.find((q) => q.filename === primaryFile.filename)) {
 					queue.push({
 						url: primaryFile.url,
@@ -287,7 +346,9 @@
 
 	function isPackCompatible(project: ModrinthProject): boolean {
 		if (cleanGameVersion) {
-			return project.versions.some((v) => getGameVersion(v) === cleanGameVersion);
+			return project.versions.some(
+				(v) => getGameVersion(v) === cleanGameVersion,
+			);
 		}
 		return true;
 	}
@@ -297,10 +358,26 @@
 		selectedModVersions = [];
 		selectedVersionId = "";
 		try {
-			const versions = await getModrinthProjectVersions(projectId, undefined, cleanGameVersion);
+			const versions = await getModrinthProjectVersions(
+				projectId,
+				undefined,
+				cleanGameVersion,
+			);
 			const sorted = [...versions].sort((a, b) => {
-				const aCompat = cleanGameVersion ? (a.game_versions?.some((v) => getGameVersion(v) === cleanGameVersion) ? 1 : 0) : 1;
-				const bCompat = cleanGameVersion ? (b.game_versions?.some((v) => getGameVersion(v) === cleanGameVersion) ? 1 : 0) : 1;
+				const aCompat = cleanGameVersion
+					? a.game_versions?.some(
+							(v) => getGameVersion(v) === cleanGameVersion,
+						)
+						? 1
+						: 0
+					: 1;
+				const bCompat = cleanGameVersion
+					? b.game_versions?.some(
+							(v) => getGameVersion(v) === cleanGameVersion,
+						)
+						? 1
+						: 0
+					: 1;
 				return bCompat - aCompat;
 			});
 			selectedModVersions = sorted;
@@ -310,7 +387,9 @@
 					selectedVersionId = stored;
 				} else if (cleanGameVersion) {
 					const compatible = sorted.find((v) =>
-						v.game_versions?.some((gv) => getGameVersion(gv) === cleanGameVersion),
+						v.game_versions?.some(
+							(gv) => getGameVersion(gv) === cleanGameVersion,
+						),
 					);
 					if (compatible) {
 						selectedVersionId = compatible.id;
@@ -342,9 +421,13 @@
 	const versionDropdownOptions = $derived(
 		selectedModVersions.map((v) => {
 			const compatible = cleanGameVersion
-				? v.game_versions?.some((gv) => getGameVersion(gv) === cleanGameVersion)
+				? v.game_versions?.some(
+						(gv) => getGameVersion(gv) === cleanGameVersion,
+					)
 				: true;
-			const subtitle = compatible ? t("instanceView.downloadMods.compatible") : v.game_versions?.slice(0, 2).join(", ");
+			const subtitle = compatible
+				? t("instanceView.downloadMods.compatible")
+				: v.game_versions?.slice(0, 2).join(", ");
 			return {
 				value: v.id,
 				label: v.version_number,
@@ -361,78 +444,41 @@
 </script>
 
 {#if mode === "review"}
-	<div class="rp-review">
-		<div class="rp-review-header">
-			<div>
-		<span class="rp-section-label">{t(i18nPrefix + ".sectionLabel")}</span>
-				<h2 class="rp-review-title">{t("instanceView.downloadMods.reviewTitle")}</h2>
-			</div>
-			<button type="button" class="rp-back-btn" onclick={() => (mode = "browse")} disabled={downloading}>
-				← {t("instanceView.downloadMods.back")}
-			</button>
-		</div>
-
-		<div class="rp-review-body">
-			{#if downloadQueue.length === 0}
-				<div class="rp-center-state">
-					<p>{t(i18nPrefix + ".noSelection")}</p>
-				</div>
-			{:else}
-				<div class="rp-queue-box">
-					<p class="rp-queue-subtitle">
-						{downloadQueue.length}
-						{downloadQueue.length === 1 ? t("instanceView.downloadMods.file_one") : t("instanceView.downloadMods.file_other")}
-						{t(i18nPrefix + ".toDownload")}
-					</p>
-					<div class="rp-queue-list">
-						{#each downloadQueue as item (item.filename)}
-							<div class="rp-queue-item">
-								{#if item.iconUrl}
-									<img src={item.iconUrl} alt="" class="rp-queue-icon-img" />
-								{:else}
-									<span class="rp-queue-icon">🎨</span>
-								{/if}
-								<div class="rp-queue-item-info">
-									{#if item.projectTitle}
-										<span class="rp-queue-title">{item.projectTitle}</span>
-									{/if}
-									<span class="rp-queue-filename">{item.filename}</span>
-								</div>
-							</div>
-						{/each}
-					</div>
-				</div>
-
-				<div class="rp-review-footer">
-					<span class="rp-review-count">
-						<strong>{downloadQueue.length}</strong>
-						{downloadQueue.length !== 1 ? t("instanceView.downloadMods.file_other") : t("instanceView.downloadMods.file_one")}
-					</span>
-					<button type="button" class="rp-primary-btn" onclick={confirmDownload} disabled={downloading}>
-						{#if downloading}
-							<Loading />
-							{t("instanceView.downloadMods.downloading")}
-						{:else}
-							{t("instanceView.downloadMods.confirmDownload")}
-						{/if}
-					</button>
-				</div>
-			{/if}
-		</div>
-	</div>
+	<Review
+		bind:downloadQueue
+		{i18nPrefix}
+		bind:mode
+		bind:confirmDownload
+		bind:downloading
+	/>
 {:else if mode === "browse"}
 	<div class="rp-browse">
 		<div class="rp-browse-header">
-			<span class="rp-section-label">{t(i18nPrefix + ".sectionLabel")}</span>
-			<button type="button" class="rp-back-btn" onclick={() => (mode = "list")}>
+			<span class="rp-section-label"
+				>{t(i18nPrefix + ".sectionLabel")}</span
+			>
+			<button
+				type="button"
+				class="rp-back-btn"
+				onclick={() => (mode = "list")}
+			>
 				{t(i18nPrefix + ".backToList")}
 			</button>
 		</div>
 
 		<div class="rp-search-bar-wrap">
 			<span class="rp-search-icon">
-				<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+				<svg
+					width="15"
+					height="15"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+				>
+					<circle cx="11" cy="11" r="8" /><path
+						d="m21 21-4.35-4.35"
+					/>
 				</svg>
 			</span>
 			<input
@@ -443,13 +489,23 @@
 				onkeydown={(e) => e.key === "Enter" && performSearch(true)}
 			/>
 			{#if query}
-				<button type="button" class="rp-search-clear" onclick={() => { query = ""; performSearch(true); }}>×</button>
+				<button
+					type="button"
+					class="rp-search-clear"
+					onclick={() => {
+						query = "";
+						performSearch(true);
+					}}>×</button
+				>
 			{/if}
 		</div>
 
 		{#if totalHits > 0 && !searching}
 			<div class="rp-results-meta">
-				<span>{totalHits.toLocaleString()} {t(i18nPrefix + ".resultsFound")}</span>
+				<span
+					>{totalHits.toLocaleString()}
+					{t(i18nPrefix + ".resultsFound")}</span
+				>
 			</div>
 		{/if}
 
@@ -461,10 +517,17 @@
 				</div>
 			{:else if allHits.length > 0}
 				<div class="rp-vlist-wrap">
-					<VirtualList items={allHits} itemHeight={130} onNearEnd={handleNearEnd}>
+					<VirtualList
+						items={allHits}
+						itemHeight={130}
+						onNearEnd={handleNearEnd}
+					>
 						{#snippet children(project)}
 							<div
-								class="rp-pack-card-v {selectedMod && selectedMod.project_id === project.project_id ? 'selected' : ''}"
+								class="rp-pack-card-v {selectedMod &&
+								selectedMod.project_id === project.project_id
+									? 'selected'
+									: ''}"
 								onclick={() => (selectedMod = project)}
 								onkeydown={() => {}}
 								role="button"
@@ -472,38 +535,78 @@
 							>
 								<div class="rp-pack-icon-v">
 									{#if project.icon_url}
-										<img src={project.icon_url} alt={project.title} loading="lazy" />
+										<img
+											src={project.icon_url}
+											alt={project.title}
+											loading="lazy"
+										/>
 									{:else}
-										<span class="rp-pack-icon-placeholder">🎨</span>
+										<span class="rp-pack-icon-placeholder"
+											>🎨</span
+										>
 									{/if}
 								</div>
 								<div class="rp-pack-body-v">
 									<div class="rp-pack-top-v">
-										<h4 class="rp-pack-title-v" title={project.title}>{project.title}</h4>
+										<h4
+											class="rp-pack-title-v"
+											title={project.title}
+										>
+											{project.title}
+										</h4>
 										<div class="rp-pack-badges-v">
 											{#if isPackInstalled(project)}
-												<span class="rp-installed-badge">{t("instanceView.downloadMods.installed")}</span>
+												<span class="rp-installed-badge"
+													>{t(
+														"instanceView.downloadMods.installed",
+													)}</span
+												>
 											{/if}
 											{#if cleanGameVersion && !isPackCompatible(project)}
 												<span class="rp-incompat-badge">
-													{t("instanceView.downloadMods.noVersionCompat").replace("{version}", cleanGameVersion)}
+													{t(
+														"instanceView.downloadMods.noVersionCompat",
+													).replace(
+														"{version}",
+														cleanGameVersion,
+													)}
 												</span>
 											{/if}
 										</div>
 									</div>
-									<span class="rp-pack-author-v">{t("instanceView.downloadMods.by")} {project.author}</span>
-									<p class="rp-pack-desc-v">{project.description}</p>
+									<span class="rp-pack-author-v"
+										>{t("instanceView.downloadMods.by")}
+										{project.author}</span
+									>
+									<p class="rp-pack-desc-v">
+										{project.description}
+									</p>
 								</div>
 								<div class="rp-pack-actions-v">
-									<span class="rp-pack-stat">↓ {formatNumber(project.downloads)}</span>
+									<span class="rp-pack-stat"
+										>↓ {formatNumber(
+											project.downloads,
+										)}</span
+									>
 									<button
 										type="button"
-										class="rp-select-btn {basket.has(project.project_id) ? 'selected' : ''}"
-										onclick={(e) => { e.stopPropagation(); toggleBasket(project); }}
+										class="rp-select-btn {basket.has(
+											project.project_id,
+										)
+											? 'selected'
+											: ''}"
+										onclick={(e) => {
+											e.stopPropagation();
+											toggleBasket(project);
+										}}
 									>
 										{basket.has(project.project_id)
-											? t("instanceView.downloadMods.selected")
-											: t("instanceView.downloadMods.select")}
+											? t(
+													"instanceView.downloadMods.selected",
+												)
+											: t(
+													"instanceView.downloadMods.select",
+												)}
 									</button>
 								</div>
 							</div>
@@ -517,17 +620,27 @@
 					{:else if allHits.length >= totalHits && totalHits > 0}
 						<div class="rp-vlist-end">
 							<span class="rp-end-label">
-								— {t(i18nPrefix + ".endOfResults").replace("{count}", allHits.length.toString())} —
+								— {t(i18nPrefix + ".endOfResults").replace(
+									"{count}",
+									allHits.length.toString(),
+								)} —
 							</span>
 						</div>
 					{/if}
 				</div>
 			{:else}
 				<div class="rp-center-state">
-				<p>{t(i18nPrefix + ".noResults")}</p>
-				<button type="button" class="rp-ghost-btn" onclick={() => { query = ""; performSearch(true); }}>
-					{t(i18nPrefix + ".clearFilters")}
-				</button>
+					<p>{t(i18nPrefix + ".noResults")}</p>
+					<button
+						type="button"
+						class="rp-ghost-btn"
+						onclick={() => {
+							query = "";
+							performSearch(true);
+						}}
+					>
+						{t(i18nPrefix + ".clearFilters")}
+					</button>
 				</div>
 			{/if}
 		</div>
@@ -540,47 +653,76 @@
 					aria-label={t("instanceView.downloadMods.closeDetails")}
 					onclick={() => (selectedMod = null)}
 				>
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+					<svg
+						width="14"
+						height="14"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2.5"
+					>
 						<path d="M18 6 6 18M6 6l12 12" />
 					</svg>
 				</button>
 				<div class="rp-details-scroll">
 					<div class="rp-details-icon">
 						{#if selectedMod.icon_url}
-							<img src={selectedMod.icon_url} alt={selectedMod.title} />
+							<img
+								src={selectedMod.icon_url}
+								alt={selectedMod.title}
+							/>
 						{:else}
 							<span>🎨</span>
 						{/if}
 					</div>
 					<h3 class="rp-details-title">{selectedMod.title}</h3>
-					<p class="rp-details-author">{t("instanceView.downloadMods.by")} {selectedMod.author}</p>
+					<p class="rp-details-author">
+						{t("instanceView.downloadMods.by")}
+						{selectedMod.author}
+					</p>
 
 					<div class="rp-details-stat-row">
 						<div class="rp-details-stat">
-							<span class="rp-details-stat-label">{t("instanceView.downloadMods.downloads")}</span>
-							<span class="rp-details-stat-value">{formatNumber(selectedMod.downloads)}</span>
+							<span class="rp-details-stat-label"
+								>{t(
+									"instanceView.downloadMods.downloads",
+								)}</span
+							>
+							<span class="rp-details-stat-value"
+								>{formatNumber(selectedMod.downloads)}</span
+							>
 						</div>
 					</div>
 
 					<div class="rp-tags">
-						{#each selectedMod.categories.slice(0, 4) as cat}
+						{#each selectedMod.categories.slice(0, 4) as cat (cat)}
 							<span class="rp-tag">{cat}</span>
 						{/each}
 					</div>
 
 					<div class="rp-details-version-row">
-						<span class="rp-details-version-label">{t("instanceView.downloadMods.versionLabel")}</span>
+						<span class="rp-details-version-label"
+							>{t("instanceView.downloadMods.versionLabel")}</span
+						>
 						{#if loadingVersions}
-							<span class="rp-loading-versions">{t("instanceView.downloadMods.loadingVersions")}</span>
+							<span class="rp-loading-versions"
+								>{t(
+									"instanceView.downloadMods.loadingVersions",
+								)}</span
+							>
 						{:else if selectedModVersions.length === 0}
 							<span class="rp-no-versions-msg">
-								{t("instanceView.downloadMods.noCompatibleVersions").replace("{version}", cleanGameVersion || "")}
+								{t(
+									"instanceView.downloadMods.noCompatibleVersions",
+								).replace("{version}", cleanGameVersion || "")}
 							</span>
 						{:else}
 							<Dropdown
 								bind:value={selectedVersionId}
 								options={versionDropdownOptions}
-								placeholder={t("instanceView.downloadMods.anyVersion")}
+								placeholder={t(
+									"instanceView.downloadMods.anyVersion",
+								)}
 								onchange={onVersionChange}
 							/>
 						{/if}
@@ -590,7 +732,11 @@
 
 					<button
 						type="button"
-						class="rp-primary-btn rp-full-width {basket.has(selectedMod.project_id) ? 'rp-btn-remove' : ''}"
+						class="rp-primary-btn rp-full-width {basket.has(
+							selectedMod.project_id,
+						)
+							? 'rp-btn-remove'
+							: ''}"
 						onclick={() => toggleBasket(selectedMod!)}
 					>
 						{basket.has(selectedMod.project_id)
@@ -603,8 +749,14 @@
 
 		{#if basket.size > 0}
 			<div class="rp-bottom-bar">
-				<span class="rp-bottom-count">{t("instanceView.downloadMods.selectionLabel")}: {basket.size}</span>
-				<button type="button" class="rp-primary-btn" onclick={startReview}>
+				<span class="rp-bottom-count"
+					>{t("instanceView.downloadMods.selectionLabel")}: {basket.size}</span
+				>
+				<button
+					type="button"
+					class="rp-primary-btn"
+					onclick={startReview}
+				>
 					{t("instanceView.downloadMods.reviewBtn")}
 				</button>
 			</div>
@@ -616,15 +768,25 @@
 			<div class="rp-subtabs">
 				<button
 					type="button"
-					class="rp-subtab {contentType === 'resourcepacks' ? 'active' : ''}"
-					onclick={() => { contentType = "resourcepacks"; loadPacks(); }}
+					class="rp-subtab {contentType === 'resourcepacks'
+						? 'active'
+						: ''}"
+					onclick={() => {
+						contentType = "resourcepacks";
+						loadPacks();
+					}}
 				>
 					{t("instanceView.resources.title")}
 				</button>
 				<button
 					type="button"
-					class="rp-subtab {contentType === 'shaders' ? 'active' : ''}"
-					onclick={() => { contentType = "shaders"; loadPacks(); }}
+					class="rp-subtab {contentType === 'shaders'
+						? 'active'
+						: ''}"
+					onclick={() => {
+						contentType = "shaders";
+						loadPacks();
+					}}
 				>
 					{t("instanceView.shaders.title")}
 				</button>
@@ -632,13 +794,22 @@
 		{/if}
 		<div class="section-header">
 			<div class="section-header-left">
-				<span class="section-title">{t(i18nPrefix + ".title")} ({packs.length})</span>
+				<span class="section-title"
+					>{t(i18nPrefix + ".title")} ({packs.length})</span
+				>
 				{#if packs.length > 0}
-					<label class="select-all-toggle" title={selected.size === packs.length ? t("instanceView.deselectAll") : t("instanceView.selectAll")}>
+					<label
+						class="select-all-toggle"
+						title={selected.size === packs.length
+							? t("instanceView.deselectAll")
+							: t("instanceView.selectAll")}
+					>
 						<input
 							type="checkbox"
-							checked={selected.size > 0 && selected.size === packs.length}
-							indeterminate={selected.size > 0 && selected.size < packs.length}
+							checked={selected.size > 0 &&
+								selected.size === packs.length}
+							indeterminate={selected.size > 0 &&
+								selected.size < packs.length}
 							onchange={toggleSelectAll}
 						/>
 					</label>
@@ -646,11 +817,24 @@
 			</div>
 			<div class="section-actions">
 				{#if selected.size > 0}
-					<button type="button" class="delete-selected-btn" onclick={handleBulkDelete}>
-						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256">
-							<path d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"></path>
+					<button
+						type="button"
+						class="delete-selected-btn"
+						onclick={handleBulkDelete}
+					>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="14"
+							height="14"
+							fill="currentColor"
+							viewBox="0 0 256 256"
+						>
+							<path
+								d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"
+							></path>
 						</svg>
-						{selected.size} {t("instanceView.deleteSelected")}
+						{selected.size}
+						{t("instanceView.deleteSelected")}
 					</button>
 				{/if}
 				<button type="button" class="browse-btn" onclick={openBrowser}>
@@ -664,7 +848,10 @@
 
 		<div class="packs-grid">
 			{#each packs as pack (pack.filename)}
-				<div class="pack-card" class:selected={selected.has(pack.filename)}>
+				<div
+					class="pack-card"
+					class:selected={selected.has(pack.filename)}
+				>
 					<div class="pack-select">
 						<input
 							type="checkbox"
@@ -680,19 +867,33 @@
 						{/if}
 					</div>
 					<div class="pack-info">
-						<span class="pack-name" title={pack.name}>{pack.name}</span>
+						<span class="pack-name" title={pack.name}
+							>{pack.name}</span
+						>
 						<p class="pack-description" title={pack.description}>
-							{pack.description || t("instanceView.mods.noDescription")}
+							{pack.description ||
+								t("instanceView.mods.noDescription")}
 						</p>
 					</div>
 					<button
 						type="button"
 						class="delete-btn"
 						onclick={() => handleDelete(pack)}
-						title={t("instanceView.deleteConfirm").replace("{name}", pack.filename)}
+						title={t("instanceView.deleteConfirm").replace(
+							"{name}",
+							pack.filename,
+						)}
 					>
-						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256">
-							<path d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"></path>
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							width="14"
+							height="14"
+							fill="currentColor"
+							viewBox="0 0 256 256"
+						>
+							<path
+								d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"
+							></path>
 						</svg>
 					</button>
 				</div>
@@ -1439,13 +1640,6 @@
 		border-radius: var(--border-radius-sm);
 		white-space: nowrap;
 	}
-	.rp-queue-icon-img {
-		width: 24px;
-		height: 24px;
-		border-radius: var(--border-radius-sm);
-		object-fit: cover;
-		flex-shrink: 0;
-	}
 
 	.rp-bottom-bar {
 		display: flex;
@@ -1557,110 +1751,6 @@
 	.rp-ghost-btn:hover {
 		background: var(--bg-item-active);
 		color: var(--text-primary);
-	}
-
-	.rp-review {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-		padding: 28px 32px;
-	}
-	.rp-review-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		margin-bottom: 24px;
-		padding-bottom: 16px;
-		border-bottom: 1px solid var(--border);
-	}
-	.rp-review-title {
-		font-size: 1.3rem;
-		font-weight: 700;
-		color: var(--text-primary);
-		margin: 0;
-	}
-	.rp-review-body {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-	}
-
-	.rp-queue-box {
-		flex: 1;
-		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		padding: 16px;
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-	}
-	.rp-queue-subtitle {
-		font-size: 0.78rem;
-		color: var(--text-secondary);
-		margin: 0 0 14px 0;
-	}
-	.rp-queue-list {
-		flex: 1;
-		overflow-y: auto;
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-		gap: 8px;
-		align-content: flex-start;
-	}
-	.rp-queue-item {
-		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid var(--border);
-		padding: 10px 12px;
-		border-radius: var(--border-radius-sm);
-		display: flex;
-		align-items: center;
-		gap: 10px;
-	}
-	.rp-queue-item-info {
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-		gap: 2px;
-	}
-	.rp-queue-title {
-		font-size: 0.82rem;
-		font-weight: 600;
-		color: var(--text-primary);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	.rp-queue-icon {
-		font-size: 1rem;
-		opacity: 0.6;
-	}
-	.rp-queue-filename {
-		font-size: 0.8rem;
-		color: var(--text-primary);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.rp-review-footer {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-top: 16px;
-		padding: 14px 16px;
-		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-	}
-	.rp-review-count {
-		font-size: 0.85rem;
-		color: var(--text-secondary);
-	}
-	.rp-review-count strong {
-		color: var(--text-primary);
-		font-size: 1.1rem;
 	}
 
 	@media (max-width: 1200px) {
