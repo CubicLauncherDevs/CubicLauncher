@@ -30,6 +30,7 @@
 	}>();
 
 	let packs = $state<ModDto[]>([]);
+	let selected = $state(new Set<string>());
 	let isLoading = $state(false);
 	let prevInstanceId = $state<string>("");
 
@@ -80,9 +81,38 @@
 	const modrinthProjectType = $derived(contentType === "shaders" ? "shader" : "resourcepack");
 	const i18nPrefix = $derived(contentType === "shaders" ? "instanceView.shaders" : "instanceView.resources");
 
+	function toggleSelect(filename: string) {
+		if (selected.has(filename)) {
+			selected.delete(filename);
+		} else {
+			selected.add(filename);
+		}
+		selected = new Set(selected);
+	}
+
+	function toggleSelectAll() {
+		if (selected.size === packs.length) {
+			selected = new Set();
+		} else {
+			selected = new Set(packs.map((p) => p.filename));
+		}
+	}
+
 	async function handleDelete(pack: ModDto) {
-		if (confirm(`¿Estás seguro de que deseas eliminar ${pack.filename}?`)) {
-			await deleteInstanceFile(instanceId, subDir, pack.filename);
+		await deleteInstanceFile(instanceId, subDir, pack.filename);
+		selected.delete(pack.filename);
+		selected = new Set(selected);
+		await loadPacks();
+	}
+
+	async function handleBulkDelete() {
+		const count = selected.size;
+		if (count === 0) return;
+		if (confirm(t("instanceView.deleteSelectedConfirm").replace("{count}", String(count)))) {
+			for (const filename of selected) {
+				await deleteInstanceFile(instanceId, subDir, filename);
+			}
+			selected = new Set();
 			await loadPacks();
 		}
 	}
@@ -601,8 +631,28 @@
 			</div>
 		{/if}
 		<div class="section-header">
-			<span class="section-title">{t(i18nPrefix + ".title")} ({packs.length})</span>
+			<div class="section-header-left">
+				<span class="section-title">{t(i18nPrefix + ".title")} ({packs.length})</span>
+				{#if packs.length > 0}
+					<label class="select-all-toggle" title={selected.size === packs.length ? t("instanceView.deselectAll") : t("instanceView.selectAll")}>
+						<input
+							type="checkbox"
+							checked={selected.size > 0 && selected.size === packs.length}
+							indeterminate={selected.size > 0 && selected.size < packs.length}
+							onchange={toggleSelectAll}
+						/>
+					</label>
+				{/if}
+			</div>
 			<div class="section-actions">
+				{#if selected.size > 0}
+					<button type="button" class="delete-selected-btn" onclick={handleBulkDelete}>
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256">
+							<path d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"></path>
+						</svg>
+						{selected.size} {t("instanceView.deleteSelected")}
+					</button>
+				{/if}
 				<button type="button" class="browse-btn" onclick={openBrowser}>
 					{t(i18nPrefix + ".getPacks")}
 				</button>
@@ -614,7 +664,14 @@
 
 		<div class="packs-grid">
 			{#each packs as pack (pack.filename)}
-				<div class="pack-card">
+				<div class="pack-card" class:selected={selected.has(pack.filename)}>
+					<div class="pack-select">
+						<input
+							type="checkbox"
+							checked={selected.has(pack.filename)}
+							onchange={() => toggleSelect(pack.filename)}
+						/>
+					</div>
 					<div class="pack-icon">
 						{#if pack.icon}
 							<img src={pack.icon} alt={pack.name} />
@@ -632,9 +689,11 @@
 						type="button"
 						class="delete-btn"
 						onclick={() => handleDelete(pack)}
-						title="Eliminar"
+						title={t("instanceView.deleteConfirm").replace("{name}", pack.filename)}
 					>
-						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256">
+							<path d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"></path>
+						</svg>
 					</button>
 				</div>
 			{/each}
@@ -659,6 +718,72 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+	}
+
+	.section-header-left {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.select-all-toggle {
+		display: flex;
+		align-items: center;
+		cursor: pointer;
+	}
+
+	.select-all-toggle input[type="checkbox"] {
+		appearance: none;
+		width: 16px;
+		height: 16px;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid var(--border);
+		border-radius: 3px;
+		cursor: pointer;
+		position: relative;
+		transition: all 0.15s;
+		flex-shrink: 0;
+	}
+
+	.select-all-toggle input[type="checkbox"]:checked {
+		background: var(--accent);
+		border-color: var(--accent);
+	}
+
+	.select-all-toggle input[type="checkbox"]:checked::after {
+		content: "";
+		position: absolute;
+		left: 4px;
+		top: 1px;
+		width: 5px;
+		height: 9px;
+		border: solid var(--bg-main);
+		border-width: 0 2px 2px 0;
+		transform: rotate(45deg);
+	}
+
+	.select-all-toggle input[type="checkbox"]:hover {
+		border-color: rgba(255, 255, 255, 0.2);
+	}
+
+	.delete-selected-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 12px;
+		background: rgba(255, 68, 68, 0.1);
+		border: 1px solid rgba(255, 68, 68, 0.25);
+		color: #ff4444;
+		border-radius: var(--border-radius-sm);
+		cursor: pointer;
+		font-size: 0.78rem;
+		font-weight: 700;
+		transition: all 0.2s;
+	}
+
+	.delete-selected-btn:hover {
+		background: rgba(255, 68, 68, 0.2);
+		border-color: rgba(255, 68, 68, 0.4);
 	}
 
 	.rp-subtabs {
@@ -733,7 +858,7 @@
 		border-radius: var(--border-radius-sm);
 		padding: 14px;
 		display: flex;
-		gap: 14px;
+		gap: 10px;
 		align-items: flex-start;
 		transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 		position: relative;
@@ -743,6 +868,51 @@
 		background: rgba(255, 255, 255, 0.06);
 		border-color: rgba(255, 255, 255, 0.1);
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+	}
+
+	.pack-card.selected {
+		border-color: var(--accent);
+		background: rgba(99, 102, 241, 0.05);
+	}
+
+	.pack-select {
+		display: flex;
+		align-items: center;
+		padding-top: 2px;
+	}
+
+	.pack-select input[type="checkbox"] {
+		appearance: none;
+		width: 16px;
+		height: 16px;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid var(--border);
+		border-radius: 3px;
+		cursor: pointer;
+		position: relative;
+		transition: all 0.15s;
+		flex-shrink: 0;
+	}
+
+	.pack-select input[type="checkbox"]:checked {
+		background: var(--accent);
+		border-color: var(--accent);
+	}
+
+	.pack-select input[type="checkbox"]:checked::after {
+		content: "";
+		position: absolute;
+		left: 4px;
+		top: 1px;
+		width: 5px;
+		height: 9px;
+		border: solid var(--bg-main);
+		border-width: 0 2px 2px 0;
+		transform: rotate(45deg);
+	}
+
+	.pack-select input[type="checkbox"]:hover {
+		border-color: rgba(255, 255, 255, 0.2);
 	}
 
 	.pack-icon {
@@ -805,10 +975,16 @@
 		align-items: center;
 		justify-content: center;
 		transition: background 0.2s;
+		opacity: 0.5;
+	}
+
+	.pack-card:hover .delete-btn {
+		opacity: 1;
 	}
 
 	.delete-btn:hover {
 		background: rgba(255, 68, 68, 0.1);
+		opacity: 1;
 	}
 
 	.empty-state {

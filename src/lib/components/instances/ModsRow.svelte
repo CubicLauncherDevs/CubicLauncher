@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { getInstanceMods, toggleInstanceMod } from "$lib/api/cubicApi";
+	import { getInstanceMods, toggleInstanceMod, deleteInstanceFile } from "$lib/api/cubicApi";
 	import { type ModDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
 
 	let { instanceId } = $props<{ instanceId: string }>();
 	let mods = $state<ModDto[]>([]);
+	let selected = $state(new Set<string>());
 	let prevInstanceId = $state<string>("");
 	let loading = $state(true);
 
@@ -22,6 +23,23 @@
 		}
 	});
 
+	function toggleSelect(filename: string) {
+		if (selected.has(filename)) {
+			selected.delete(filename);
+		} else {
+			selected.add(filename);
+		}
+		selected = new Set(selected);
+	}
+
+	function toggleSelectAll() {
+		if (selected.size === mods.length) {
+			selected = new Set();
+		} else {
+			selected = new Set(mods.map((m) => m.filename));
+		}
+	}
+
 	async function handleToggle(mod: ModDto) {
 		const newEnabled = !mod.enabled;
 		mod.enabled = newEnabled;
@@ -30,12 +48,44 @@
 
 		mods = await getInstanceMods(instanceId);
 	}
+
+	async function handleDelete(mod: ModDto) {
+		await deleteInstanceFile(instanceId, "mods", mod.filename);
+		selected.delete(mod.filename);
+		selected = new Set(selected);
+		mods = await getInstanceMods(instanceId);
+	}
+
+	async function handleBulkDelete() {
+		const count = selected.size;
+		if (count === 0) return;
+		if (confirm(t("instanceView.deleteSelectedConfirm").replace("{count}", String(count)))) {
+			for (const filename of selected) {
+				await deleteInstanceFile(instanceId, "mods", filename);
+			}
+			selected = new Set();
+			mods = await getInstanceMods(instanceId);
+		}
+	}
 </script>
 
 <div class="mods-section">
-	<span class="section-title"
-		>{t("instanceView.mods.title")} ({mods.length})</span
-	>
+	<div class="section-header">
+		<span class="section-title"
+			>{t("instanceView.mods.title")} ({mods.length})</span
+		>
+		{#if selected.size > 0}
+			<div class="selection-actions">
+				<span class="selection-count">{selected.size}</span>
+				<button type="button" class="delete-selected-btn" onclick={handleBulkDelete}>
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256">
+						<path d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"></path>
+					</svg>
+					{t("instanceView.deleteSelected")}
+				</button>
+			</div>
+		{/if}
+	</div>
 	{#if loading}
 		<div class="mods-loading">
 			<div class="minimal-spinner"></div>
@@ -43,7 +93,15 @@
 	{:else}
 		<div class="mods-grid">
 			{#each mods as mod (mod.filename)}
-				<div class="mod-card" class:disabled={!mod.enabled}>
+				<div class="mod-card" class:disabled={!mod.enabled} class:selected={selected.has(mod.filename)}>
+					<div class="mod-select">
+						<input
+							type="checkbox"
+							checked={selected.has(mod.filename)}
+							onchange={() => toggleSelect(mod.filename)}
+							title={t("instanceView.selectAll")}
+						/>
+					</div>
 					<div class="mod-icon">
 						{#if mod.icon}
 							<img src={mod.icon} alt={mod.name} />
@@ -76,12 +134,24 @@
 							</span>
 						{/if}
 					</div>
-					<div class="mod-status-toggle">
-						<input
-							type="checkbox"
-							checked={mod.enabled}
-							onchange={() => handleToggle(mod)}
-						/>
+					<div class="mod-actions">
+						<button
+							type="button"
+							class="delete-btn"
+							onclick={() => handleDelete(mod)}
+							title={t("instanceView.deleteConfirm").replace("{name}", mod.filename)}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 256 256">
+								<path d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"></path>
+							</svg>
+						</button>
+						<div class="mod-status-toggle">
+							<input
+								type="checkbox"
+								checked={mod.enabled}
+								onchange={() => handleToggle(mod)}
+							/>
+						</div>
 					</div>
 				</div>
 			{/each}
@@ -97,6 +167,55 @@
 <style>
 	.mods-section {
 		margin-bottom: 24px;
+	}
+
+	.section-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 12px;
+	}
+
+	.section-title {
+		font-size: 1.2rem;
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	.selection-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.selection-count {
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: var(--accent);
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid var(--border);
+		padding: 1px 8px;
+		border-radius: var(--border-radius-sm);
+	}
+
+	.delete-selected-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 12px;
+		background: rgba(255, 68, 68, 0.1);
+		border: 1px solid rgba(255, 68, 68, 0.25);
+		color: #ff4444;
+		border-radius: var(--border-radius-sm);
+		cursor: pointer;
+		font-size: 0.78rem;
+		font-weight: 700;
+		transition: all 0.2s;
+	}
+
+	.delete-selected-btn:hover {
+		background: rgba(255, 68, 68, 0.2);
+		border-color: rgba(255, 68, 68, 0.4);
 	}
 
 	.mods-loading {
@@ -135,7 +254,7 @@
 		border-radius: var(--border-radius-sm);
 		padding: 14px;
 		display: flex;
-		gap: 14px;
+		gap: 10px;
 		align-items: flex-start;
 		transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 		position: relative;
@@ -147,9 +266,54 @@
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 	}
 
+	.mod-card.selected {
+		border-color: var(--accent);
+		background: rgba(99, 102, 241, 0.05);
+	}
+
 	.mod-card.disabled {
 		opacity: 0.4;
 		filter: grayscale(100%);
+	}
+
+	.mod-select {
+		display: flex;
+		align-items: center;
+		padding-top: 2px;
+	}
+
+	.mod-select input[type="checkbox"] {
+		appearance: none;
+		width: 16px;
+		height: 16px;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid var(--border);
+		border-radius: 3px;
+		cursor: pointer;
+		position: relative;
+		transition: all 0.15s;
+		flex-shrink: 0;
+	}
+
+	.mod-select input[type="checkbox"]:checked {
+		background: var(--accent);
+		border-color: var(--accent);
+	}
+
+	.mod-select input[type="checkbox"]:checked::after {
+		content: "";
+		position: absolute;
+		left: 4px;
+		top: 1px;
+		width: 5px;
+		height: 9px;
+		border: solid var(--bg-main);
+		border-width: 0 2px 2px 0;
+		transform: rotate(45deg);
+	}
+
+	.mod-select input[type="checkbox"]:hover {
+		border-color: rgba(255, 255, 255, 0.2);
 	}
 
 	.mod-icon {
@@ -230,6 +394,36 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	.mod-actions {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.delete-btn {
+		background: transparent;
+		border: none;
+		color: #ff4444;
+		cursor: pointer;
+		padding: 4px;
+		border-radius: var(--border-radius-sm);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: background 0.2s;
+		opacity: 0.5;
+	}
+
+	.mod-card:hover .delete-btn {
+		opacity: 1;
+	}
+
+	.delete-btn:hover {
+		background: rgba(255, 68, 68, 0.1);
+		opacity: 1;
 	}
 
 	.mod-status-toggle {
