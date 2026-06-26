@@ -9,15 +9,33 @@
 	import ModalBase from "../layout/ModalBase.svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import Trash from "$lib/icons/Trash.svelte";
+	import Lupa from "$lib/icons/Lupa.svelte";
 
 	let { instanceId } = $props<{ instanceId: string }>();
 	let mods = $state<ModDto[]>([]);
 	// Ignorar, svelte que jode con esos falsos positivos
 	// dios mioooo
 	let selected = new SvelteSet<string>();
+	let searchQuery = $state("");
 	let prevInstanceId = $state<string>("");
 	let loading = $state(true);
 	let bulkDeleteModal = $state(false);
+
+	let filteredMods = $derived(
+		mods.filter(
+			(mod) =>
+				mod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				(mod.description &&
+					mod.description
+						.toLowerCase()
+						.includes(searchQuery.toLowerCase())) ||
+				(mod.authors &&
+					mod.authors.some((a) =>
+						a.toLowerCase().includes(searchQuery.toLowerCase()),
+					)),
+		),
+	);
+
 	$effect(() => {
 		if (instanceId && instanceId !== prevInstanceId) {
 			prevInstanceId = instanceId;
@@ -79,6 +97,14 @@
 		<span class="section-title"
 			>{t("instanceView.mods.title")} ({mods.length})</span
 		>
+		<div class="search-bar">
+			<Lupa width="20" height="20" />
+			<input
+				type="text"
+				placeholder={t("instanceView.mods.searchPlaceholder")}
+				bind:value={searchQuery}
+			/>
+		</div>
 		<div class="selection-actions">
 			<span class="selection-count">{selected.size}</span>
 			<button
@@ -101,7 +127,7 @@
 		</div>
 	{:else}
 		<div class="mods-grid">
-			{#each mods as mod (mod.filename)}
+			{#each filteredMods as mod (mod.filename)}
 				<div
 					class="mod-card"
 					class:disabled={!mod.enabled}
@@ -445,7 +471,43 @@
 		text-transform: uppercase;
 		letter-spacing: 1px;
 	}
+	.search-bar {
+		flex: 0 0 250px;
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
 
+	.search-bar :global(svg) {
+		position: absolute;
+		left: 10px;
+		pointer-events: none;
+		color: var(--text-secondary);
+		opacity: 0.5;
+		z-index: 1;
+	}
+
+	.search-bar input {
+		width: 100%;
+		padding: 8px 12px 8px 36px;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		color: var(--text-primary);
+		font-size: 0.85rem;
+		outline: none;
+		transition: all 0.2s;
+	}
+
+	.search-bar input:focus {
+		border-color: var(--accent);
+		background: rgba(255, 255, 255, 0.08);
+	}
+
+	.search-bar input::placeholder {
+		color: var(--text-secondary);
+		opacity: 0.6;
+	}
 	@media (max-width: 700px) {
 		.mods-grid {
 			grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
