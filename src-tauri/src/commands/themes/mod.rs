@@ -582,6 +582,7 @@ pub fn import_theme_cbth(cbth_path: String) -> Result<ThemeEntry, String> {
     })
 }
 
+#[tauri::command]
 pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
     info!("Importando theme ZIP desde '{}'", zip_path);
     let source = std::path::Path::new(&zip_path);

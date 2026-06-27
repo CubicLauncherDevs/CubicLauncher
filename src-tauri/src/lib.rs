@@ -62,6 +62,7 @@ pub fn run() {
             commands::themes::get_current_theme,
             commands::themes::import_theme,
             commands::themes::import_theme_zip,
+            commands::themes::import_theme_cbth,
             commands::themes::get_themes_dir_path,
             commands::modrinth::download_mods,
             commands::modrinth::download_resourcepacks,
