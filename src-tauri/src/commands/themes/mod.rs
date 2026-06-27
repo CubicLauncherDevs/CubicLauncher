@@ -65,10 +65,13 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
         if !path.is_dir() {
             continue;
         }
-        let theme_file = path.join("theme.json");
-        if !theme_file.exists() {
+        let theme_file = if path.join("theme.json").exists() {
+            path.join("theme.json")
+        } else if path.join("Meta.toml").exists() {
+            path.join("Meta.toml")
+        } else {
             continue;
-        }
+        };
         let id = match path.file_name() {
             Some(name) => name.to_string_lossy().to_string(),
             None => continue,
@@ -77,17 +80,32 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
             Ok(c) => c,
             Err(_) => continue,
         };
-        let theme: ThemeFile = match serde_json::from_str(&content) {
-            Ok(t) => t,
-            Err(_) => continue,
+        let entry = if theme_file.extension().map(|e| e == "toml").unwrap_or(false) {
+            let theme: ThemeMeta = match toml::from_str(&content) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+            ThemeEntry {
+                id: id.into(),
+                name: theme.name,
+                author: theme.author,
+                version: theme.version,
+                r#type: "v2".into(),
+            }
+        } else {
+            let theme: ThemeFile = match serde_json::from_str(&content) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+            ThemeEntry {
+                id: id.into(),
+                name: theme.name,
+                author: theme.author,
+                version: theme.version,
+                r#type: theme.r#type,
+            }
         };
-        themes.push(ThemeEntry {
-            id: id.into(),
-            name: theme.name,
-            author: theme.author,
-            version: theme.version,
-            r#type: theme.r#type,
-        });
+        themes.push(entry);
     }
 
     info!("{} temas listados", themes.len());

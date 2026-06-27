@@ -36,6 +36,7 @@ pub struct ThemeMeta {
 pub struct ThemeDef {
     #[serde(default)]
     pub colors: HashMap<String, String>,
+    #[serde(default)]
     pub background: Background,
     #[serde(default)]
     pub text: HashMap<String, String>,
@@ -51,11 +52,13 @@ pub struct ThemeDef {
     pub others: HashMap<String, String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Background {
     #[serde(default)]
     pub reference_path: Option<String>,
+    #[serde(default)]
     pub image_blur: Option<f64>,
+    #[serde(default)]
     pub image_opacity: Option<f64>,
 }
 
