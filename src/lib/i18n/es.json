@@ -299,6 +299,7 @@
 	"instanceEditor": {
 		"generalTitle": "General",
 		"language": "Idioma",
+		"reinstall": "Reinstalar instancia",
 		"javaVersion": "Versión de Java",
 		"javaHint": "Cubic elegirá la versión de Java recomendada para esta versión de Minecraft. Puede haber casos donde algunos mods sean incompatibles y requieran otra.",
 		"recommended": "Recomendado"
