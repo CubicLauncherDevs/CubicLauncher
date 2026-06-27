@@ -187,7 +187,8 @@
 			"logs": "Protokolle"
 		},
 		"mods": {
-			"title": "Mods Instalados",
+			"title": "Mods installiert",
+			"searchPlaceholder": "Mods durchsuchen...",
 			"jarFile": ".JAR-Datei",
 			"empty": "Keine Mods in dieser Instanz installiert",
 			"bulkDelete": "Möchtest du die ausgewählten Mods löschen??",

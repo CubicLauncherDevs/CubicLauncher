@@ -188,6 +188,7 @@
 		},
 		"mods": {
 			"title": "Mods Installés",
+			"searchPlaceholder": "Rechercher des mods...",
 			"jarFile": "Fichier .JAR",
 			"empty": "Aucun mod installé dans cette instance",
 			"bulkDelete": "Voulez-vous supprimer les mods sélectionnés?",
