@@ -190,6 +190,7 @@
 			"title": "Installed Mods",
 			"jarFile": ".JAR File",
 			"empty": "No mods installed in this instance",
+			"bulkDelete": "Do you want to delete the selected mods?",
 			"authors": "Authors",
 			"noDescription": "No description available"
 		},
