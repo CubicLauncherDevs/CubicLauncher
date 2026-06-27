@@ -33,7 +33,7 @@
 
 	import type ModsRowType from "./ModsRow.svelte";
 	import type DownloadModsType from "./DownloadMods.svelte";
-	import type ResourcePacksTabType from "./ResourcePacksTab.svelte";
+	import type ResourcePacksTabType from "./ResourcePacks/ResourcePacks.svelte";
 	import type ScreenshotsTabType from "./ScreenshotsTab.svelte";
 
 	let ModsRow: typeof ModsRowType | null = $state(null);
@@ -49,7 +49,7 @@
 				(m) => (DownloadMods = m.default),
 			);
 		} else if (activeTab === "resources" && !ResourcePacksTab) {
-			import("./ResourcePacksTab.svelte").then(
+			import("./ResourcePacks/ResourcePacks.svelte").then(
 				(m) => (ResourcePacksTab = m.default),
 			);
 		} else if (activeTab === "screenshots" && !ScreenshotsTab) {
@@ -312,7 +312,7 @@
 						instanceId={selectedInstance.uuid}
 						gameVersion={selectedInstance.version}
 						loader={selectedInstance.loader}
-						supportsShaders={supportsShaders}
+						{supportsShaders}
 					/>
 				{/if}
 			</div>

@@ -149,6 +149,11 @@
 		"lastPlayed": "Last played: {date}",
 		"playBtn": "Play",
 		"close": "Kill",
+		"deleteSelected": "Delete Selected",
+		"deleteConfirm": "Are you sure you want to delete {name}?",
+		"deleteSelectedConfirm": "Are you sure you want to delete {count} selected item(s)?",
+		"selectAll": "Select All",
+		"deselectAll": "Deselect All",
 		"pickBannerTitle": "Select Banner",
 		"noScreenshots": "No screenshots available",
 		"changeBanner": "Change",
@@ -183,8 +188,10 @@
 		},
 		"mods": {
 			"title": "Installed Mods",
+			"searchPlaceholder": "Search mods...",
 			"jarFile": ".JAR File",
 			"empty": "No mods installed in this instance",
+			"bulkDelete": "Do you want to delete the selected mods?",
 			"authors": "Authors",
 			"noDescription": "No description available"
 		},
@@ -293,6 +300,7 @@
 	"instanceEditor": {
 		"generalTitle": "General",
 		"language": "Language",
+		"reinstall": "Reinstall instance",
 		"javaVersion": "Java Version",
 		"javaHint": "Cubic will select the recommended Java version for this Minecraft version. Some mods may be incompatible and require a different one.",
 		"recommended": "Recommended"

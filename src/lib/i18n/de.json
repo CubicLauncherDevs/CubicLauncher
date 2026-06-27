@@ -149,6 +149,11 @@
 		"lastPlayed": "Zuletzt gespielt: {date}",
 		"playBtn": "Spielen",
 		"close": "Schließen erzwingen",
+		"deleteSelected": "Ausgewählte löschen",
+		"deleteConfirm": "Bist du sicher, dass du {name} löschen möchtest?",
+		"deleteSelectedConfirm": "Bist du sicher, dass du {count} ausgewählte(s) Element(e) löschen möchtest?",
+		"selectAll": "Alle auswählen",
+		"deselectAll": "Auswahl aufheben",
 		"pickBannerTitle": "Banner auswählen",
 		"noScreenshots": "Keine Screenshots verfügbar",
 		"changeBanner": "Ändern",
@@ -182,9 +187,11 @@
 			"logs": "Protokolle"
 		},
 		"mods": {
-			"title": "Mods Instalados",
+			"title": "Mods installiert",
+			"searchPlaceholder": "Mods durchsuchen...",
 			"jarFile": ".JAR-Datei",
 			"empty": "Keine Mods in dieser Instanz installiert",
+			"bulkDelete": "Möchtest du die ausgewählten Mods löschen??",
 			"authors": "Autoren",
 			"noDescription": "Keine Beschreibung verfügbar"
 		},
@@ -293,6 +300,7 @@
 	"instanceEditor": {
 		"generalTitle": "Allgemein",
 		"language": "Sprache",
+		"reinstall": "Instanz neu installieren",
 		"javaVersion": "Java-Version",
 		"javaHint": "Cubic wählt die empfohlene Java-Version für diese Minecraft-Version aus. Manche Mods können inkompatibel sein und eine andere Version benötigen.",
 		"recommended": "Empfohlen"

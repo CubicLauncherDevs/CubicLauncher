@@ -643,8 +643,7 @@
 							id="jvm-args"
 							bind:value={launcherStore.settings.jvm_args}
 							placeholder="-Xmx2G -Xms1G ..."
-							class="jvm-args-textarea"
-						></textarea>
+							class="jvm-args-textarea"></textarea>
 					</div>
 					<EnvVarEditor
 						initial={launcherStore.settings.env_vars}

@@ -8,6 +8,7 @@
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import DownloadQueue from "./DownloadQueue.svelte";
 	import { t } from "$lib/i18n";
+	import Trash from "$lib/icons/Trash.svelte";
 
 	interface Props {
 		selectedInstance: InstanceDto | null;
@@ -152,13 +153,7 @@
 							}}
 							title={t("sidebar.delete")}
 						>
-							<img
-								src="/images/icons/trash.svg"
-								alt={t("sidebar.delete")}
-								width="12"
-								height="12"
-								style="filter: var(--icon-filter-error);"
-							/>
+							<Trash width="12" height="12" />
 						</button>
 					</div>
 				</div>
@@ -258,6 +253,7 @@
 	</div>
 </aside>
 
+<!-- Hacer capaz sea buena idea mover esto -->
 <ModalBase bind:open={showDeleteModal} title={t("sidebar.modals.deleteTitle")}>
 	<p
 		style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4;"

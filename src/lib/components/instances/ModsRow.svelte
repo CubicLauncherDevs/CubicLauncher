@@ -1,12 +1,40 @@
 <script lang="ts">
-	import { getInstanceMods, toggleInstanceMod } from "$lib/api/cubicApi";
+	import {
+		getInstanceMods,
+		toggleInstanceMod,
+		deleteInstanceFile,
+	} from "$lib/api/cubicApi";
 	import { type ModDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
+	import ModalBase from "../layout/ModalBase.svelte";
+	import { SvelteSet } from "svelte/reactivity";
+	import Trash from "$lib/icons/Trash.svelte";
+	import Lupa from "$lib/icons/Lupa.svelte";
 
 	let { instanceId } = $props<{ instanceId: string }>();
 	let mods = $state<ModDto[]>([]);
+	// Ignorar, svelte que jode con esos falsos positivos
+	// dios mioooo
+	let selected = new SvelteSet<string>();
+	let searchQuery = $state("");
 	let prevInstanceId = $state<string>("");
 	let loading = $state(true);
+	let bulkDeleteModal = $state(false);
+
+	let filteredMods = $derived(
+		mods.filter(
+			(mod) =>
+				mod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				(mod.description &&
+					mod.description
+						.toLowerCase()
+						.includes(searchQuery.toLowerCase())) ||
+				(mod.authors &&
+					mod.authors.some((a) =>
+						a.toLowerCase().includes(searchQuery.toLowerCase()),
+					)),
+		),
+	);
 
 	$effect(() => {
 		if (instanceId && instanceId !== prevInstanceId) {
@@ -22,6 +50,27 @@
 		}
 	});
 
+	function toggleSelect(filename: string) {
+		if (selected.has(filename)) {
+			selected.delete(filename);
+			return;
+		} else {
+			selected.add(filename);
+			return;
+		}
+	}
+
+	// function toggleSelectAll() {
+	// 	if (selected.size === mods.length) {
+	// 		selected.clear();
+	// 	} else {
+	// 		selected.clear();
+	// 		for (const m of mods) {
+	// 			selected.add(m.filename);
+	// 		}
+	// 	}
+	// }
+
 	async function handleToggle(mod: ModDto) {
 		const newEnabled = !mod.enabled;
 		mod.enabled = newEnabled;
@@ -30,25 +79,74 @@
 
 		mods = await getInstanceMods(instanceId);
 	}
+
+	async function handleBulkDelete() {
+		const count = selected.size;
+		if (count === 0) return;
+		for (const filename of selected) {
+			await deleteInstanceFile(instanceId, "mods", filename);
+		}
+		selected.clear();
+		bulkDeleteModal = false;
+		mods = await getInstanceMods(instanceId);
+	}
 </script>
 
 <div class="mods-section">
-	<span class="section-title"
-		>{t("instanceView.mods.title")} ({mods.length})</span
-	>
+	<div class="section-header">
+		<span class="section-title"
+			>{t("instanceView.mods.title")} ({mods.length})</span
+		>
+		<div class="search-bar">
+			<Lupa width="20" height="20" />
+			<input
+				type="text"
+				disabled={mods.length === 0}
+				placeholder={t("instanceView.mods.searchPlaceholder")}
+				bind:value={searchQuery}
+			/>
+		</div>
+		<div class="selection-actions">
+			<span class="selection-count">{selected.size}</span>
+			<button
+				type="button"
+				class="delete-selected-btn"
+				disabled={selected.size == 0}
+				onclick={() => {
+					bulkDeleteModal = true;
+				}}
+			>
+				<Trash width="14" height="14" />
+
+				{t("instanceView.deleteSelected")}
+			</button>
+		</div>
+	</div>
 	{#if loading}
 		<div class="mods-loading">
 			<div class="minimal-spinner"></div>
 		</div>
 	{:else}
 		<div class="mods-grid">
-			{#each mods as mod (mod.filename)}
-				<div class="mod-card" class:disabled={!mod.enabled}>
+			{#each filteredMods as mod (mod.filename)}
+				<div
+					class="mod-card"
+					class:disabled={!mod.enabled}
+					class:selected={selected.has(mod.filename)}
+					role="button"
+					tabindex="0"
+					onkeydown={() => {
+						toggleSelect(mod.filename);
+					}}
+					onclick={() => {
+						toggleSelect(mod.filename);
+					}}
+				>
 					<div class="mod-icon">
 						{#if mod.icon}
 							<img src={mod.icon} alt={mod.name} />
 						{:else}
-							<div class="mod-icon-placeholder">📦</div>
+							<img src="/images/cubic.svg" alt={mod.name} />
 						{/if}
 					</div>
 					<div class="mod-info">
@@ -76,12 +174,14 @@
 							</span>
 						{/if}
 					</div>
-					<div class="mod-status-toggle">
-						<input
-							type="checkbox"
-							checked={mod.enabled}
-							onchange={() => handleToggle(mod)}
-						/>
+					<div class="mod-actions">
+						<div class="mod-status-toggle">
+							<input
+								type="checkbox"
+								checked={mod.enabled}
+								onchange={() => handleToggle(mod)}
+							/>
+						</div>
 					</div>
 				</div>
 			{/each}
@@ -93,10 +193,88 @@
 		</div>
 	{/if}
 </div>
+<ModalBase bind:open={bulkDeleteModal} title={t("sidebar.modals.deleteTitle")}>
+	<p
+		style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4;"
+	>
+		{t("instanceView.mods.bulkDelete")}
+	</p>
+	{#snippet footer()}
+		<button
+			type="button"
+			class="btn-secondary"
+			onclick={() => (bulkDeleteModal = false)}
+			>{t("sidebar.modals.cancel")}</button
+		>
+		<button
+			type="button"
+			class="btn-primary"
+			style="background: var(--color-error); color: white;"
+			onclick={handleBulkDelete}>{t("sidebar.modals.deleteBtn")}</button
+		>
+	{/snippet}
+</ModalBase>
 
 <style>
 	.mods-section {
 		margin-bottom: 24px;
+	}
+
+	.section-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 12px;
+	}
+
+	.section-title {
+		font-size: 1.2rem;
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	.selection-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.selection-count {
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: var(--accent);
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid var(--border);
+		padding: 1px 8px;
+		border-radius: var(--border-radius-sm);
+	}
+
+	.delete-selected-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 12px;
+		background: rgba(255, 68, 68, 0.1);
+		border: 1px solid rgba(255, 68, 68, 0.25);
+		color: #ff4444;
+		border-radius: var(--border-radius-sm);
+		cursor: pointer;
+		font-size: 0.78rem;
+		font-weight: 700;
+		transition: all 0.2s;
+	}
+
+	.delete-selected-btn:disabled {
+		background: rgba(255, 255, 255, 0.05);
+		border-color: rgba(255, 255, 255, 0.1);
+		color: rgba(255, 255, 255, 0.35);
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	.delete-selected-btn::not(:disabled):hover {
+		background: rgba(255, 68, 68, 0.2);
+		border-color: rgba(255, 68, 68, 0.4);
 	}
 
 	.mods-loading {
@@ -135,10 +313,11 @@
 		border-radius: var(--border-radius-sm);
 		padding: 14px;
 		display: flex;
-		gap: 14px;
+		gap: 10px;
 		align-items: flex-start;
 		transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 		position: relative;
+		cursor: pointer;
 	}
 
 	.mod-card:hover {
@@ -147,14 +326,19 @@
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 	}
 
+	.mod-card.selected {
+		border-color: var(--accent);
+		background: var(--bg-card-gradient);
+	}
+
 	.mod-card.disabled {
 		opacity: 0.4;
 		filter: grayscale(100%);
 	}
 
 	.mod-icon {
-		width: 48px;
-		height: 48px;
+		width: 44px;
+		height: 44px;
 		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
@@ -232,6 +416,13 @@
 		text-overflow: ellipsis;
 	}
 
+	.mod-actions {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 6px;
+	}
+
 	.mod-status-toggle {
 		display: flex;
 		align-items: center;
@@ -281,7 +472,43 @@
 		text-transform: uppercase;
 		letter-spacing: 1px;
 	}
+	.search-bar {
+		flex: 0 0 250px;
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
 
+	.search-bar :global(svg) {
+		position: absolute;
+		left: 10px;
+		pointer-events: none;
+		color: var(--text-secondary);
+		opacity: 0.5;
+		z-index: 1;
+	}
+
+	.search-bar input {
+		width: 100%;
+		padding: 8px 12px 8px 36px;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		color: var(--text-primary);
+		font-size: 0.85rem;
+		outline: none;
+		transition: all 0.2s;
+	}
+
+	.search-bar input:focus {
+		border-color: var(--accent);
+		background: rgba(255, 255, 255, 0.08);
+	}
+
+	.search-bar input::placeholder {
+		color: var(--text-secondary);
+		opacity: 0.6;
+	}
 	@media (max-width: 700px) {
 		.mods-grid {
 			grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

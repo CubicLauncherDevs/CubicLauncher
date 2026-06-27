@@ -524,7 +524,10 @@ export async function getModrinthProjectVersions(
 			`https://api.modrinth.com/v2/project/${projectId}/version`,
 		);
 		if (loader) {
-			url.searchParams.append("loaders", JSON.stringify([loader.toLowerCase()]));
+			url.searchParams.append(
+				"loaders",
+				JSON.stringify([loader.toLowerCase()]),
+			);
 		}
 		if (gameVersion) {
 			url.searchParams.append(
@@ -840,4 +843,8 @@ export async function installMrpack(
 		onError?.(err);
 		return null;
 	}
+}
+
+export async function reinstallVersion(versionId: string) {
+	invoke("reinstall_version", { version: versionId });
 }

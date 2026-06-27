@@ -32,6 +32,7 @@ pub fn run() {
             commands::instance::get_instance_shaderpacks,
             commands::instance::delete_instance_file,
             commands::instance::add_instance_file,
+            commands::instance::reinstall_version,
             commands::download::add_to_queue,
             commands::download::get_available_versions,
             commands::download::get_fabric_versions,
