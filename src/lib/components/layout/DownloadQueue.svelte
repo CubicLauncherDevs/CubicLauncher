@@ -103,7 +103,6 @@
 						segs: emptySegs(),
 						done: item.status === "done",
 						error: null,
-
 					});
 				}
 			}
@@ -124,7 +123,6 @@
 							segs: emptySegs(),
 							done: false,
 							error: null,
-	
 						});
 						open = true;
 					}
@@ -138,7 +136,6 @@
 						segs: emptySegs(),
 						done: false,
 						error: null,
-
 					};
 					const key = SEGS.includes(d_type as SegKey)
 						? (d_type as SegKey)
@@ -152,7 +149,6 @@
 						segs: newSegs,
 						activeType: key,
 						done: false,
-
 					});
 					break;
 				}
@@ -164,7 +160,6 @@
 							...item,
 							done: true,
 							activeType: null,
-	
 						});
 					}
 					setTimeout(() => {
@@ -181,7 +176,6 @@
 							done: true,
 							activeType: null,
 							error: message,
-	
 						});
 					} else {
 						downloads.set(version, {
@@ -190,7 +184,6 @@
 							segs: emptySegs(),
 							done: true,
 							error: message,
-	
 						});
 					}
 					setTimeout(() => {

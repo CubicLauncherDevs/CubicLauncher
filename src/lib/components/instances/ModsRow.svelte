@@ -326,7 +326,7 @@
 	}
 
 	.mod-card.selected {
-		border-color: var(--text-secondary);
+		border-color: var(--accent);
 		background: var(--bg-card-gradient);
 	}
 

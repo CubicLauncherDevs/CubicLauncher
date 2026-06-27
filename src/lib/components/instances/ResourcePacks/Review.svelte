@@ -1,23 +1,50 @@
 <script lang="ts">
-	import type { ModDownloadInfo } from "$lib/api/cubicApi";
+	import {
+		downloadResourcePacks,
+		downloadShaderPacks,
+		type ModDownloadInfo,
+	} from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
 	import Cubic from "$lib/icons/Cubic.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
+	import type { ModrinthProject } from "$lib/types/types";
+	import { SvelteMap } from "svelte/reactivity";
+	type ContentType = "resourcepacks" | "shaders";
 
 	let {
 		downloadQueue = $bindable(),
 		i18nPrefix,
+		contentType,
+		instanceId,
 		downloading = $bindable(),
 		// eslint-disable-next-line
 		mode = $bindable(),
-		confirmDownload = $bindable(),
 	}: {
 		downloadQueue: ModDownloadInfo[];
 		i18nPrefix: string;
+		instanceId: string;
 		downloading: boolean;
 		mode: string;
-		confirmDownload: () => void;
+		contentType: ContentType;
 	} = $props();
+
+	// le status xd
+	let basket = new SvelteMap<string, ModrinthProject>();
+
+	async function confirmDownload() {
+		downloading = true;
+		try {
+			if (contentType === "shaders") {
+				await downloadShaderPacks(instanceId, downloadQueue);
+			} else {
+				await downloadResourcePacks(instanceId, downloadQueue);
+			}
+			basket.clear();
+			mode = "list";
+		} finally {
+			downloading = false;
+		}
+	}
 </script>
 
 <div class="rp-review">
@@ -148,16 +175,6 @@
 		opacity: 0.35;
 		cursor: not-allowed;
 	}
-	.rp-primary-btn.rp-btn-remove {
-		background: rgba(255, 255, 255, 0.06);
-		color: var(--text-primary);
-		border: 1px solid var(--border);
-	}
-	.rp-primary-btn.rp-btn-remove:hover:not(:disabled) {
-		background: rgba(255, 68, 68, 0.12);
-		color: #ff6b6b;
-		border-color: rgba(255, 68, 68, 0.3);
-	}
 	.rp-review-footer {
 		display: flex;
 		justify-content: space-between;
@@ -255,10 +272,6 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-	}
-	.rp-queue-icon {
-		font-size: 1rem;
-		opacity: 0.6;
 	}
 	.rp-queue-icon-img {
 		width: 24px;

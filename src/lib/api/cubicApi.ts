@@ -524,7 +524,10 @@ export async function getModrinthProjectVersions(
 			`https://api.modrinth.com/v2/project/${projectId}/version`,
 		);
 		if (loader) {
-			url.searchParams.append("loaders", JSON.stringify([loader.toLowerCase()]));
+			url.searchParams.append(
+				"loaders",
+				JSON.stringify([loader.toLowerCase()]),
+			);
 		}
 		if (gameVersion) {
 			url.searchParams.append(
