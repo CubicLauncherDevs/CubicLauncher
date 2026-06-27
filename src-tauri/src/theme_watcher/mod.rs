@@ -81,14 +81,8 @@ impl ThemeWatcher {
                 match notify_rx.recv_timeout(Duration::from_millis(100)) {
                     Ok(Ok(event)) => {
                         if matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_)) {
-                            let is_theme_json = event
-                                .paths
-                                .iter()
-                                .any(|p| p.file_name().map(|n| n == "theme.json").unwrap_or(false));
-                            if is_theme_json {
-                                info!("ThemeWatcher: cambio detectado en theme.json");
-                                last_event = Some(Instant::now());
-                            }
+                            info!("ThemeWatcher: cambio detectado en {:?}", event.paths);
+                            last_event = Some(Instant::now());
                         }
                     }
                     Ok(Err(e)) => {
