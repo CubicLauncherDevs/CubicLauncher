@@ -1,13 +1,51 @@
 use crate::commands::themes::v1::{ThemeEntry, ThemeFile};
+use crate::commands::themes::v2::{ThemeDef, ThemeMeta, V2Theme};
 use crate::core::errors::{CoreError, FsError};
 use crate::core::{AppEvent, PathManager, emit};
 use crate::services::SettingsManager;
 use crate::theme_watcher::ThemeWatcher;
+use compact_str::CompactString;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs::exists;
 use std::io::Read;
 use tauri::command;
 use tracing::{error, info, warn};
 mod v1;
 mod v2;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FontFace {
+    pub family: CompactString,
+    pub src: CompactString,
+    #[serde(default)]
+    pub format: Option<CompactString>,
+    #[serde(default)]
+    pub weight: Option<CompactString>,
+    #[serde(default)]
+    pub style: Option<CompactString>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ThemeResponse {
+    pub name: String,
+    pub author: String,
+    pub version: String,
+    pub r#type: String,
+    pub variables: HashMap<String, String>,
+    pub bg_image: Option<String>,
+    pub bg_image_blur: Option<f64>,
+    pub bg_image_opacity: Option<f64>,
+    pub fonts: Vec<FontFace>,
+    pub inject_css: Option<String>,
+}
+
+trait Theme {
+    fn get_name(&self) -> CompactString;
+    fn get_author(&self) -> CompactString;
+    fn get_version(&self) -> CompactString; // semver
+    fn to_theme_res(&self) -> ThemeResponse;
+}
 
 #[command]
 pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
@@ -57,78 +95,159 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
 }
 
 #[command]
-pub fn get_user_theme(id: String) -> Result<ThemeFile, String> {
+pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
     info!("Leyendo theme '{}'", id);
-    let theme_path = PathManager::get()
-        .get_themes_dir()
-        .join(&id)
-        .join("theme.json");
+    let theme_path = PathManager::get().get_themes_dir().join(&id);
+    let exists_meta_toml = match exists(theme_path.join("Meta.toml")) {
+        Ok(e) => e,
+        Err(e) => return Err(e.to_string()),
+    };
 
-    let content = std::fs::read_to_string(&theme_path).map_err(|e| {
-        FsError::ReadFile {
-            path: theme_path.to_string_lossy().to_string(),
-            source: e,
+    if exists_meta_toml {
+        // Si existe Meta.toml entonces tomamos que el theme es v2
+        info!("EL theme {id} tiene Meta.toml, se cargara como V2");
+        let meta_bytes =
+            std::fs::read(theme_path.join("Meta.toml")).map_err(|e| FsError::ReadFile {
+                path: theme_path.join("Meta.toml").to_string_lossy().into(),
+                source: e,
+            })?;
+        let definition_bytes =
+            std::fs::read(theme_path.join("Definition.toml")).map_err(|e| FsError::ReadFile {
+                path: theme_path.join("Meta.toml").to_string_lossy().into(),
+                source: e,
+            })?;
+        //serializar archivos a toml
+        let metadata: ThemeMeta =
+            toml::from_slice(&meta_bytes).map_err(|e| CoreError::Serialize(e.to_string()))?;
+        let mut definitions: ThemeDef =
+            toml::from_slice(&definition_bytes).map_err(|e| CoreError::Serialize(e.to_string()))?;
+
+        //verificar si existe la referencia al backgroudn
+        if let Some(ref bg) = definitions.background.reference_path
+            && !bg.starts_with('/')
+            && !bg.starts_with(':')
+        {
+            let abs_path = theme_path.join(bg);
+            definitions.background.reference_path = Some(abs_path.to_string_lossy().to_string());
         }
-        .to_string()
-    })?;
 
-    let mut theme: ThemeFile = serde_json::from_str(&content)
-        .map_err(|e| CoreError::Other(format!("Theme '{}' inválido: {}", id, e)).to_string())?;
+        // validar size
+        if let Some(ref bg) = definitions.background.reference_path
+            && let Ok(meta) = std::fs::metadata(bg)
+            && meta.len() > 25 * 1024 * 1024
+        {
+            warn!(
+                "Theme {}, Background demasiado grande ({} bytes), ignorando",
+                id,
+                meta.len()
+            );
+            definitions.background.reference_path = None;
+        }
 
-    // Resolver bg_image relativa al directorio del theme si no es absoluta
-    if let Some(ref bg) = theme.bg_image
-        && !bg.starts_with('/')
-        && !bg.starts_with("file:")
-    {
-        let abs_path = PathManager::get().get_themes_dir().join(&id).join(bg);
-        theme.bg_image = Some(abs_path.to_string_lossy().to_string());
-    }
+        //validar magic
+        if let Some(ref bg) = definitions.background.reference_path {
+            let is_image = std::fs::File::open(bg)
+                .ok()
+                .and_then(|mut f| {
+                    let mut buf = [0u8; 16];
+                    f.read_exact(&mut buf).ok()?;
+                    Some(infer::is_image(&buf))
+                })
+                .unwrap_or(false);
 
-    // Valida si un archivo pesa mas de 25MB
-    if let Some(ref bg) = theme.bg_image
-        && let Ok(meta) = std::fs::metadata(bg)
-        && meta.len() > 25 * 1024 * 1024
-    {
-        warn!(
-            "Theme '{}': bg_image demasiado grande ({} bytes), ignorando",
-            id,
-            meta.len()
-        );
-        theme.bg_image_warning_key = Some("themes.warning.largeFile".into());
-        theme.bg_image = None;
-    }
+            if !is_image {
+                warn!("Theme '{}': bg_image no es una imagen válida", id);
+                definitions.background.reference_path = None;
+            }
+        }
+        for font in &mut definitions.fonts {
+            if !font.src.starts_with('/') && !font.src.starts_with("file:") {
+                let abs_path = PathManager::get()
+                    .get_themes_dir()
+                    .join(&id)
+                    .join(&font.src);
+                font.src = abs_path.to_string_lossy().to_string().into();
+            }
+        }
 
-    // Validar magic bytes para asegurar que es una imagen
-    if let Some(ref bg) = theme.bg_image {
-        let is_image = std::fs::File::open(bg)
-            .ok()
-            .and_then(|mut f| {
-                let mut buf = [0u8; 16];
-                f.read_exact(&mut buf).ok()?;
-                Some(infer::is_image(&buf))
-            })
-            .unwrap_or(false);
+        let v2 = V2Theme {
+            meta: metadata,
+            theme: definitions,
+        };
+        let intermediate: ThemeResponse = v2.to_theme_res();
+        info!("Theme V2 convertido a intermediario correctamente");
+        return Ok(intermediate);
+    } else {
+        // v1
+        let theme_path = PathManager::get()
+            .get_themes_dir()
+            .join(&id)
+            .join("theme.json");
 
-        if !is_image {
-            warn!("Theme '{}': bg_image no es una imagen válida", id);
-            theme.bg_image_warning_key = Some("themes.warning.notAnImage".into());
+        let content = std::fs::read_to_string(&theme_path).map_err(|e| {
+            FsError::ReadFile {
+                path: theme_path.to_string_lossy().to_string(),
+                source: e,
+            }
+            .to_string()
+        })?;
+
+        let mut theme: ThemeFile = serde_json::from_str(&content)
+            .map_err(|e| CoreError::Other(format!("Theme '{}' inválido: {}", id, e)).to_string())?;
+
+        // Resolver bg_image relativa al directorio del theme si no es absoluta
+        if let Some(ref bg) = theme.bg_image
+            && !bg.starts_with('/')
+            && !bg.starts_with("file:")
+        {
+            let abs_path = PathManager::get().get_themes_dir().join(&id).join(bg);
+            theme.bg_image = Some(abs_path.to_string_lossy().to_string());
+        }
+
+        // Valida si un archivo pesa mas de 25MB
+        if let Some(ref bg) = theme.bg_image
+            && let Ok(meta) = std::fs::metadata(bg)
+            && meta.len() > 25 * 1024 * 1024
+        {
+            warn!(
+                "Theme '{}': bg_image demasiado grande ({} bytes), ignorando",
+                id,
+                meta.len()
+            );
+            theme.bg_image_warning_key = Some("themes.warning.largeFile".into());
             theme.bg_image = None;
         }
-    }
 
-    // Resolver rutas de fuentes relativas al directorio del theme
-    for font in &mut theme.fonts {
-        if !font.src.starts_with('/') && !font.src.starts_with("file:") {
-            let abs_path = PathManager::get()
-                .get_themes_dir()
-                .join(&id)
-                .join(&font.src);
-            font.src = abs_path.to_string_lossy().to_string().into();
+        // Validar magic bytes para asegurar que es una imagen
+        if let Some(ref bg) = theme.bg_image {
+            let is_image = std::fs::File::open(bg)
+                .ok()
+                .and_then(|mut f| {
+                    let mut buf = [0u8; 16];
+                    f.read_exact(&mut buf).ok()?;
+                    Some(infer::is_image(&buf))
+                })
+                .unwrap_or(false);
+
+            if !is_image {
+                warn!("Theme '{}': bg_image no es una imagen válida", id);
+                theme.bg_image_warning_key = Some("themes.warning.notAnImage".into());
+                theme.bg_image = None;
+            }
         }
-    }
 
-    info!("Theme '{}' cargado exitosamente", id);
-    Ok(theme)
+        // Resolver rutas de fuentes relativas al directorio del theme
+        for font in &mut theme.fonts {
+            if !font.src.starts_with('/') && !font.src.starts_with("file:") {
+                let abs_path = PathManager::get()
+                    .get_themes_dir()
+                    .join(&id)
+                    .join(&font.src);
+                font.src = abs_path.to_string_lossy().to_string().into();
+            }
+        }
+        return Ok(theme.to_theme_res());
+    }
 }
 
 #[command]

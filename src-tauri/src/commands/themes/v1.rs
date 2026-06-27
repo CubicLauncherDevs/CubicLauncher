@@ -1,19 +1,14 @@
+use super::FontFace;
+use super::Theme;
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct FontFace {
-    pub family: CompactString,
-    pub src: CompactString,
-    #[serde(default)]
-    pub format: Option<CompactString>,
-    #[serde(default)]
-    pub weight: Option<CompactString>,
-    #[serde(default)]
-    pub style: Option<CompactString>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
+/// Estructura que representa la primera version del sistema de Themes
+/// Implementa el Trait `Theme` el cual es el que lo permite ser parseado
+/// como tal. Estos se traducen a un struct intermedio el cual el
+/// frontend carga.
+///
 pub struct ThemeFile {
     pub name: CompactString,
     #[serde(default)]
@@ -42,4 +37,38 @@ pub struct ThemeEntry {
     pub author: CompactString,
     pub version: CompactString,
     pub r#type: CompactString,
+}
+
+impl Theme for ThemeFile {
+    fn get_author(&self) -> CompactString {
+        self.author.clone()
+    }
+    fn get_name(&self) -> CompactString {
+        self.name.clone()
+    }
+    fn get_version(&self) -> CompactString {
+        self.version.clone()
+    }
+
+    fn to_theme_res(&self) -> super::ThemeResponse {
+        super::ThemeResponse {
+            name: self.name.clone().into(),
+            author: self.author.clone().into(),
+            version: self.version.clone().into(),
+            r#type: self.r#type.clone().into(),
+            variables: self.variables.clone(),
+            bg_image: self.bg_image.clone(),
+            bg_image_blur: Some(parse_f64_with_default(self.bg_image_blur.as_deref(), 0.0)),
+            bg_image_opacity: self.bg_image_opacity.clone(),
+            fonts: self.fonts.clone(),
+            inject_css: None, // Not implemented
+        }
+    }
+}
+
+fn parse_f64_with_default(value: Option<&str>, default: f64) -> f64 {
+    match value {
+        Some(s) if !s.is_empty() => s.parse::<f64>().unwrap_or(default),
+        _ => default,
+    }
 }
