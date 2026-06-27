@@ -517,7 +517,7 @@ pub fn import_theme_cbth(cbth_path: String) -> Result<ThemeEntry, String> {
     let prefix = if meta_toml_name == "Meta.toml" {
         String::new()
     } else {
-        // "some_dir/theme.json" → "some_dir/"
+        // "some_dir/Meta.toml" → "some_dir/"
         meta_toml_name
             .strip_suffix("Meta.toml")
             .unwrap_or("")
