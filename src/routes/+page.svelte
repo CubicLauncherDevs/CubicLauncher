@@ -247,7 +247,7 @@
 			<InstanceDrawer
 				onclose={() => {
 					instanceEditorOpen = false;
-					editingInstance = null;
+					setTimeout(() => (editingInstance = null), 350);
 				}}
 				instance={editingInstance}
 			/>

@@ -6,7 +6,7 @@
 	import { INSTANCE_LOGOS } from "$lib/icons/logos";
 	import { onMount } from "svelte";
 	import { updateInst } from "$lib/api/launcherService";
-	import { getInstalledVersions } from "$lib/api/cubicApi";
+	import { getInstalledVersions, reinstallVersion } from "$lib/api/cubicApi";
 	interface Props {
 		onclose?: () => void;
 		instance: InstanceDto;
@@ -140,6 +140,19 @@
 							handleSave();
 						}}
 					/>
+				</div>
+				<div class="reinstall">
+					<button
+						type="button"
+						class="qm-save-btn"
+						onclick={async () => {
+							await reinstallVersion(instance.version);
+							onclose?.();
+						}}
+						disabled={saving}
+					>
+						{t("instanceEditor.reinstall")}
+					</button>
 				</div>
 			</CollapsibleSection>
 			<CollapsibleSection
@@ -385,6 +398,11 @@
 
 	.save-footer {
 		padding: 12px 20px;
+		border-top: 1px solid var(--border-color);
+	}
+
+	.reinstall {
+		padding: 2ch 0px 0px 0px;
 		border-top: 1px solid var(--border-color);
 	}
 

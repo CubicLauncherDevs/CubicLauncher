@@ -844,3 +844,7 @@ export async function installMrpack(
 		return null;
 	}
 }
+
+export async function reinstallVersion(versionId: string) {
+	invoke("reinstall_version", { version: versionId });
+}

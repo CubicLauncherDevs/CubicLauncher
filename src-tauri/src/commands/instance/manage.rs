@@ -335,3 +335,27 @@ pub async fn get_installed_versions_with_status() -> Vec<VersionStatus> {
     .await
     .unwrap_or_default()
 }
+
+#[tauri::command]
+pub async fn reinstall_version(version: String) -> Result<(), String> {
+    info!("Reinstalando versión: {}", version);
+    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let deps = zellkern::resolve_dependencies(&version);
+
+    for dep in &deps {
+        let version_dir = shared_dir.join(format!("versions/{}", dep));
+        if version_dir.exists() {
+            info!("Eliminando directorio de versión: {:?}", version_dir);
+            tokio::fs::remove_dir_all(&version_dir).await.map_err(|e| {
+                error!("Error eliminando versión {}: {}", dep, e);
+                e.to_string()
+            })?;
+        }
+    }
+
+    crate::services::DownloadQueue::get()
+        .enqueue(version.clone())
+        .await;
+    info!("Versión {} encolada para re-descarga", version);
+    Ok(())
+}
