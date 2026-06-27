@@ -7,13 +7,9 @@ use log::{debug, info, warn};
 use crate::{Error, MCVersion, VersionManifest};
 
 /// Determine the native subdirectory based on Minecraft version.
-/// Versions >= 26w02a (snapshot) or >= 1.21.2 (release) use "java" subdirectory.
+/// Versions >= 26.2 use "java" subdirectory.
 pub fn natives_subdir(version: &MCVersion) -> &'static str {
-    if version.major > 26
-        || (version.major == 26 && version.minor >= 2)
-        || (version.major == 1 && version.minor > 21)
-        || (version.major == 1 && version.minor == 21 && version.patch.map_or(false, |p| p >= 2))
-    {
+    if version.major > 26 || (version.major == 26 && version.minor >= 2) {
         "java"
     } else {
         ""
