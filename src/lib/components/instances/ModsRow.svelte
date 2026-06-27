@@ -101,6 +101,7 @@
 			<Lupa width="20" height="20" />
 			<input
 				type="text"
+				disabled={mods.length === 0}
 				placeholder={t("instanceView.mods.searchPlaceholder")}
 				bind:value={searchQuery}
 			/>
