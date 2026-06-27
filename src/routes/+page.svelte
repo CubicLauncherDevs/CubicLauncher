@@ -17,7 +17,7 @@
 	import Tutorial from "$lib/components/layout/welcome.svelte";
 	import { initDiscordPresence } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
-	import { applyTheme, importThemeZip } from "$lib/api/themeManager";
+	import { applyTheme, importThemeZip, import_theme_cbth } from "$lib/api/themeManager";
 	import { checkForUpdates } from "$lib/api/updaterServices";
 	import { saveSettings } from "$lib/api/launcherService";
 	import { showSuccess, showError } from "$lib/state/state.svelte";
@@ -101,7 +101,10 @@
 					isDragOver =
 						dragPaths.length > 0 &&
 						dragPaths.some(
-							(p) => p.endsWith(".mrpack") || p.endsWith(".zip"),
+							(p) =>
+								p.endsWith(".mrpack") ||
+								p.endsWith(".zip") ||
+								p.endsWith(".cbth"),
 						);
 				} else if (event.payload.type === "leave") {
 					isDragOver = false;
@@ -116,11 +119,14 @@
 					const mrpackFile = paths.find((p: string) =>
 						p.endsWith(".mrpack"),
 					);
+					const cbth = paths.find((p) => p.endsWith(".cbth"));
 					if (zipFile) {
 						handleZipDrop(zipFile);
 					} else if (mrpackFile) {
 						droppedMrpackPath = mrpackFile;
 						openCreateModal = true;
+					} else if (cbth) {
+						handleCbthDrop(cbth);
 					}
 					dragPaths = [];
 				}
@@ -145,6 +151,28 @@
 				msg.includes("no theme.json")
 			) {
 				droppedMrpackPath = zipPath;
+				openCreateModal = true;
+			} else {
+				showError(t("themes.importError"), msg);
+			}
+		}
+	}
+
+	async function handleCbthDrop(cbthPath: string) {
+		try {
+			await import_theme_cbth(cbthPath);
+			showSuccess(
+				t("themes.importSuccess"),
+				t("themes.importSuccessMessage"),
+			);
+			applyTheme(launcherStore.settings.theme);
+		} catch (e) {
+			const msg = String(e);
+			if (
+				msg.includes("no se encontró theme.json") ||
+				msg.includes("no theme.json")
+			) {
+				droppedMrpackPath = cbthPath;
 				openCreateModal = true;
 			} else {
 				showError(t("themes.importError"), msg);

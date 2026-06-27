@@ -28,17 +28,18 @@ export interface FontFace {
 	style?: string | null;
 }
 
-export interface UserTheme {
+export interface ThemeResponse {
 	name: string;
-	version?: string;
+	author: string;
+	version: string;
+	type: string;
 	variables: Record<string, string>;
 	bg_image?: string | null;
-	bg_image_blur?: string | null;
+	bg_image_blur?: number | null;
 	bg_image_opacity?: number | null;
-	bg_image_warning_key?: string | null;
-	fonts?: FontFace[];
+	fonts: FontFace[];
+	inject_css?: string | null;
 }
-
 let currentImage: HTMLImageElement | null = null;
 let currentGeneration = 0;
 
@@ -107,10 +108,14 @@ export async function importThemeZip(zipPath: string): Promise<ThemeEntry> {
 	return invoke<ThemeEntry>("import_theme_zip", { zipPath });
 }
 
+export async function import_theme_cbth(cbthPath: string): Promise<ThemeEntry> {
+	return invoke<ThemeEntry>("import_theme_cbth", { cbthPath });
+}
+
 export async function applyTheme(themeId: string) {
 	const gen = ++currentGeneration;
 
-	let theme: UserTheme | null = null;
+	let theme: ThemeResponse | null = null;
 
 	if (builtinThemes.find((t) => t.id === themeId)) {
 		const res = await fetch(`/themes/${themeId}/${themeId}.json`);
@@ -119,7 +124,7 @@ export async function applyTheme(themeId: string) {
 	} else if (themeId.startsWith("user:")) {
 		const id = themeId.slice(5);
 		try {
-			theme = await invoke<UserTheme>("get_user_theme", { id });
+			theme = await invoke<ThemeResponse>("get_user_theme", { id });
 		} catch (e) {
 			console.error("Error loading user theme:", e);
 			return;
@@ -141,10 +146,6 @@ export async function applyTheme(themeId: string) {
 		if (prop.startsWith("--")) {
 			style.removeProperty(prop);
 		}
-	}
-
-	if (theme.bg_image_warning_key) {
-		showWarning(t("themes.warning.title"), t(theme.bg_image_warning_key));
 	}
 
 	for (const [key, value] of Object.entries(theme.variables)) {
@@ -179,7 +180,7 @@ export async function applyTheme(themeId: string) {
 		img.src = imgUrl;
 	}
 	if (theme.bg_image_blur) {
-		root.style.setProperty("--bg-image-blur", theme.bg_image_blur);
+		root.style.setProperty("--bg-image-blur", `${theme.bg_image_blur}px`);
 	}
 	if (theme.bg_image_opacity != null) {
 		root.style.setProperty(
