@@ -161,8 +161,8 @@
 		inset: 0;
 		background: rgba(0, 0, 0, 0.55);
 		z-index: 100;
-		backdrop-filter: blur(2px);
-		-webkit-backdrop-filter: blur(2px);
+		backdrop-filter: blur(var(--backdrop-blur-overlay, 2px));
+		-webkit-backdrop-filter: blur(var(--backdrop-blur-overlay, 2px));
 	}
 
 	.drawer {

@@ -79,7 +79,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		backdrop-filter: blur(4px);
+		backdrop-filter: blur(var(--backdrop-blur-modal, 4px));
 	}
 
 	.modal {

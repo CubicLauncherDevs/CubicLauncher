@@ -188,11 +188,25 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
             }
         }
 
+        let inject = if theme_path.join("Inject.css").exists() {
+            Some(
+                std::fs::read_to_string(theme_path.join("Inject.css")).map_err(|e| {
+                    FsError::ReadFile {
+                        path: theme_path.join("Inject.css").to_string_lossy().into_owned(),
+                        source: e,
+                    }
+                })?,
+            )
+        } else {
+            None
+        };
+
         let v2 = V2Theme {
             meta: metadata,
             theme: definitions,
         };
-        let intermediate: ThemeResponse = v2.to_theme_res();
+        let mut intermediate: ThemeResponse = v2.to_theme_res();
+        intermediate.inject_css = inject;
         info!("Theme V2 convertido a intermediario correctamente");
         return Ok(intermediate);
     } else {

@@ -257,7 +257,7 @@
 		flex-direction: column;
 		height: 100%;
 		padding: 28px 32px;
-		backdrop-filter: blur(5px);
+		backdrop-filter: blur(var(--backdrop-blur-panel, 5px));
 	}
 	.rp-review-body {
 		flex: 1;

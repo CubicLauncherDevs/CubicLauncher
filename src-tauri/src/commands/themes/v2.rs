@@ -49,6 +49,10 @@ pub struct ThemeDef {
     #[serde(default)]
     pub shadows: HashMap<String, String>,
     #[serde(default)]
+    pub backgrounds: HashMap<String, String>,
+    #[serde(default)]
+    pub backdrop: HashMap<String, f64>,
+    #[serde(default)]
     pub others: HashMap<String, String>,
 }
 
@@ -106,6 +110,12 @@ pub fn flatten_variables(theme: &ThemeDef) -> HashMap<String, String> {
     }
     for (k, v) in &theme.shadows {
         vars.insert(format!("--{}", k), v.clone());
+    }
+    for (k, v) in &theme.backgrounds {
+        vars.insert(format!("--bg-{}", k), v.clone());
+    }
+    for (k, v) in &theme.backdrop {
+        vars.insert(format!("--backdrop-blur-{}", k), format!("{}px", v));
     }
     for (k, v) in &theme.others {
         vars.insert(format!("--{}", k), v.clone());
@@ -169,6 +179,8 @@ mod tests {
             layout: HashMap::new(),
             borders,
             shadows,
+            backgrounds: HashMap::new(),
+            backdrop: HashMap::new(),
             others,
         }
     }
@@ -318,6 +330,38 @@ mod tests {
     }
 
     #[test]
+    fn flatten_backgrounds_prefix() {
+        let mut theme = build_theme_def();
+        theme.colors.clear();
+        theme.text.clear();
+        theme.borders.clear();
+        theme.shadows.clear();
+        theme.others.clear();
+        theme.backgrounds.insert("main".into(), "#000000".into());
+        theme.backgrounds.insert("card".into(), "#111111".into());
+
+        let vars = flatten_variables(&theme);
+        assert_eq!(vars.get("--bg-main").unwrap(), "#000000");
+        assert_eq!(vars.get("--bg-card").unwrap(), "#111111");
+    }
+
+    #[test]
+    fn flatten_backdrop_prefix_and_px() {
+        let mut theme = build_theme_def();
+        theme.colors.clear();
+        theme.text.clear();
+        theme.borders.clear();
+        theme.shadows.clear();
+        theme.others.clear();
+        theme.backdrop.insert("dropdown".into(), 10.0);
+        theme.backdrop.insert("modal".into(), 4.0);
+
+        let vars = flatten_variables(&theme);
+        assert_eq!(vars.get("--backdrop-blur-dropdown").unwrap(), "10px");
+        assert_eq!(vars.get("--backdrop-blur-modal").unwrap(), "4px");
+    }
+
+    #[test]
     fn flatten_empty_sections() {
         let theme = ThemeDef {
             colors: HashMap::new(),
@@ -331,6 +375,8 @@ mod tests {
             layout: HashMap::new(),
             borders: HashMap::new(),
             shadows: HashMap::new(),
+            backgrounds: HashMap::new(),
+            backdrop: HashMap::new(),
             others: HashMap::new(),
         };
 

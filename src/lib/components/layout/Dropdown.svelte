@@ -180,7 +180,7 @@
 		max-height: 240px;
 		overflow-y: auto;
 		padding: 6px;
-		backdrop-filter: blur(10px);
+		backdrop-filter: blur(var(--backdrop-blur-dropdown, 10px));
 	}
 
 	.dd-option {

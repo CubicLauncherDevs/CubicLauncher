@@ -238,4 +238,15 @@ export async function applyTheme(themeId: string) {
 	} else {
 		injectDefaultFonts();
 	}
+
+	const CUSTOM_CSS_ID = "cubic-theme-css";
+	const existingCustomCss = document.getElementById(CUSTOM_CSS_ID);
+	if (existingCustomCss) existingCustomCss.remove();
+
+	if (theme.inject_css) {
+		const style = document.createElement("style");
+		style.id = CUSTOM_CSS_ID;
+		style.textContent = theme.inject_css;
+		document.head.appendChild(style);
+	}
 }

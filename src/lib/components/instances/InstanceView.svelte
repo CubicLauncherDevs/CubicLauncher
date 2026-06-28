@@ -368,7 +368,7 @@
 		right: 0;
 		bottom: 0;
 		background: rgba(0, 0, 0, 0.7);
-		backdrop-filter: blur(8px);
+		backdrop-filter: blur(var(--backdrop-blur-viewer, 8px));
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -488,7 +488,7 @@
 
 	.banner-btn {
 		background: rgba(0, 0, 0, 0.5);
-		backdrop-filter: blur(4px);
+		backdrop-filter: blur(var(--backdrop-blur-button, 4px));
 		border: 1px solid rgba(255, 255, 255, 0.1);
 		color: white;
 		padding: 6px 12px;
@@ -590,7 +590,7 @@
 		padding: 0 40px;
 		border-bottom: 1px solid var(--border);
 		background: rgba(255, 255, 255, 0.01);
-		backdrop-filter: blur(8px);
+		backdrop-filter: blur(var(--backdrop-blur-float, 8px));
 		position: sticky;
 		top: 0;
 		z-index: 10;

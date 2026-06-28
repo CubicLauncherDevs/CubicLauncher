@@ -486,7 +486,7 @@
 		font-size: 0.6rem;
 		font-family: inherit;
 		cursor: pointer;
-		backdrop-filter: blur(8px);
+		backdrop-filter: blur(var(--backdrop-blur-float, 8px));
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 		transition: all 0.2s ease;
 		z-index: 10;
