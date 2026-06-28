@@ -460,6 +460,7 @@
 		"AUTH_TOKENS_SAVE": "Could not save tokens: {error}",
 		"AUTH_TOKENS_DEL": "Could not delete tokens: {error}",
 		"AUTH_BLOCKED": "Internal error: {error}",
+		"AUTH_SESSION_EXPIRED": "Session expired. Please restart the launcher and log in again: {error}",
 		"GENERIC": "An unexpected error occurred: {error}"
 	}
 }

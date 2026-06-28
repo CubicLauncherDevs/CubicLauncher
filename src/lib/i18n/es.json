@@ -459,6 +459,7 @@
 		"AUTH_TOKENS_SAVE": "Error al guardar tokens: {error}",
 		"AUTH_TOKENS_DEL": "Error al eliminar tokens: {error}",
 		"AUTH_BLOCKED": "Error interno: {error}",
+		"AUTH_SESSION_EXPIRED": "Sesión expirada. Reinicia el launcher e inicia sesión de nuevo: {error}",
 		"GENERIC": "Ocurrió un error inesperado: {error}"
 	}
 }
