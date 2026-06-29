@@ -1,15 +1,12 @@
-use std::future::Future;
-use std::path::{Path, PathBuf};
-use std::pin::Pin;
-
-use log::info;
-use tokio::sync::mpsc::Sender;
-use uuid::Uuid;
-
 use super::batch::{DownloadBatch, DownloadItemSpec};
 use crate::AquaError;
 use crate::manifest::{resolve_asset_index, resolve_version_data};
 use crate::types::{DownloadProgress, NormalizedVersion, RESOURCES_BASE_URL};
+use log::info;
+use std::future::Future;
+use std::path::{Path, PathBuf};
+use std::pin::Pin;
+use tokio::sync::mpsc::Sender;
 use zellkern::resolvers::natives_subdir;
 
 #[derive(Clone)]
@@ -35,7 +32,6 @@ fn compute_dirs(game_path: &Path, version_id: &str, version: &zellkern::MCVersio
 pub struct MinecraftBatch {
     version: NormalizedVersion,
     dirs: DirPaths,
-    temp_dir: PathBuf,
     items: Vec<DownloadItemSpec>,
     version_json_bytes: Vec<u8>,
     asset_index_bytes: Vec<u8>,
@@ -47,13 +43,6 @@ impl MinecraftBatch {
         let mc_version = &version.parsed_version;
         let dirs = compute_dirs(game_path, version_id, mc_version);
 
-        let temp_dir = dirs
-            .natives_dir
-            .parent()
-            .unwrap_or(game_path)
-            .join("temp")
-            .join(Uuid::new_v4().to_string());
-
         let mut items: Vec<DownloadItemSpec> = Vec::new();
 
         for lib in &version.libraries {
@@ -62,15 +51,10 @@ impl MinecraftBatch {
         }
 
         for native in &version.natives {
-            let filename = native
-                .path
-                .split('/')
-                .next_back()
-                .unwrap_or(&native.path)
-                .to_string();
-            let temp_path = temp_dir.join(&filename);
+            let native_path = dirs.libraries_dir.join(&native.path);
             items.push(
-                DownloadItemSpec::new(&native.url, temp_path, &native.name).with_hash(&native.sha1),
+                DownloadItemSpec::new(&native.url, native_path, &native.name)
+                    .with_hash(&native.sha1),
             );
         }
 
@@ -98,7 +82,6 @@ impl MinecraftBatch {
         Ok(Self {
             version,
             dirs,
-            temp_dir,
             items,
             version_json_bytes,
             asset_index_bytes,
@@ -122,7 +105,6 @@ impl DownloadBatch for MinecraftBatch {
     fn prepare(&self) -> Pin<Box<dyn Future<Output = Result<(), AquaError>> + Send + '_>> {
         let dirs = self.dirs.clone();
         let version_id = self.version.id.clone();
-        let temp_dir = self.temp_dir.clone();
         let version_json_bytes = self.version_json_bytes.clone();
         let asset_index = self.version.asset_index.clone();
         let asset_index_bytes = self.asset_index_bytes.clone();
@@ -132,7 +114,6 @@ impl DownloadBatch for MinecraftBatch {
             tokio::fs::create_dir_all(&dirs.libraries_dir).await?;
             tokio::fs::create_dir_all(&dirs.versions_dir).await?;
             tokio::fs::create_dir_all(&dirs.assets_indexes_dir).await?;
-            tokio::fs::create_dir_all(&temp_dir).await?;
 
             // Write version JSON from cached bytes (avoids re-fetching)
             let vj_path = dirs.versions_dir.join(format!("{version_id}.json"));
@@ -158,16 +139,12 @@ impl DownloadBatch for MinecraftBatch {
         &self,
         _progress_tx: Option<Sender<DownloadProgress>>,
     ) -> Pin<Box<dyn Future<Output = Result<(), AquaError>> + Send + '_>> {
-        let temp_dir = self.temp_dir.clone();
         let natives_dir = self.dirs.natives_dir.clone();
         let jar_paths: Vec<PathBuf> = self
             .version
             .natives
             .iter()
-            .map(|n| {
-                let filename = n.path.split('/').next_back().unwrap_or(&n.path).to_string();
-                temp_dir.join(&filename)
-            })
+            .map(|n| self.dirs.libraries_dir.join(&n.path))
             .collect();
 
         Box::pin(async move {
@@ -195,8 +172,6 @@ impl DownloadBatch for MinecraftBatch {
                 while let Some(res) = ext_tasks.next().await {
                     res??;
                 }
-
-                tokio::fs::remove_dir_all(&temp_dir).await?;
             }
 
             #[cfg(not(feature = "extract-natives"))]
@@ -209,5 +184,3 @@ impl DownloadBatch for MinecraftBatch {
         })
     }
 }
-
-
