@@ -131,6 +131,15 @@ mod tests {
     }
 
     #[test]
+    fn test_auth_session_expired_error() {
+        let s: String = AppError::Auth(AuthError::SessionExpired("token revoked".into())).into();
+        assert_eq!(
+            s,
+            r#"{"code":"AUTH_SESSION_EXPIRED","params":{"error":"token revoked"}}"#
+        );
+    }
+
+    #[test]
     fn test_download_error() {
         let s: String = AppError::Download(DownloadError::NoFabricLoader).into();
         assert_eq!(s, r#"{"code":"DL_NO_FABRIC"}"#);

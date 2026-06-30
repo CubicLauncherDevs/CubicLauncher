@@ -20,6 +20,9 @@ pub enum AuthError {
     #[error("La autenticación fue cancelada o expiró: {0}")]
     AuthCancelled(String),
 
+    #[error("Sesión expirada. Reinicia el launcher e inicia sesión de nuevo: {0}")]
+    SessionExpired(String),
+
     #[error(transparent)]
     CoreError(#[from] crate::core::errors::CoreError),
 }
@@ -33,6 +36,7 @@ impl AuthError {
             Self::DeleteTokensFailed(_) => "AUTH_TOKENS_DEL",
             Self::SpawnBlocking(_) => "AUTH_BLOCKED",
             Self::AuthCancelled(_) => "AUTH_CANCELLED",
+            Self::SessionExpired(_) => "AUTH_SESSION_EXPIRED",
             Self::CoreError(e) => e.code(),
         }
     }
@@ -44,7 +48,8 @@ impl AuthError {
             | Self::SaveTokensFailed(s)
             | Self::DeleteTokensFailed(s)
             | Self::SpawnBlocking(s)
-            | Self::AuthCancelled(s) => vec![("error", s.clone())],
+            | Self::AuthCancelled(s)
+            | Self::SessionExpired(s) => vec![("error", s.clone())],
             Self::CoreError(e) => e.params(),
         }
     }

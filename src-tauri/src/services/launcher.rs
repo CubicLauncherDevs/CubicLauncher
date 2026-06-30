@@ -196,6 +196,17 @@ impl Launcher {
             .map_err(|e| DownloadError::ParseJson(e.to_string()))?;
         let mut user = SettingsManager::read().get_user();
 
+        // Recuperar los tokens desde el almacenamiento seguro. Sin esto los
+        // campos #[serde(skip)] llegan vacíos tras cargar settings.cub y el
+        // refresco de Microsoft nunca se ejecuta.
+        if let Err(e) = user.load_tokens() {
+            error!("No se pudieron cargar los tokens del usuario: {:?}", e);
+            return Err(AppError::Auth(AuthError::AuthFailed(format!(
+                "No se pudieron cargar los tokens: {}",
+                e
+            ))));
+        }
+
         // Resolve java version through inheritsFrom chain (Forge version.json may omit it)
         let mut java_version_req = if manifest.java_version.is_some() {
             manifest.java_version.clone()
@@ -442,40 +453,56 @@ impl Launcher {
 }
 
 async fn refresh_microsoft_token(mut user: MinecraftUser) -> Result<MinecraftUser, AppError> {
-    if user.user_type == AccountType::Microsoft
-        && let Some(refresh_token) = &user.refresh_token
-    {
-        info!("Refrescando token de Microsoft...");
-        let rt = refresh_token.clone();
-        let refresh_result = tokio::task::spawn_blocking(move || {
-            MicrosoftAuth::default()
-                .refresh_token(&rt)
-                .map_err(|e| e.to_string())
-        })
-        .await
-        .map_err(|e| AuthError::AuthFailed(e.to_string()))?;
+    if user.user_type != AccountType::Microsoft {
+        return Ok(user);
+    }
 
-        match refresh_result {
-            Ok(new_user) => {
-                info!("Token refrescado para {}", new_user.username);
-                user = new_user;
-                if let Err(e) = user.save_tokens() {
-                    warn!("Error guardando tokens: {:?}", e);
-                }
-                SettingsManager::write(|settings| {
-                    settings.set_user(user.clone());
-                })?;
-                SettingsManager::save().await?;
-            }
-            Err(e) => {
-                warn!(
-                    "No se pudo refrescar el token: {}. Continuando con el actual...",
-                    e
-                );
-            }
+    // Defensa: si el refresh_token no está cargado (p. ej. llamada desde otro
+    // sitio), intentar recuperarlo desde el almacenamiento seguro.
+    if user.refresh_token.is_none() {
+        if let Err(e) = user.load_tokens() {
+            warn!("No se pudieron cargar tokens de Microsoft: {:?}", e);
         }
     }
-    Ok(user)
+
+    let Some(refresh_token) = user.refresh_token.clone() else {
+        warn!(
+            "No hay refresh token de Microsoft para {}. Continuando con el token actual.",
+            user.username
+        );
+        return Ok(user);
+    };
+
+    info!("Refrescando token de Microsoft...");
+    let refresh_result = tokio::task::spawn_blocking(move || {
+        MicrosoftAuth::default()
+            .refresh_token(&refresh_token)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| AuthError::AuthFailed(e.to_string()))?;
+
+    match refresh_result {
+        Ok(new_user) => {
+            info!("Token refrescado para {}", new_user.username);
+            user = new_user;
+            if let Err(e) = user.save_tokens() {
+                warn!("Error guardando tokens: {:?}", e);
+            }
+            SettingsManager::write(|settings| {
+                settings.set_user(user.clone());
+            })?;
+            SettingsManager::save().await?;
+            Ok(user)
+        }
+        Err(e) => {
+            error!("No se pudo refrescar el token de Microsoft: {}", e);
+            Err(AppError::Auth(AuthError::SessionExpired(format!(
+                "El token de Microsoft no pudo refrescarse: {}. Vuelve a iniciar sesión.",
+                e
+            ))))
+        }
+    }
 }
 
 async fn refresh_yggdrasil_token(mut user: MinecraftUser) -> Result<MinecraftUser, AppError> {
@@ -536,16 +563,16 @@ async fn refresh_yggdrasil_token(mut user: MinecraftUser) -> Result<MinecraftUse
                 settings.set_user(user.clone());
             })?;
             SettingsManager::save().await?;
+            Ok(user)
         }
         Err(e) => {
-            warn!(
-                "No se pudo refrescar token Yggdrasil: {}. Continuando con el actual...",
+            error!("No se pudo refrescar token Yggdrasil: {}", e);
+            Err(AppError::Auth(AuthError::SessionExpired(format!(
+                "El token Yggdrasil no es válido y no pudo refrescarse: {}. Vuelve a iniciar sesión.",
                 e
-            );
+            ))))
         }
     }
-
-    Ok(user)
 }
 
 fn spawn_io_forwarding(

@@ -460,6 +460,7 @@
 		"AUTH_TOKENS_SAVE": "Erreur lors de la sauvegarde des jetons : {error}",
 		"AUTH_TOKENS_DEL": "Erreur lors de la suppression des jetons : {error}",
 		"AUTH_BLOCKED": "Erreur interne : {error}",
+		"AUTH_SESSION_EXPIRED": "Session expirée. Veuillez redémarrer le launcher et vous reconnecter : {error}",
 		"GENERIC": "Une erreur inattendue s'est produite : {error}"
 	}
 }

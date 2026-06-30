@@ -460,6 +460,7 @@
 		"AUTH_TOKENS_SAVE": "Fehler beim Speichern der Tokens: {error}",
 		"AUTH_TOKENS_DEL": "Fehler beim Löschen der Tokens: {error}",
 		"AUTH_BLOCKED": "Interner Fehler: {error}",
+		"AUTH_SESSION_EXPIRED": "Sitzung abgelaufen. Bitte starte den Launcher neu und melde dich erneut an: {error}",
 		"GENERIC": "Ein unerwarteter Fehler ist aufgetreten: {error}"
 	}
 }
