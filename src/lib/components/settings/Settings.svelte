@@ -301,12 +301,12 @@
 					<span
 						class="qm-themes-hint"
 						onclick={() =>
-							openUrl("https://www.cubiclauncher.com/themes")}
+							openUrl("https://www.cubiclauncher.org/themes")}
 						role="link"
 						tabindex="0"
 						onkeydown={(e) => {
 							if (e.key === "Enter")
-								openUrl("https://www.cubiclauncher.com/themes");
+								openUrl("https://www.cubiclauncher.org/themes");
 						}}>{t("settings.launcher.themesSpan")}</span
 					>
 				</CollapsibleSection>
@@ -618,13 +618,13 @@
 					<span
 						class="qm-themes-hint"
 						onclick={() =>
-							openUrl("https://www.cubiclauncher.com/docs/java")}
+							openUrl("https://www.cubiclauncher.org/docs/java")}
 						role="link"
 						tabindex="0"
 						onkeydown={(e) => {
 							if (e.key === "Enter")
 								openUrl(
-									"https://www.cubiclauncher.com/docs/java",
+									"https://www.cubiclauncher.org/docs/java",
 								);
 						}}>{t("settings.launcher.javaSpan")}</span
 					>
