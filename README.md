@@ -80,7 +80,7 @@ El frontend se comunica con el backend mediante **77 Tauri Commands** (IPC). El 
 ### Instalación
 
 ```bash
-git clone https://github.com/CubicLauncher/CubicLauncher.git
+git clone https://github.com/CubicLauncherDevs/CubicLauncher.git
 cd CubicLauncher
 bun install
 ```
@@ -101,15 +101,13 @@ bun install
 bun run tauri build
 ```
 
-El binario se genera en `src-tauri/target/release/`. Consulta la [documentación oficial](https://www.cubiclauncher.com/docs/main.html#desarrollo/compilacion) para builds específicos por plataforma.
-
 ### Arch Linux
 
 Descargá solo el [PKGBUILD](dist/arch/PKGBUILD) y compilá (clona el repo automáticamente):
 
 ```bash
 mkdir cubiclauncher-build && cd cubiclauncher-build
-wget https://raw.githubusercontent.com/CubicLauncher/CubicLauncher/main/dist/arch/PKGBUILD
+wget https://raw.githubusercontent.com/CubicLauncherDevs/CubicLauncher/main/dist/arch/PKGBUILD
 makepkg -si
 ```
 
