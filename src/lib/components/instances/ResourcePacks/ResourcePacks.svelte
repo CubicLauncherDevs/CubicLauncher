@@ -116,12 +116,12 @@ ATT:SANTIAGOLXX
 {:else}
 	<List
 		{supportsShaders}
-		{contentType}
+		bind:contentType
 		{instanceId}
 		{isLoading}
 		{installedPackNames}
 		{i18nPrefix}
 		{packs}
-		{mode}
+		bind:mode
 	/>
 {/if}
