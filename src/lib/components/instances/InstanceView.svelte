@@ -32,7 +32,7 @@
 	});
 
 	import type ModsRowType from "./ModsRow.svelte";
-	import type DownloadModsType from "./DownloadMods.svelte";
+	import type DownloadModsType from "./DownloadMods/DownloadMods.svelte";
 	import type ResourcePacksTabType from "./ResourcePacks/ResourcePacks.svelte";
 	import type ScreenshotsTabType from "./ScreenshotsTab.svelte";
 
@@ -45,7 +45,7 @@
 		if (activeTab === "mods" && !ModsRow) {
 			import("./ModsRow.svelte").then((m) => (ModsRow = m.default));
 		} else if (activeTab === "download_mods" && !DownloadMods) {
-			import("./DownloadMods.svelte").then(
+			import("./DownloadMods/DownloadMods.svelte").then(
 				(m) => (DownloadMods = m.default),
 			);
 		} else if (activeTab === "resources" && !ResourcePacksTab) {

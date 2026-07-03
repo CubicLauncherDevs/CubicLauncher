@@ -21,7 +21,7 @@
 	import { checkForUpdates } from "$lib/api/updaterServices";
 	import { saveSettings } from "$lib/api/launcherService";
 	import { showSuccess, showError } from "$lib/state/state.svelte";
-	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
+	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal/CreateInstanceModal.svelte";
 	import LogWindow from "$lib/components/log/LogWindow.svelte";
 	import InstanceDrawer from "$lib/components/instances/InstanceDrawer.svelte";
 
