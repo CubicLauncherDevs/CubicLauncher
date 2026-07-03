@@ -14,7 +14,7 @@
 
 	let {
 		supportsShaders,
-		contentType,
+		contentType = $bindable(),
 		isLoading,
 		instanceId,
 		installedPackNames,
@@ -94,11 +94,11 @@
 		});
 		if (selected && Array.isArray(selected)) {
 			for (const path of selected) {
-				await addInstanceFile(instanceId, "resourcepacks", path);
+				await addInstanceFile(instanceId, subDir, path);
 			}
 			await loadPacks();
 		} else if (selected && typeof selected === "string") {
-			await addInstanceFile(instanceId, "resourcepacks", selected);
+			await addInstanceFile(instanceId, subDir, selected);
 			await loadPacks();
 		}
 	}
