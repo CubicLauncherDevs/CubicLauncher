@@ -113,6 +113,7 @@ export async function import_theme_cbth(cbthPath: string): Promise<ThemeEntry> {
 }
 
 export async function applyTheme(themeId: string) {
+	console.log("[applyTheme] called with:", themeId);
 	const gen = ++currentGeneration;
 
 	let theme: ThemeResponse | null = null;
@@ -131,8 +132,15 @@ export async function applyTheme(themeId: string) {
 		}
 	}
 
-	if (!theme) return;
-	if (gen !== currentGeneration) return;
+	if (!theme) {
+		console.log("[applyTheme] theme is null, bailing");
+		return;
+	}
+	if (gen !== currentGeneration) {
+		console.log("[applyTheme] stale generation, bailing");
+		return;
+	}
+	console.log("[applyTheme] theme loaded:", theme.name, "inject_css present:", !!theme.inject_css, "length:", theme.inject_css?.length);
 
 	if (currentImage) {
 		currentImage.src = "";
@@ -244,9 +252,13 @@ export async function applyTheme(themeId: string) {
 	if (existingCustomCss) existingCustomCss.remove();
 
 	if (theme.inject_css) {
+		console.log("[applyTheme] injecting CSS, length:", theme.inject_css.length);
+		console.log("[applyTheme] CSS preview:", theme.inject_css.substring(0, 200));
 		const style = document.createElement("style");
 		style.id = CUSTOM_CSS_ID;
 		style.textContent = theme.inject_css;
 		document.head.appendChild(style);
+	} else {
+		console.log("[applyTheme] inject_css is null/empty, not injecting");
 	}
 }

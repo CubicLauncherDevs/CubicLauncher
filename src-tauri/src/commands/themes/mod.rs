@@ -189,15 +189,16 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
         }
 
         let inject = if theme_path.join("Inject.css").exists() {
-            Some(
-                std::fs::read_to_string(theme_path.join("Inject.css")).map_err(|e| {
-                    FsError::ReadFile {
-                        path: theme_path.join("Inject.css").to_string_lossy().into_owned(),
-                        source: e,
-                    }
-                })?,
-            )
+            let content = std::fs::read_to_string(theme_path.join("Inject.css")).map_err(|e| {
+                FsError::ReadFile {
+                    path: theme_path.join("Inject.css").to_string_lossy().into_owned(),
+                    source: e,
+                }
+            })?;
+            info!("Inject.css leido, {} bytes", content.len());
+            Some(content)
         } else {
+            info!("Inject.css no encontrado en {:?}", theme_path.join("Inject.css"));
             None
         };
 
