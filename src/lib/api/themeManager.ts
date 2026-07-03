@@ -253,11 +253,13 @@ export async function applyTheme(themeId: string) {
 
 	if (theme.inject_css) {
 		console.log("[applyTheme] injecting CSS, length:", theme.inject_css.length);
-		console.log("[applyTheme] CSS preview:", theme.inject_css.substring(0, 200));
-		const style = document.createElement("style");
-		style.id = CUSTOM_CSS_ID;
-		style.textContent = theme.inject_css;
-		document.head.appendChild(style);
+		const blob = new Blob([theme.inject_css], { type: "text/css" });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("link");
+		link.rel = "stylesheet";
+		link.href = url;
+		link.id = CUSTOM_CSS_ID;
+		document.head.appendChild(link);
 	} else {
 		console.log("[applyTheme] inject_css is null/empty, not injecting");
 	}
