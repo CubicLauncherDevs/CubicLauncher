@@ -148,7 +148,8 @@
 			const msg = String(e);
 			if (
 				msg.includes("no se encontró theme.json") ||
-				msg.includes("no theme.json")
+				msg.includes("no theme.json") ||
+				msg.includes("no se encontró Meta.toml")
 			) {
 				droppedMrpackPath = zipPath;
 				openCreateModal = true;
@@ -170,7 +171,8 @@
 			const msg = String(e);
 			if (
 				msg.includes("no se encontró theme.json") ||
-				msg.includes("no theme.json")
+				msg.includes("no theme.json") ||
+				msg.includes("no se encontró Meta.toml")
 			) {
 				droppedMrpackPath = cbthPath;
 				openCreateModal = true;

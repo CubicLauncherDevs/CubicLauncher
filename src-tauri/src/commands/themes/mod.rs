@@ -657,9 +657,8 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
     let theme_json_name = match theme_json_name {
         Some(name) => name,
         None => {
-            return Err(
-                CoreError::Other("ZIP inválido: no se encontró theme.json".into()).to_string(),
-            );
+            info!("No se encontró theme.json, intentando como tema V2");
+            return import_theme_cbth(zip_path);
         }
     };
 
