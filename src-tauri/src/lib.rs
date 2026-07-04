@@ -79,6 +79,7 @@ pub fn run() {
             commands::java::get_jre_versions,
             commands::log_window::open_log_window,
             commands::log_window::get_log_history_cmd,
+            commands::log_window::upload_log_to_mclogs,
         ])
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_window_state::Builder::new().build())

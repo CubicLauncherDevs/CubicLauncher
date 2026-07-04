@@ -1,3 +1,4 @@
+use crate::core::http_client::HTTP;
 use crate::services::launcher::{LogLine, get_log_history};
 use dashmap::DashMap;
 use std::sync::OnceLock;
@@ -41,4 +42,31 @@ pub async fn open_log_window(
 
     map.insert(instance_id, label);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn upload_log_to_mclogs(content: String) -> Result<String, String> {
+    let resp = HTTP
+        .post("https://api.mclo.gs/1/log")
+        .form(&[("content", content.as_str())])
+        .send()
+        .await
+        .map_err(|e| format!("Error de red: {}", e))?;
+
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Error al leer respuesta: {}", e))?;
+
+    if json["success"] == true {
+        json["url"]
+            .as_str()
+            .map(String::from)
+            .ok_or_else(|| "URL no encontrada en la respuesta".to_string())
+    } else {
+        Err(json["error"]
+            .as_str()
+            .unwrap_or("Error desconocido")
+            .to_string())
+    }
 }

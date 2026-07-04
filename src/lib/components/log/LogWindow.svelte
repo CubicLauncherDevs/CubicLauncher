@@ -2,6 +2,9 @@
 	import { onMount, tick } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
 	import { listen } from "@tauri-apps/api/event";
+	import { showSuccess, showError } from "$lib/state/state.svelte";
+	import { t } from "$lib/i18n";
+	import { openUrl } from "$lib/api/cubicApi";
 
 	let {
 		instanceId,
@@ -20,6 +23,7 @@
 	let lines: LogLine[] = $state([]);
 	let isAtBottom = $state(true);
 	let unseenCount = $state(0);
+	let uploading = $state(false);
 	let logContainer: HTMLDivElement | undefined = $state();
 	let unlistenFn: (() => void) | undefined;
 
@@ -207,6 +211,23 @@
 		const text = lines.map((l) => l.text).join("\n");
 		await navigator.clipboard.writeText(text);
 	}
+
+	async function uploadToMclogs() {
+		if (uploading || lines.length === 0) return;
+		uploading = true;
+		try {
+			const text = lines.map((l) => l.text).join("\n");
+			const url = await invoke<string>("upload_log_to_mclogs", {
+				content: text,
+			});
+			showSuccess("McLogs", url);
+			await openUrl(url);
+		} catch (err) {
+			showError(t("errors.title"), String(err));
+		} finally {
+			uploading = false;
+		}
+	}
 </script>
 
 <div class="log-window">
@@ -269,6 +290,32 @@
 						d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
 					/>
 				</svg>
+			</button>
+			<button
+				type="button"
+				class="toolbar-btn"
+				onclick={uploadToMclogs}
+				disabled={lines.length === 0 || uploading}
+				title={uploading ? "Uploading..." : "Upload to mclo.gs"}
+			>
+				{#if uploading}
+					<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin">
+						<line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" /><line x1="4.93" y1="4.93" x2="7.76" y2="7.76" /><line x1="16.24" y1="16.24" x2="19.07" y2="19.07" /><line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" /><line x1="4.93" y1="19.07" x2="7.76" y2="16.24" /><line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
+					</svg>
+				{:else}
+					<svg
+						width="13"
+						height="13"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+					</svg>
+				{/if}
 			</button>
 			<button
 				type="button"
@@ -517,5 +564,14 @@
 		50% {
 			opacity: 0.5;
 		}
+	}
+
+	:global(.spin) {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
 	}
 </style>
