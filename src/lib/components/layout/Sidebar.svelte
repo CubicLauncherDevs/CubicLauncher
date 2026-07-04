@@ -9,6 +9,8 @@
 	import DownloadQueue from "./DownloadQueue.svelte";
 	import { t } from "$lib/i18n";
 	import Trash from "$lib/icons/Trash.svelte";
+	import ContextMenu from "./ContextMenu.svelte";
+	import { getVersions } from "$lib/api/launcherService";
 
 	interface Props {
 		selectedInstance: InstanceDto | null;
@@ -27,6 +29,9 @@
 	}: Props = $props();
 
 	let showUserMenu = $state(false);
+	let ctxOpen = $state(false);
+	let ctxX = $state(0);
+	let ctxY = $state(0);
 	let showDeleteModal = $state(false);
 	let instanceToActOn = $state<InstanceDto | null>(null);
 	let activeUser = $derived(getActiveUser());
@@ -89,8 +94,19 @@
 	</div>
 
 	<div class="sidebar-content">
-		<div class="section-label">{t("sidebar.yourInstances")}</div>
-		<div class="instance-list" data-tutorial="instance-list">
+		<div
+			class="instances-area"
+			role="region"
+			aria-label={t("sidebar.yourInstances")}
+			oncontextmenu={(e) => {
+				e.preventDefault();
+				ctxX = e.clientX;
+				ctxY = e.clientY;
+				ctxOpen = true;
+			}}
+		>
+			<div class="section-label">{t("sidebar.yourInstances")}</div>
+			<div class="instance-list" data-tutorial="instance-list">
 			{#each launcherStore.loadedInstances as instance (instance.uuid)}
 				<div
 					class="instance-item"
@@ -167,6 +183,7 @@
 					>
 				</div>
 			{/if}
+		</div>
 		</div>
 	</div>
 
@@ -280,6 +297,11 @@
 </ModalBase>
 
 <UserMenu bind:open={showUserMenu} />
+
+<ContextMenu bind:open={ctxOpen} x={ctxX} y={ctxY} items={[
+	{ label: t("sidebar.createInstance"), action: () => onopencreateinstance?.() },
+	{ label: t("sidebar.refreshInstances"), action: () => getVersions() },
+]} />
 
 <style>
 	.sidebar {

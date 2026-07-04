@@ -1,12 +1,12 @@
 # Maintainer: Santiagolxx
 
 pkgname=cubiclauncher
-pkgver=26.5.1
+pkgver=29.5
 pkgrel=1
 pkgdesc="Open-source Minecraft launcher"
 arch=('x86_64')
 license=('GPL-3.0-only')
-url='https://github.com/CubicLauncher/CubicLauncher'
+url='https://github.com/CubicLauncherDevs/CubicLauncher'
 depends=(
   'webkit2gtk-4.1'
   'libsoup3'

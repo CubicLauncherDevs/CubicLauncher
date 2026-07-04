@@ -94,6 +94,7 @@
 		"delete": "Eliminar",
 		"noInstances": "Sin instancias",
 		"createInstance": "Crear Instancia",
+		"refreshInstances": "Refrescar Instancias",
 		"downloadVersions": "Descargar Versiones",
 		"settings": "Ajustes",
 		"tools": "Herramientas",
@@ -188,6 +189,7 @@
 		},
 		"mods": {
 			"title": "Mods Instalados",
+			"searchPlaceholder": "Buscar mods...",
 			"jarFile": "Archivo .JAR",
 			"empty": "No hay mods instalados en esta instancia",
 			"bulkDelete": "Quieres eliminar los mods seleccionados?",

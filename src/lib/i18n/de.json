@@ -94,6 +94,7 @@
 		"delete": "Löschen",
 		"noInstances": "Keine Instanzen",
 		"createInstance": "Instanz erstellen",
+		"refreshInstances": "Instanzen aktualisieren",
 		"downloadVersions": "Versionen herunterladen",
 		"settings": "Einstellungen",
 		"tools": "Herramientas",

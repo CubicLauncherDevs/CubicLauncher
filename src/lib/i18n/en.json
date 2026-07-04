@@ -94,6 +94,7 @@
 		"delete": "Delete",
 		"noInstances": "No instances",
 		"createInstance": "Create Instance",
+		"refreshInstances": "Refresh Instances",
 		"downloadVersions": "Download Versions",
 		"settings": "Settings",
 		"tools": "Tools",

@@ -10,7 +10,7 @@
 	} from "$lib/api/launcherService";
 	import type { InstanceDto } from "$lib/types/types";
 	import Sidebar from "$lib/components/layout/Sidebar.svelte";
-	import InstanceView from "$lib/components/instances/InstanceView.svelte";
+	import InstanceView from "$lib/components/instances/InstanceView/InstanceView.svelte";
 	import Drawer from "$lib/components/layout/Drawer.svelte";
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
 	import JreInstallPrompt from "$lib/components/ui/JreInstallPrompt.svelte";
@@ -23,7 +23,7 @@
 	import { showSuccess, showError } from "$lib/state/state.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal/CreateInstanceModal.svelte";
 	import LogWindow from "$lib/components/log/LogWindow.svelte";
-	import InstanceDrawer from "$lib/components/instances/InstanceDrawer.svelte";
+	import InstanceDrawer from "$lib/components/instances/InstanceDrawer/InstanceDrawer.svelte";
 
 	const logParams = $derived.by(() => {
 		if (typeof window === "undefined") return null;
