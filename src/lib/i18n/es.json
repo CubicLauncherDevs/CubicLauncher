@@ -361,7 +361,8 @@
 			"snapshots": "Snapshots",
 			"alphas": "Alphas",
 			"fabric": "Fabric",
-			"forge": "Forge"
+			"forge": "Forge",
+			"quilt": "Quilt"
 		},
 		"downloading": "Descargando...",
 		"forgeJavaHint": "Forge requiere que configures Java 21 en Configuración > Java."

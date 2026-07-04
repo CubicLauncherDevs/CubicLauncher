@@ -1,7 +1,7 @@
 use crate::core::errors::DownloadError;
 use crate::core::{HTTP, PathManager};
 use crate::services::DownloadQueue;
-use aqua::{DownloadManager, FabricBatch};
+use aqua::{DownloadManager, FabricBatch, QuiltBatch};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
@@ -439,4 +439,172 @@ pub async fn refresh_forge_versions() -> Result<Vec<ForgeGameVersion>, String> {
     let versions = fetch_forge_versions_from_maven().await?;
     write_forge_cache(&versions).await;
     Ok(versions)
+}
+
+// ─── Quilt ────────────────────────────────────────────────────────────────────
+
+fn quilt_cache_path() -> std::path::PathBuf {
+    PathManager::get().get_settings_dir().join("quilt.crep")
+}
+
+async fn read_quilt_cache() -> Option<Vec<FabricGameVersion>> {
+    let cache_path = quilt_cache_path();
+    tokio::task::spawn_blocking(move || {
+        let repo = ablage::Repo::open(&cache_path);
+        let entry = repo.get("quilt")?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let cached_time = entry.fingerprint;
+        if now.saturating_sub(cached_time) > 3600 {
+            return None;
+        }
+        postcard::from_bytes(&entry.data).ok()
+    })
+    .await
+    .unwrap_or(None)
+}
+
+async fn write_quilt_cache(versions: &[FabricGameVersion]) {
+    let cache_path = quilt_cache_path();
+    let versions = versions.to_vec();
+    tokio::task::spawn_blocking(move || {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let mut repo = ablage::Repo::open(&cache_path);
+        if let Ok(data) = postcard::to_stdvec(&versions) {
+            repo.put(
+                "quilt",
+                ablage::Entry {
+                    version: 1,
+                    fingerprint: now,
+                    data,
+                },
+            );
+            let _ = repo.flush();
+        }
+    })
+    .await
+    .ok();
+}
+
+#[tauri::command]
+pub async fn get_quilt_versions() -> Result<Vec<FabricGameVersion>, String> {
+    if let Some(versions) = read_quilt_cache().await {
+        info!(
+            "Usando cache de versiones de Quilt ({} versiones)",
+            versions.len()
+        );
+        return Ok(versions);
+    }
+
+    info!("Cache de Quilt ausente, descargando desde meta.quiltmc.org");
+    let url = "https://meta.quiltmc.org/v3/versions/game";
+    let response = HTTP
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    let versions = response
+        .json::<Vec<FabricGameVersion>>()
+        .await
+        .map_err(|e| DownloadError::ParseJson(e.to_string()).to_string())?;
+
+    info!(
+        "{} versiones de Quilt obtenidas, cacheando en disco",
+        versions.len()
+    );
+
+    write_quilt_cache(&versions).await;
+
+    Ok(versions)
+}
+
+#[tauri::command]
+pub async fn refresh_quilt_versions() -> Result<Vec<FabricGameVersion>, String> {
+    info!("Forzando actualizacion de versiones de Quilt");
+    let cache_path = quilt_cache_path();
+    tokio::task::spawn_blocking(move || {
+        let mut repo = ablage::Repo::open(&cache_path);
+        repo.remove("quilt");
+        let _ = repo.flush();
+    })
+    .await
+    .ok();
+
+    let url = "https://meta.quiltmc.org/v3/versions/game";
+    let response = HTTP
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    let versions = response
+        .json::<Vec<FabricGameVersion>>()
+        .await
+        .map_err(|e| DownloadError::ParseJson(e.to_string()).to_string())?;
+
+    write_quilt_cache(&versions).await;
+    Ok(versions)
+}
+
+#[tauri::command]
+pub async fn download_quilt(
+    game_version: String,
+    loader_version: Option<String>,
+) -> Result<(), String> {
+    info!(
+        "Iniciando descarga de Quilt para Minecraft {}",
+        game_version
+    );
+
+    let loader_version = if let Some(specific) = loader_version {
+        specific
+    } else {
+        QuiltBatch::resolve_latest_loader(&game_version)
+            .await
+            .map_err(|e| DownloadError::Request(e.to_string()).to_string())?
+    };
+
+    let quilt_version_id = format!("quilt-loader-{}-{}", loader_version, game_version);
+    info!("Loader: {}, ID: {}", loader_version, quilt_version_id);
+
+    let shared_dir = PathManager::get().get_shared_dir();
+    let json_path = shared_dir
+        .join("versions")
+        .join(&quilt_version_id)
+        .join(format!("{}.json", quilt_version_id));
+
+    if tokio::fs::try_exists(&json_path).await.unwrap_or(false) {
+        info!(
+            "Quilt {} ya instalado, encolando assets",
+            quilt_version_id
+        );
+        DownloadQueue::get().enqueue(quilt_version_id).await;
+        return Ok(());
+    }
+
+    let batch = QuiltBatch::new(shared_dir, &game_version, &loader_version)
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    let manager = DownloadManager::new(shared_dir.to_path_buf());
+    let handle = manager
+        .prepare_batch(Box::new(batch))
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    handle
+        .download_all(None)
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    info!("Quilt {} descargado correctamente", quilt_version_id);
+    DownloadQueue::get().enqueue(quilt_version_id).await;
+
+    Ok(())
 }

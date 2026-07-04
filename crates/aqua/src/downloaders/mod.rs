@@ -3,6 +3,7 @@ mod fabric;
 mod forge;
 mod jre;
 mod minecraft;
+mod quilt;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -11,6 +12,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 pub use batch::{DownloadBatch, DownloadItemSpec, GenericBatch};
 pub use fabric::FabricBatch;
 pub use forge::{ForgeBatch, ForgeVersionInfo};
+pub use quilt::QuiltBatch;
 use futures::TryStreamExt;
 use futures::stream::{self, StreamExt};
 pub use jre::JreBatch;

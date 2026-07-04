@@ -55,7 +55,7 @@
 			bind:value={majorVersionFilter}
 		/>
 
-		{#if filter === "fabric"}
+		{#if filter === "fabric" || filter === "quilt"}
 			<Select
 				label={t("versionDownloader.filters.fabricStability")}
 				options={[

@@ -122,7 +122,7 @@ export interface Notification {
 }
 
 export interface McVersion {
-	loader: "vanilla" | "fabric" | "forge" | "neoforge";
+	loader: "vanilla" | "fabric" | "forge" | "neoforge" | "quilt";
 	version: string;
 	type: string;
 }

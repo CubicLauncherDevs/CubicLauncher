@@ -83,7 +83,7 @@ impl GameVersion {
             Loader::Fabric(v) => format!("fabric-loader-{}-{}", v, self.mc_version),
             Loader::Forge(v) => format!("{}-forge-{}", self.mc_version, v),
             Loader::NeoForge(v) => format!("{}-neoforge-{}", self.mc_version, v),
-            Loader::Quilt(v) => format!("{}-quilt-{}", self.mc_version, v),
+            Loader::Quilt(v) => format!("quilt-loader-{}-{}", v, self.mc_version),
         }
     }
 
@@ -118,7 +118,7 @@ pub struct ResolvedVersion {
 ///   "fabric-loader-0.15.11-1.20.1"   → "1.20.1"
 ///   "1.20.1-forge-47.2.0"            → "1.20.1"
 ///   "1.21-neoforge-21.0.0"           → "1.21"
-///   "1.20.1-quilt-0.25.0"            → "1.20.1"
+///   "quilt-loader-0.25.0-1.20.1"     → "1.20.1"
 fn extract_mc_version(full_id: &str) -> String {
     // Fabric/Quilt loader: "fabric-loader-{loader_version}-{mc_version}"
     if let Some(rest) = full_id.strip_prefix("fabric-loader-")
@@ -126,8 +126,14 @@ fn extract_mc_version(full_id: &str) -> String {
     {
         return rest[last_dash + 1..].to_string();
     }
-    // Forge/NeoForge/Quilt: "{mc_version}-{loader_name}-{loader_version}"
-    for loader_name in &["-forge-", "-neoforge-", "-quilt-"] {
+    // Quilt loader: "quilt-loader-{loader_version}-{mc_version}"
+    if let Some(rest) = full_id.strip_prefix("quilt-loader-")
+        && let Some(last_dash) = rest.rfind('-')
+    {
+        return rest[last_dash + 1..].to_string();
+    }
+    // Forge/NeoForge: "{mc_version}-{loader_name}-{loader_version}"
+    for loader_name in &["-forge-", "-neoforge-"] {
         if let Some(idx) = full_id.find(loader_name) {
             return full_id[..idx].to_string();
         }
@@ -191,8 +197,9 @@ mod tests {
 
     #[test]
     fn extract_quilt_version() {
-        let gv = GameVersion::from_version_id("1.20.1-quilt-0.25.0");
+        let gv = GameVersion::from_version_id("quilt-loader-0.25.0-1.20.1");
         assert_eq!(gv.mc_version, "1.20.1");
+        assert_eq!(gv.loader, Loader::Quilt("0.25.0".into()));
     }
 
     #[test]
@@ -235,7 +242,7 @@ mod tests {
 
     #[test]
     fn dependencies_quilt() {
-        let deps = resolve_dependencies("1.20.1-quilt-0.25.0");
-        assert_eq!(deps, vec!["1.20.1", "1.20.1-quilt-0.25.0"]);
+        let deps = resolve_dependencies("quilt-loader-0.25.0-1.20.1");
+        assert_eq!(deps, vec!["1.20.1", "quilt-loader-0.25.0-1.20.1"]);
     }
 }

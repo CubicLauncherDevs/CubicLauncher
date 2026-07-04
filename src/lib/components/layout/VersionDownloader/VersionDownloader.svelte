@@ -9,8 +9,11 @@
 		downloadFabric,
 		getForgeVersions,
 		downloadForge,
+		getQuiltVersions,
+		downloadQuilt,
 		refreshAvailableVersions,
 		refreshForgeVersions,
+		refreshQuiltVersions,
 		getDownloadQueue,
 	} from "$lib/api/cubicApi";
 	import type {
@@ -40,9 +43,11 @@
 	let manifest = $state<MinecraftVersion[] | null>(null);
 	let fabricManifest = $state<FabricGameVersion[]>([]);
 	let forgeManifest = $state<ForgeGameVersion[]>([]);
+	let quiltManifest = $state<FabricGameVersion[]>([]);
 	let installedVanilla = $state(new Set<string>());
 	let installedFabric = $state(new Set<string>());
 	let installedForge = $state(new Set<string>());
+	let installedQuilt = $state(new Set<string>());
 	let downloadingVersions = new SvelteSet<string>();
 	let filter = $state("release");
 	let search = $state("");
@@ -53,11 +58,13 @@
 	let loadingMojang = $state(false);
 	let loadingFabric = $state(false);
 	let loadingForge = $state(false);
+	let loadingQuilt = $state(false);
 	let refreshing = $state(false);
 
 	function refreshCurrentSource() {
 		if (filter === "fabric") refreshFabric();
 		else if (filter === "forge") refreshForge();
+		else if (filter === "quilt") refreshQuilt();
 		else refreshMojang();
 	}
 
@@ -76,6 +83,12 @@
 	async function refreshForge() {
 		refreshing = true;
 		forgeManifest = await refreshForgeVersions();
+		refreshing = false;
+	}
+
+	async function refreshQuilt() {
+		refreshing = true;
+		quiltManifest = await refreshQuiltVersions();
 		refreshing = false;
 	}
 
@@ -100,12 +113,20 @@
 		loadingForge = false;
 	}
 
+	async function loadQuilt() {
+		if (quiltManifest.length > 0 || loadingQuilt) return;
+		loadingQuilt = true;
+		quiltManifest = await getQuiltVersions();
+		loadingQuilt = false;
+	}
+
 	onMount(() => {
 		getInstalledVersions().then((raw) => {
-			const { vanilla, fabric, forge } = getInstalledMcVersions(raw);
+			const { vanilla, fabric, forge, quilt } = getInstalledMcVersions(raw);
 			installedVanilla = vanilla;
 			installedFabric = fabric;
 			installedForge = forge;
+			installedQuilt = quilt;
 			loading = false;
 		});
 
@@ -124,11 +145,12 @@
 			} else if (p.type === "DFinish") {
 				downloadingVersions.delete(p.data.version);
 				getInstalledVersions().then((raw) => {
-					const { vanilla, fabric, forge } =
+					const { vanilla, fabric, forge, quilt } =
 						getInstalledMcVersions(raw);
 					installedVanilla = vanilla;
 					installedFabric = fabric;
 					installedForge = forge;
+					installedQuilt = quilt;
 				});
 			} else if (p.type === "DError") {
 				downloadingVersions.delete(p.data.version);
@@ -143,12 +165,14 @@
 	$effect(() => {
 		if (filter === "fabric") loadFabric();
 		else if (filter === "forge") loadForge();
+		else if (filter === "quilt") loadQuilt();
 		else loadMojang();
 	});
 
 	const isCurrentManifestLoading = $derived.by(() => {
 		if (filter === "fabric") return loadingFabric;
 		if (filter === "forge") return loadingForge;
+		if (filter === "quilt") return loadingQuilt;
 		return loadingMojang;
 	});
 
@@ -166,12 +190,12 @@
 			});
 		}
 
-		const source = filter === "fabric" ? fabricManifest : manifest;
+		const source = filter === "fabric" ? fabricManifest : filter === "quilt" ? quiltManifest : manifest;
 		if (!source) return [];
 		const versions = new SvelteSet<string>();
 		source.forEach((v: MinecraftVersion | FabricGameVersion) => {
 			const vid =
-				filter === "fabric"
+				filter === "fabric" || filter === "quilt"
 					? (v as FabricGameVersion).version
 					: (v as MinecraftVersion).id;
 			const match = vid.match(/^1\.\d+/);
@@ -234,18 +258,20 @@
 				});
 		}
 
-		const source = filter === "fabric" ? fabricManifest : manifest;
+		const source = filter === "fabric" ? fabricManifest : filter === "quilt" ? quiltManifest : manifest;
 		return (
 			source?.filter((v: MinecraftVersion | FabricGameVersion) => {
 				const versionId =
-					filter === "fabric"
+					filter === "fabric" || filter === "quilt"
 						? (v as FabricGameVersion).version
 						: (v as MinecraftVersion).id;
 
 				const isInstalled =
 					filter === "fabric"
 						? installedFabric.has(versionId)
-						: installedVanilla.has(versionId);
+						: filter === "quilt"
+							? installedQuilt.has(versionId)
+							: installedVanilla.has(versionId);
 
 				if (installStatusFilter === "installed" && !isInstalled)
 					return false;
@@ -258,7 +284,7 @@
 				)
 					return false;
 
-				if (filter === "fabric") {
+				if (filter === "fabric" || filter === "quilt") {
 					const fv = v as FabricGameVersion;
 					if (fabricStabilityFilter === "stable" && !fv.stable)
 						return false;
@@ -280,6 +306,7 @@
 
 				const matchesFilter =
 					filter === "fabric" ||
+					filter === "quilt" ||
 					(v as MinecraftVersion).type === filter ||
 					(filter === "alpha" &&
 						((v as MinecraftVersion).type === "old_alpha" ||
@@ -327,6 +354,8 @@
 	) {
 		if (filter === "fabric") {
 			await downloadFabric(versionId);
+		} else if (filter === "quilt") {
+			await downloadQuilt(versionId);
 		} else if (filter === "forge" && gameVersion && forgeVersion) {
 			await downloadForge(gameVersion, forgeVersion);
 		} else {
@@ -334,10 +363,11 @@
 		}
 
 		const raw = await getInstalledVersions();
-		const { vanilla, fabric, forge } = getInstalledMcVersions(raw);
+		const { vanilla, fabric, forge, quilt } = getInstalledMcVersions(raw);
 		installedVanilla = vanilla;
 		installedFabric = fabric;
 		installedForge = forge;
+		installedQuilt = quilt;
 	}
 </script>
 
@@ -376,11 +406,13 @@
 					{@const isInstalled =
 						filter === "fabric"
 							? installedFabric.has(version.version)
-							: filter === "forge"
-								? installedForge.has(version.id)
-								: installedVanilla.has(version.id)}
+							: filter === "quilt"
+								? installedQuilt.has(version.version)
+								: filter === "forge"
+									? installedForge.has(version.id)
+									: installedVanilla.has(version.id)}
 					{@const isDownloading = downloadingVersions.has(
-						filter === "fabric" ? version.version : version.id,
+						filter === "fabric" || filter === "quilt" ? version.version : version.id,
 					)}
 					<div class="virtual-item-container" style="padding: 0 20px;">
 						<VersionDownloaderItem
@@ -390,7 +422,7 @@
 							{isDownloading}
 							ondownload={() =>
 								handleDownload(
-									filter === "fabric"
+									filter === "fabric" || filter === "quilt"
 										? version.version
 										: version.id,
 									version.game_version || undefined,
@@ -407,9 +439,11 @@
 		<span class="qm-version"
 			>Source: {filter === "fabric"
 				? "Fabric Meta"
-				: filter === "forge"
-					? "Maven (minecraftforge.net)"
-					: "Mojang Manifest"}</span
+				: filter === "quilt"
+					? "Quilt Meta"
+					: filter === "forge"
+						? "Maven (minecraftforge.net)"
+						: "Mojang Manifest"}</span
 		>
 	</div>
 </div>

@@ -66,4 +66,13 @@
 		<span class="qm-tab-label">{t("versionDownloader.tabs.forge")}</span
 		>
 	</button>
+	<button
+		type="button"
+		class="qm-tab-btn"
+		class:active={filter === "quilt"}
+		onclick={() => (filter = "quilt")}
+	>
+		<span class="qm-tab-label">{t("versionDownloader.tabs.quilt")}</span
+		>
+	</button>
 </div>

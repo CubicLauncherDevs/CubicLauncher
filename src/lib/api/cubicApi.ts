@@ -161,6 +161,10 @@ export function parseInstalledVersion(raw: string): McVersion {
 			type: "",
 		};
 	}
+	if (raw.includes("quilt-loader-")) {
+		const clean = raw.replace(/^quilt-loader-[\d.]+-/, "");
+		return { loader: "quilt", version: clean, type: "" };
+	}
 	return { loader: "vanilla", version: raw, type: "" };
 }
 
@@ -168,17 +172,20 @@ export function getInstalledMcVersions(raw: string[]): {
 	vanilla: Set<string>;
 	fabric: Set<string>;
 	forge: Set<string>;
+	quilt: Set<string>;
 } {
 	const vanilla = new Set<string>();
 	const fabric = new Set<string>();
 	const forge = new Set<string>();
+	const quilt = new Set<string>();
 	for (const v of raw) {
 		const parsed = parseInstalledVersion(v);
 		if (parsed.loader === "vanilla") vanilla.add(parsed.version);
 		else if (parsed.loader === "fabric") fabric.add(parsed.version);
 		else if (parsed.loader === "forge") forge.add(parsed.version);
+		else if (parsed.loader === "quilt") quilt.add(parsed.version);
 	}
-	return { vanilla, fabric, forge };
+	return { vanilla, fabric, forge, quilt };
 }
 
 export async function getInstanceMods(id: string): Promise<ModDto[]> {
@@ -333,6 +340,38 @@ export async function downloadForge(
 ): Promise<void> {
 	try {
 		await invoke("download_forge", { gameVersion, forgeVersion });
+	} catch (err) {
+		showErrorParsed(err);
+	}
+}
+
+export async function getQuiltVersions(): Promise<FabricGameVersion[]> {
+	try {
+		return await invoke<FabricGameVersion[]>("get_quilt_versions");
+	} catch (err) {
+		showErrorParsed(err);
+		return [];
+	}
+}
+
+export async function refreshQuiltVersions(): Promise<FabricGameVersion[]> {
+	try {
+		return await invoke<FabricGameVersion[]>("refresh_quilt_versions");
+	} catch (err) {
+		showErrorParsed(err);
+		return [];
+	}
+}
+
+export async function downloadQuilt(
+	gameVersion: string,
+	loaderVersion?: string,
+): Promise<void> {
+	try {
+		await invoke("download_quilt", {
+			gameVersion,
+			loaderVersion: loaderVersion ?? null,
+		});
 	} catch (err) {
 		showErrorParsed(err);
 	}

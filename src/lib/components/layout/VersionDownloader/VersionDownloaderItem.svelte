@@ -46,6 +46,8 @@
 		>
 			{#if filter === "fabric"}
 				Fabric Meta • {version.stable ? "STABLE" : "UNSTABLE"}
+			{:else if filter === "quilt"}
+				Quilt Meta • {version.stable ? "STABLE" : "UNSTABLE"}
 			{:else if filter === "forge"}
 				Forge • MC {version.game_version}
 			{:else}

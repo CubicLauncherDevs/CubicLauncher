@@ -16,7 +16,7 @@ impl Loader {
     ///   "fabric-loader-0.15.11-1.20.1"
     ///   "1.20.1-forge-47.2.0"
     ///   "1.21-neoforge-21.0.0"
-    ///   "1.20.1-quilt-0.25.0"
+    ///   "quilt-loader-0.25.0-1.20.1"
     pub fn from_version_id(id: &str) -> Self {
         let lower = id.to_lowercase();
         if lower.contains("neoforge") {
@@ -74,14 +74,19 @@ impl std::fmt::Display for Loader {
 ///   "fabric-loader-0.15.11-1.20.1"   → "0.15.11"
 ///   "1.20.1-forge-47.2.0"            → "47.2.0"
 ///   "1.21-neoforge-21.0.0"           → "21.0.0"
-///   "1.20.1-quilt-0.25.0"            → "0.25.0"
+///   "quilt-loader-0.25.0-1.20.1"     → "0.25.0"
 fn extract_loader_version(full_id: &str) -> String {
     if let Some(rest) = full_id.strip_prefix("fabric-loader-") {
         if let Some(last_dash) = rest.rfind('-') {
             return rest[..last_dash].to_string();
         }
     }
-    for loader_name in &["-forge-", "-neoforge-", "-quilt-"] {
+    if let Some(rest) = full_id.strip_prefix("quilt-loader-") {
+        if let Some(last_dash) = rest.rfind('-') {
+            return rest[..last_dash].to_string();
+        }
+    }
+    for loader_name in &["-forge-", "-neoforge-"] {
         if let Some(idx) = full_id.find(loader_name) {
             return full_id[idx + loader_name.len()..].to_string();
         }
