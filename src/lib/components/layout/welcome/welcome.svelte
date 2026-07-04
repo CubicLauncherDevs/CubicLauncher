@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from "svelte";
 	import { t } from "$lib/i18n";
-	import { launcherStore } from "$lib/state/state.svelte";
-	import { saveSettings } from "$lib/api/launcherService";
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
+	import TutorialTipContent from "./TutorialTipContent.svelte";
+	import TutorialTipFooter from "./TutorialTipFooter.svelte";
 
 	interface Step {
 		sel: string;
@@ -188,11 +188,6 @@
 			});
 	});
 
-	async function setLanguage(lang: string) {
-		launcherStore.settings.language = lang;
-		await saveSettings();
-	}
-
 	function onResize() {
 		if (active && !positioning) updatePosition();
 	}
@@ -235,66 +230,19 @@
 			<CloseIcon size={20} />
 		</button>
 
-		<div class="tut-body">
-			<h3 class="tut-title">
-				{t(`tutorial.${steps[currentStep].key}.title`)}
-			</h3>
-			<p class="tut-desc">
-				{t(`tutorial.${steps[currentStep].key}.desc`)}
-			</p>
-			{#if currentStep === 0}
-				<div class="tut-lang">
-					<button
-						type="button"
-						class="tut-lang-btn"
-						class:active={launcherStore.settings.language === "en"}
-						onclick={() => setLanguage("en")}>English</button
-					>
-					<button
-						type="button"
-						class="tut-lang-btn"
-						class:active={launcherStore.settings.language === "es"}
-						onclick={() => setLanguage("es")}>Español</button
-					>
-				</div>
-			{/if}
-		</div>
+		<TutorialTipContent
+			stepKey={steps[currentStep].key}
+			isFirstStep={currentStep === 0}
+		/>
 
-		<div class="tut-footer">
-			<div class="tut-dots">
-				{#each steps as _, i (i)}
-					<button
-						type="button"
-						class="tut-dot"
-						class:active={i === currentStep}
-						onclick={() => goToStep(i)}
-						aria-label="Step {i + 1}"
-					></button>
-				{/each}
-			</div>
-			<div class="tut-nav">
-				{#if currentStep > 0}
-					<button
-						type="button"
-						class="btn-secondary tut-btn"
-						onclick={prev}>{t("tutorial.prev")}</button
-					>
-				{/if}
-				{#if currentStep < steps.length - 1}
-					<button
-						type="button"
-						class="btn-primary tut-btn"
-						onclick={next}>{t("tutorial.next")}</button
-					>
-				{:else}
-					<button
-						type="button"
-						class="btn-primary tut-btn"
-						onclick={close}>{t("tutorial.finish")}</button
-					>
-				{/if}
-			</div>
-		</div>
+		<TutorialTipFooter
+			{currentStep}
+			totalSteps={steps.length}
+			onprev={prev}
+			onnext={next}
+			ongoToStep={goToStep}
+			onfinish={close}
+		/>
 	</div>
 {/if}
 

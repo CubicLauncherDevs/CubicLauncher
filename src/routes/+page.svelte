@@ -9,12 +9,12 @@
 		initEventListeners,
 	} from "$lib/api/launcherService";
 	import type { InstanceDto } from "$lib/types/types";
-	import Sidebar from "$lib/components/layout/Sidebar.svelte";
+	import Sidebar from "$lib/components/layout/Sidebar/Sidebar.svelte";
 	import InstanceView from "$lib/components/instances/InstanceView/InstanceView.svelte";
 	import Drawer from "$lib/components/layout/Drawer.svelte";
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
 	import JreInstallPrompt from "$lib/components/ui/JreInstallPrompt.svelte";
-	import Tutorial from "$lib/components/layout/welcome.svelte";
+	import Tutorial from "$lib/components/layout/welcome/welcome.svelte";
 	import { initDiscordPresence } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
 	import { applyTheme, importThemeZip, import_theme_cbth } from "$lib/api/themeManager";
@@ -80,7 +80,7 @@
 		// Lazy load non-critical components after first paint
 		Promise.all([
 			import("$lib/components/settings/Settings.svelte"),
-			import("$lib/components/layout/VersionDownloader.svelte"),
+			import("$lib/components/layout/VersionDownloader/VersionDownloader.svelte"),
 		]).then(([s, v]) => {
 			SettingsComponent = s.default;
 			VersionDownloaderComponent = v.default;

@@ -3,14 +3,15 @@
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { SvelteMap } from "svelte/reactivity";
 	import type { InstanceDto } from "$lib/types/types";
-	import UserMenu from "./UserMenu.svelte";
-	import ModalBase from "./ModalBase.svelte";
+	import UserMenu from "../UserMenu/UserMenu.svelte";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
-	import DownloadQueue from "./DownloadQueue.svelte";
+	import DownloadQueue from "../DownloadQueue/DownloadQueue.svelte";
 	import { t } from "$lib/i18n";
-	import Trash from "$lib/icons/Trash.svelte";
-	import ContextMenu from "./ContextMenu.svelte";
+	import ContextMenu from "../ContextMenu.svelte";
 	import { getVersions } from "$lib/api/launcherService";
+	import InstanceItem from "./InstanceItem.svelte";
+	import UserProfile from "./UserProfile.svelte";
+	import DeleteInstanceModal from "./DeleteInstanceModal.svelte";
 
 	interface Props {
 		selectedInstance: InstanceDto | null;
@@ -71,8 +72,6 @@
 			.catch(() => {});
 	});
 
-	// ── Instance CRUD ─────────────────────────────────────────────────────
-
 	function openDeleteModal(instance: InstanceDto) {
 		instanceToActOn = instance;
 		showDeleteModal = true;
@@ -107,83 +106,30 @@
 		>
 			<div class="section-label">{t("sidebar.yourInstances")}</div>
 			<div class="instance-list" data-tutorial="instance-list">
-			{#each launcherStore.loadedInstances as instance (instance.uuid)}
-				<div
-					class="instance-item"
-					class:active={selectedInstance?.uuid === instance.uuid}
-					onclick={() =>
-						(selectedInstance =
-							selectedInstance?.uuid === instance.uuid
-								? null
-								: instance)}
-					onkeydown={(e) => {
-						if (e.key === "Enter" || e.key === " ")
-							selectedInstance =
+				{#each launcherStore.loadedInstances as instance (instance.uuid)}
+					<InstanceItem
+						{instance}
+						selected={selectedInstance?.uuid === instance.uuid}
+						onselect={() =>
+							(selectedInstance =
 								selectedInstance?.uuid === instance.uuid
 									? null
-									: instance;
-					}}
-					role="button"
-					tabindex="0"
-					title={instance.name}
-				>
-					<div class="instance-info-container">
-						<div class="instance-icon">
-							{#if instance.icon}
-								<img
-									src={instance.icon}
-									alt={instance.name}
-									width="16"
-									height="16"
-								/>
-							{:else}
-								{instance.name.charAt(0).toUpperCase()}
-							{/if}
-						</div>
-						<span class="instance-name">{instance.name}</span>
-					</div>
-					<div class="instance-actions">
-						<button
-							type="button"
-							class="action-btn"
-							onclick={(e) => {
-								e.stopPropagation();
-								onopeneditinstance?.(instance);
-							}}
-							title={t("sidebar.rename")}
-						>
-							<img
-								src="/images/icons/edit.svg"
-								alt={t("sidebar.rename")}
-								width="12"
-								height="12"
-								style="filter: var(--icon-filter);"
-							/>
-						</button>
-						<button
-							type="button"
-							class="action-btn delete"
-							onclick={(e) => {
-								e.stopPropagation();
-								openDeleteModal(instance);
-							}}
-							title={t("sidebar.delete")}
-						>
-							<Trash width="12" height="12" />
-						</button>
-					</div>
-				</div>
-			{/each}
-			{#if launcherStore.loadedInstances.length === 0}
-				<div
-					class="instance-item"
-					style="opacity: 0.4; cursor: default;"
-				>
-					<span class="instance-name">{t("sidebar.noInstances")}</span
+									: instance)}
+						onedit={() => onopeneditinstance?.(instance)}
+						ondelete={() => openDeleteModal(instance)}
+					/>
+				{/each}
+				{#if launcherStore.loadedInstances.length === 0}
+					<div
+						class="instance-item"
+						style="opacity: 0.4; cursor: default;"
 					>
-				</div>
-			{/if}
-		</div>
+						<span class="instance-name"
+							>{t("sidebar.noInstances")}</span
+						>
+					</div>
+				{/if}
+			</div>
 		</div>
 	</div>
 
@@ -243,58 +189,21 @@
 			</CollapsibleSection>
 		</div>
 
-		<div
-			class="user-profile"
-			data-tutorial="user-profile"
+		<UserProfile
+			{username}
+			{avatarSvg}
+			{isPremium}
+			{userTypeLabel}
 			onclick={() => (showUserMenu = true)}
-			role="button"
-			tabindex="0"
-			onkeydown={(e) =>
-				(e.key === "Enter" || e.key === " ") && (showUserMenu = true)}
-			style="cursor: pointer;"
-		>
-			<div class="user-avatar-wrapper">
-				{#if avatarSvg}
-					{@html avatarSvg}
-				{/if}
-			</div>
-			<div class="user-info">
-				<div class="user-name-wrapper">
-					<span class="user-name">{username}</span>
-				</div>
-				<span class="user-status" class:premium={isPremium}>
-					{userTypeLabel}
-				</span>
-			</div>
-		</div>
+		/>
 	</div>
 </aside>
 
-<!-- Hacer capaz sea buena idea mover esto -->
-<ModalBase bind:open={showDeleteModal} title={t("sidebar.modals.deleteTitle")}>
-	<p
-		style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4;"
-	>
-		{t("sidebar.modals.deleteDesc1")}
-		<strong style="color: var(--text-primary);"
-			>"{instanceToActOn?.name}"</strong
-		>{t("sidebar.modals.deleteDesc2")}
-	</p>
-	{#snippet footer()}
-		<button
-			type="button"
-			class="btn-secondary"
-			onclick={() => (showDeleteModal = false)}
-			>{t("sidebar.modals.cancel")}</button
-		>
-		<button
-			type="button"
-			class="btn-primary"
-			style="background: var(--color-error); color: white;"
-			onclick={handleDelete}>{t("sidebar.modals.deleteBtn")}</button
-		>
-	{/snippet}
-</ModalBase>
+<DeleteInstanceModal
+	bind:open={showDeleteModal}
+	instanceName={instanceToActOn?.name ?? ""}
+	onconfirm={handleDelete}
+/>
 
 <UserMenu bind:open={showUserMenu} />
 
@@ -359,45 +268,11 @@
 		gap: 10px;
 		padding: 8px 10px;
 		border-radius: var(--border-radius-sm);
-		cursor: pointer;
-		transition:
-			background 0.15s ease,
-			border-color 0.15s ease;
 		border: 1px solid transparent;
 		background: transparent;
 		color: var(--text-primary);
 		width: 100%;
 		text-align: left;
-	}
-
-	.instance-item:hover {
-		background: rgba(255, 255, 255, 0.03);
-	}
-
-	.instance-item.active {
-		background: var(--bg-item-active);
-		border-color: var(--border);
-	}
-
-	.instance-icon {
-		width: 22px;
-		height: 22px;
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 0.7rem;
-		flex-shrink: 0;
-	}
-
-	.instance-info-container {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		flex: 1;
-		min-width: 0;
 	}
 
 	.instance-name {
@@ -407,19 +282,6 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-
-	.instance-actions {
-		display: flex;
-		gap: 4px;
-		opacity: 0;
-		transition: opacity 0.2s ease;
-	}
-
-	.instance-item:hover .instance-actions {
-		opacity: 1;
-	}
-
-	/* ── Section group (like Settings.svelte) ────────────────────────── */
 
 	.sidebar-sections {
 		margin-top: 6px;
@@ -442,14 +304,6 @@
 		border: none;
 		border-bottom: 1px solid var(--border);
 	}
-
-	.sidebar-sections .user-profile {
-		border: none;
-		margin: 0;
-		width: auto;
-	}
-
-	/* ── Tools group ─────────────────────────────────────────────────── */
 
 	:global(.tools-group) {
 		display: flex;
@@ -486,70 +340,6 @@
 		flex-shrink: 0;
 	}
 
-	/* ── User profile ────────────────────────────────────────────────── */
-
-	.user-avatar-wrapper {
-		width: 28px;
-		height: 28px;
-		border-radius: var(--border-radius-sm);
-		border: 1px solid var(--border);
-		flex-shrink: 0;
-		background: url("/images/cubic.svg") center/60% no-repeat;
-		overflow: hidden;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.user-avatar-wrapper :global(svg) {
-		width: 100%;
-		height: 100%;
-		display: block;
-		border-radius: inherit;
-	}
-
-	.user-profile {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		padding: 10px;
-		margin-top: auto;
-		background: var(--bg-item-active);
-	}
-
-	.user-info {
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-		gap: 2px;
-	}
-
-	.user-name {
-		font-size: 0.82rem;
-		font-weight: 600;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.user-name-wrapper {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-	}
-
-	.user-status {
-		font-size: 0.68rem;
-		color: var(--text-secondary);
-		letter-spacing: 0.3px;
-		transition: color 0.2s ease;
-	}
-
-	.user-status.premium {
-		color: var(--accent);
-		font-weight: 600;
-	}
-
 	@media (max-width: 650px) {
 		.sidebar {
 			width: 70px;
@@ -557,19 +347,8 @@
 		}
 
 		.sidebar-header h1,
-		.instance-name,
-		.tools-btn,
-		.user-info {
+		.tools-btn {
 			display: none;
-		}
-
-		.instance-item {
-			justify-content: center;
-			padding: 12px 0;
-		}
-
-		.user-profile {
-			justify-content: center;
 		}
 
 		.sidebar-sections {

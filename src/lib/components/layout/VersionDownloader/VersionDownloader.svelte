@@ -21,14 +21,14 @@
 	} from "$lib/types/types";
 	import { listen } from "@tauri-apps/api/event";
 
-	import VirtualList from "./VirtualList.svelte";
-	import Select from "./Select.svelte";
+	import VirtualList from "../VirtualList.svelte";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
 	import { SvelteSet } from "svelte/reactivity";
-	import CheckIcon from "$lib/icons/CheckIcon.svelte";
-
-	const dateFmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+	import VersionDownloaderHeader from "./VersionDownloaderHeader.svelte";
+	import VersionDownloaderTabs from "./VersionDownloaderTabs.svelte";
+	import VersionDownloaderFilters from "./VersionDownloaderFilters.svelte";
+	import VersionDownloaderItem from "./VersionDownloaderItem.svelte";
 
 	interface Props {
 		onclose?: () => void;
@@ -229,9 +229,7 @@
 					return b.forge_version.localeCompare(
 						a.forge_version,
 						undefined,
-						{
-							numeric: true,
-						},
+						{ numeric: true },
 					);
 				});
 		}
@@ -344,163 +342,25 @@
 </script>
 
 <div class="qm-root">
-	<div class="qm-header">
-		<span class="qm-label">{t("versionDownloader.title")}</span>
-		<div style="display: flex; align-items: center; gap: 8px;">
-			<button
-				type="button"
-				onclick={refreshCurrentSource}
-				disabled={refreshing}
-				title={t("versionDownloader.refreshBtn")}
-				style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; border-radius: 4px; transition: color 0.2s;"
-				onmouseenter={(e) =>
-					(e.currentTarget.style.color = "var(--text-primary)")}
-				onmouseleave={(e) =>
-					(e.currentTarget.style.color = "var(--text-muted)")}
-			>
-				<svg
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					class:spin={refreshing}
-					style={refreshing
-						? "animation: spin 1s linear infinite; will-change: transform;"
-						: ""}
-				>
-					<polyline points="23 4 23 10 17 10"></polyline>
-					<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-				</svg>
-			</button>
-			<button type="button" class="qm-close-btn" onclick={onclose}
-				>✕</button
-			>
-		</div>
-	</div>
+	<VersionDownloaderHeader {onclose} onrefresh={refreshCurrentSource} {refreshing} />
 
-	<div class="qm-tabs">
-		<button
-			type="button"
-			class="qm-tab-btn"
-			class:active={filter === "release"}
-			onclick={() => (filter = "release")}
-		>
-			<span class="qm-tab-label"
-				>{t("versionDownloader.tabs.releases")}</span
-			>
-		</button>
-		{#if launcherStore.settings.show_snapshots}
-			<button
-				type="button"
-				class="qm-tab-btn"
-				class:active={filter === "snapshot"}
-				onclick={() => (filter = "snapshot")}
-			>
-				<span class="qm-tab-label"
-					>{t("versionDownloader.tabs.snapshots")}</span
-				>
-			</button>
-		{/if}
-		{#if launcherStore.settings.show_alpha}
-			<button
-				type="button"
-				class="qm-tab-btn"
-				class:active={filter === "alpha"}
-				onclick={() => (filter = "alpha")}
-			>
-				<span class="qm-tab-label"
-					>{t("versionDownloader.tabs.alphas")}</span
-				>
-			</button>
-		{/if}
-		<button
-			type="button"
-			class="qm-tab-btn"
-			class:active={filter === "fabric"}
-			onclick={() => (filter = "fabric")}
-		>
-			<span class="qm-tab-label"
-				>{t("versionDownloader.tabs.fabric")}</span
-			>
-		</button>
-		<button
-			type="button"
-			class="qm-tab-btn"
-			class:active={filter === "forge"}
-			onclick={() => (filter = "forge")}
-		>
-			<span class="qm-tab-label">{t("versionDownloader.tabs.forge")}</span
-			>
-		</button>
-	</div>
+	<VersionDownloaderTabs
+		bind:filter
+		showSnapshots={launcherStore.settings.show_snapshots}
+		showAlpha={launcherStore.settings.show_alpha}
+	/>
 
-	<div
-		class="qm-search-container"
-		style="padding: 10px 20px; display: flex; flex-direction: column; gap: 10px;"
-	>
-		<input
-			type="text"
-			placeholder={t("versionDownloader.searchPlaceholder")}
-			bind:value={search}
-			style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem;"
-		/>
-		<div
-			class="qm-filters-grid"
-			style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 4px; padding-bottom: 8px;"
-		>
-			<Select
-				label={t("versionDownloader.filters.installStatus")}
-				options={[
-					{ value: "all", label: t("versionDownloader.filters.all") },
-					{
-						value: "installed",
-						label: t("versionDownloader.filters.installedOnly"),
-					},
-					{
-						value: "not_installed",
-						label: t("versionDownloader.filters.notInstalledOnly"),
-					},
-				]}
-				bind:value={installStatusFilter}
-			/>
-
-			<Select
-				label={t("versionDownloader.filters.majorVersion")}
-				options={majorVersionOptions}
-				bind:value={majorVersionFilter}
-			/>
-
-			{#if filter === "fabric"}
-				<Select
-					label={t("versionDownloader.filters.fabricStability")}
-					options={[
-						{
-							value: "all",
-							label: t("versionDownloader.filters.all"),
-						},
-						{
-							value: "stable",
-							label: t("versionDownloader.filters.stableOnly"),
-						},
-						{
-							value: "unstable",
-							label: t("versionDownloader.filters.unstableOnly"),
-						},
-					]}
-					bind:value={fabricStabilityFilter}
-				/>
-			{/if}
-		</div>
-	</div>
+	<VersionDownloaderFilters
+		bind:search
+		bind:installStatusFilter
+		bind:majorVersionFilter
+		bind:fabricStabilityFilter
+		{majorVersionOptions}
+		{filter}
+	/>
 
 	{#if filter === "forge"}
-		<div
-			style="padding: 0 20px 8px; font-size: 0.75rem; color: var(--text-muted);"
-		>
+		<div style="padding: 0 20px 8px; font-size: 0.75rem; color: var(--text-muted);">
 			{t("versionDownloader.forgeJavaHint")}
 		</div>
 	{/if}
@@ -519,81 +379,24 @@
 							: filter === "forge"
 								? installedForge.has(version.id)
 								: installedVanilla.has(version.id)}
-					<div
-						class="virtual-item-container"
-						style="padding: 0 20px;"
-					>
-						<div
-							class="version-item"
-							style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; height: 58px;"
-						>
-							<div class="version-info">
-								<div
-									style="display: flex; align-items: center; gap: 8px;"
-								>
-									<div
-										style="font-weight: 600; font-size: 0.9rem;"
-									>
-										{filter === "fabric"
-											? version.version
-											: version.id}
-									</div>
-									{#if isInstalled}
-										<span class="inst-badge"
-											>{t(
-												"versionDownloader.installedTag",
-											)}</span
-										>
-									{/if}
-								</div>
-								<div
-									style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;"
-								>
-									{#if filter === "fabric"}
-										Fabric Meta • {version.stable
-											? "STABLE"
-											: "UNSTABLE"}
-									{:else if filter === "forge"}
-										Forge • MC {version.game_version}
-									{:else}
-										{version.type} • {dateFmt.format(
-											new Date(version.releaseTime),
-										)}
-									{/if}
-								</div>
-							</div>
-
-							{#if isInstalled}
-								<div class="inst-icon">
-									<CheckIcon size={10} />
-								</div>
-							{:else if downloadingVersions.has(filter === "fabric" ? version.version : version.id)}
-								<button
-									type="button"
-									class="download-btn"
-									class:downloading={true}
-									disabled
-								>
-									<span class="dl-spinner"></span>
-									{t("versionDownloader.downloading")}
-								</button>
-							{:else}
-								<button
-									type="button"
-									class="download-btn"
-									onclick={() =>
-										handleDownload(
-											filter === "fabric"
-												? version.version
-												: version.id,
-											version.game_version || undefined,
-											version.forge_version || undefined,
-										)}
-								>
-									{t("versionDownloader.downloadBtn")}
-								</button>
-							{/if}
-						</div>
+					{@const isDownloading = downloadingVersions.has(
+						filter === "fabric" ? version.version : version.id,
+					)}
+					<div class="virtual-item-container" style="padding: 0 20px;">
+						<VersionDownloaderItem
+							{version}
+							{filter}
+							{isInstalled}
+							{isDownloading}
+							ondownload={() =>
+								handleDownload(
+									filter === "fabric"
+										? version.version
+										: version.id,
+									version.game_version || undefined,
+									version.forge_version || undefined,
+								)}
+						/>
 					</div>
 				{/snippet}
 			</VirtualList>
@@ -610,77 +413,3 @@
 		>
 	</div>
 </div>
-
-<style>
-	@keyframes spin {
-		from {
-			transform: rotate(0deg);
-		}
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	.download-btn {
-		background: var(--accent);
-		color: var(--accent-text);
-		border: none;
-		padding: 4px 10px;
-		border-radius: var(--border-radius-sm);
-		font-size: 0.7rem;
-		font-weight: 700;
-		cursor: pointer;
-		transition: all 0.2s;
-		display: flex;
-		align-items: center;
-		gap: 5px;
-	}
-
-	.download-btn:hover {
-		opacity: 0.9;
-	}
-
-	.download-btn.downloading {
-		opacity: 0.6;
-		cursor: not-allowed;
-		background: var(--bg-input);
-		color: var(--text-muted);
-		border: 1px solid var(--border-color);
-	}
-
-	.dl-spinner {
-		width: 12px;
-		height: 12px;
-		border: 1.5px solid var(--border);
-		border-top-color: var(--text-muted);
-		border-radius: 50%;
-		animation: dl-spin 0.7s linear infinite;
-		will-change: transform;
-		flex-shrink: 0;
-	}
-
-	@keyframes dl-spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	.inst-badge {
-		font-size: 0.5rem;
-		background: rgba(var(--color-success-rgb), 0.1);
-		color: var(--color-success);
-		padding: 1px 5px;
-		border-radius: 3px;
-		font-weight: 700;
-		text-transform: uppercase;
-		border: 1px solid rgba(var(--color-success-rgb), 0.2);
-		letter-spacing: 0.3px;
-	}
-
-	.inst-icon {
-		color: var(--color-success);
-		padding: 4px 8px;
-		display: flex;
-		align-items: center;
-	}
-</style>
