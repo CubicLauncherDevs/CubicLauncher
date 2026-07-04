@@ -53,8 +53,8 @@
 	$effect(() => {
 		if (!username) return;
 		const url = isYggdrasil
-			? `https://bohrium-js.cubiclauncher.org/api/elyby/head/${username}`
-			: `https://bohrium-js.cubiclauncher.org/api/mojang/head/${username}`;
+			? `https://skins.cubiclauncher.org/api/elyby/head/${username}`
+			: `https://skins.cubiclauncher.org/api/mojang/head/${username}`;
 
 		const cached = avatarCache.get(url);
 		if (cached !== undefined) {

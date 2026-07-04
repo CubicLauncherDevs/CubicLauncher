@@ -121,7 +121,7 @@
 		userType: string,
 	): Promise<void> {
 		const endpoint = userType === "Yggdrasil" ? "elyby" : "mojang";
-		const url = `https://bohrium-js.cubiclauncher.org/api/${endpoint}/head/${username}`;
+		const url = `https://skins.cubiclauncher.org/api/${endpoint}/head/${username}`;
 
 		const cached = avatarCache.get(url);
 		if (cached !== undefined) {
