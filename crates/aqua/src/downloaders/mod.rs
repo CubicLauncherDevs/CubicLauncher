@@ -12,12 +12,12 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 pub use batch::{DownloadBatch, DownloadItemSpec, GenericBatch};
 pub use fabric::FabricBatch;
 pub use forge::{ForgeBatch, ForgeVersionInfo};
-pub use quilt::QuiltBatch;
 use futures::TryStreamExt;
 use futures::stream::{self, StreamExt};
 pub use jre::JreBatch;
 use log::warn;
 pub use minecraft::MinecraftBatch;
+pub use quilt::QuiltBatch;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::{Mutex, Semaphore};
 use tokio::task::JoinHandle;
@@ -251,13 +251,19 @@ async fn run_download(
                         .is_err()
                             && !item.required
                         {
-                            warn!("Non-required library {} failed all URLs, skipping", item.label);
+                            warn!(
+                                "Non-required library {} failed all URLs, skipping",
+                                item.label
+                            );
                         } else if !item.required {
                             // universal succeeded
                         }
                     }
                 } else if !item.required {
-                    warn!("Non-required library {} download failed (no fallback), skipping", item.label);
+                    warn!(
+                        "Non-required library {} download failed (no fallback), skipping",
+                        item.label
+                    );
                 } else {
                     warn!("Main URL failed but there's no fallback. Aborting");
                     return Err(e);

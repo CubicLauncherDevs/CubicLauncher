@@ -581,10 +581,7 @@ pub async fn download_quilt(
         .join(format!("{}.json", quilt_version_id));
 
     if tokio::fs::try_exists(&json_path).await.unwrap_or(false) {
-        info!(
-            "Quilt {} ya instalado, encolando assets",
-            quilt_version_id
-        );
+        info!("Quilt {} ya instalado, encolando assets", quilt_version_id);
         DownloadQueue::get().enqueue(quilt_version_id).await;
         return Ok(());
     }

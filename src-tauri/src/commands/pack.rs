@@ -221,9 +221,6 @@ async fn download_quilt_loader(game_version: &str, loader_version: &str) -> Resu
         .await
         .map_err(|e| format!("Failed to download Quilt: {}", e))?;
 
-    info!(
-        "Quilt loader downloaded successfully: {}",
-        quilt_version_id
-    );
+    info!("Quilt loader downloaded successfully: {}", quilt_version_id);
     Ok(())
 }

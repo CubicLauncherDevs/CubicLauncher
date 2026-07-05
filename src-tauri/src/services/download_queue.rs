@@ -190,8 +190,7 @@ impl DownloadQueue {
             let (tx, progress_rx) = mpsc::channel::<DownloadProgress>(100);
             let monitor = monitor_download_progress(version.clone(), progress_rx, queue.clone());
 
-            let (dl_result, ()) =
-                tokio::join!(async { batch.finalize(Some(tx)).await }, monitor);
+            let (dl_result, ()) = tokio::join!(async { batch.finalize(Some(tx)).await }, monitor);
 
             match dl_result {
                 Ok(_) => {
@@ -261,10 +260,7 @@ impl DownloadQueue {
                     return;
                 };
 
-                info!(
-                    "Loader {} requiere base MC {}, descargando...",
-                    version, gv
-                );
+                info!("Loader {} requiere base MC {}, descargando...", version, gv);
                 if let Ok(base_handle) = manager.prepare(&gv).await {
                     let (tx, progress_rx) = mpsc::channel::<DownloadProgress>(100);
                     let monitor =
@@ -307,8 +303,7 @@ impl DownloadQueue {
         info!("Base MC {gv}: verificando archivos antes de Forge...");
         if let Ok(base_handle) = manager.prepare(&gv).await {
             let (tx, progress_rx) = mpsc::channel::<DownloadProgress>(100);
-            let monitor =
-                monitor_download_progress(version.clone(), progress_rx, queue.clone());
+            let monitor = monitor_download_progress(version.clone(), progress_rx, queue.clone());
             let _ = tokio::join!(base_handle.download_all(Some(tx)), monitor);
         }
 
@@ -334,19 +329,18 @@ impl DownloadQueue {
             .map(JavaManager::get_java_binary);
 
         let installer_url = aqua::ForgeBatch::resolve_installer_url(&gv, &fv);
-        let batch = match aqua::ForgeBatch::new(&shared_dir, &gv, &fv, &installer_url, java_path)
-            .await
-        {
-            Ok(b) => b,
-            Err(e) => {
-                emit_and_set_error(
-                    queue,
-                    &version,
-                    format!("No se pudo crear Forge batch: {:?}", e),
-                );
-                return;
-            }
-        };
+        let batch =
+            match aqua::ForgeBatch::new(&shared_dir, &gv, &fv, &installer_url, java_path).await {
+                Ok(b) => b,
+                Err(e) => {
+                    emit_and_set_error(
+                        queue,
+                        &version,
+                        format!("No se pudo crear Forge batch: {:?}", e),
+                    );
+                    return;
+                }
+            };
 
         let handle = match manager.prepare_batch(Box::new(batch)).await {
             Ok(h) => h,

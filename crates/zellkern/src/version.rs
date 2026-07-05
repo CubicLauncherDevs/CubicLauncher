@@ -230,37 +230,37 @@ mod tests {
         assert_eq!(deps, vec!["1.20.1", "1.20.1-forge-47.2.0"]);
     }
 
-	#[test]
-	fn dependencies_fabric() {
-		let deps = resolve_dependencies("fabric-loader-0.15.11-1.20.1");
-		assert_eq!(deps, vec!["1.20.1", "fabric-loader-0.15.11-1.20.1"]);
-	}
+    #[test]
+    fn dependencies_fabric() {
+        let deps = resolve_dependencies("fabric-loader-0.15.11-1.20.1");
+        assert_eq!(deps, vec!["1.20.1", "fabric-loader-0.15.11-1.20.1"]);
+    }
 
-	#[test]
-	fn extract_fabric_snapshot_version() {
-		let gv = GameVersion::from_version_id("fabric-loader-0.19.1-26.3-snapshot-2");
-		assert_eq!(gv.mc_version, "26.3-snapshot-2");
-		assert_eq!(gv.loader, Loader::Fabric("0.19.1".into()));
-	}
+    #[test]
+    fn extract_fabric_snapshot_version() {
+        let gv = GameVersion::from_version_id("fabric-loader-0.19.1-26.3-snapshot-2");
+        assert_eq!(gv.mc_version, "26.3-snapshot-2");
+        assert_eq!(gv.loader, Loader::Fabric("0.19.1".into()));
+    }
 
-	#[test]
-	fn extract_quilt_snapshot_version() {
-		let gv = GameVersion::from_version_id("quilt-loader-0.25.0-26.3-snapshot-2");
-		assert_eq!(gv.mc_version, "26.3-snapshot-2");
-		assert_eq!(gv.loader, Loader::Quilt("0.25.0".into()));
-	}
+    #[test]
+    fn extract_quilt_snapshot_version() {
+        let gv = GameVersion::from_version_id("quilt-loader-0.25.0-26.3-snapshot-2");
+        assert_eq!(gv.mc_version, "26.3-snapshot-2");
+        assert_eq!(gv.loader, Loader::Quilt("0.25.0".into()));
+    }
 
-	#[test]
-	fn dependencies_fabric_snapshot() {
-		let deps = resolve_dependencies("fabric-loader-0.19.1-26.3-snapshot-2");
-		assert_eq!(
-			deps,
-			vec!["26.3-snapshot-2", "fabric-loader-0.19.1-26.3-snapshot-2"]
-		);
-	}
+    #[test]
+    fn dependencies_fabric_snapshot() {
+        let deps = resolve_dependencies("fabric-loader-0.19.1-26.3-snapshot-2");
+        assert_eq!(
+            deps,
+            vec!["26.3-snapshot-2", "fabric-loader-0.19.1-26.3-snapshot-2"]
+        );
+    }
 
-	#[test]
-	fn dependencies_neoforge() {
+    #[test]
+    fn dependencies_neoforge() {
         let deps = resolve_dependencies("1.21-neoforge-21.0.0");
         assert_eq!(deps, vec!["1.21", "1.21-neoforge-21.0.0"]);
     }
