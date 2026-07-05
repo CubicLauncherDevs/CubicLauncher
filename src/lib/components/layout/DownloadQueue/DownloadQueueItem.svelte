@@ -41,7 +41,7 @@
 		{#if error}
 			<span class="sd-pct error">{t("sidebar.failed")}</span>
 		{:else}
-			<span class="sd-pct" class:done={done}>{overall}%</span>
+			<span class="sd-pct" class:done>{overall}%</span>
 		{/if}
 	</div>
 	{#if error}
@@ -50,7 +50,7 @@
 		<div class="sd-progress-track">
 			<div
 				class="sd-progress-fill"
-				class:done={done}
+				class:done
 				style:width="{overall}%"
 			></div>
 		</div>

@@ -29,9 +29,14 @@
 
 	const buffer = 5;
 
-	const startIndex = $derived(Math.max(0, Math.floor(scrollTop / itemHeight) - buffer));
+	const startIndex = $derived(
+		Math.max(0, Math.floor(scrollTop / itemHeight) - buffer),
+	);
 	const endIndex = $derived(
-		Math.min(items.length - 1, Math.floor((scrollTop + containerHeight) / itemHeight) + buffer),
+		Math.min(
+			items.length - 1,
+			Math.floor((scrollTop + containerHeight) / itemHeight) + buffer,
+		),
 	);
 
 	const visibleSlice = $derived(items.slice(startIndex, endIndex + 1));
@@ -79,7 +84,8 @@
 			{@const index = startIndex + idx}
 			<div
 				class="virtual-list-item-wrapper"
-				style="position: absolute; transform: translateY({index * itemHeight}px); left: 0; width: 100%; height: {itemHeight}px;"
+				style="position: absolute; transform: translateY({index *
+					itemHeight}px); left: 0; width: 100%; height: {itemHeight}px;"
 			>
 				{@render children(item, index)}
 			</div>

@@ -31,9 +31,7 @@
 	</p>
 	<div class="form-group">
 		<label class="form-label" for="ygg-username">
-			{serverInfo?.non_email_login
-				? "Usuario"
-				: "Correo electrónico"}
+			{serverInfo?.non_email_login ? "Usuario" : "Correo electrónico"}
 		</label>
 		<input
 			id="ygg-username"
@@ -47,9 +45,7 @@
 		/>
 	</div>
 	<div class="form-group">
-		<label class="form-label" for="ygg-password"
-			>Contraseña</label
-		>
+		<label class="form-label" for="ygg-password">Contraseña</label>
 		<input
 			id="ygg-password"
 			type="password"
@@ -187,7 +183,13 @@
 	}
 
 	@keyframes fadeIn {
-		from { opacity: 0; transform: translateY(8px); }
-		to { opacity: 1; transform: translateY(0); }
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 </style>

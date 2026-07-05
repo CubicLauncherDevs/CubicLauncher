@@ -37,7 +37,9 @@
 	let activeCategory = $state<string | null>(null);
 	let sortIndex = $state<string>("downloads");
 
-	let basket = $state(new SvelteMap<string, ModrinthProject | CurseForgeProject>());
+	let basket = $state(
+		new SvelteMap<string, ModrinthProject | CurseForgeProject>(),
+	);
 
 	let selectedMod = $state<ModrinthProject | CurseForgeProject | null>(null);
 
@@ -355,8 +357,7 @@
 						if (downloadUrl) {
 							if (
 								!queue.find(
-									(q) =>
-										q.filename === targetFile!.fileName,
+									(q) => q.filename === targetFile!.fileName,
 								)
 							) {
 								queue.push({

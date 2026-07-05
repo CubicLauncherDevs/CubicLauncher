@@ -103,31 +103,14 @@
 
 	onMount(() => {
 		window.addEventListener("click", handleClickOutside, true);
-		return () => window.removeEventListener("click", handleClickOutside, true);
+		return () =>
+			window.removeEventListener("click", handleClickOutside, true);
 	});
 
 	const selectedLabel = $derived(
 		options.find((o: Option) => o.value === value)?.label || placeholder,
 	);
 </script>
-
-<style>
-	.select-spinner {
-		width: 14px;
-		height: 14px;
-		border: 2px solid var(--border);
-		border-top-color: var(--accent);
-		border-radius: 50%;
-		animation: select-spin 0.8s linear infinite;
-		flex-shrink: 0;
-	}
-
-	@keyframes select-spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-</style>
 
 <div class="custom-select-container" bind:this={container} {id}>
 	{#if label}
@@ -187,3 +170,21 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.select-spinner {
+		width: 14px;
+		height: 14px;
+		border: 2px solid var(--border);
+		border-top-color: var(--accent);
+		border-radius: 50%;
+		animation: select-spin 0.8s linear infinite;
+		flex-shrink: 0;
+	}
+
+	@keyframes select-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+</style>

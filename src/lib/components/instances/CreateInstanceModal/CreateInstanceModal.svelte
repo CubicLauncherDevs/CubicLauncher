@@ -286,10 +286,7 @@
 						<p>{t("createInstance.parsingPack")}</p>
 					</div>
 				{:else}
-					<PackInfo
-						{packInfo}
-						onChangeFile={selectMrpackFile}
-					/>
+					<PackInfo {packInfo} onChangeFile={selectMrpackFile} />
 				{/if}
 			</div>
 		{:else}

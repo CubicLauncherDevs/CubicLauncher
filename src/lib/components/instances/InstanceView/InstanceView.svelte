@@ -5,9 +5,9 @@
 	import StatusLog from "../StatusLog.svelte";
 	import { launchInstance } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
-import { killInst } from "$lib/api/launcherService";
-import { launcherStore } from "$lib/state/state.svelte";
-import { isVersionDownloading } from "$lib/state/downloadState.svelte";
+	import { killInst } from "$lib/api/launcherService";
+	import { launcherStore } from "$lib/state/state.svelte";
+	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 	import { slide } from "svelte/transition";
 	import ScreenshotPicker from "./ScreenshotPicker.svelte";
 	import HeroSection from "./HeroSection.svelte";
@@ -49,7 +49,9 @@ import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 
 	$effect(() => {
 		if (activeTab === "mods" && !ModsRow) {
-			import("../ModsRow/ModsRow.svelte").then((m) => (ModsRow = m.default));
+			import("../ModsRow/ModsRow.svelte").then(
+				(m) => (ModsRow = m.default),
+			);
 		} else if (activeTab === "download_mods" && !DownloadMods) {
 			import("../DownloadMods/DownloadMods.svelte").then(
 				(m) => (DownloadMods = m.default),
@@ -134,7 +136,11 @@ import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 </script>
 
 <div class="instance-view">
-	<ScreenshotPicker bind:showPicker {allScreenshots} onSelect={selectScreenshot} />
+	<ScreenshotPicker
+		bind:showPicker
+		{allScreenshots}
+		onSelect={selectScreenshot}
+	/>
 
 	<HeroSection
 		instanceName={selectedInstance.name}
@@ -339,37 +345,86 @@ import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 	}
 
 	@media (max-width: 1024px) {
-		.tabs-nav { padding: 0 30px; }
-		.tab-content { padding: 28px 30px; }
+		.tabs-nav {
+			padding: 0 30px;
+		}
+		.tab-content {
+			padding: 28px 30px;
+		}
 	}
 
 	@media (max-width: 950px) {
-		.tabs-nav { padding: 0 24px; }
-		.tab-content { padding: 24px; }
+		.tabs-nav {
+			padding: 0 24px;
+		}
+		.tab-content {
+			padding: 24px;
+		}
 	}
 
 	@media (max-width: 850px) {
-		.tabs-nav { padding: 0 20px; gap: 8px; }
-		.tab-item { font-size: 0.75rem; padding: 14px 3px; margin-right: 14px; white-space: nowrap; flex-shrink: 0; }
-		.tab-content { padding: 20px; }
+		.tabs-nav {
+			padding: 0 20px;
+			gap: 8px;
+		}
+		.tab-item {
+			font-size: 0.75rem;
+			padding: 14px 3px;
+			margin-right: 14px;
+			white-space: nowrap;
+			flex-shrink: 0;
+		}
+		.tab-content {
+			padding: 20px;
+		}
 	}
 
 	@media (max-width: 700px) {
-		.tabs-nav { padding: 0 16px; gap: 4px; overflow-x: auto; }
-		:global(.tabs-nav::-webkit-scrollbar) { display: none; }
-		.tab-item { font-size: 0.7rem; padding: 12px 2px; margin-right: 10px; }
-		.tab-content { padding: 16px; }
+		.tabs-nav {
+			padding: 0 16px;
+			gap: 4px;
+			overflow-x: auto;
+		}
+		:global(.tabs-nav::-webkit-scrollbar) {
+			display: none;
+		}
+		.tab-item {
+			font-size: 0.7rem;
+			padding: 12px 2px;
+			margin-right: 10px;
+		}
+		.tab-content {
+			padding: 16px;
+		}
 	}
 
 	@media (max-width: 550px) {
-		.tabs-nav { padding: 0 12px; gap: 2px; }
-		.tab-item { font-size: 0.6rem; padding: 10px 2px; margin-right: 8px; letter-spacing: 0.5px; }
-		.tab-content { padding: 12px; }
+		.tabs-nav {
+			padding: 0 12px;
+			gap: 2px;
+		}
+		.tab-item {
+			font-size: 0.6rem;
+			padding: 10px 2px;
+			margin-right: 8px;
+			letter-spacing: 0.5px;
+		}
+		.tab-content {
+			padding: 12px;
+		}
 	}
 
 	@media (max-width: 400px) {
-		.tabs-nav { padding: 0 8px; }
-		.tab-item { font-size: 0.55rem; padding: 8px 1px; margin-right: 6px; }
-		.tab-content { padding: 8px; }
+		.tabs-nav {
+			padding: 0 8px;
+		}
+		.tab-item {
+			font-size: 0.55rem;
+			padding: 8px 1px;
+			margin-right: 6px;
+		}
+		.tab-content {
+			padding: 8px;
+		}
 	}
 </style>

@@ -60,10 +60,18 @@
 				onkeydown={(e) => e.key === "Enter" && onAddOffline()}
 			/>
 			<div class="add-form-actions">
-				<button type="button" class="btn-primary" onclick={onAddOffline}>
+				<button
+					type="button"
+					class="btn-primary"
+					onclick={onAddOffline}
+				>
 					{t("userMenu.add")}
 				</button>
-				<button type="button" class="btn-secondary" onclick={handleCancel}>
+				<button
+					type="button"
+					class="btn-secondary"
+					onclick={handleCancel}
+				>
 					{t("userMenu.cancel")}
 				</button>
 			</div>

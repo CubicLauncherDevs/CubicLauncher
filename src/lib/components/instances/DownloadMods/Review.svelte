@@ -57,8 +57,7 @@
 					{downloadQueue.length}
 					{downloadQueue.length === 1
 						? t("instanceView.downloadMods.file_one")
-						: t("instanceView.downloadMods.file_other")} para
-					descargar:
+						: t("instanceView.downloadMods.file_other")} para descargar:
 				</p>
 				<div class="dm-queue-list">
 					{#each downloadQueue as item (item.filename)}

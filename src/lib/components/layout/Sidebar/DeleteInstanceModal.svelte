@@ -18,16 +18,15 @@
 		style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.4;"
 	>
 		{t("sidebar.modals.deleteDesc1")}
-		<strong style="color: var(--text-primary);"
-			>"{instanceName}"</strong
-		>{t("sidebar.modals.deleteDesc2")}
+		<strong style="color: var(--text-primary);">"{instanceName}"</strong>{t(
+			"sidebar.modals.deleteDesc2",
+		)}
 	</p>
 	{#snippet footer()}
 		<button
 			type="button"
 			class="btn-secondary"
-			onclick={() => (open = false)}
-			>{t("sidebar.modals.cancel")}</button
+			onclick={() => (open = false)}>{t("sidebar.modals.cancel")}</button
 		>
 		<button
 			type="button"

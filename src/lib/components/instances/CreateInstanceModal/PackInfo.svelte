@@ -67,7 +67,9 @@
 	</div>
 	<div class="info-row">
 		<span class="info-label">Archivos</span>
-		<span class="info-value">{getPackFileCount(packInfo)} mods/archivos</span>
+		<span class="info-value"
+			>{getPackFileCount(packInfo)} mods/archivos</span
+		>
 	</div>
 </div>
 <button type="button" class="btn-change-file" onclick={onChangeFile}>

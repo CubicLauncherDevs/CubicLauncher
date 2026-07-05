@@ -157,7 +157,8 @@
 					text: e.line,
 					stream: e.stream,
 					timestamp: e.timestamp,
-					level: e.stream === "stderr" ? "error" : computeLevel(e.line),
+					level:
+						e.stream === "stderr" ? "error" : computeLevel(e.line),
 				}));
 				appendLines(batch);
 			});
@@ -177,7 +178,8 @@
 			const el = logContainer;
 			if (!el) return;
 			const atBottom =
-				el.scrollHeight - el.scrollTop - el.clientHeight < SCROLL_THRESHOLD;
+				el.scrollHeight - el.scrollTop - el.clientHeight <
+				SCROLL_THRESHOLD;
 			if (atBottom && !isAtBottom) {
 				unseenCount = 0;
 			}
@@ -306,8 +308,38 @@
 				title={uploading ? "Uploading..." : "Upload to mclo.gs"}
 			>
 				{#if uploading}
-					<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin">
-						<line x1="12" y1="2" x2="12" y2="6" /><line x1="12" y1="18" x2="12" y2="22" /><line x1="4.93" y1="4.93" x2="7.76" y2="7.76" /><line x1="16.24" y1="16.24" x2="19.07" y2="19.07" /><line x1="2" y1="12" x2="6" y2="12" /><line x1="18" y1="12" x2="22" y2="12" /><line x1="4.93" y1="19.07" x2="7.76" y2="16.24" /><line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
+					<svg
+						width="13"
+						height="13"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						class="spin"
+					>
+						<line x1="12" y1="2" x2="12" y2="6" /><line
+							x1="12"
+							y1="18"
+							x2="12"
+							y2="22"
+						/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76" /><line
+							x1="16.24"
+							y1="16.24"
+							x2="19.07"
+							y2="19.07"
+						/><line x1="2" y1="12" x2="6" y2="12" /><line
+							x1="18"
+							y1="12"
+							x2="22"
+							y2="12"
+						/><line
+							x1="4.93"
+							y1="19.07"
+							x2="7.76"
+							y2="16.24"
+						/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
 					</svg>
 				{:else}
 					<svg
@@ -320,7 +352,14 @@
 						stroke-linecap="round"
 						stroke-linejoin="round"
 					>
-						<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+						<path
+							d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+						/><polyline points="17 8 12 3 7 8" /><line
+							x1="12"
+							y1="3"
+							x2="12"
+							y2="15"
+						/>
 					</svg>
 				{/if}
 			</button>
@@ -578,7 +617,11 @@
 	}
 
 	@keyframes spin {
-		from { transform: rotate(0deg); }
-		to { transform: rotate(360deg); }
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>
