@@ -303,29 +303,33 @@ impl DownloadQueue {
         let gv = gv.to_string();
         let fv = fv.to_string();
 
-        let mc_jar = shared_dir
-            .join("versions")
-            .join(&gv)
-            .join(format!("{gv}.jar"));
-        if !mc_jar.exists() {
-            info!("Base MC {gv} jar not found, downloading before Forge...");
-            if let Ok(base_handle) = manager.prepare(&gv).await {
-                let (tx, progress_rx) = mpsc::channel::<DownloadProgress>(100);
-                let monitor =
-                    monitor_download_progress(version.clone(), progress_rx, queue.clone());
-                let _ = tokio::join!(base_handle.download_all(Some(tx)), monitor);
-            }
+        // Always download/verify base MC files (download_file checks hashes, skips if OK)
+        info!("Base MC {gv}: verificando archivos antes de Forge...");
+        if let Ok(base_handle) = manager.prepare(&gv).await {
+            let (tx, progress_rx) = mpsc::channel::<DownloadProgress>(100);
+            let monitor =
+                monitor_download_progress(version.clone(), progress_rx, queue.clone());
+            let _ = tokio::join!(base_handle.download_all(Some(tx)), monitor);
         }
 
-        if !JavaManager::is_installed(21)
-            && let Err(e) = JavaManager::install(21).await
+        // Determine Java preference based on MC version
+        // MC 1.21+ → Java 21; MC 1.17-1.20.4 → Java 17; < 1.17 → Java 8
+        let java_pref: &[u8] = match parse_mc_major_minor(&gv) {
+            Some((1, n)) if n >= 21 => &[21, 17, 8],
+            Some((1, n)) if n >= 17 => &[17, 21, 8],
+            _ => &[8, 17, 21],
+        };
+        if !JavaManager::is_installed(java_pref[0])
+            && let Err(e) = JavaManager::install(java_pref[0]).await
         {
             warn!(
-                "No se pudo instalar Java 21 automáticamente: {e}, usando fallback..."
+                "No se pudo instalar Java {} automáticamente: {e}, usando fallback...",
+                java_pref[0]
             );
         }
-        let java_path = [21u8, 17, 8]
-            .into_iter()
+        let java_path = java_pref
+            .iter()
+            .copied()
             .find(|v| JavaManager::is_installed(*v))
             .map(JavaManager::get_java_binary);
 
@@ -400,6 +404,19 @@ fn d_type_str(t: &DownloadProgressType) -> &'static str {
         DownloadProgressType::Generic => "Generic",
         DownloadProgressType::Processing => "Processing",
         DownloadProgressType::Jre => "Jre",
+    }
+}
+
+fn parse_mc_major_minor(version: &str) -> Option<(u32, u32)> {
+    let parts: Vec<&str> = version.split('.').collect();
+    match parts.as_slice() {
+        [major] => major.parse().ok().map(|m| (m, 0)),
+        [major, minor] => {
+            let m = major.parse().ok()?;
+            let n = minor.parse().ok()?;
+            Some((m, n))
+        }
+        _ => None,
     }
 }
 
