@@ -17,6 +17,7 @@ import type { InstanceDto } from "$lib/types/types";
 		onopenquickmenu?: () => void;
 		onopeneditinstance: (instance: InstanceDto) => void;
 		onopencreateinstance?: () => void;
+		onopenversiondownloader?: () => void;
 	}
 
 	let {
@@ -24,6 +25,7 @@ import type { InstanceDto } from "$lib/types/types";
 		onopenquickmenu,
 		onopeneditinstance,
 		onopencreateinstance,
+		onopenversiondownloader,
 	}: Props = $props();
 
 	let showUserMenu = $state(false);
@@ -146,6 +148,20 @@ import type { InstanceDto } from "$lib/types/types";
 							height="14"
 						/>
 						{t("sidebar.createInstance")}
+					</button>
+					<button
+						type="button"
+						class="tools-btn"
+						onclick={onopenversiondownloader}
+						data-tutorial="download-versions"
+					>
+						<img
+							src="/images/icons/download.svg"
+							alt=""
+							width="14"
+							height="14"
+						/>
+						{t("sidebar.downloadVersions")}
 					</button>
 					<button
 						type="button"

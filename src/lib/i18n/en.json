@@ -115,7 +115,8 @@
 			"deleteDesc1": "Are you sure you want to delete the instance",
 			"deleteDesc2": "? This action cannot be undone.",
 			"deleteBtn": "Delete"
-		}
+		},
+		"downloadVersions": "Download Versions"
 	},
 	"userMenu": {
 		"title": "User Profile",
@@ -446,5 +447,34 @@
 		"AUTH_BLOCKED": "Internal error: {error}",
 		"AUTH_SESSION_EXPIRED": "Session expired. Please restart the launcher and log in again: {error}",
 		"GENERIC": "An unexpected error occurred: {error}"
+	},
+	"versionDownloader": {
+		"title": "Download Versions",
+		"searchPlaceholder": "Search version...",
+		"loading": "Loading versions...",
+		"notFound": "No versions found",
+		"installedTag": "Installed",
+		"downloadBtn": "Download",
+		"refreshBtn": "Refresh cache",
+		"filters": {
+			"all": "All",
+			"installedOnly": "Installed Only",
+			"notInstalledOnly": "Not Installed",
+			"stableOnly": "Stable Only",
+			"unstableOnly": "Unstable Only",
+			"installStatus": "Status",
+			"majorVersion": "Major Version",
+			"fabricStability": "Stability"
+		},
+		"tabs": {
+			"releases": "Releases",
+			"snapshots": "Snapshots",
+			"alphas": "Alphas",
+			"fabric": "Fabric",
+			"forge": "Forge",
+			"quilt": "Quilt"
+		},
+		"downloading": "Downloading...",
+		"forgeJavaHint": "Forge requires Java 21 to be configured in Settings > Java."
 	}
 }

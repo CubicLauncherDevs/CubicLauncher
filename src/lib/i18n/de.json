@@ -115,7 +115,8 @@
 			"deleteDesc1": "Bist du sicher, dass du die Instanz löschen möchtest",
 			"deleteDesc2": "? Diese Aktion kann nicht rückgängig gemacht werden.",
 			"deleteBtn": "Löschen"
-		}
+		},
+		"downloadVersions": "Versionen herunterladen"
 	},
 	"userMenu": {
 		"title": "Benutzerprofil",
@@ -446,5 +447,34 @@
 		"AUTH_BLOCKED": "Interner Fehler: {error}",
 		"AUTH_SESSION_EXPIRED": "Sitzung abgelaufen. Bitte starte den Launcher neu und melde dich erneut an: {error}",
 		"GENERIC": "Ein unerwarteter Fehler ist aufgetreten: {error}"
+	},
+	"versionDownloader": {
+		"title": "Versionen herunterladen",
+		"searchPlaceholder": "Version suchen...",
+		"loading": "Versionen werden geladen...",
+		"notFound": "Keine Versionen gefunden",
+		"installedTag": "Installiert",
+		"downloadBtn": "Herunterladen",
+		"refreshBtn": "Cache aktualisieren",
+		"filters": {
+			"all": "Alle",
+			"installedOnly": "Nur Installierte",
+			"notInstalledOnly": "Nicht Installierte",
+			"stableOnly": "Nur Stabile",
+			"unstableOnly": "Nur Instabile",
+			"installStatus": "Status",
+			"majorVersion": "Hauptversion",
+			"fabricStability": "Stabilität"
+		},
+		"tabs": {
+			"releases": "Releases",
+			"snapshots": "Snapshots",
+			"alphas": "Alphas",
+			"fabric": "Fabric",
+			"forge": "Forge",
+			"quilt": "Quilt"
+		},
+		"downloading": "Wird heruntergeladen...",
+		"forgeJavaHint": "Forge erfordert Java 21, das unter Einstellungen > Java konfiguriert werden muss."
 	}
 }
