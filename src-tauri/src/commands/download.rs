@@ -325,17 +325,18 @@ fn group_forge_versions(all_versions: Vec<String>) -> Vec<ForgeGameVersion> {
     }
 
     let mut result = Vec::new();
-    for (mc_version, forge_versions) in groups.into_iter().rev() {
-        let latest = forge_versions
-            .into_iter()
-            .max_by(|a, b| version_cmp(a, b))
-            .unwrap_or_default();
-        let version_id = format!("{mc_version}-forge-{latest}");
-        result.push(ForgeGameVersion {
-            version_id,
-            game_version: mc_version,
-            forge_version: latest,
-        });
+    // BTreeMap iterates mc_versions in ascending order; reverse so newest MC versions come first.
+    for (mc_version, mut forge_versions) in groups.into_iter().rev() {
+        // Sort by version and reverse so newest Forge builds come first.
+        forge_versions.sort_by(|a, b| version_cmp(a, b));
+        for forge_version in forge_versions.into_iter().rev() {
+            let version_id = format!("{mc_version}-forge-{forge_version}");
+            result.push(ForgeGameVersion {
+                version_id,
+                game_version: mc_version.clone(),
+                forge_version,
+            });
+        }
     }
     result
 }
@@ -607,4 +608,82 @@ pub async fn download_quilt(
     DownloadQueue::get().enqueue(quilt_version_id).await;
 
     Ok(())
+}
+
+// ─── Loader versions per game version ───────────────────────────────────────
+
+async fn fetch_fabric_loader_versions(game_version: &str) -> Result<Vec<String>, String> {
+    let url = format!("https://meta.fabricmc.net/v2/versions/loader/{game_version}");
+    let response = HTTP
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| DownloadError::ParseJson(e.to_string()).to_string())?;
+
+    let mut versions = Vec::new();
+    if let Some(arr) = json.as_array() {
+        for entry in arr {
+            if let Some(version) = entry
+                .get("loader")
+                .and_then(|l| l.get("version"))
+                .and_then(|v| v.as_str())
+            {
+                versions.push(version.to_string());
+            }
+        }
+    }
+
+    Ok(versions)
+}
+
+#[tauri::command]
+pub async fn get_fabric_loader_versions(game_version: String) -> Result<Vec<String>, String> {
+    info!(
+        "Obteniendo loaders de Fabric para Minecraft {}",
+        game_version
+    );
+    fetch_fabric_loader_versions(&game_version).await
+}
+
+async fn fetch_quilt_loader_versions(game_version: &str) -> Result<Vec<String>, String> {
+    let url = format!("https://meta.quiltmc.org/v3/versions/loader/{game_version}");
+    let response = HTTP
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| DownloadError::ParseJson(e.to_string()).to_string())?;
+
+    let mut versions = Vec::new();
+    if let Some(arr) = json.as_array() {
+        for entry in arr {
+            if let Some(version) = entry
+                .get("loader")
+                .and_then(|l| l.get("version"))
+                .and_then(|v| v.as_str())
+            {
+                versions.push(version.to_string());
+            }
+        }
+    }
+
+    Ok(versions)
+}
+
+#[tauri::command]
+pub async fn get_quilt_loader_versions(game_version: String) -> Result<Vec<String>, String> {
+    info!(
+        "Obteniendo loaders de Quilt para Minecraft {}",
+        game_version
+    );
+    fetch_quilt_loader_versions(&game_version).await
 }

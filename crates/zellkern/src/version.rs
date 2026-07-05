@@ -121,16 +121,18 @@ pub struct ResolvedVersion {
 ///   "quilt-loader-0.25.0-1.20.1"     → "1.20.1"
 fn extract_mc_version(full_id: &str) -> String {
     // Fabric/Quilt loader: "fabric-loader-{loader_version}-{mc_version}"
+    // We split at the *first* dash after the prefix because the loader version
+    // does not contain dashes, but the Minecraft version can (e.g. snapshots).
     if let Some(rest) = full_id.strip_prefix("fabric-loader-")
-        && let Some(last_dash) = rest.rfind('-')
+        && let Some(dash) = rest.find('-')
     {
-        return rest[last_dash + 1..].to_string();
+        return rest[dash + 1..].to_string();
     }
     // Quilt loader: "quilt-loader-{loader_version}-{mc_version}"
     if let Some(rest) = full_id.strip_prefix("quilt-loader-")
-        && let Some(last_dash) = rest.rfind('-')
+        && let Some(dash) = rest.find('-')
     {
-        return rest[last_dash + 1..].to_string();
+        return rest[dash + 1..].to_string();
     }
     // Forge/NeoForge: "{mc_version}-{loader_name}-{loader_version}"
     for loader_name in &["-forge-", "-neoforge-"] {
@@ -228,14 +230,37 @@ mod tests {
         assert_eq!(deps, vec!["1.20.1", "1.20.1-forge-47.2.0"]);
     }
 
-    #[test]
-    fn dependencies_fabric() {
-        let deps = resolve_dependencies("fabric-loader-0.15.11-1.20.1");
-        assert_eq!(deps, vec!["1.20.1", "fabric-loader-0.15.11-1.20.1"]);
-    }
+	#[test]
+	fn dependencies_fabric() {
+		let deps = resolve_dependencies("fabric-loader-0.15.11-1.20.1");
+		assert_eq!(deps, vec!["1.20.1", "fabric-loader-0.15.11-1.20.1"]);
+	}
 
-    #[test]
-    fn dependencies_neoforge() {
+	#[test]
+	fn extract_fabric_snapshot_version() {
+		let gv = GameVersion::from_version_id("fabric-loader-0.19.1-26.3-snapshot-2");
+		assert_eq!(gv.mc_version, "26.3-snapshot-2");
+		assert_eq!(gv.loader, Loader::Fabric("0.19.1".into()));
+	}
+
+	#[test]
+	fn extract_quilt_snapshot_version() {
+		let gv = GameVersion::from_version_id("quilt-loader-0.25.0-26.3-snapshot-2");
+		assert_eq!(gv.mc_version, "26.3-snapshot-2");
+		assert_eq!(gv.loader, Loader::Quilt("0.25.0".into()));
+	}
+
+	#[test]
+	fn dependencies_fabric_snapshot() {
+		let deps = resolve_dependencies("fabric-loader-0.19.1-26.3-snapshot-2");
+		assert_eq!(
+			deps,
+			vec!["26.3-snapshot-2", "fabric-loader-0.19.1-26.3-snapshot-2"]
+		);
+	}
+
+	#[test]
+	fn dependencies_neoforge() {
         let deps = resolve_dependencies("1.21-neoforge-21.0.0");
         assert_eq!(deps, vec!["1.21", "1.21-neoforge-21.0.0"]);
     }
