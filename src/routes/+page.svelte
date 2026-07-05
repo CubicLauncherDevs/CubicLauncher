@@ -23,6 +23,7 @@
 	import { saveSettings } from "$lib/api/launcherService";
 	import { showSuccess, showError } from "$lib/state/state.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal/CreateInstanceModal.svelte";
+	import TagManager from "$lib/components/settings/TagManager.svelte";
 	import LogWindow from "$lib/components/log/LogWindow.svelte";
 	import InstanceDrawer from "$lib/components/instances/InstanceDrawer/InstanceDrawer.svelte";
 
@@ -46,6 +47,7 @@
 	let isDragOver = $state(false);
 	let dragPaths = $state<string[]>([]);
 	let editingInstance = $state<InstanceDto | null>(null);
+	let showTagManagerFromDrawer = $state(false);
 	let showTutorial = $state(false);
 	let SettingsComponent = $state<Component<{ onclose: () => void }> | null>(
 		null,
@@ -281,6 +283,7 @@
 					setTimeout(() => (editingInstance = null), 350);
 				}}
 				instance={editingInstance}
+				onOpenTagManager={() => (showTagManagerFromDrawer = true)}
 			/>
 		</Drawer>
 	{/if}
@@ -294,6 +297,11 @@
 	<CreateInstanceModal
 		bind:open={openCreateModal}
 		bind:mrpackPath={droppedMrpackPath}
+	/>
+
+	<TagManager
+		bind:open={showTagManagerFromDrawer}
+		onclose={() => (showTagManagerFromDrawer = false)}
 	/>
 
 	<Tutorial

@@ -12,9 +12,10 @@
 	interface Props {
 		onclose?: () => void;
 		instance: InstanceDto;
+		onOpenTagManager?: () => void;
 	}
 
-	let { onclose, instance }: Props = $props();
+	let { onclose, instance, onOpenTagManager }: Props = $props();
 
 	let minMem = $state(1);
 	let maxMem = $state(2);
@@ -132,6 +133,7 @@
 					onVersionChange={handleVersionChange}
 					onReinstall={handleReinstall}
 					onTagsChange={handleTagsChange}
+					onOpenTagManager={() => onOpenTagManager?.()}
 				/>
 			</CollapsibleSection>
 			<CollapsibleSection

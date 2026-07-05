@@ -58,10 +58,6 @@
 </div>
 
 <style>
-	.tag-section {
-		margin-bottom: 2px;
-	}
-
 	.tag-header {
 		display: flex;
 		align-items: center;

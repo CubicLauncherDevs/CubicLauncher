@@ -3,7 +3,6 @@
 	import { INSTANCE_LOGOS } from "$lib/icons/logos";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
-	import TagManager from "$lib/components/settings/TagManager.svelte";
 
 	let {
 		selectedIcon = $bindable<string | null>(null),
@@ -15,6 +14,7 @@
 		onVersionChange,
 		onReinstall,
 		onTagsChange,
+		onOpenTagManager,
 	}: {
 		selectedIcon: string | null;
 		instanceName: string;
@@ -25,9 +25,8 @@
 		onVersionChange: (version: string) => void;
 		onReinstall: () => void;
 		onTagsChange: (tagIds: string[]) => void;
+		onOpenTagManager: () => void;
 	} = $props();
-
-	let showTagManager = $state(false);
 
 	function toggleTag(tagId: string) {
 		const idx = selectedTags.indexOf(tagId);
@@ -38,10 +37,6 @@
 			newTags = selectedTags.filter((t) => t !== tagId);
 		}
 		onTagsChange(newTags);
-	}
-
-	function handleCreateTag() {
-		showTagManager = true;
 	}
 </script>
 
@@ -105,18 +100,13 @@
 		<button
 			type="button"
 			class="tag-chip tag-add-btn"
-			onclick={handleCreateTag}
+			onclick={onOpenTagManager}
 			title={t("tags.create")}
 		>
 			+
 		</button>
 	</div>
 </div>
-
-<TagManager
-	bind:open={showTagManager}
-	onclose={() => (showTagManager = false)}
-/>
 
 <div class="reinstall">
 	<button
