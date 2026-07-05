@@ -48,6 +48,7 @@
 				: t("userMenu.offline"),
 	);
 
+	const AVATAR_CACHE_MAX = 20;
 	const avatarCache = new SvelteMap<string, string>();
 
 	let avatarSvg = $state("");
@@ -67,6 +68,10 @@
 		fetch(url)
 			.then((r) => r.text())
 			.then((svg) => {
+				if (avatarCache.size >= AVATAR_CACHE_MAX) {
+					const first = avatarCache.keys().next();
+					if (!first.done) avatarCache.delete(first.value);
+				}
 				avatarCache.set(url, svg);
 				avatarSvg = svg;
 			})
@@ -226,7 +231,7 @@
 		border-right: 1px solid var(--border);
 		display: flex;
 		flex-direction: column;
-		padding: 18px 16px 12px;
+		padding: 18px 16px 0;
 		z-index: 10;
 		user-select: none;
 	}

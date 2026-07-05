@@ -95,8 +95,9 @@
 	}
 
 	$effect(() => {
-		void bannerVersion;
-		fetchScreenshot();
+		const ver = bannerVersion;
+		const id = selectedInstance?.uuid;
+		if (id) fetchScreenshot();
 	});
 
 	const lang = $derived(launcherStore.settings.language);
@@ -110,13 +111,14 @@
 		}),
 	);
 
-	function formatDate(unix_date: number): string {
-		if (unix_date < 1) {
+	const lastPlayedDate = $derived(selectedInstance.last_played);
+
+	const lastPlayedLabel = $derived.by(() => {
+		if (lastPlayedDate < 1) {
 			return t("instanceView.neverPlayed");
 		}
-		let date = new Date(unix_date * 1000);
-		return formatter.format(date);
-	}
+		return formatter.format(new Date(lastPlayedDate * 1000));
+	});
 
 	function handlePlay() {
 		if (bannerState === "Started") {
@@ -135,7 +137,7 @@
 		instanceIcon={selectedInstance.icon}
 		lastPlayedLabel={t("instanceView.lastPlayed").replace(
 			"{date}",
-			formatDate(selectedInstance.last_played),
+			lastPlayedLabel,
 		)}
 		{screenshotUrl}
 		{bannerState}
@@ -317,6 +319,7 @@
 	.tab-pane {
 		animation: slideUpFade 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 		height: 100%;
+		will-change: transform, opacity;
 	}
 
 	@keyframes slideUpFade {

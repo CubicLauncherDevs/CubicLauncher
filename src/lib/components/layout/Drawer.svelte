@@ -163,6 +163,7 @@
 		z-index: 100;
 		backdrop-filter: blur(var(--backdrop-blur-overlay, 2px));
 		-webkit-backdrop-filter: blur(var(--backdrop-blur-overlay, 2px));
+		will-change: opacity;
 	}
 
 	.drawer {

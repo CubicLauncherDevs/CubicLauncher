@@ -20,7 +20,7 @@ const builtinThemes: ThemeEntry[] = [
 	},
 ];
 
-export interface FontFace {
+export interface ThemeFontFace {
 	family: string;
 	src: string;
 	format?: string | null;
@@ -37,11 +37,13 @@ export interface ThemeResponse {
 	bg_image?: string | null;
 	bg_image_blur?: number | null;
 	bg_image_opacity?: number | null;
-	fonts: FontFace[];
+	fonts: ThemeFontFace[];
 	inject_css?: string | null;
 }
 let currentImage: HTMLImageElement | null = null;
 let currentGeneration = 0;
+let currentBlobUrl: string | null = null;
+const addedFonts: Set<globalThis.FontFace> = new Set();
 
 const DEFAULT_FONTS_ID = "cubic-default-fonts";
 
@@ -147,6 +149,11 @@ export async function applyTheme(themeId: string) {
 		currentImage = null;
 	}
 
+	if (currentBlobUrl) {
+		URL.revokeObjectURL(currentBlobUrl);
+		currentBlobUrl = null;
+	}
+
 	const root = document.documentElement;
 	const style = root.style;
 	for (let i = style.length - 1; i >= 0; i--) {
@@ -197,6 +204,12 @@ export async function applyTheme(themeId: string) {
 		);
 	}
 
+	// Clean up old FontFace objects
+	for (const face of addedFonts) {
+		document.fonts.delete(face);
+	}
+	addedFonts.clear();
+
 	const CUSTOM_FONTS_ID = "cubic-theme-fonts";
 	const existingCustom = document.getElementById(CUSTOM_FONTS_ID);
 	if (existingCustom) existingCustom.remove();
@@ -229,6 +242,7 @@ export async function applyTheme(themeId: string) {
 					.load()
 					.then(() => {
 						document.fonts.add(face);
+						addedFonts.add(face);
 					})
 					.catch((err) => {
 						console.warn(
@@ -252,15 +266,13 @@ export async function applyTheme(themeId: string) {
 	if (existingCustomCss) existingCustomCss.remove();
 
 	if (theme.inject_css) {
-		console.log("[applyTheme] injecting CSS, length:", theme.inject_css.length);
 		const blob = new Blob([theme.inject_css], { type: "text/css" });
 		const url = URL.createObjectURL(blob);
+		currentBlobUrl = url;
 		const link = document.createElement("link");
 		link.rel = "stylesheet";
 		link.href = url;
 		link.id = CUSTOM_CSS_ID;
 		document.head.appendChild(link);
-	} else {
-		console.log("[applyTheme] inject_css is null/empty, not injecting");
 	}
 }

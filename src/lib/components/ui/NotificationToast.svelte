@@ -1,29 +1,17 @@
 <script lang="ts">
 	import type { Notification } from "$lib/types/types";
 	import { removeNotification } from "$lib/state/state.svelte";
-	import { onMount } from "svelte";
 
 	let { notification }: { notification: Notification } = $props();
 
-	// ── Progreso del ring ──────────────────────────────────────────────
-	// Para toasts con timeout: el ring actúa como countdown (1 → 0).
-	// Para toasts con progress (0-100): el ring muestra el avance real.
 	const R = 14.1;
 	const CIRC = 2 * Math.PI * R;
 
-	let ringOffset = $state(CIRC); // empieza vacío, se llena o cuenta
 	let removing = $state(false);
-	let iconColor = $derived(typeColor(notification.type));
 	let isDone = $state(false);
+	let iconColor = $derived(typeColor(notification.type));
 
-	// Si el toast tiene progreso externo (0-100) lo refleja reactivamente
-	$effect(() => {
-		const p = notification.progress;
-		if (typeof p === "number") {
-			ringOffset = CIRC * (1 - p / 100);
-			if (p >= 100) handleComplete();
-		}
-	});
+	const hasProgress = $derived(typeof notification.progress === "number");
 
 	function typeColor(type: string): string {
 		const map: Record<string, string> = {
@@ -48,36 +36,43 @@
 		setTimeout(() => dismiss(), 1400);
 	}
 
-	// ── Countdown con rAF (solo para toasts con timeout) ──────────────
-	let rafId: number;
-
-	onMount(() => {
-		const hasExternalProgress = typeof notification.progress === "number";
-
-		if (
-			!hasExternalProgress &&
-			notification.timeout &&
-			notification.timeout > 0
-		) {
-			const start = performance.now();
-			const dur = notification.timeout;
-
-			function tick(now: number) {
-				const p = Math.min((now - start) / dur, 1);
-				ringOffset = CIRC * (1 - p); // countdown: llena mientras pasa el tiempo
-				if (p < 1) {
-					rafId = requestAnimationFrame(tick);
-				} else {
-					dismiss();
-				}
-			}
-			rafId = requestAnimationFrame(tick);
-		}
-
-		return () => cancelAnimationFrame(rafId);
+	$effect(() => {
+		const p = notification.progress;
+		if (typeof p === "number" && p >= 100) handleComplete();
 	});
 
-	// ── Sub-texto para toasts de progreso ─────────────────────────────
+	// External progress: reactive offset via CSS transition
+	const progressOffset = $derived.by(() => {
+		if (!hasProgress) return CIRC;
+		return CIRC * (1 - (notification.progress ?? 0) / 100);
+	});
+
+	// Countdown via CSS @keyframes (no JS rAF)
+	const uid = Math.random().toString(36).slice(2, 8);
+	let circleEl = $state<SVGCircleElement | null>(null);
+
+	$effect(() => {
+		if (hasProgress) return;
+		if (!circleEl || !notification.timeout || notification.timeout <= 0) return;
+
+		const style = document.createElement("style");
+		const name = `cd-${uid}`;
+		style.textContent = `@keyframes ${name} { from { stroke-dashoffset: ${CIRC}; } to { stroke-dashoffset: 0; } }`;
+		document.head.appendChild(style);
+
+		circleEl.style.animation = `${name} ${notification.timeout}ms linear forwards`;
+
+		function onEnd() {
+			dismiss();
+		}
+		circleEl.addEventListener("animationend", onEnd, { once: true });
+
+		return () => {
+			style.remove();
+			circleEl?.removeEventListener("animationend", onEnd);
+		};
+	});
+
 	const progressSub = $derived.by(() => {
 		const p = notification.progress;
 		if (typeof p !== "number") return null;
@@ -96,93 +91,91 @@
 	onclick={dismiss}
 	onkeydown={(e) => (e.key === "Enter" || e.key === " ") && dismiss()}
 >
-	<!-- gloss superior -->
 	<div class="notification-gloss" aria-hidden="true"></div>
 
-	<!-- ícono con ring -->
 	<div class="notification-icon-wrap">
 		<svg class="progress-ring" viewBox="0 0 32 32" aria-hidden="true">
 			<circle class="track" cx="16" cy="16" r={R} />
 			<circle
 				class="fill"
+				bind:this={circleEl}
 				cx="16"
 				cy="16"
 				r={R}
 				stroke={iconColor}
 				stroke-dasharray={CIRC}
-				stroke-dashoffset={ringOffset}
+				stroke-dashoffset={hasProgress ? progressOffset : CIRC}
 			/>
 		</svg>
 
 		<div class="notification-icon" style:background={iconColor}>
 			<div class="notification-gloss-dot" aria-hidden="true"></div>
 
-			{#if isDone}
-				<!-- check al completar -->
-				<svg
-					viewBox="0 0 14 14"
-					fill="none"
-					stroke="rgba(255,255,255,0.9)"
-					stroke-width="1.8"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<path d="M2.5 7l3 3 6-6" />
-				</svg>
-			{:else if notification.type === "error"}
-				<svg
-					viewBox="0 0 14 14"
-					fill="none"
-					stroke="rgba(255,255,255,0.9)"
-					stroke-width="1.6"
-					stroke-linecap="round"
-					aria-hidden="true"
-				>
-					<path d="M4 4l6 6M10 4l-6 6" />
-				</svg>
-			{:else if notification.type === "warning"}
-				<svg
-					viewBox="0 0 14 14"
-					fill="none"
-					stroke="rgba(255,255,255,0.9)"
-					stroke-width="1.6"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<path d="M7 2.5L1.5 11.5h11L7 2.5zM7 6v2.5M7 10.5v.01" />
-				</svg>
-			{:else if notification.type === "success"}
-				<svg
-					viewBox="0 0 14 14"
-					fill="none"
-					stroke="rgba(255,255,255,0.9)"
-					stroke-width="1.8"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<path d="M2.5 7l3 3 6-6" />
-				</svg>
-			{:else}
-				<!-- info / progress -->
-				<svg
-					viewBox="0 0 14 14"
-					fill="none"
-					stroke="rgba(255,255,255,0.9)"
-					stroke-width="1.6"
-					stroke-linecap="round"
-					aria-hidden="true"
-				>
-					<circle cx="7" cy="7" r="5.5" />
-					<path d="M7 6.5v3.5M7 4.5v.01" />
-				</svg>
-			{/if}
+			{#key isDone ? "done" : notification.type}
+				{#if isDone}
+					<svg
+						viewBox="0 0 14 14"
+						fill="none"
+						stroke="rgba(255,255,255,0.9)"
+						stroke-width="1.8"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M2.5 7l3 3 6-6" />
+					</svg>
+				{:else if notification.type === "error"}
+					<svg
+						viewBox="0 0 14 14"
+						fill="none"
+						stroke="rgba(255,255,255,0.9)"
+						stroke-width="1.6"
+						stroke-linecap="round"
+						aria-hidden="true"
+					>
+						<path d="M4 4l6 6M10 4l-6 6" />
+					</svg>
+				{:else if notification.type === "warning"}
+					<svg
+						viewBox="0 0 14 14"
+						fill="none"
+						stroke="rgba(255,255,255,0.9)"
+						stroke-width="1.6"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M7 2.5L1.5 11.5h11L7 2.5zM7 6v2.5M7 10.5v.01" />
+					</svg>
+				{:else if notification.type === "success"}
+					<svg
+						viewBox="0 0 14 14"
+						fill="none"
+						stroke="rgba(255,255,255,0.9)"
+						stroke-width="1.8"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M2.5 7l3 3 6-6" />
+					</svg>
+				{:else}
+					<svg
+						viewBox="0 0 14 14"
+						fill="none"
+						stroke="rgba(255,255,255,0.9)"
+						stroke-width="1.6"
+						stroke-linecap="round"
+						aria-hidden="true"
+					>
+						<circle cx="7" cy="7" r="5.5" />
+						<path d="M7 6.5v3.5M7 4.5v.01" />
+					</svg>
+				{/if}
+			{/key}
 		</div>
 	</div>
 
-	<!-- texto -->
 	<div class="notification-body">
 		<span class="notification-title">{notification.title}</span>
 		{#if notification.message}
@@ -216,7 +209,6 @@
 		user-select: none;
 		-webkit-tap-highlight-color: transparent;
 
-		/* entrada */
 		animation: notificationIn 0.3s cubic-bezier(0.2, 0.85, 0.3, 1) both;
 		pointer-events: auto;
 		will-change: transform, opacity;
@@ -249,30 +241,17 @@
 		0% {
 			opacity: 1;
 			transform: translateX(0) scale(1);
-			max-height: 80px;
-			margin-bottom: 0;
-			padding-top: 9px;
-			padding-bottom: 9px;
 		}
 		40% {
 			opacity: 0;
 			transform: translateX(18px) scale(0.97);
-			max-height: 80px;
-			margin-bottom: 0;
-			padding-top: 9px;
-			padding-bottom: 9px;
 		}
 		100% {
 			opacity: 0;
 			transform: translateX(18px) scale(0.97);
-			max-height: 0;
-			margin-bottom: -10px;
-			padding-top: 0;
-			padding-bottom: 0;
 		}
 	}
 
-	/* gloss superior de la pill */
 	.notification-gloss {
 		position: absolute;
 		top: 0;
@@ -288,7 +267,6 @@
 		pointer-events: none;
 	}
 
-	/* ── ring ── */
 	.notification-icon-wrap {
 		position: relative;
 		width: 32px;
@@ -317,7 +295,6 @@
 			stroke 0.4s ease;
 	}
 
-	/* ── dot de ícono ── */
 	.notification-icon {
 		position: absolute;
 		inset: 3px;
@@ -330,6 +307,7 @@
 			0 2px 6px rgba(0, 0, 0, 0.4);
 		transition: background 0.4s ease;
 		overflow: hidden;
+		will-change: transform;
 	}
 
 	.notification-icon svg {
@@ -354,7 +332,6 @@
 		);
 	}
 
-	/* ── texto ── */
 	.notification-body {
 		display: flex;
 		flex-direction: column;

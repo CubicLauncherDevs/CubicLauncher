@@ -45,6 +45,8 @@
 
 	$effect(() => {
 		const id = instance.uuid;
+		lastLog = "";
+		lastLevel = "default";
 		let destroyed = false;
 
 		const unlistenPromise = listen<{
@@ -70,12 +72,6 @@
 			destroyed = true;
 			unlistenPromise.then((unlisten) => unlisten?.());
 		};
-	});
-
-	$effect(() => {
-		void instance.uuid;
-		lastLog = "";
-		lastLevel = "default";
 	});
 </script>
 
@@ -121,6 +117,7 @@
 		overflow: hidden;
 		cursor: default;
 		transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+		will-change: background;
 	}
 
 	.status-log-widget.running {

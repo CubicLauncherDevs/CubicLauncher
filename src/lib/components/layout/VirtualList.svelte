@@ -25,30 +25,16 @@
 	let containerHeight = $state(0);
 	let ticking = false;
 
-	const viewportHeight = $derived(containerHeight);
 	const totalHeight = $derived(items.length * itemHeight + padding);
 
-	// Calculate range of visible items
-	const startIndex = $derived(Math.floor(scrollTop / itemHeight));
+	const buffer = 5;
+
+	const startIndex = $derived(Math.max(0, Math.floor(scrollTop / itemHeight) - buffer));
 	const endIndex = $derived(
-		Math.min(
-			items.length - 1,
-			Math.floor((scrollTop + viewportHeight) / itemHeight),
-		),
+		Math.min(items.length - 1, Math.floor((scrollTop + containerHeight) / itemHeight) + buffer),
 	);
 
-	// Buffer for smoother scrolling
-	const buffer = 5;
-	const start = $derived(Math.max(0, startIndex - buffer));
-	const end = $derived(Math.min(items.length - 1, endIndex + buffer));
-
-	const visibleItems = $derived.by(() => {
-		const result: Array<{ item: T; index: number; top: number }> = [];
-		for (let i = start; i <= end; i++) {
-			result.push({ item: items[i], index: i, top: i * itemHeight });
-		}
-		return result;
-	});
+	const visibleSlice = $derived(items.slice(startIndex, endIndex + 1));
 
 	function handleScroll(e: Event) {
 		const target = e.target as HTMLDivElement;
@@ -89,10 +75,11 @@
 		class="virtual-list-content"
 		style="position: absolute; top: 0; left: 0; width: 100%;"
 	>
-		{#each visibleItems as { item, index, top } (index)}
+		{#each visibleSlice as item, idx (startIndex + idx)}
+			{@const index = startIndex + idx}
 			<div
 				class="virtual-list-item-wrapper"
-				style="position: absolute; transform: translateY({top}px); left: 0; width: 100%; height: {itemHeight}px;"
+				style="position: absolute; transform: translateY({index * itemHeight}px); left: 0; width: 100%; height: {itemHeight}px;"
 			>
 				{@render children(item, index)}
 			</div>

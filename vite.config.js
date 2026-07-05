@@ -35,4 +35,17 @@ export default defineConfig(async () => ({
 			ignored: ["**/src-tauri/**"],
 		},
 	},
+
+	build: {
+		rollupOptions: {
+			output: {
+				/** @param {string} id */
+				manualChunks(id) {
+					if (id.includes("node_modules/svelte")) return "vendor-svelte";
+					if (id.includes("node_modules/@tauri-apps")) return "vendor-tauri";
+					if (id.includes("node_modules")) return "vendor-other";
+				},
+			},
+		},
+	},
 }));
