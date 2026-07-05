@@ -5,8 +5,9 @@
 	import StatusLog from "../StatusLog.svelte";
 	import { launchInstance } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
-	import { killInst } from "$lib/api/launcherService";
-	import { launcherStore } from "$lib/state/state.svelte";
+import { killInst } from "$lib/api/launcherService";
+import { launcherStore } from "$lib/state/state.svelte";
+import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 	import { slide } from "svelte/transition";
 	import ScreenshotPicker from "./ScreenshotPicker.svelte";
 	import HeroSection from "./HeroSection.svelte";
@@ -26,6 +27,9 @@
 	});
 	const supportsMods = $derived(selectedInstance.loader !== "Vanilla");
 	const supportsShaders = $derived(selectedInstance.loader !== "Vanilla");
+	const isDownloadingVersion = $derived(
+		isVersionDownloading(selectedInstance.version),
+	);
 
 	$effect(() => {
 		if (!supportsMods && activeTab === "mods") {
@@ -141,6 +145,7 @@
 		)}
 		{screenshotUrl}
 		{bannerState}
+		{isDownloadingVersion}
 		onPlay={handlePlay}
 		onPickBanner={pickBanner}
 	/>

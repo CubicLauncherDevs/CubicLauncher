@@ -39,7 +39,6 @@
 	let selectedInstance = $state<InstanceDto | null>(null);
 	let quickMenuOpen = $state(false);
 	let instanceEditorOpen = $state(false);
-	let versionDownloaderOpen = $state(false);
 	let openCreateModal = $state(false);
 	let droppedMrpackPath = $state<string | null>(null);
 	let isDragOver = $state(false);
@@ -49,9 +48,6 @@
 	let SettingsComponent = $state<Component<{ onclose: () => void }> | null>(
 		null,
 	);
-	let VersionDownloaderComponent = $state<Component<{
-		onclose?: () => void;
-	}> | null>(null);
 
 	onMount(async () => {
 		initEventListeners();
@@ -78,12 +74,8 @@
 		}
 
 		// Lazy load non-critical components after first paint
-		Promise.all([
-			import("$lib/components/settings/Settings.svelte"),
-			import("$lib/components/layout/VersionDownloader/VersionDownloader.svelte"),
-		]).then(([s, v]) => {
+		import("$lib/components/settings/Settings.svelte").then((s) => {
 			SettingsComponent = s.default;
-			VersionDownloaderComponent = v.default;
 		});
 
 		setupDragDrop();
@@ -241,7 +233,6 @@
 		<Sidebar
 			bind:selectedInstance
 			onopenquickmenu={() => (quickMenuOpen = true)}
-			onopenversiondownloader={() => (versionDownloaderOpen = true)}
 			onopencreateinstance={() => (openCreateModal = true)}
 			onopeneditinstance={(inst) => {
 				instanceEditorOpen = true;
@@ -283,12 +274,6 @@
 			/>
 		</Drawer>
 	{/if}
-
-	<Drawer bind:open={versionDownloaderOpen} direction="right">
-		<VersionDownloaderComponent
-			onclose={() => (versionDownloaderOpen = false)}
-		/>
-	</Drawer>
 
 	<CreateInstanceModal
 		bind:open={openCreateModal}

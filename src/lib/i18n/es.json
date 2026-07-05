@@ -96,7 +96,6 @@
 		"noInstances": "Sin instancias",
 		"createInstance": "Crear Instancia",
 		"refreshInstances": "Refrescar Instancias",
-		"downloadVersions": "Descargar Versiones",
 		"settings": "Ajustes",
 		"tools": "Herramientas",
 		"downloading": "descargando",
@@ -150,6 +149,7 @@
 		"neverPlayed": "Nunca jugado",
 		"lastPlayed": "Última vez jugado: {date}",
 		"playBtn": "Jugar",
+		"downloadingBtn": "Descargando...",
 		"close": "Forzar cierre",
 		"deleteSelected": "Eliminar Seleccionados",
 		"deleteConfirm": "¿Estás seguro de que deseas eliminar {name}?",
@@ -337,36 +337,17 @@
 		"orDownloadFrom": "o descarga desde",
 		"parsingPack": "Analizando modpack...",
 		"packInfo": "Información del Pack",
-		"instanceName": "Nombre de la instancia"
-	},
-	"versionDownloader": {
-		"title": "Descargar Versiones",
-		"searchPlaceholder": "Buscar versión...",
-		"loading": "Cargando versiones...",
-		"notFound": "No se encontraron versiones",
-		"installedTag": "Instalada",
-		"downloadBtn": "Descargar",
-		"refreshBtn": "Recargar caché",
-		"filters": {
-			"all": "Todos",
-			"installedOnly": "Solo Instalados",
-			"notInstalledOnly": "No Instalados",
-			"stableOnly": "Solo Estables",
-			"unstableOnly": "Solo Inestables",
-			"installStatus": "Estado",
-			"majorVersion": "Versión Mayor",
-			"fabricStability": "Estabilidad"
-		},
-		"tabs": {
-			"releases": "Lanzamientos",
-			"snapshots": "Snapshots",
-			"alphas": "Alphas",
-			"fabric": "Fabric",
-			"forge": "Forge",
-			"quilt": "Quilt"
-		},
-		"downloading": "Descargando...",
-		"forgeJavaHint": "Forge requiere que configures Java 21 en Configuración > Java."
+		"instanceName": "Nombre de la instancia",
+		"importModpackBtn": "Importar modpack",
+		"loaderLabel": "Loader",
+		"mcVersionLabel": "Versión de Minecraft",
+		"loaderVersionLabel": "Versión del loader",
+		"noLoader": "Sin loader",
+		"noLoaderNeeded": "No se necesita loader",
+		"noLoaderVersionsErr": "No hay versiones del loader para esta versión",
+		"selectMcVersion": "Selecciona una versión",
+		"selectLoaderVersion": "Selecciona un loader",
+		"loading": "Cargando..."
 	},
 	"themes": {
 		"warning": {

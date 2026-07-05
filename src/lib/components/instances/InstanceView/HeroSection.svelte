@@ -7,6 +7,7 @@
 		lastPlayedLabel,
 		screenshotUrl = null as string | null,
 		bannerState = "Idle",
+		isDownloadingVersion = false,
 		onPlay,
 		onPickBanner,
 	}: {
@@ -15,6 +16,7 @@
 		lastPlayedLabel: string;
 		screenshotUrl: string | null;
 		bannerState: string;
+		isDownloadingVersion: boolean;
 		onPlay: () => void;
 		onPickBanner: () => void;
 	} = $props();
@@ -41,6 +43,10 @@
 		{:else if bannerState == "Starting"}
 			<button type="button" class="play-btn" disabled>
 				{t("instanceView.playBtn")}
+			</button>
+		{:else if isDownloadingVersion}
+			<button type="button" class="play-btn" disabled>
+				{t("instanceView.downloadingBtn")}
 			</button>
 		{:else}
 			<button type="button" class="play-btn" onclick={onPlay}>

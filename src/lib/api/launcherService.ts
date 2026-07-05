@@ -20,6 +20,7 @@ import {
 	launchInstance,
 } from "./cubicApi";
 import { applyTheme } from "./themeManager";
+import { initDownloadState } from "$lib/state/downloadState.svelte";
 import { t } from "$lib/i18n";
 
 import { invoke } from "@tauri-apps/api/core";
@@ -45,6 +46,8 @@ export function markLocalSettingsChange(): void {
 export function initEventListeners(): void {
 	if (_listenerInitialized) return;
 	_listenerInitialized = true;
+
+	initDownloadState();
 
 	listen<AppEvent>("app-event", (event) => {
 		const payload = event.payload;

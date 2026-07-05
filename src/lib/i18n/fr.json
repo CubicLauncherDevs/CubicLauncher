@@ -96,7 +96,6 @@
 		"noInstances": "Aucune instance",
 		"createInstance": "Créer une Instance",
 		"refreshInstances": "Actualiser les Instances",
-		"downloadVersions": "Télécharger les Versions",
 		"settings": "Paramètres",
 		"tools": "Outils",
 		"downloading": "téléchargement",
@@ -150,6 +149,7 @@
 		"neverPlayed": "Jamais joué",
 		"lastPlayed": "Dernière partie : {date}",
 		"playBtn": "Jouer",
+		"downloadingBtn": "Téléchargement...",
 		"close": "Forcer l'arrêt",
 		"deleteSelected": "Supprimer la sélection",
 		"deleteConfirm": "Êtes-vous sûr de vouloir supprimer {name}?",
@@ -337,36 +337,17 @@
 		"orDownloadFrom": "ou télécharger depuis",
 		"parsingPack": "Analyse du modpack...",
 		"packInfo": "Informations du Pack",
-		"instanceName": "Nom de l'instance"
-	},
-	"versionDownloader": {
-		"title": "Télécharger les Versions",
-		"searchPlaceholder": "Rechercher une version...",
-		"loading": "Chargement des versions...",
-		"notFound": "Aucune version trouvée",
-		"installedTag": "Installée",
-		"downloadBtn": "Télécharger",
-		"refreshBtn": "Recharger le cache",
-		"filters": {
-			"all": "Tous",
-			"installedOnly": "Installés Uniquement",
-			"notInstalledOnly": "Non Installés",
-			"stableOnly": "Stables Uniquement",
-			"unstableOnly": "Instables Uniquement",
-			"installStatus": "Statut",
-			"majorVersion": "Version Majeure",
-			"fabricStability": "Stabilité"
-		},
-		"tabs": {
-			"releases": "Releases",
-			"snapshots": "Snapshots",
-			"alphas": "Alphas",
-			"fabric": "Fabric",
-			"forge": "Forge",
-			"quilt": "Quilt"
-		},
-		"downloading": "Téléchargement...",
-		"forgeJavaHint": "Forge nécessite Java 21, à configurer dans Paramètres > Java."
+		"instanceName": "Nom de l'instance",
+		"importModpackBtn": "Importer le modpack",
+		"loaderLabel": "Loader",
+		"mcVersionLabel": "Version de Minecraft",
+		"loaderVersionLabel": "Version du loader",
+		"noLoader": "Aucun loader",
+		"noLoaderNeeded": "Aucun loader requis",
+		"noLoaderVersionsErr": "Aucune version du loader pour cette version",
+		"selectMcVersion": "Sélectionner une version",
+		"selectLoaderVersion": "Sélectionner une version du loader",
+		"loading": "Chargement..."
 	},
 	"themes": {
 		"warning": {

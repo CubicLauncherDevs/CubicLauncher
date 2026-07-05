@@ -302,6 +302,19 @@ export async function getFabricVersions(): Promise<FabricGameVersion[]> {
 	}
 }
 
+export async function getFabricLoaderVersions(
+	gameVersion: string,
+): Promise<string[]> {
+	try {
+		return await invoke<string[]>("get_fabric_loader_versions", {
+			gameVersion,
+		});
+	} catch (err) {
+		showErrorParsed(err);
+		return [];
+	}
+}
+
 export async function downloadFabric(
 	gameVersion: string,
 	loaderVersion?: string,
@@ -357,6 +370,19 @@ export async function getQuiltVersions(): Promise<FabricGameVersion[]> {
 export async function refreshQuiltVersions(): Promise<FabricGameVersion[]> {
 	try {
 		return await invoke<FabricGameVersion[]>("refresh_quilt_versions");
+	} catch (err) {
+		showErrorParsed(err);
+		return [];
+	}
+}
+
+export async function getQuiltLoaderVersions(
+	gameVersion: string,
+): Promise<string[]> {
+	try {
+		return await invoke<string[]>("get_quilt_loader_versions", {
+			gameVersion,
+		});
 	} catch (err) {
 		showErrorParsed(err);
 		return [];

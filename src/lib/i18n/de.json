@@ -96,7 +96,6 @@
 		"noInstances": "Keine Instanzen",
 		"createInstance": "Instanz erstellen",
 		"refreshInstances": "Instanzen aktualisieren",
-		"downloadVersions": "Versionen herunterladen",
 		"settings": "Einstellungen",
 		"tools": "Herramientas",
 		"downloading": "wird heruntergeladen",
@@ -150,6 +149,7 @@
 		"neverPlayed": "Nie gespielt",
 		"lastPlayed": "Zuletzt gespielt: {date}",
 		"playBtn": "Spielen",
+		"downloadingBtn": "Wird heruntergeladen...",
 		"close": "Schließen erzwingen",
 		"deleteSelected": "Ausgewählte löschen",
 		"deleteConfirm": "Bist du sicher, dass du {name} löschen möchtest?",
@@ -337,35 +337,17 @@
 		"orDownloadFrom": "o download von",
 		"parsingPack": "Modpack wird analysiert...",
 		"packInfo": "Pack-Informationen",
-		"instanceName": "Instanzname"
-	},
-	"versionDownloader": {
-		"title": "Versionen herunterladen",
-		"searchPlaceholder": "Version suchen...",
-		"loading": "Versionen werden geladen...",
-		"notFound": "Keine Versionen gefunden",
-		"installedTag": "Installiert",
-		"downloadBtn": "Herunterladen",
-		"refreshBtn": "Cache aktualisieren",
-		"filters": {
-			"all": "Alle",
-			"installedOnly": "Nur Installierte",
-			"notInstalledOnly": "Nicht Installierte",
-			"stableOnly": "Nur Stabile",
-			"unstableOnly": "Nur Instabile",
-			"installStatus": "Status",
-			"majorVersion": "Hauptversion",
-			"fabricStability": "Stabilität"
-		},
-		"tabs": {
-			"releases": "Releases",
-			"snapshots": "Snapshots",
-			"alphas": "Alphas",
-			"fabric": "Fabric",
-			"forge": "Forge"
-		},
-		"downloading": "Wird heruntergeladen...",
-		"forgeJavaHint": "Forge erfordert Java 21, das unter Einstellungen > Java konfiguriert werden muss."
+		"instanceName": "Instanzname",
+		"importModpackBtn": "Modpack importieren",
+		"loaderLabel": "Loader",
+		"mcVersionLabel": "Minecraft-Version",
+		"loaderVersionLabel": "Loader-Version",
+		"noLoader": "Kein Loader",
+		"noLoaderNeeded": "Kein Loader erforderlich",
+		"noLoaderVersionsErr": "Keine Loader-Versionen für diese Version",
+		"selectMcVersion": "Version auswählen",
+		"selectLoaderVersion": "Loader-Version auswählen",
+		"loading": "Laden..."
 	},
 	"themes": {
 		"warning": {

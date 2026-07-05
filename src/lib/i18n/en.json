@@ -96,7 +96,6 @@
 		"noInstances": "No instances",
 		"createInstance": "Create Instance",
 		"refreshInstances": "Refresh Instances",
-		"downloadVersions": "Download Versions",
 		"settings": "Settings",
 		"tools": "Tools",
 		"downloading": "downloading",
@@ -150,6 +149,7 @@
 		"neverPlayed": "Never played",
 		"lastPlayed": "Last played: {date}",
 		"playBtn": "Play",
+		"downloadingBtn": "Downloading...",
 		"close": "Kill",
 		"deleteSelected": "Delete Selected",
 		"deleteConfirm": "Are you sure you want to delete {name}?",
@@ -337,36 +337,17 @@
 		"orDownloadFrom": "or download from",
 		"parsingPack": "Analyzing modpack...",
 		"packInfo": "Pack Info",
-		"instanceName": "Instance name"
-	},
-	"versionDownloader": {
-		"title": "Download Versions",
-		"searchPlaceholder": "Search version...",
-		"loading": "Loading versions...",
-		"notFound": "No versions found",
-		"installedTag": "Installed",
-		"downloadBtn": "Download",
-		"refreshBtn": "Refresh cache",
-		"filters": {
-			"all": "All",
-			"installedOnly": "Installed Only",
-			"notInstalledOnly": "Not Installed",
-			"stableOnly": "Stable Only",
-			"unstableOnly": "Unstable Only",
-			"installStatus": "Status",
-			"majorVersion": "Major Version",
-			"fabricStability": "Stability"
-		},
-		"tabs": {
-			"releases": "Releases",
-			"snapshots": "Snapshots",
-			"alphas": "Alphas",
-			"fabric": "Fabric",
-			"forge": "Forge",
-			"quilt": "Quilt"
-		},
-		"downloading": "Downloading...",
-		"forgeJavaHint": "Forge requires Java 21 to be configured in Settings > Java."
+		"instanceName": "Instance name",
+		"importModpackBtn": "Import modpack",
+		"loaderLabel": "Loader",
+		"mcVersionLabel": "Minecraft version",
+		"loaderVersionLabel": "Loader version",
+		"noLoader": "No loader",
+		"noLoaderNeeded": "No loader needed",
+		"noLoaderVersionsErr": "No loader versions for this version",
+		"selectMcVersion": "Select a version",
+		"selectLoaderVersion": "Select a loader version",
+		"loading": "Loading..."
 	},
 	"themes": {
 		"warning": {
