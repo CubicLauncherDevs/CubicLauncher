@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
 	import { INSTANCE_LOGOS } from "$lib/icons/logos";
+	import { launcherStore } from "$lib/state/state.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
+	import TagManager from "$lib/components/settings/TagManager.svelte";
 
 	let {
 		selectedIcon = $bindable<string | null>(null),
@@ -9,17 +11,38 @@
 		instGameVersion = $bindable(""),
 		versionOptions = [] as { value: string; label: string }[],
 		saving = false,
+		selectedTags = $bindable([] as string[]),
 		onVersionChange,
 		onReinstall,
+		onTagsChange,
 	}: {
 		selectedIcon: string | null;
 		instanceName: string;
 		instGameVersion: string;
 		versionOptions: { value: string; label: string }[];
 		saving: boolean;
+		selectedTags: string[];
 		onVersionChange: (version: string) => void;
 		onReinstall: () => void;
+		onTagsChange: (tagIds: string[]) => void;
 	} = $props();
+
+	let showTagManager = $state(false);
+
+	function toggleTag(tagId: string) {
+		const idx = selectedTags.indexOf(tagId);
+		let newTags: string[];
+		if (idx === -1) {
+			newTags = [...selectedTags, tagId];
+		} else {
+			newTags = selectedTags.filter((t) => t !== tagId);
+		}
+		onTagsChange(newTags);
+	}
+
+	function handleCreateTag() {
+		showTagManager = true;
+	}
 </script>
 
 <div style="margin-bottom: 4px;">
@@ -59,6 +82,35 @@
 		onchange={onVersionChange}
 	/>
 </div>
+<div class="tags-section">
+	<span>{t("instanceEditor.tags")}</span>
+	<div class="tags-selector">
+		{#each launcherStore.tags as tag (tag.id)}
+			{@const active = selectedTags.includes(tag.id)}
+			<button
+				type="button"
+				class="tag-chip"
+				class:active
+				style={active ? `border-color: ${tag.color ?? 'var(--text-muted)'}` : ''}
+				onclick={() => toggleTag(tag.id)}
+			>
+				<span class="tag-dot" style="background: {tag.color ?? 'var(--text-muted)'}"></span>
+				{tag.name}
+			</button>
+		{/each}
+		<button
+			type="button"
+			class="tag-chip tag-add-btn"
+			onclick={handleCreateTag}
+			title={t("tags.create")}
+		>
+			+
+		</button>
+	</div>
+</div>
+
+<TagManager bind:open={showTagManager} onclose={() => (showTagManager = false)} />
+
 <div class="reinstall">
 	<button
 		type="button"
@@ -152,6 +204,63 @@
 	.qm-save-btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+
+	.tags-section {
+		margin-top: 1vb;
+	}
+
+	.tags-section > span {
+		display: block;
+		margin-bottom: 6px;
+		font-size: 0.8rem;
+		color: var(--text-secondary);
+	}
+
+	.tags-selector {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 5px;
+	}
+
+	.tag-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 4px 8px;
+		border-radius: 12px;
+		border: 1px solid var(--border-color);
+		background: transparent;
+		color: var(--text-primary);
+		font-size: 0.75rem;
+		cursor: pointer;
+		font-family: var(--font-family);
+		transition: all 0.15s;
+	}
+
+	.tag-chip:hover {
+		background: rgba(255, 255, 255, 0.06);
+	}
+
+	.tag-chip.active {
+		background: rgba(255, 255, 255, 0.08);
+	}
+
+	.tag-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+
+	.tag-add-btn {
+		font-size: 1rem;
+		padding: 2px 10px;
+		opacity: 0.6;
+	}
+
+	.tag-add-btn:hover {
+		opacity: 1;
 	}
 
 	.reinstall {

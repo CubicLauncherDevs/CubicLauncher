@@ -4,7 +4,8 @@
 	import type { InstanceDto } from "$lib/types/types";
 	import { onMount } from "svelte";
 	import { updateInst } from "$lib/api/launcherService";
-	import { getInstalledVersions, reinstallVersion } from "$lib/api/cubicApi";
+	import { getInstalledVersions, reinstallVersion, setInstanceTags } from "$lib/api/cubicApi";
+	import { launcherStore } from "$lib/state/state.svelte";
 	import GeneralSection from "./GeneralSection.svelte";
 	import AdvancedSection from "./AdvancedSection.svelte";
 
@@ -23,6 +24,7 @@
 	let selectedJavaVersion = $state("");
 	let instGameVersion = $state("");
 	let useOverrides = $state(false);
+	let selectedTags = $state<string[]>([]);
 
 	let JavaOptions = [
 		{
@@ -36,8 +38,15 @@
 		{ value: "25", label: "Java 25" },
 	];
 
+	function handleTagsChange(tagIds: string[]) {
+		selectedTags = tagIds;
+	}
+
 	async function handleSave() {
 		saving = true;
+		if (selectedTags) {
+			await setInstanceTags(instance.uuid, selectedTags);
+		}
 		let newOverrides = useOverrides
 			? {
 					javaVersion:
@@ -72,6 +81,7 @@
 		selectedIcon = instance.icon;
 		instanceName = instance.name;
 		instGameVersion = instance.version;
+		selectedTags = [...instance.tags];
 		installedVersions = await getInstalledVersions();
 		if (instance.overrides) {
 			useOverrides = true;
@@ -116,10 +126,12 @@
 					bind:selectedIcon
 					bind:instanceName
 					bind:instGameVersion
+					bind:selectedTags
 					{versionOptions}
 					{saving}
 					onVersionChange={handleVersionChange}
 					onReinstall={handleReinstall}
+					onTagsChange={handleTagsChange}
 				/>
 			</CollapsibleSection>
 			<CollapsibleSection

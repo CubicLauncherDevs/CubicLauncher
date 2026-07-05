@@ -8,10 +8,12 @@
 	} from "$lib/api/cubicApi";
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import { t } from "$lib/i18n";
+	import { launcherStore } from "$lib/state/state.svelte";
 	import type { MrpackInfo } from "$lib/types/types";
 	import StepIndicator from "./StepIndicator.svelte";
 	import IconPicker from "./IconPicker.svelte";
 	import SourceStep from "./SourceStep.svelte";
+	import TagManager from "$lib/components/settings/TagManager.svelte";
 
 	let {
 		open = $bindable(),
@@ -41,6 +43,19 @@
 	// Modpack
 	let packInfo = $state<MrpackInfo | null>(null);
 	let parsing = $state(false);
+
+	// ── Tags ──────────────────────────────────────────────────────────────────
+	let selectedTags = $state<string[]>([]);
+	let showTagManager = $state(false);
+
+	function toggleTag(tagId: string) {
+		const idx = selectedTags.indexOf(tagId);
+		if (idx === -1) {
+			selectedTags = [...selectedTags, tagId];
+		} else {
+			selectedTags = selectedTags.filter((t) => t !== tagId);
+		}
+	}
 
 	// ── Common ────────────────────────────────────────────────────────────────
 	let loading = $state(false);
@@ -176,6 +191,7 @@
 				name,
 				selectedVersion,
 				selectedIcon,
+				selectedTags,
 				() => {
 					open = false;
 					resetState();
@@ -220,6 +236,7 @@
 		name = "";
 		selectedVersion = "";
 		selectedIcon = null;
+		selectedTags = [];
 		versions = [];
 		error = null;
 		parsing = false;
@@ -272,9 +289,35 @@
 							<span class="input-error">{t(nameMsg)}</span>
 						{/if}
 					</div>
+					<div class="input-group">
+						<span class="input-label">{t("instanceEditor.tags")}</span>
+						<div class="tags-selector">
+							{#each launcherStore.tags as tag (tag.id)}
+								{@const active = selectedTags.includes(tag.id)}
+								<button
+									type="button"
+									class="tag-chip"
+									class:active
+									style={active ? `border-color: ${tag.color ?? 'var(--text-muted)'}` : ''}
+									onclick={() => toggleTag(tag.id)}
+								>
+									<span class="tag-dot" style="background: {tag.color ?? 'var(--text-muted)'}"></span>
+									{tag.name}
+								</button>
+							{/each}
+							<button
+								type="button"
+								class="tag-chip tag-add-btn"
+								onclick={() => (showTagManager = true)}
+								title={t("tags.create")}
+							>+</button>
+						</div>
+					</div>
 				</div>
 			</div>
 		{/if}
+
+		<TagManager bind:open={showTagManager} onclose={() => (showTagManager = false)} />
 
 		{#if currentStep === 1}
 			<SourceStep
@@ -388,5 +431,52 @@
 		letter-spacing: 0.5px;
 		margin-bottom: 5px;
 		display: block;
+	}
+
+	.tags-selector {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 5px;
+		margin-top: 4px;
+	}
+
+	.tag-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 4px 8px;
+		border-radius: 12px;
+		border: 1px solid var(--border-color);
+		background: transparent;
+		color: var(--text-primary);
+		font-size: 0.75rem;
+		cursor: pointer;
+		font-family: var(--font-family);
+		transition: all 0.15s;
+	}
+
+	.tag-chip:hover {
+		background: rgba(255, 255, 255, 0.06);
+	}
+
+	.tag-chip.active {
+		background: rgba(255, 255, 255, 0.08);
+	}
+
+	.tag-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+
+	.tag-add-btn {
+		font-size: 1rem;
+		padding: 2px 10px;
+		opacity: 0.6;
+	}
+
+	.tag-add-btn:hover {
+		opacity: 1;
 	}
 </style>

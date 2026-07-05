@@ -6,15 +6,16 @@ use tokio::fs as tokio_fs;
 use tokio::sync::RwLock;
 use tokio::sync::oneshot;
 use tokio::time::{self, Duration};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
-use super::data::{InstOverrides, InstanceData, validate_instance_name};
+use super::data::{InstOverrides, InstanceData, TagData, validate_instance_name};
 use super::handle::InstanceHandle;
 
 pub(crate) const SYNC_INTERVAL_SECS: u64 = 30;
 
 pub struct InstanceManager {
     pub instances: RwLock<HashMap<String, InstanceHandle>>,
+    pub tags: RwLock<HashMap<String, TagData>>,
     _sync_handle: tokio::task::JoinHandle<()>,
 }
 
@@ -50,6 +51,7 @@ impl InstanceManager {
     pub async fn init() -> Arc<Self> {
         let manager = Arc::new(Self {
             instances: RwLock::new(HashMap::new()),
+            tags: RwLock::new(HashMap::new()),
             _sync_handle: tokio::spawn(Self::sync_task()),
         });
 
@@ -75,8 +77,39 @@ impl InstanceManager {
         }
         drop(guard);
 
+        let _ = Self::load_tags(&manager).await;
         let _ = INSTANCE_MANAGER.set(manager.clone());
         manager
+    }
+
+    async fn load_tags(manager: &Arc<Self>) {
+        let path = PathManager::get().get_tags_dir().join("tags.json");
+        let content = match tokio_fs::read_to_string(&path).await {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+        let tags: Vec<TagData> = match serde_json::from_str(&content) {
+            Ok(t) => t,
+            Err(e) => {
+                warn!("Error parsing tags.json: {}", e);
+                return;
+            }
+        };
+        let mut guard = manager.tags.write().await;
+        for tag in tags {
+            guard.insert(tag.id.to_string(), tag);
+        }
+    }
+
+    pub async fn save_tags(&self) {
+        let path = PathManager::get().get_tags_dir().join("tags.json");
+        let tags = self.tags.read().await;
+        let vec: Vec<&TagData> = tags.values().collect();
+        if let Ok(content) = serde_json::to_string(&vec) {
+            if let Err(e) = tokio_fs::write(&path, content).await {
+                error!("Error saving tags.json: {}", e);
+            }
+        }
     }
 
     pub fn get() -> &'static Arc<InstanceManager> {
@@ -113,6 +146,7 @@ impl InstanceManager {
         name: String,
         version: String,
         icon: Option<String>,
+        tag_ids: Vec<String>,
     ) -> Result<InstanceHandle, InstanceError> {
         validate_instance_name(&name).map_err(InstanceError::InstNameParse)?;
 
@@ -132,6 +166,16 @@ impl InstanceManager {
         })?;
 
         let handle = InstanceHandle::new(data);
+        if !tag_ids.is_empty() {
+            handle.set_tags(tag_ids).await;
+            let inst_dir = handle.get_instance_dir().await;
+            handle.save_if_dirty().await.map_err(|e| {
+                InstanceError::Fs(FsError::WriteFile {
+                    path: inst_dir.join("instance.cub").to_string_lossy().to_string(),
+                    source: e,
+                })
+            })?;
+        }
         self.instances
             .write()
             .await
@@ -240,6 +284,99 @@ impl InstanceManager {
             .await
             .map_err(|e| format!("Error al guardar la instancia: {}", e))?;
 
+        Ok(())
+    }
+
+    // ─── Tag management ─────────────────────────────────────────────────────
+
+    pub async fn get_all_tags(&self) -> Vec<TagData> {
+        self.tags.read().await.values().cloned().collect()
+    }
+
+    pub async fn create_tag(
+        &self,
+        name: String,
+        color: Option<String>,
+    ) -> Result<TagData, String> {
+        let mut guard = self.tags.write().await;
+        // check unique name (case-insensitive)
+        let name_lower = name.to_lowercase();
+        if guard.values().any(|t| t.name.to_lowercase() == name_lower) {
+            return Err("Ya existe una etiqueta con ese nombre".into());
+        }
+        let max_order = guard.values().map(|t| t.order).max().unwrap_or(0);
+        let tag = TagData {
+            id: uuid::Uuid::new_v4().to_string().into(),
+            name: name.into(),
+            color: color.map(|c| c.into()),
+            order: max_order + 1,
+        };
+        let id = tag.id.to_string();
+        guard.insert(id, tag.clone());
+        drop(guard);
+        self.save_tags().await;
+        Ok(tag)
+    }
+
+    pub async fn update_tag(
+        &self,
+        id: String,
+        name: Option<String>,
+        color: Option<Option<String>>,
+        order: Option<u32>,
+    ) -> Result<TagData, String> {
+        if let Some(ref n) = name {
+            let n_lower = n.to_lowercase();
+            let guard = self.tags.read().await;
+            if guard.values().any(|t| t.id.as_ref() != id && t.name.to_lowercase() == n_lower) {
+                return Err("Ya existe una etiqueta con ese nombre".into());
+            }
+        }
+        let mut guard = self.tags.write().await;
+        let tag = guard.get_mut(&id).ok_or_else(|| "Etiqueta no encontrada".to_string())?;
+        if let Some(n) = name {
+            tag.name = n.into();
+        }
+        if let Some(c) = color {
+            tag.color = c.map(|c| c.into());
+        }
+        if let Some(o) = order {
+            tag.order = o;
+        }
+        let result = tag.clone();
+        drop(guard);
+        self.save_tags().await;
+        Ok(result)
+    }
+
+    pub async fn delete_tag(&self, id: &str) -> Result<(), String> {
+        {
+            let mut guard = self.tags.write().await;
+            guard.remove(id).ok_or_else(|| "Etiqueta no encontrada".to_string())?;
+        }
+        self.save_tags().await;
+        // remove tag from all instances
+        let handles = self.get_all_handles().await;
+        for handle in handles {
+            let tags = handle.get_tags().await;
+            if tags.iter().any(|t| t.as_ref() == id) {
+                let new_tags: Vec<String> = tags.iter().filter(|t| t.as_ref() != id).map(|t| t.to_string()).collect();
+                handle.set_tags(new_tags).await;
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn set_instance_tags(&self, uuid: &str, tag_ids: Vec<String>) -> Result<(), String> {
+        let handle = self
+            .get_handle(uuid)
+            .await
+            .ok_or_else(|| "Instancia no encontrada".to_string())?;
+        handle.set_tags(tag_ids).await;
+        handle
+            .save_if_dirty()
+            .await
+            .map_err(|e| format!("Error al guardar la instancia: {}", e))?;
         Ok(())
     }
 }

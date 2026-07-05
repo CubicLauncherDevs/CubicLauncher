@@ -21,6 +21,8 @@ pub(crate) struct InstanceData {
     pub icon: Option<Arc<str>>,
     pub uuid: Arc<str>,
     pub overrides: Option<InstOverrides>,
+    #[serde(default)]
+    pub tags: Vec<Arc<str>>,
     #[serde(skip)]
     pub dirty: bool,
 }
@@ -51,8 +53,13 @@ impl InstanceData {
             icon: icon.map(|s| s.into()),
             uuid: uuid::Uuid::new_v4().to_string().into(),
             overrides: None,
+            tags: Vec::new(),
             dirty: true,
         }
+    }
+    pub fn set_tags(&mut self, tags: Vec<Arc<str>>) {
+        self.tags = tags;
+        self.dirty = true;
     }
 
     pub fn get_loader(&self) -> &'static str {
@@ -101,6 +108,25 @@ pub struct InstanceDto {
     pub uuid: Arc<str>,
     pub path: PathBuf,
     pub overrides: Option<InstOverrides>,
+    pub tags: Vec<Arc<str>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TagData {
+    pub id: Arc<str>,
+    pub name: Arc<str>,
+    pub color: Option<Arc<str>>,
+    pub order: u32,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TagDto {
+    pub id: Arc<str>,
+    pub name: Arc<str>,
+    pub color: Option<Arc<str>>,
+    pub order: u32,
 }
 
 pub fn validate_instance_name(name: &str) -> Result<(), String> {

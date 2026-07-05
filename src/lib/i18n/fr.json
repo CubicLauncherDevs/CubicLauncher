@@ -1,7 +1,8 @@
 {
 	"id": "fr-FR",
 	"common": {
-		"cancel": "Annuler"
+		"cancel": "Annuler",
+		"save": "Enregistrer"
 	},
 	"settings": {
 		"title": "Paramètres",
@@ -93,6 +94,7 @@
 		"rename": "Renommer",
 		"delete": "Supprimer",
 		"noInstances": "Aucune instance",
+		"untagged": "Sans étiquette",
 		"createInstance": "Créer une Instance",
 		"refreshInstances": "Actualiser les Instances",
 		"downloadVersions": "Télécharger les Versions",
@@ -302,6 +304,7 @@
 		"generalTitle": "Général",
 		"language": "Langue",
 		"reinstall": "Réinstaller l'instance",
+		"tags": "Étiquettes",
 		"javaVersion": "Version Java",
 		"javaHint": "Cubic choisira la version Java recommandée pour cette version de Minecraft. Certains mods peuvent être incompatibles et en nécessiter une autre.",
 		"recommended": "Recommandé"
@@ -427,6 +430,16 @@
 			"title": "Configuration Java",
 			"desc": "Gérez les runtimes Java 8, 17, 21 et 25 ici. Installez Java automatiquement depuis le launcher ou utilisez une installation existante. Configurez aussi les arguments JVM et les variables d'environnement."
 		}
+	},
+	"tags": {
+		"manage": "Gérer les étiquettes",
+		"create": "Créer une étiquette",
+		"createPrompt": "Nom de la nouvelle étiquette :",
+		"rename": "Renommer",
+		"delete": "Supprimer",
+		"deleteConfirm": "Supprimer cette étiquette ? Les instances la perdront.",
+		"add": "Ajouter",
+		"namePlaceholder": "Nom de l'étiquette"
 	},
 	"errors": {
 		"title": "Erreur",

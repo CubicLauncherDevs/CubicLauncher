@@ -6,6 +6,7 @@
 	import {
 		getVersions,
 		syncSettings,
+		syncTags,
 		initEventListeners,
 	} from "$lib/api/launcherService";
 	import type { InstanceDto } from "$lib/types/types";
@@ -56,7 +57,7 @@
 	onMount(async () => {
 		initEventListeners();
 
-		await Promise.all([syncSettings(), getVersions()]);
+		await Promise.all([syncSettings(), getVersions(), syncTags()]);
 
 		if (launcherStore.settings.show_tutorial) {
 			showTutorial = true;

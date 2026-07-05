@@ -1,7 +1,8 @@
 {
 	"id": "en-US",
 	"common": {
-		"cancel": "Cancel"
+		"cancel": "Cancel",
+		"save": "Save"
 	},
 	"settings": {
 		"title": "Settings",
@@ -93,6 +94,7 @@
 		"rename": "Rename",
 		"delete": "Delete",
 		"noInstances": "No instances",
+		"untagged": "Untagged",
 		"createInstance": "Create Instance",
 		"refreshInstances": "Refresh Instances",
 		"downloadVersions": "Download Versions",
@@ -302,6 +304,7 @@
 		"generalTitle": "General",
 		"language": "Language",
 		"reinstall": "Reinstall instance",
+		"tags": "Tags",
 		"javaVersion": "Java Version",
 		"javaHint": "Cubic will select the recommended Java version for this Minecraft version. Some mods may be incompatible and require a different one.",
 		"recommended": "Recommended"
@@ -427,6 +430,16 @@
 			"title": "Java Configuration",
 			"desc": "Manage Java 8, 17, 21 and 25 runtimes here. Install Java automatically from the launcher or use an existing installation. You can also configure JVM arguments and environment variables."
 		}
+	},
+	"tags": {
+		"manage": "Manage Tags",
+		"create": "Create Tag",
+		"createPrompt": "Name for the new tag:",
+		"rename": "Rename",
+		"delete": "Delete",
+		"deleteConfirm": "Delete this tag? Instances will lose it.",
+		"add": "Add",
+		"namePlaceholder": "Tag name"
 	},
 	"errors": {
 		"title": "Error",

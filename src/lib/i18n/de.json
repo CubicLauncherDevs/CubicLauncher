@@ -1,7 +1,8 @@
 {
 	"id": "de-DE",
 	"common": {
-		"cancel": "Abbrechen"
+		"cancel": "Abbrechen",
+		"save": "Speichern"
 	},
 	"settings": {
 		"title": "Einstellungen",
@@ -93,6 +94,7 @@
 		"rename": "Umbenennen",
 		"delete": "Löschen",
 		"noInstances": "Keine Instanzen",
+		"untagged": "Ohne Etikett",
 		"createInstance": "Instanz erstellen",
 		"refreshInstances": "Instanzen aktualisieren",
 		"downloadVersions": "Versionen herunterladen",
@@ -302,6 +304,7 @@
 		"generalTitle": "Allgemein",
 		"language": "Sprache",
 		"reinstall": "Instanz neu installieren",
+		"tags": "Etiketten",
 		"javaVersion": "Java-Version",
 		"javaHint": "Cubic wählt die empfohlene Java-Version für diese Minecraft-Version aus. Manche Mods können inkompatibel sein und eine andere Version benötigen.",
 		"recommended": "Empfohlen"
@@ -426,6 +429,16 @@
 			"title": "Java-Konfiguration",
 			"desc": "Hier kannst du die Java-Versionen 8, 17, 21 und 25 verwalten. Du kannst Java automatisch über den Launcher installieren oder eine externe Installation verwenden. Du kannst auch JVM-Argumente und Umgebungsvariablen konfigurieren."
 		}
+	},
+	"tags": {
+		"manage": "Etiketten verwalten",
+		"create": "Etikett erstellen",
+		"createPrompt": "Name des neuen Etiketts:",
+		"rename": "Umbenennen",
+		"delete": "Löschen",
+		"deleteConfirm": "Dieses Etikett löschen? Instanzen verlieren es.",
+		"add": "Hinzufügen",
+		"namePlaceholder": "Etikettname"
 	},
 	"errors": {
 		"title": "Error",

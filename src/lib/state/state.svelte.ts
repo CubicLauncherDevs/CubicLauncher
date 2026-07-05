@@ -1,5 +1,6 @@
 import type {
 	InstanceDto,
+	TagDto,
 	Settings,
 	Notification,
 	NotificationType,
@@ -24,6 +25,7 @@ export interface LauncherState {
 	updateDownloaded: boolean;
 	jreInstallPrompt: JreInstallPrompt | null;
 	pendingJreLaunch: PendingJreLaunch | null;
+	tags: TagDto[];
 }
 
 export const launcherStore = $state<LauncherState>({
@@ -36,6 +38,7 @@ export const launcherStore = $state<LauncherState>({
 	updateDownloaded: false,
 	jreInstallPrompt: null,
 	pendingJreLaunch: null,
+	tags: [],
 	settings: {
 		user: [],
 		active_user_idx: 0,
@@ -120,6 +123,18 @@ export function setPendingJreLaunch(version: number, instance: InstanceDto) {
 
 export function clearPendingJreLaunch() {
 	launcherStore.pendingJreLaunch = null;
+}
+
+export function getTagsForInstance(instance: InstanceDto): TagDto[] {
+	return launcherStore.tags.filter((t) => instance.tags.includes(t.id));
+}
+
+export function getInstancesByTag(tagId: string): InstanceDto[] {
+	return launcherStore.loadedInstances.filter((i) => i.tags.includes(tagId));
+}
+
+export function getUntaggedInstances(): InstanceDto[] {
+	return launcherStore.loadedInstances.filter((i) => i.tags.length === 0);
 }
 
 export function showErrorParsed(rawError: unknown) {

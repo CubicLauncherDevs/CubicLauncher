@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { launcherStore, getUntaggedInstances } from "$lib/state/state.svelte";
 	import { SvelteMap } from "svelte/reactivity";
-	import type { InstanceDto } from "$lib/types/types";
+	import type { InstanceDto, TagDto } from "$lib/types/types";
 	import UserMenu from "../UserMenu/UserMenu.svelte";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import DownloadQueue from "../DownloadQueue/DownloadQueue.svelte";
@@ -10,8 +10,10 @@
 	import ContextMenu from "../ContextMenu.svelte";
 	import { getVersions } from "$lib/api/launcherService";
 	import InstanceItem from "./InstanceItem.svelte";
+	import TagSection from "./TagSection.svelte";
 	import UserProfile from "./UserProfile.svelte";
 	import DeleteInstanceModal from "./DeleteInstanceModal.svelte";
+	import TagManager from "$lib/components/settings/TagManager.svelte";
 
 	interface Props {
 		selectedInstance: InstanceDto | null;
@@ -35,6 +37,7 @@
 	let ctxY = $state(0);
 	let showDeleteModal = $state(false);
 	let instanceToActOn = $state<InstanceDto | null>(null);
+	let showTagManager = $state(false);
 	let activeUser = $derived(getActiveUser());
 	let username = $derived(activeUser?.username ?? "Steve");
 	let isPremium = $derived(activeUser?.user_type === "Microsoft");
@@ -85,6 +88,19 @@
 		}
 		showDeleteModal = false;
 	}
+
+	let instancesByTag = $derived(() => {
+		const map = new Map<string, InstanceDto[]>();
+		for (const tag of launcherStore.tags) {
+			const instances = launcherStore.loadedInstances.filter((i) => i.tags.includes(tag.id));
+			if (instances.length > 0) {
+				map.set(tag.id, instances);
+			}
+		}
+		return map;
+	});
+
+	let untaggedInstances = $derived(getUntaggedInstances());
 </script>
 
 <aside class="sidebar">
@@ -106,19 +122,6 @@
 		>
 			<div class="section-label">{t("sidebar.yourInstances")}</div>
 			<div class="instance-list" data-tutorial="instance-list">
-				{#each launcherStore.loadedInstances as instance (instance.uuid)}
-					<InstanceItem
-						{instance}
-						selected={selectedInstance?.uuid === instance.uuid}
-						onselect={() =>
-							(selectedInstance =
-								selectedInstance?.uuid === instance.uuid
-									? null
-									: instance)}
-						onedit={() => onopeneditinstance?.(instance)}
-						ondelete={() => openDeleteModal(instance)}
-					/>
-				{/each}
 				{#if launcherStore.loadedInstances.length === 0}
 					<div
 						class="instance-item"
@@ -128,6 +131,45 @@
 							>{t("sidebar.noInstances")}</span
 						>
 					</div>
+				{:else}
+					{#each launcherStore.tags as tag (tag.id)}
+						{@const tagInstances = launcherStore.loadedInstances.filter((i) => i.tags.includes(tag.id))}
+						{#if tagInstances.length > 0}
+							<TagSection
+								{tag}
+								instances={tagInstances}
+								{selectedInstance}
+								selected={false}
+								onselect={(inst) => (selectedInstance = inst)}
+								onedit={(inst) => onopeneditinstance?.(inst)}
+								ondelete={(inst) => openDeleteModal(inst)}
+								onrename={() => {}}
+								ondeleteTag={() => {}}
+							/>
+						{/if}
+					{/each}
+					{#if untaggedInstances.length > 0}
+						<div class="untagged-section">
+							<div class="untagged-header">
+								<span class="tag-indicator" style="background: var(--text-muted)"></span>
+								<span class="untagged-label">{t("sidebar.untagged")}</span>
+								<span class="tag-count">{untaggedInstances.length}</span>
+							</div>
+							{#each untaggedInstances as instance (instance.uuid)}
+								<InstanceItem
+									{instance}
+									selected={selectedInstance?.uuid === instance.uuid}
+									onselect={() =>
+										(selectedInstance =
+											selectedInstance?.uuid === instance.uuid
+												? null
+												: instance)}
+									onedit={() => onopeneditinstance?.(instance)}
+									ondelete={() => openDeleteModal(instance)}
+								/>
+							{/each}
+						</div>
+					{/if}
 				{/if}
 			</div>
 		</div>
@@ -210,7 +252,10 @@
 <ContextMenu bind:open={ctxOpen} x={ctxX} y={ctxY} items={[
 	{ label: t("sidebar.createInstance"), action: () => onopencreateinstance?.() },
 	{ label: t("sidebar.refreshInstances"), action: () => getVersions() },
+	{ label: t("tags.manage"), action: () => (showTagManager = true) },
 ]} />
+
+<TagManager bind:open={showTagManager} onclose={() => (showTagManager = false)} />
 
 <style>
 	.sidebar {
@@ -303,6 +348,40 @@
 		background: transparent;
 		border: none;
 		border-bottom: 1px solid var(--border);
+	}
+
+	.untagged-section {
+		margin-top: 4px;
+	}
+
+	.untagged-header {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		padding: 6px 10px;
+		color: var(--text-secondary);
+		font-size: 0.75rem;
+		font-weight: 600;
+	}
+
+	.untagged-label {
+		flex: 1;
+		font-size: 0.75rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.tag-indicator {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+
+	.tag-count {
+		font-size: 0.65rem;
+		opacity: 0.6;
 	}
 
 	:global(.tools-group) {
