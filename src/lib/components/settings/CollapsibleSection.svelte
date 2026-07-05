@@ -28,11 +28,9 @@
 		return fallback;
 	}
 
-	let open = $state(true);
-
-	$effect(() => {
-		open = loadSaved(storageKey, defaultOpen);
-	});
+	// storageKey/defaultOpen are intentionally only used for the initial value.
+	// svelte-ignore state_referenced_locally
+	let open = $state(loadSaved(storageKey, defaultOpen));
 
 	$effect(() => {
 		if (storageKey) {

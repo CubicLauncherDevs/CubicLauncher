@@ -99,7 +99,7 @@
 		}
 	}
 
-	let downloads = $state(new SvelteMap<string, DownloadItem>());
+	let downloads = new SvelteMap<string, DownloadItem>();
 	let expanded = $state(false);
 	let activeCount = $derived(
 		[...downloads.values()].filter((d) => !d.done).length,

@@ -1,9 +1,11 @@
 <script lang="ts">
+	import type { SVGAttributes } from "svelte/elements";
+
 	let {
 		class: className = "",
 		size = 24,
 		...rest
-	}: { class?: string; size?: number; [key: string]: any } = $props();
+	}: { class?: string; size?: number } & SVGAttributes<SVGSVGElement> = $props();
 </script>
 
 <svg

@@ -54,7 +54,7 @@
 		};
 	}
 
-	let downloads = $state(new SvelteMap<string, DlItem>());
+	let downloads = new SvelteMap<string, DlItem>();
 	let open = $state(false);
 	let counts = $derived.by(() => {
 		let active = 0,
