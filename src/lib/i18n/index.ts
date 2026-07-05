@@ -7,8 +7,7 @@ import de from "./de.json";
 type DictValue = string | { [key: string]: DictValue };
 const dicts: Record<string, DictValue> = { es, en, fr, de };
 
-let flat: Record<string, string> = {};
-let lastLang = "";
+const flatCache = new Map<string, Record<string, string>>();
 
 function flatten(
 	obj: Record<string, DictValue>,
@@ -26,12 +25,14 @@ function flatten(
 	return result;
 }
 
-function ensureLang(lang: string): void {
-	if (lang !== lastLang) {
+function getFlat(lang: string): Record<string, string> {
+	let cached = flatCache.get(lang);
+	if (!cached) {
 		const dict = dicts[lang] || dicts["es"];
-		flat = dict && typeof dict === "object" ? flatten(dict) : {};
-		lastLang = lang;
+		cached = dict && typeof dict === "object" ? flatten(dict) : {};
+		flatCache.set(lang, cached);
 	}
+	return cached;
 }
 
 export function t(
@@ -39,7 +40,7 @@ export function t(
 	params?: Record<string, string | number>,
 ): string {
 	const lang = launcherStore.settings?.language || "es";
-	ensureLang(lang);
+	const flat = getFlat(lang);
 
 	const result = flat[key];
 	if (result === undefined) return key;

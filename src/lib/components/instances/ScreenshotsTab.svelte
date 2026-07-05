@@ -221,7 +221,7 @@
 		align-items: center;
 		justify-content: center;
 		z-index: 2000;
-		backdrop-filter: blur(var(--backdrop-blur-viewer, 5px));
+		backdrop-filter: blur(var(--backdrop-blur-viewer, 2px));
 	}
 
 	.viewer-container {

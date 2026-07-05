@@ -56,12 +56,13 @@
 
 	let downloads = new SvelteMap<string, DlItem>();
 	let open = $state(false);
-	let activeCount = $derived(
-		[...downloads.values()].filter((d) => !d.done).length,
-	);
-	let doneCount = $derived(
-		[...downloads.values()].filter((d) => d.done).length,
-	);
+	let counts = $derived.by(() => {
+		let active = 0, done = 0;
+		for (const d of downloads.values()) {
+			if (d.done) done++; else active++;
+		}
+		return { active, done };
+	});
 
 	function pct(segs: Record<SegKey, SegProg>): number {
 		const totalAll = SEGS.reduce((a, k) => a + segs[k].total, 0);
@@ -129,26 +130,23 @@
 				}
 				case "DProgress": {
 					const { version, current, total, d_type } = p.data;
-					const existing = downloads.get(version) ?? {
-						version,
-						activeType: null,
-						segs: emptySegs(),
-						done: false,
-						error: null,
-					};
+					let existing = downloads.get(version);
+					if (!existing) {
+						existing = {
+							version,
+							activeType: null,
+							segs: emptySegs(),
+							done: false,
+							error: null,
+						};
+					}
 					const key = SEGS.includes(d_type as SegKey)
 						? (d_type as SegKey)
 						: (existing.activeType ?? "Library");
-					const newSegs = {
-						...existing.segs,
-						[key]: { current, total },
-					};
-					downloads.set(version, {
-						...existing,
-						segs: newSegs,
-						activeType: key,
-						done: false,
-					});
+					existing.segs[key] = { current, total };
+					existing.activeType = key;
+					existing.done = false;
+					downloads.set(version, existing);
 					break;
 				}
 				case "DFinish": {
@@ -200,7 +198,7 @@
 </script>
 
 <div class="sd-root">
-	<DownloadQueueHeader bind:open {activeCount} {doneCount} />
+	<DownloadQueueHeader bind:open activeCount={counts.active} doneCount={counts.done} />
 	{#if open}
 		<div class="sd-body" transition:slide={{ duration: 150 }}>
 			{#if downloads.size === 0}

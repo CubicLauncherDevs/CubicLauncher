@@ -3,6 +3,7 @@
 	import {
 		launcherStore,
 	} from "$lib/state/state.svelte";
+	import { getAvatar, setAvatar } from "$lib/state/avatarCache";
 	import { SvelteMap } from "svelte/reactivity";
 	import type { InstanceDto } from "$lib/types/types";
 	import UserMenu from "../UserMenu/UserMenu.svelte";
@@ -48,9 +49,6 @@
 				: t("userMenu.offline"),
 	);
 
-	const AVATAR_CACHE_MAX = 20;
-	const avatarCache = new SvelteMap<string, string>();
-
 	let avatarSvg = $state("");
 
 	$effect(() => {
@@ -59,7 +57,7 @@
 			? `https://skins.cubiclauncher.org/api/elyby/head/${username}`
 			: `https://skins.cubiclauncher.org/api/mojang/head/${username}`;
 
-		const cached = avatarCache.get(url);
+		const cached = getAvatar(url);
 		if (cached !== undefined) {
 			avatarSvg = cached;
 			return;
@@ -68,11 +66,7 @@
 		fetch(url)
 			.then((r) => r.text())
 			.then((svg) => {
-				if (avatarCache.size >= AVATAR_CACHE_MAX) {
-					const first = avatarCache.keys().next();
-					if (!first.done) avatarCache.delete(first.value);
-				}
-				avatarCache.set(url, svg);
+				setAvatar(url, svg);
 				avatarSvg = svg;
 			})
 			.catch(() => {});

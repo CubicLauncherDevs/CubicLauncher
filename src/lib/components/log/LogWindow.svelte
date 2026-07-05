@@ -15,6 +15,7 @@
 		text: string;
 		stream: string;
 		timestamp: number;
+		level: "info" | "warn" | "error" | "fatal" | "default";
 	}
 
 	const MAX_LINES = 4000;
@@ -26,6 +27,7 @@
 	let uploading = $state(false);
 	let logContainer: HTMLDivElement | undefined = $state();
 	let unlistenFn: (() => void) | undefined;
+	let scrollTicking = false;
 
 	function computeLevel(
 		text: string,
@@ -66,7 +68,7 @@
 	function appendLines(newLines: LogLine[]) {
 		lines.push(...newLines);
 		if (lines.length > MAX_LINES) {
-			lines = lines.slice(-MAX_LINES);
+			lines.splice(0, lines.length - MAX_LINES);
 		}
 		renderLines();
 	}
@@ -81,8 +83,7 @@
 		const start = container.children.length;
 		for (let i = start; i < lines.length; i++) {
 			const line = lines[i];
-			const level =
-				line.stream === "stderr" ? "error" : computeLevel(line.text);
+			const level = line.level;
 			const div = document.createElement("div");
 			div.className = `log-line ${level}${line.stream === "stderr" ? " stderr" : ""} new`;
 			const ts = document.createElement("span");
@@ -112,10 +113,13 @@
 		let destroyed = false;
 
 		(async () => {
-			const history: LogLine[] = await invoke("get_log_history_cmd", {
+			const raw: LogLine[] = await invoke("get_log_history_cmd", {
 				instanceId,
 			});
-			lines = history;
+			lines = raw.map((l) => ({
+				...l,
+				level: l.stream === "stderr" ? "error" : computeLevel(l.text),
+			}));
 			await tick();
 
 			const viewport = logContainer;
@@ -124,10 +128,7 @@
 				if (container) {
 					const frag = document.createDocumentFragment();
 					for (const line of lines) {
-						const level =
-							line.stream === "stderr"
-								? "error"
-								: computeLevel(line.text);
+						const level = line.level;
 						const div = document.createElement("div");
 						div.className = `log-line ${level}${line.stream === "stderr" ? " stderr" : ""}`;
 						const ts = document.createElement("span");
@@ -156,6 +157,7 @@
 					text: e.line,
 					stream: e.stream,
 					timestamp: e.timestamp,
+					level: e.stream === "stderr" ? "error" : computeLevel(e.line),
 				}));
 				appendLines(batch);
 			});
@@ -168,25 +170,30 @@
 	});
 
 	function handleScroll() {
-		if (!logContainer) return;
-		const el = logContainer;
-		const atBottom =
-			el.scrollHeight - el.scrollTop - el.clientHeight < SCROLL_THRESHOLD;
-		if (atBottom && !isAtBottom) {
-			unseenCount = 0;
-		}
-		isAtBottom = atBottom;
-		if (!isAtBottom) {
-			const container = el.querySelector(".log-lines");
-			if (container) {
-				unseenCount = Math.max(
-					0,
-					container.children.length -
-						Math.floor(el.scrollTop / 20) -
-						Math.floor(el.clientHeight / 20),
-				);
+		if (!logContainer || scrollTicking) return;
+		scrollTicking = true;
+		requestAnimationFrame(() => {
+			scrollTicking = false;
+			const el = logContainer;
+			if (!el) return;
+			const atBottom =
+				el.scrollHeight - el.scrollTop - el.clientHeight < SCROLL_THRESHOLD;
+			if (atBottom && !isAtBottom) {
+				unseenCount = 0;
 			}
-		}
+			isAtBottom = atBottom;
+			if (!isAtBottom) {
+				const container = el.querySelector(".log-lines");
+				if (container) {
+					unseenCount = Math.max(
+						0,
+						container.children.length -
+							Math.floor(el.scrollTop / 20) -
+							Math.floor(el.clientHeight / 20),
+					);
+				}
+			}
+		});
 	}
 
 	function scrollToBottom() {
@@ -533,7 +540,7 @@
 		font-size: 0.6rem;
 		font-family: inherit;
 		cursor: pointer;
-		backdrop-filter: blur(var(--backdrop-blur-float, 8px));
+		backdrop-filter: blur(var(--backdrop-blur-float, 4px));
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 		transition: all 0.2s ease;
 		z-index: 10;

@@ -83,13 +83,16 @@
 	}
 
 	// ── Effects ───────────────────────────────────────────────────────────────
+	let versionsCache: string[] | null = null;
+	let namesCache: string[] | null = null;
+
 	$effect(() => {
 		if (open) {
 			currentStep = 0;
 			contentSource = "version";
 			nameMsg = null;
-			fetchVersions();
-			fetchInstances();
+			if (!versionsCache) fetchVersions();
+			if (!namesCache) fetchInstances();
 		}
 	});
 
@@ -103,18 +106,20 @@
 	// ── Fetch instances ───────────────────────────────────────────────────────
 	async function fetchInstances() {
 		const instances = await fetchAll();
-		existingNames = instances.map((i) => i.name);
+		namesCache = instances.map((i) => i.name);
+		existingNames = namesCache;
 	}
 
 	// ── Fetch versions ────────────────────────────────────────────────────────
 	async function fetchVersions() {
 		const rawVersions = await getInstalledVersions();
-		versions = rawVersions.sort((a, b) =>
+		versionsCache = rawVersions.sort((a, b) =>
 			b.localeCompare(a, undefined, {
 				numeric: true,
 				sensitivity: "base",
 			}),
 		);
+		versions = versionsCache;
 		if (versions.length > 0 && !selectedVersion) {
 			selectedVersion = versions[0];
 		}

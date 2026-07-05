@@ -50,7 +50,12 @@
 	let installedQuilt = $state(new Set<string>());
 	let downloadingVersions = new SvelteSet<string>();
 	let filter = $state("release");
+	let rawSearch = $state("");
 	let search = $state("");
+	$effect(() => {
+		const timer = setTimeout(() => { search = rawSearch; }, 150);
+		return () => clearTimeout(timer);
+	});
 	let installStatusFilter = $state("all");
 	let majorVersionFilter = $state("all");
 	let fabricStabilityFilter = $state("stable");
@@ -361,13 +366,6 @@
 		} else {
 			await addToQueue(versionId);
 		}
-
-		const raw = await getInstalledVersions();
-		const { vanilla, fabric, forge, quilt } = getInstalledMcVersions(raw);
-		installedVanilla = vanilla;
-		installedFabric = fabric;
-		installedForge = forge;
-		installedQuilt = quilt;
 	}
 </script>
 
@@ -381,7 +379,7 @@
 	/>
 
 	<VersionDownloaderFilters
-		bind:search
+		bind:search={rawSearch}
 		bind:installStatusFilter
 		bind:majorVersionFilter
 		bind:fabricStabilityFilter

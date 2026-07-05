@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { launcherStore, showError } from "$lib/state/state.svelte";
+	import { getAvatar, setAvatar } from "$lib/state/avatarCache";
 	import { SvelteMap } from "svelte/reactivity";
 	import {
 		saveSettings,
@@ -106,8 +107,6 @@
 		await saveSettings();
 	}
 
-	const avatarCache = new SvelteMap<string, string>();
-
 	let avatarSvgs = new SvelteMap<string, string>();
 
 	async function loadAvatar(
@@ -117,7 +116,7 @@
 		const endpoint = userType === "Yggdrasil" ? "elyby" : "mojang";
 		const url = `https://skins.cubiclauncher.org/api/${endpoint}/head/${username}`;
 
-		const cached = avatarCache.get(url);
+		const cached = getAvatar(url);
 		if (cached !== undefined) {
 			if (avatarSvgs.get(username) !== cached) {
 				avatarSvgs.set(username, cached);
@@ -128,7 +127,7 @@
 		try {
 			const res = await fetch(url);
 			const svg = await res.text();
-			avatarCache.set(url, svg);
+			setAvatar(url, svg);
 			avatarSvgs.set(username, svg);
 		} catch {
 			avatarSvgs.set(username, "");

@@ -252,7 +252,7 @@
 		padding: 0 40px;
 		border-bottom: 1px solid var(--border);
 		background: rgba(255, 255, 255, 0.01);
-		backdrop-filter: blur(var(--backdrop-blur-float, 8px));
+		backdrop-filter: blur(var(--backdrop-blur-float, 4px));
 		position: sticky;
 		top: 0;
 		z-index: 10;
