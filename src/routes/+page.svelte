@@ -17,7 +17,11 @@
 	import Tutorial from "$lib/components/layout/welcome/welcome.svelte";
 	import { initDiscordPresence } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
-	import { applyTheme, importThemeZip, import_theme_cbth } from "$lib/api/themeManager";
+	import {
+		applyTheme,
+		importThemeZip,
+		import_theme_cbth,
+	} from "$lib/api/themeManager";
 	import { checkForUpdates } from "$lib/api/updaterServices";
 	import { saveSettings } from "$lib/api/launcherService";
 	import { showSuccess, showError } from "$lib/state/state.svelte";

@@ -57,9 +57,11 @@
 	let downloads = $state(new SvelteMap<string, DlItem>());
 	let open = $state(false);
 	let counts = $derived.by(() => {
-		let active = 0, done = 0;
+		let active = 0,
+			done = 0;
 		for (const d of downloads.values()) {
-			if (d.done) done++; else active++;
+			if (d.done) done++;
+			else active++;
 		}
 		return { active, done };
 	});
@@ -198,7 +200,11 @@
 </script>
 
 <div class="sd-root">
-	<DownloadQueueHeader bind:open activeCount={counts.active} doneCount={counts.done} />
+	<DownloadQueueHeader
+		bind:open
+		activeCount={counts.active}
+		doneCount={counts.done}
+	/>
 	{#if open}
 		<div class="sd-body" transition:slide={{ duration: 150 }}>
 			{#if downloads.size === 0}
@@ -206,9 +212,10 @@
 			{:else}
 				{#each [...downloads.values()] as item (item.version)}
 					{@const overall = pct(item.segs)}
-					{@const label = !item.done && !item.error && item.activeType
-						? statusLabel(item.activeType)
-						: null}
+					{@const label =
+						!item.done && !item.error && item.activeType
+							? statusLabel(item.activeType)
+							: null}
 					<DownloadQueueItem
 						version={item.version}
 						{overall}

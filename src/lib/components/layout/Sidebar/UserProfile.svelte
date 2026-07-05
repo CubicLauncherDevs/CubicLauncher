@@ -16,11 +16,10 @@
 
 <div
 	class="user-profile"
-	onclick={onclick}
+	{onclick}
 	role="button"
 	tabindex="0"
-	onkeydown={(e) =>
-		(e.key === "Enter" || e.key === " ") && onclick()}
+	onkeydown={(e) => (e.key === "Enter" || e.key === " ") && onclick()}
 	style="cursor: pointer;"
 >
 	<div class="user-avatar-wrapper">

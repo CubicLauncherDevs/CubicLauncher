@@ -50,7 +50,13 @@
 </script>
 
 <div class="details-panel">
-	<InfoHeader {instance} {loaderColor} {statusLabel} {statusClass} onOpenDir={openDir} />
+	<InfoHeader
+		{instance}
+		{loaderColor}
+		{statusLabel}
+		{statusClass}
+		onOpenDir={openDir}
+	/>
 	<ActionChips onOpenDir={openDir} onOpenLogs={openLogs} />
 </div>
 

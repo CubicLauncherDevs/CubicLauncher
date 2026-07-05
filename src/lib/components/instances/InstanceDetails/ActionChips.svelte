@@ -28,11 +28,7 @@
 		</svg>
 		{t("instanceView.options.folder")}
 	</button>
-	<button
-		type="button"
-		class="action-chip"
-		onclick={() => onOpenDir("mods")}
-	>
+	<button type="button" class="action-chip" onclick={() => onOpenDir("mods")}>
 		<svg
 			width="14"
 			height="14"

@@ -20,7 +20,9 @@
 		searching = false,
 		loadingMore = false,
 		basket = new SvelteMap<string, ModrinthProject | CurseForgeProject>(),
-		selectedMod = $bindable<ModrinthProject | CurseForgeProject | null>(null),
+		selectedMod = $bindable<ModrinthProject | CurseForgeProject | null>(
+			null,
+		),
 		selectedModVersions = [] as (ModrinthVersion | CurseForgeFile)[],
 		selectedVersionId = $bindable(""),
 		loadingVersions = false,
@@ -61,9 +63,7 @@
 		performSearch: (resetResults?: boolean) => Promise<void>;
 		handleNearEnd: () => void;
 		switchSource: (source: ModSource) => void;
-		toggleBasket: (
-			project: ModrinthProject | CurseForgeProject,
-		) => void;
+		toggleBasket: (project: ModrinthProject | CurseForgeProject) => void;
 		onVersionChange: () => void;
 		startReview: () => Promise<void>;
 	} = $props();
@@ -182,14 +182,18 @@
 			<div class="dm-source-tabs">
 				<button
 					type="button"
-					class="dm-source-tab {source === 'modrinth' ? 'active' : ''}"
+					class="dm-source-tab {source === 'modrinth'
+						? 'active'
+						: ''}"
 					onclick={() => switchSource("modrinth")}
 				>
 					{t("instanceView.downloadMods.sourceModrinth")}
 				</button>
 				<button
 					type="button"
-					class="dm-source-tab {source === 'curseforge' ? 'active' : ''}"
+					class="dm-source-tab {source === 'curseforge'
+						? 'active'
+						: ''}"
 					onclick={() => switchSource("curseforge")}
 				>
 					{t("instanceView.downloadMods.sourceCurseForge")}
@@ -363,10 +367,7 @@
 							<span class="dm-end-label"
 								>— {t(
 									"instanceView.downloadMods.endOfResults",
-								).replace(
-									"{count}",
-									allHits.length.toString(),
-								)} —</span
+								).replace("{count}", allHits.length.toString())} —</span
 							>
 						</div>
 					{/if}
@@ -433,7 +434,9 @@
 							>{t("instanceView.downloadMods.downloads")}</span
 						>
 						<span class="dm-details-stat-value"
-							>{formatNumber(getProjectDownloads(selectedMod))}</span
+							>{formatNumber(
+								getProjectDownloads(selectedMod),
+							)}</span
 						>
 					</div>
 				</div>
@@ -450,7 +453,9 @@
 					>
 					{#if loadingVersions}
 						<span class="dm-loading-versions"
-							>{t("instanceView.downloadMods.loadingVersions")}</span
+							>{t(
+								"instanceView.downloadMods.loadingVersions",
+							)}</span
 						>
 					{:else if selectedModVersions.length === 0}
 						<span class="dm-no-versions-msg"

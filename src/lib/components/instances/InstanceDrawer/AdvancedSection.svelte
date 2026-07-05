@@ -22,11 +22,7 @@
 </script>
 
 <div class="qm-field-checkbox">
-	<input
-		type="checkbox"
-		id="use-overrides"
-		bind:checked={useOverrides}
-	/>
+	<input type="checkbox" id="use-overrides" bind:checked={useOverrides} />
 	<label for="use-overrides">Usar configuración personalizada</label>
 </div>
 <fieldset disabled={!useOverrides}>

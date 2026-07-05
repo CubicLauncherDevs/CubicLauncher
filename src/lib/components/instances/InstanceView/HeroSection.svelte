@@ -198,40 +198,86 @@
 	}
 
 	@media (max-width: 1024px) {
-		.hero-section { padding: 40px; }
+		.hero-section {
+			padding: 40px;
+		}
 	}
 
 	@media (max-width: 950px) {
-		.hero-section { padding: 30px 24px; gap: 20px; }
+		.hero-section {
+			padding: 30px 24px;
+			gap: 20px;
+		}
 	}
 
 	@media (max-width: 850px) {
-		.hero-section { padding: 24px 20px; gap: 16px; }
+		.hero-section {
+			padding: 24px 20px;
+			gap: 16px;
+		}
 	}
 
 	@media (max-width: 700px) {
-		.hero-section { padding: 20px 16px; gap: 14px; }
-		.instance-big-icon { width: 48px; height: 48px; }
-		.instance-title-area h2 { font-size: 1.3rem; }
-		.banner-controls { opacity: 1; }
+		.hero-section {
+			padding: 20px 16px;
+			gap: 14px;
+		}
+		.instance-big-icon {
+			width: 48px;
+			height: 48px;
+		}
+		.instance-title-area h2 {
+			font-size: 1.3rem;
+		}
+		.banner-controls {
+			opacity: 1;
+		}
 	}
 
 	@media (max-width: 650px) {
-		.hero-section { flex-direction: column; align-items: center; text-align: center; padding: 24px 16px; }
-		.play-btn { margin: 0 auto; }
+		.hero-section {
+			flex-direction: column;
+			align-items: center;
+			text-align: center;
+			padding: 24px 16px;
+		}
+		.play-btn {
+			margin: 0 auto;
+		}
 	}
 
 	@media (max-width: 550px) {
-		.hero-section { padding: 16px 12px; gap: 12px; }
-		.instance-big-icon { width: 40px; height: 40px; }
-		.instance-title-area h2 { font-size: 1.1rem; }
-		.play-btn { padding: 8px 20px; font-size: 0.7rem; }
-		.last-played { font-size: 0.58rem; }
+		.hero-section {
+			padding: 16px 12px;
+			gap: 12px;
+		}
+		.instance-big-icon {
+			width: 40px;
+			height: 40px;
+		}
+		.instance-title-area h2 {
+			font-size: 1.1rem;
+		}
+		.play-btn {
+			padding: 8px 20px;
+			font-size: 0.7rem;
+		}
+		.last-played {
+			font-size: 0.58rem;
+		}
 	}
 
 	@media (max-width: 400px) {
-		.hero-section { padding: 12px 8px; gap: 8px; }
-		.instance-big-icon { width: 32px; height: 32px; }
-		.instance-title-area h2 { font-size: 1rem; }
+		.hero-section {
+			padding: 12px 8px;
+			gap: 8px;
+		}
+		.instance-big-icon {
+			width: 32px;
+			height: 32px;
+		}
+		.instance-title-area h2 {
+			font-size: 1rem;
+		}
 	}
 </style>

@@ -33,9 +33,7 @@
 	</div>
 	<div class="mod-info">
 		<div class="mod-name-row">
-			<span class="mod-name" title={mod.name}
-				>{mod.name}</span
-			>
+			<span class="mod-name" title={mod.name}>{mod.name}</span>
 			<span class="mod-version"
 				>{mod.version || t("instanceView.mods.jarFile")}</span
 			>
@@ -44,10 +42,7 @@
 			{mod.description || t("instanceView.mods.noDescription")}
 		</p>
 		{#if mod.authors && mod.authors.length > 0}
-			<span
-				class="mod-authors"
-				title={mod.authors.join(", ")}
-			>
+			<span class="mod-authors" title={mod.authors.join(", ")}>
 				{t("instanceView.mods.authors")}: {mod.authors.join(", ")}
 			</span>
 		{/if}

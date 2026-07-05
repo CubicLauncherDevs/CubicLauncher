@@ -25,8 +25,16 @@
 	} = $props();
 
 	const LOADERS = [
-		{ value: "vanilla", label: "Vanilla", icon: "/images/instances/vanilla.png" },
-		{ value: "fabric", label: "Fabric", icon: "/images/instances/fabric.png" },
+		{
+			value: "vanilla",
+			label: "Vanilla",
+			icon: "/images/instances/vanilla.png",
+		},
+		{
+			value: "fabric",
+			label: "Fabric",
+			icon: "/images/instances/fabric.png",
+		},
 		{ value: "forge", label: "Forge", icon: "/images/instances/forge.png" },
 		{ value: "quilt", label: "Quilt", icon: "/images/instances/quilt.png" },
 	];
@@ -103,7 +111,10 @@
 			await loadLoaderVersions(selectedMcVersion, loader);
 		} catch {
 			if (currentLoadId !== mcLoadId) return;
-			showError("Error", "No se pudieron cargar las versiones de Minecraft");
+			showError(
+				"Error",
+				"No se pudieron cargar las versiones de Minecraft",
+			);
 			mcVersions = [];
 			loadingLoader = false;
 		} finally {
@@ -235,7 +246,10 @@
 		position: relative;
 		margin-left: -1px;
 		z-index: 0;
-		transition: background-color 0.15s, color 0.15s, border-color 0.15s,
+		transition:
+			background-color 0.15s,
+			color 0.15s,
+			border-color 0.15s,
 			box-shadow 0.15s;
 	}
 
@@ -290,14 +304,16 @@
 	}
 
 	/* Left select: right border and radii removed */
-	.linked-selects > :global(.custom-select-container:first-child .select-trigger) {
+	.linked-selects
+		> :global(.custom-select-container:first-child .select-trigger) {
 		border-top-right-radius: 0;
 		border-bottom-right-radius: 0;
 		border-right: none;
 	}
 
 	/* Right select: left radii removed */
-	.linked-selects > :global(.custom-select-container:last-child .select-trigger) {
+	.linked-selects
+		> :global(.custom-select-container:last-child .select-trigger) {
 		border-top-left-radius: 0;
 		border-bottom-left-radius: 0;
 	}
