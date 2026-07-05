@@ -209,5 +209,3 @@ impl DownloadBatch for MinecraftBatch {
         })
     }
 }
-
-

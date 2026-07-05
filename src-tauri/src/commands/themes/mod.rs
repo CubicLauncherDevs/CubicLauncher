@@ -198,7 +198,10 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
             info!("Inject.css leido, {} bytes", content.len());
             Some(content)
         } else {
-            info!("Inject.css no encontrado en {:?}", theme_path.join("Inject.css"));
+            info!(
+                "Inject.css no encontrado en {:?}",
+                theme_path.join("Inject.css")
+            );
             None
         };
 

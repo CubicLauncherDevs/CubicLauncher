@@ -34,8 +34,7 @@ impl<'a> ClasspathResolver<'a> {
         debug!(
             "Classpath: {} entries, {} bytes total",
             paths.len(),
-            paths.iter().map(|s| s.len()).sum::<usize>()
-                + paths.len().saturating_sub(1) // separators
+            paths.iter().map(|s| s.len()).sum::<usize>() + paths.len().saturating_sub(1) // separators
         );
 
         #[cfg(target_os = "windows")]

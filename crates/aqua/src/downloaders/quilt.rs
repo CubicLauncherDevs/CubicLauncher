@@ -178,5 +178,3 @@ impl DownloadBatch for QuiltBatch {
         })
     }
 }
-
-

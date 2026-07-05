@@ -35,8 +35,8 @@ pub struct InstOverrides {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct RamOverrides {
-    pub min_mem: u32,  // MB
-    pub max_mem: u32,  // MB
+    pub min_mem: u32, // MB
+    pub max_mem: u32, // MB
 }
 
 impl InstanceData {
