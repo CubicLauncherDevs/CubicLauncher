@@ -209,7 +209,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
         let mut intermediate: ThemeResponse = v2.to_theme_res();
         intermediate.inject_css = inject;
         info!("Theme V2 convertido a intermediario correctamente");
-        return Ok(intermediate);
+        Ok(intermediate)
     } else {
         // v1
         let theme_path = PathManager::get()
@@ -279,7 +279,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
                 font.src = abs_path.to_string_lossy().to_string().into();
             }
         }
-        return Ok(theme.to_theme_res());
+        Ok(theme.to_theme_res())
     }
 }
 

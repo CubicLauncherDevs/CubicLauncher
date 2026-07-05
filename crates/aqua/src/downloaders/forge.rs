@@ -27,8 +27,8 @@ pub struct ForgeVersionInfo {
 
 /// Internal representation — either modern or legacy Forge.
 enum ProfileKind {
-    Modern { profile: InstallProfile },
-    Legacy { profile: LegacyInstallProfile },
+    Modern { profile: Box<InstallProfile> },
+    Legacy { profile: Box<LegacyInstallProfile> }, //puntero el el heap mierda
 }
 
 pub struct ForgeBatch {
@@ -121,7 +121,9 @@ impl ForgeBatch {
                     .map_err(|e| {
                         AquaError::ForgeExtract(format!("Cannot read version.json: {e}"))
                     })?;
-                profile_kind = ProfileKind::Modern { profile };
+                profile_kind = ProfileKind::Modern {
+                    profile: Box::new(profile),
+                };
             }
             Err(e) => {
                 info!("Modern parse failed ({e}), trying legacy install_profile.json format");
@@ -157,13 +159,14 @@ impl ForgeBatch {
                         ));
                     }
                 }
-                version_json_text =
-                    serde_json::to_string_pretty(&vi).map_err(|e| {
-                        AquaError::ForgeProfileParse(format!(
-                            "Failed to serialize legacy versionInfo: {e}"
-                        ))
-                    })?;
-                profile_kind = ProfileKind::Legacy { profile: legacy };
+                version_json_text = serde_json::to_string_pretty(&vi).map_err(|e| {
+                    AquaError::ForgeProfileParse(format!(
+                        "Failed to serialize legacy versionInfo: {e}"
+                    ))
+                })?;
+                profile_kind = ProfileKind::Legacy {
+                    profile: Box::new(legacy),
+                };
             }
         }
 
@@ -203,8 +206,7 @@ impl ForgeBatch {
         }
 
         // Resolve expected MC jar SHA1 (for verification in finalize)
-        let mc_jar_expected_sha1 = match crate::manifest::resolve_version_data(game_version).await
-        {
+        let mc_jar_expected_sha1 = match crate::manifest::resolve_version_data(game_version).await {
             Ok((ver, _)) => ver.client_jar.sha1,
             Err(e) => {
                 warn!("Could not resolve MC version data for hash verification: {e}");
@@ -212,7 +214,11 @@ impl ForgeBatch {
             }
         };
 
-        info!("Forge batch: {} libraries to download, MC jar SHA1={}", items.len(), &mc_jar_expected_sha1[..8.min(mc_jar_expected_sha1.len())]);
+        info!(
+            "Forge batch: {} libraries to download, MC jar SHA1={}",
+            items.len(),
+            &mc_jar_expected_sha1[..8.min(mc_jar_expected_sha1.len())]
+        );
 
         Ok(Self {
             version_id,
@@ -457,7 +463,10 @@ impl DownloadBatch for ForgeBatch {
                     .collect();
 
                 debug!("Processor {proc_name} resolved args: {resolved_args:?}");
-                debug!("Processor {proc_name} classpath ({:#}): {classpath}", cp_parts.len());
+                debug!(
+                    "Processor {proc_name} classpath ({:#}): {classpath}",
+                    cp_parts.len()
+                );
 
                 run_java_process(java_path, &classpath, &main_class, resolved_args, &proc.jar)
                     .await?;
@@ -660,7 +669,10 @@ fn add_legacy_libs(
                 // Forge legacy installer uses https://libraries.minecraft.net/ as
                 // default URL for libs without an explicit url field (launchwrapper,
                 // asm-all, lzma, etc).  Forge Maven is the fallback.
-                info!("Library {} has no url, using libraries.minecraft.net", lib.name);
+                info!(
+                    "Library {} has no url, using libraries.minecraft.net",
+                    lib.name
+                );
                 items.push(
                     DownloadItemSpec::new(mojang_url, dest, &lib.name)
                         .with_hash(sha1)
