@@ -81,7 +81,8 @@
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		padding: 8px 10px;
+		margin-top: 1px;
+		padding: 4px 10px;
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
 		transition:

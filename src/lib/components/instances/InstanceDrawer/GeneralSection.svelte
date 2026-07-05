@@ -56,8 +56,7 @@
 			class="icon-option"
 			class:selected={selectedIcon === iconPath}
 			onclick={() =>
-				(selectedIcon =
-					selectedIcon === iconPath ? null : iconPath)}
+				(selectedIcon = selectedIcon === iconPath ? null : iconPath)}
 			title={iconName}
 		>
 			<img src={iconPath} alt={iconName} />
@@ -91,10 +90,15 @@
 				type="button"
 				class="tag-chip"
 				class:active
-				style={active ? `border-color: ${tag.color ?? 'var(--text-muted)'}` : ''}
+				style={active
+					? `border-color: ${tag.color ?? "var(--text-muted)"}`
+					: ""}
 				onclick={() => toggleTag(tag.id)}
 			>
-				<span class="tag-dot" style="background: {tag.color ?? 'var(--text-muted)'}"></span>
+				<span
+					class="tag-dot"
+					style="background: {tag.color ?? 'var(--text-muted)'}"
+				></span>
 				{tag.name}
 			</button>
 		{/each}
@@ -109,7 +113,10 @@
 	</div>
 </div>
 
-<TagManager bind:open={showTagManager} onclose={() => (showTagManager = false)} />
+<TagManager
+	bind:open={showTagManager}
+	onclose={() => (showTagManager = false)}
+/>
 
 <div class="reinstall">
 	<button
@@ -265,6 +272,5 @@
 
 	.reinstall {
 		padding: 2ch 0px 0px 0px;
-		border-top: 1px solid var(--border-color);
 	}
 </style>

@@ -31,18 +31,19 @@
 	<button
 		type="button"
 		class="tag-header"
+		class:expanded={!collapsed}
+		style="border-left-color: {tag.color ?? 'var(--text-muted)'}"
 		onclick={() => (collapsed = !collapsed)}
 		oncontextmenu={(e) => {
 			e.stopPropagation();
 		}}
 	>
-		<span class="tag-indicator" style="background: {tag.color ?? 'var(--text-muted)'}"></span>
 		<span class="tag-name">{tag.name}</span>
 		<span class="tag-count">{instances.length}</span>
 		<span class="tag-chevron" class:rotated={!collapsed}>▸</span>
 	</button>
-	{#if !collapsed}
-		<div class="tag-instances">
+	<div class="tag-body" class:expanded={!collapsed}>
+		<div class="instances-inner">
 			{#each instances as instance (instance.uuid)}
 				<InstanceItem
 					{instance}
@@ -53,7 +54,7 @@
 				/>
 			{/each}
 		</div>
-	{/if}
+	</div>
 </div>
 
 <style>
@@ -69,25 +70,19 @@
 		width: 100%;
 		background: transparent;
 		border: none;
+		border-left: 3px solid var(--text-muted);
+		border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
 		color: var(--text-secondary);
 		cursor: pointer;
 		font-size: 0.75rem;
 		font-weight: 600;
-		border-radius: var(--border-radius-sm);
-		transition: background 0.15s;
 		font-family: var(--font-family);
 		text-align: left;
+		transition: background 0.15s;
 	}
 
 	.tag-header:hover {
-		background: rgba(255, 255, 255, 0.03);
-	}
-
-	.tag-indicator {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		flex-shrink: 0;
+		background: rgba(255, 255, 255, 0.04);
 	}
 
 	.tag-name {
@@ -99,24 +94,38 @@
 
 	.tag-count {
 		font-size: 0.65rem;
-		opacity: 0.6;
+		opacity: 0.5;
 		margin-left: auto;
 	}
 
 	.tag-chevron {
 		font-size: 0.6rem;
-		transition: transform 0.15s;
-		opacity: 0.5;
+		transition: transform 0.2s;
+		opacity: 0.4;
+		line-height: 1;
 	}
 
 	.tag-chevron.rotated {
 		transform: rotate(90deg);
 	}
 
-	.tag-instances {
+	.tag-body {
+		display: grid;
+		grid-template-rows: 0fr;
+		transition: grid-template-rows 0.2s ease;
+	}
+
+	.tag-body.expanded {
+		grid-template-rows: 1fr;
+	}
+
+	.instances-inner {
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-		margin-left: 4px;
+		overflow: hidden;
+		border-left: 2px solid var(--border-color);
+		margin-left: 15px;
+		padding-left: 8px;
 	}
 </style>

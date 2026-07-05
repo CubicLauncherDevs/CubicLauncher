@@ -38,6 +38,7 @@
 	let showDeleteModal = $state(false);
 	let instanceToActOn = $state<InstanceDto | null>(null);
 	let showTagManager = $state(false);
+	let untaggedCollapsed = $state(false);
 	let activeUser = $derived(getActiveUser());
 	let username = $derived(activeUser?.username ?? "Steve");
 	let isPremium = $derived(activeUser?.user_type === "Microsoft");
@@ -150,24 +151,33 @@
 					{/each}
 					{#if untaggedInstances.length > 0}
 						<div class="untagged-section">
-							<div class="untagged-header">
-								<span class="tag-indicator" style="background: var(--text-muted)"></span>
+							<button
+								type="button"
+								class="untagged-header"
+								class:expanded={!untaggedCollapsed}
+								onclick={() => (untaggedCollapsed = !untaggedCollapsed)}
+							>
 								<span class="untagged-label">{t("sidebar.untagged")}</span>
-								<span class="tag-count">{untaggedInstances.length}</span>
+								<span class="untagged-count">{untaggedInstances.length}</span>
+								<span class="untagged-chevron" class:rotated={!untaggedCollapsed}>▸</span>
+							</button>
+							<div class="untagged-body" class:expanded={!untaggedCollapsed}>
+								<div class="untagged-inner">
+									{#each untaggedInstances as instance (instance.uuid)}
+										<InstanceItem
+											{instance}
+											selected={selectedInstance?.uuid === instance.uuid}
+											onselect={() =>
+												(selectedInstance =
+													selectedInstance?.uuid === instance.uuid
+														? null
+														: instance)}
+											onedit={() => onopeneditinstance?.(instance)}
+											ondelete={() => openDeleteModal(instance)}
+										/>
+									{/each}
+								</div>
 							</div>
-							{#each untaggedInstances as instance (instance.uuid)}
-								<InstanceItem
-									{instance}
-									selected={selectedInstance?.uuid === instance.uuid}
-									onselect={() =>
-										(selectedInstance =
-											selectedInstance?.uuid === instance.uuid
-												? null
-												: instance)}
-									onedit={() => onopeneditinstance?.(instance)}
-									ondelete={() => openDeleteModal(instance)}
-								/>
-							{/each}
 						</div>
 					{/if}
 				{/if}
@@ -359,9 +369,22 @@
 		align-items: center;
 		gap: 7px;
 		padding: 6px 10px;
+		width: 100%;
+		background: transparent;
+		border: none;
+		border-left: 3px solid var(--text-muted);
+		border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
 		color: var(--text-secondary);
 		font-size: 0.75rem;
 		font-weight: 600;
+		cursor: pointer;
+		font-family: var(--font-family);
+		text-align: left;
+		transition: background 0.15s;
+	}
+
+	.untagged-header:hover {
+		background: rgba(255, 255, 255, 0.04);
 	}
 
 	.untagged-label {
@@ -372,16 +395,41 @@
 		text-overflow: ellipsis;
 	}
 
-	.tag-indicator {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		flex-shrink: 0;
+	.untagged-count {
+		font-size: 0.65rem;
+		opacity: 0.5;
+		margin-left: auto;
 	}
 
-	.tag-count {
-		font-size: 0.65rem;
-		opacity: 0.6;
+	.untagged-chevron {
+		font-size: 0.6rem;
+		transition: transform 0.2s;
+		opacity: 0.4;
+		line-height: 1;
+	}
+
+	.untagged-chevron.rotated {
+		transform: rotate(90deg);
+	}
+
+	.untagged-body {
+		display: grid;
+		grid-template-rows: 0fr;
+		transition: grid-template-rows 0.2s ease;
+	}
+
+	.untagged-body.expanded {
+		grid-template-rows: 1fr;
+	}
+
+	.untagged-inner {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		overflow: hidden;
+		border-left: 2px solid var(--border-color);
+		margin-left: 15px;
+		padding-left: 8px;
 	}
 
 	:global(.tools-group) {
