@@ -29,7 +29,7 @@
 	} = $props();
 
 	// le status xd
-	let basket = new SvelteMap<string, ModrinthProject>();
+	let basket = $state(new SvelteMap<string, ModrinthProject>());
 
 	async function confirmDownload() {
 		downloading = true;

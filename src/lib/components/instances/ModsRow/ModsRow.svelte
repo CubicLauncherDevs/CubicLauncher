@@ -209,7 +209,7 @@
 		opacity: 0.6;
 	}
 
-	.delete-selected-btn::not(:disabled):hover {
+	.delete-selected-btn:not(:disabled):hover {
 		background: rgba(255, 68, 68, 0.2);
 		border-color: rgba(255, 68, 68, 0.4);
 	}

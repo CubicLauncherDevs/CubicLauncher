@@ -99,7 +99,7 @@
 		}
 	}
 
-	let downloads = new SvelteMap<string, DownloadItem>();
+	let downloads = $state(new SvelteMap<string, DownloadItem>());
 	let expanded = $state(false);
 	let activeCount = $derived(
 		[...downloads.values()].filter((d) => !d.done).length,
@@ -391,10 +391,10 @@
 		pointer-events: all;
 	}
 
-	.dl-tray-body:global(::-webkit-scrollbar) {
+	:global(.dl-tray-body::-webkit-scrollbar) {
 		width: 3px;
 	}
-	.dl-tray-body:global(::-webkit-scrollbar-thumb) {
+	:global(.dl-tray-body::-webkit-scrollbar-thumb) {
 		background: var(--border-color);
 		border-radius: 3px;
 	}

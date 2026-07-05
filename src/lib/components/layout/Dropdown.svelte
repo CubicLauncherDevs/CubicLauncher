@@ -234,15 +234,15 @@
 		text-overflow: ellipsis;
 	}
 
-	.dd-dropdown:global(::-webkit-scrollbar) {
+	:global(.dd-dropdown::-webkit-scrollbar) {
 		width: 4px;
 	}
 
-	.dd-dropdown:global(::-webkit-scrollbar-track) {
+	:global(.dd-dropdown::-webkit-scrollbar-track) {
 		background: transparent;
 	}
 
-	.dd-dropdown:global(::-webkit-scrollbar-thumb) {
+	:global(.dd-dropdown::-webkit-scrollbar-thumb) {
 		background: var(--border);
 		border-radius: 10px;
 	}

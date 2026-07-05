@@ -93,11 +93,11 @@
 		scrollbar-color: var(--border) transparent;
 	}
 
-	.virtual-list-container:global(::-webkit-scrollbar) {
+	:global(.virtual-list-container::-webkit-scrollbar) {
 		width: 6px;
 	}
 
-	.virtual-list-container:global(::-webkit-scrollbar-thumb) {
+	:global(.virtual-list-container::-webkit-scrollbar-thumb) {
 		background: var(--border);
 		border-radius: 10px;
 	}

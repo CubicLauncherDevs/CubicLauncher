@@ -223,15 +223,15 @@
 	background: rgba(255, 255, 255, 0.08);
 }
 
-.select-dropdown:global(::-webkit-scrollbar) {
+.select-dropdown::-webkit-scrollbar {
 	width: 4px;
 }
 
-.select-dropdown:global(::-webkit-scrollbar-track) {
+.select-dropdown::-webkit-scrollbar-track {
 	background: transparent;
 }
 
-.select-dropdown:global(::-webkit-scrollbar-thumb) {
+.select-dropdown::-webkit-scrollbar-thumb {
 	background: var(--border);
 	border-radius: 10px;
 }

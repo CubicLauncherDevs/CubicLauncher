@@ -37,7 +37,7 @@
 	let activeCategory = $state<string | null>(null);
 	let sortIndex = $state<string>("downloads");
 
-	let basket = new SvelteMap<string, ModrinthProject | CurseForgeProject>();
+	let basket = $state(new SvelteMap<string, ModrinthProject | CurseForgeProject>());
 
 	let selectedMod = $state<ModrinthProject | CurseForgeProject | null>(null);
 
@@ -49,7 +49,7 @@
 	let selectedModVersions = $state<(ModrinthVersion | CurseForgeFile)[]>([]);
 	let selectedVersionId = $state<string>("");
 	let loadingVersions = $state(false);
-	let versionSelection = new SvelteMap<string, string>();
+	let versionSelection = $state(new SvelteMap<string, string>());
 
 	let installedModNames = $state<Set<string>>(new Set());
 
