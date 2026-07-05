@@ -115,7 +115,8 @@
 			"deleteDesc1": "Êtes-vous sûr de vouloir supprimer l'instance",
 			"deleteDesc2": "? Cette action est irréversible.",
 			"deleteBtn": "Supprimer"
-		}
+		},
+		"downloadVersions": "Télécharger les Versions"
 	},
 	"userMenu": {
 		"title": "Profil Utilisateur",
@@ -446,5 +447,34 @@
 		"AUTH_BLOCKED": "Erreur interne : {error}",
 		"AUTH_SESSION_EXPIRED": "Session expirée. Veuillez redémarrer le launcher et vous reconnecter : {error}",
 		"GENERIC": "Une erreur inattendue s'est produite : {error}"
+	},
+	"versionDownloader": {
+		"title": "Télécharger les Versions",
+		"searchPlaceholder": "Rechercher une version...",
+		"loading": "Chargement des versions...",
+		"notFound": "Aucune version trouvée",
+		"installedTag": "Installée",
+		"downloadBtn": "Télécharger",
+		"refreshBtn": "Recharger le cache",
+		"filters": {
+			"all": "Tous",
+			"installedOnly": "Installés Uniquement",
+			"notInstalledOnly": "Non Installés",
+			"stableOnly": "Stables Uniquement",
+			"unstableOnly": "Instables Uniquement",
+			"installStatus": "Statut",
+			"majorVersion": "Version Majeure",
+			"fabricStability": "Stabilité"
+		},
+		"tabs": {
+			"releases": "Releases",
+			"snapshots": "Snapshots",
+			"alphas": "Alphas",
+			"fabric": "Fabric",
+			"forge": "Forge",
+			"quilt": "Quilt"
+		},
+		"downloading": "Téléchargement...",
+		"forgeJavaHint": "Forge nécessite Java 21, à configurer dans Paramètres > Java."
 	}
 }
