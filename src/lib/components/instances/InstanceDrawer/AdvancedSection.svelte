@@ -25,7 +25,7 @@
 	<input type="checkbox" id="use-overrides" bind:checked={useOverrides} />
 	<label for="use-overrides">Usar configuración personalizada</label>
 </div>
-<fieldset disabled={!useOverrides}>
+<fieldset disabled={!useOverrides || saving}>
 	<Select
 		bind:value={selectedJavaVersion}
 		options={javaOptions}

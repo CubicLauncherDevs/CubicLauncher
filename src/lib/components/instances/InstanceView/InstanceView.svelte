@@ -101,7 +101,7 @@
 	}
 
 	$effect(() => {
-		const ver = bannerVersion;
+		void bannerVersion;
 		const id = selectedInstance?.uuid;
 		if (id) fetchScreenshot();
 	});

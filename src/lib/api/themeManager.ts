@@ -1,7 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type { ThemeEntry } from "../types/types";
-import { t } from "$lib/i18n";
-import { showWarning } from "$lib/state/state.svelte";
 
 const builtinThemes: ThemeEntry[] = [
 	{

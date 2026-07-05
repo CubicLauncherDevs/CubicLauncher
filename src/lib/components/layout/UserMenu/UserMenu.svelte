@@ -107,7 +107,7 @@
 		await saveSettings();
 	}
 
-	let avatarSvgs = $state(new SvelteMap<string, string>());
+	let avatarSvgs = new SvelteMap<string, string>();
 
 	async function loadAvatar(
 		username: string,
