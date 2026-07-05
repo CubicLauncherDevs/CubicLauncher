@@ -94,7 +94,6 @@
 		"rename": "Renombrar",
 		"delete": "Eliminar",
 		"noInstances": "Sin instancias",
-		"untagged": "Sin etiqueta",
 		"createInstance": "Crear Instancia",
 		"refreshInstances": "Refrescar Instancias",
 		"downloadVersions": "Descargar Versiones",
@@ -304,7 +303,6 @@
 		"generalTitle": "General",
 		"language": "Idioma",
 		"reinstall": "Reinstalar instancia",
-		"tags": "Etiquetas",
 		"javaVersion": "Versión de Java",
 		"javaHint": "Cubic elegirá la versión de Java recomendada para esta versión de Minecraft. Puede haber casos donde algunos mods sean incompatibles y requieran otra.",
 		"recommended": "Recomendado"
@@ -430,16 +428,6 @@
 			"title": "Configuración de Java",
 			"desc": "Aquí puedes gestionar las versiones de Java 8, 17, 21 y 25. Puedes instalar Java automáticamente desde el launcher o usar una instalación externa. También puedes configurar argumentos JVM y variables de entorno."
 		}
-	},
-	"tags": {
-		"manage": "Gestionar etiquetas",
-		"create": "Crear etiqueta",
-		"createPrompt": "Nombre de la nueva etiqueta:",
-		"rename": "Renombrar",
-		"delete": "Eliminar",
-		"deleteConfirm": "¿Eliminar esta etiqueta? Las instancias la perderán.",
-		"add": "Añadir",
-		"namePlaceholder": "Nombre de la etiqueta"
 	},
 	"errors": {
 		"title": "Error",

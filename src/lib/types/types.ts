@@ -9,14 +9,6 @@ export interface InstanceDto {
 	uuid: string;
 	path: string;
 	overrides: InstOverrides | null;
-	tags: string[];
-}
-
-export interface TagDto {
-	id: string;
-	name: string;
-	color: string | null;
-	order: number;
 }
 
 export interface InstOverrides {
@@ -218,31 +210,6 @@ export type AppEvent =
 			type: "ThemeChanged";
 			data: {
 				id: string;
-			};
-	  }
-	| {
-			type: "TagCreated";
-			data: {
-				dto: TagDto;
-			};
-	  }
-	| {
-			type: "TagUpdated";
-			data: {
-				dto: TagDto;
-			};
-	  }
-	| {
-			type: "TagDeleted";
-			data: {
-				id: string;
-			};
-	  }
-	| {
-			type: "InstanceTagsChanged";
-			data: {
-				instance_uuid: string;
-				tags: string[];
 			};
 	  };
 

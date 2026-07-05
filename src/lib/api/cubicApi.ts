@@ -1,6 +1,5 @@
 import {
 	type InstanceDto,
-	type TagDto,
 	type ModDto,
 	type DeviceCode,
 	type MinecraftUser,
@@ -39,12 +38,11 @@ export async function createInstance(
 	name: string,
 	version: string,
 	icon: string | null,
-	tagIds: string[] = [],
 	callback?: () => void,
 	onError?: (err: unknown) => void,
 ): Promise<void> {
 	try {
-		await invoke("create_instance", { name, version, icon, tagIds });
+		await invoke("create_instance", { name, version, icon });
 		callback?.();
 	} catch (err) {
 		showErrorParsed(err);
@@ -888,54 +886,4 @@ export async function installMrpack(
 
 export async function reinstallVersion(versionId: string) {
 	invoke("reinstall_version", { version: versionId });
-}
-
-// ─── Tag API ─────────────────────────────────────────────────────────────
-
-export async function getTags(): Promise<TagDto[]> {
-	try {
-		return await invoke<TagDto[]>("get_tags");
-	} catch (err) {
-		showErrorParsed(err);
-		return [];
-	}
-}
-
-export async function createTag(name: string, color: string | null): Promise<TagDto | null> {
-	try {
-		return await invoke<TagDto>("create_tag", { name, color });
-	} catch (err) {
-		showErrorParsed(err);
-		return null;
-	}
-}
-
-export async function updateTag(
-	id: string,
-	name?: string,
-	color?: string | null,
-	order?: number,
-): Promise<TagDto | null> {
-	try {
-		return await invoke<TagDto>("update_tag", { id, name, color, order });
-	} catch (err) {
-		showErrorParsed(err);
-		return null;
-	}
-}
-
-export async function deleteTag(id: string): Promise<void> {
-	try {
-		await invoke("delete_tag", { id });
-	} catch (err) {
-		showErrorParsed(err);
-	}
-}
-
-export async function setInstanceTags(uuid: string, tagIds: string[]): Promise<void> {
-	try {
-		await invoke("set_instance_tags", { uuid, tagIds });
-	} catch (err) {
-		showErrorParsed(err);
-	}
 }

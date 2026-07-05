@@ -4,8 +4,6 @@ use crate::core::errors::{FsError, InstanceError};
 use crate::core::{AppEvent, PathManager, emit};
 use crate::services::InstOverrides;
 use crate::services::InstanceManager;
-use crate::services::TagDto;
-use compact_str::CompactString;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
@@ -15,14 +13,13 @@ pub async fn create_instance(
     name: String,
     version: String,
     icon: Option<String>,
-    tag_ids: Vec<String>,
 ) -> Result<(), String> {
     info!(
-        "Creando instancia: name={}, version={}, icon={:?}, tags={:?}",
-        name, version, icon, tag_ids
+        "Creando instancia: name={}, version={}, icon={:?}",
+        name, version, icon
     );
     match InstanceManager::get()
-        .create_instance(name, version, icon, tag_ids)
+        .create_instance(name, version, icon)
         .await
     {
         Ok(d) => {
@@ -360,75 +357,5 @@ pub async fn reinstall_version(version: String) -> Result<(), String> {
         .enqueue(version.clone())
         .await;
     info!("Versión {} encolada para re-descarga", version);
-    Ok(())
-}
-
-// ─── Tag commands ─────────────────────────────────────────────────────────
-
-#[tauri::command]
-pub async fn get_tags() -> Vec<TagDto> {
-    let tags = InstanceManager::get().get_all_tags().await;
-    tags.into_iter()
-        .map(|t| TagDto {
-            id: t.id,
-            name: t.name,
-            color: t.color,
-            order: t.order,
-        })
-        .collect()
-}
-
-#[tauri::command]
-pub async fn create_tag(name: String, color: Option<String>) -> Result<TagDto, String> {
-    let tag = InstanceManager::get().create_tag(name, color).await?;
-    let dto = TagDto {
-        id: tag.id.clone(),
-        name: tag.name.clone(),
-        color: tag.color.clone(),
-        order: tag.order,
-    };
-    emit(AppEvent::TagCreated { dto: dto.clone() });
-    Ok(dto)
-}
-
-#[tauri::command]
-pub async fn update_tag(
-    id: String,
-    name: Option<String>,
-    color: Option<Option<String>>,
-    order: Option<u32>,
-) -> Result<TagDto, String> {
-    let tag = InstanceManager::get()
-        .update_tag(id, name, color, order)
-        .await?;
-    let dto = TagDto {
-        id: tag.id,
-        name: tag.name,
-        color: tag.color,
-        order: tag.order,
-    };
-    emit(AppEvent::TagUpdated { dto: dto.clone() });
-    Ok(dto)
-}
-
-#[tauri::command]
-pub async fn delete_tag(id: String) -> Result<(), String> {
-    InstanceManager::get().delete_tag(&id).await?;
-    emit(AppEvent::TagDeleted {
-        id: CompactString::from(id),
-    });
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn set_instance_tags(uuid: String, tag_ids: Vec<String>) -> Result<(), String> {
-    validate_uuid(&uuid)?;
-    InstanceManager::get()
-        .set_instance_tags(&uuid, tag_ids.clone())
-        .await?;
-    emit(AppEvent::InstanceTagsChanged {
-        instance_uuid: CompactString::from(uuid),
-        tags: tag_ids.into_iter().map(CompactString::from).collect(),
-    });
     Ok(())
 }

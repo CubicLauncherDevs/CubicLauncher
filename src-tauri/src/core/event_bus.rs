@@ -1,5 +1,4 @@
 use crate::services::InstanceDto;
-use crate::services::TagDto;
 use compact_str::CompactString;
 use serde::Serialize;
 use std::borrow::Cow;
@@ -38,19 +37,6 @@ pub enum AppEvent {
     STChanged,
     ThemeChanged {
         id: CompactString,
-    },
-    TagCreated {
-        dto: TagDto,
-    },
-    TagUpdated {
-        dto: TagDto,
-    },
-    TagDeleted {
-        id: CompactString,
-    },
-    InstanceTagsChanged {
-        instance_uuid: CompactString,
-        tags: Vec<CompactString>,
     },
 }
 

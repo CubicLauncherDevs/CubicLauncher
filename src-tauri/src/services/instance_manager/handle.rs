@@ -105,19 +105,8 @@ impl InstanceHandle {
             uuid: self.uuid.clone(),
             path: data.get_instance_dir(),
             overrides: data.overrides,
-            tags: data.tags.clone(),
         }
     }
-    pub async fn get_tags(&self) -> Vec<Arc<str>> {
-        self.data.read().await.tags.clone()
-    }
-
-    pub async fn set_tags(&self, tags: Vec<String>) {
-        let mut data = self.data.write().await;
-        data.tags = tags.into_iter().map(|s| Arc::from(s.as_str())).collect();
-        data.dirty = true;
-    }
-
     pub async fn set_name(&self, name: String) {
         let mut data = self.data.write().await;
         data.name = name.into();

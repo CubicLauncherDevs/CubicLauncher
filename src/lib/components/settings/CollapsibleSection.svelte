@@ -28,7 +28,7 @@
 		return fallback;
 	}
 
-	let open = $derived(loadSaved(storageKey, defaultOpen));
+	let open = $state(loadSaved(storageKey, defaultOpen));
 
 	$effect(() => {
 		if (storageKey) {

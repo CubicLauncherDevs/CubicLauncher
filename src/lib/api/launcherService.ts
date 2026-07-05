@@ -18,7 +18,6 @@ import {
 	initDiscordPresence,
 	shutdownDiscordPresence,
 	launchInstance,
-	getTags,
 } from "./cubicApi";
 import { applyTheme } from "./themeManager";
 import { t } from "$lib/i18n";
@@ -96,29 +95,6 @@ export function initEventListeners(): void {
 					applyTheme(payload.data.id);
 				}
 				break;
-			case "TagCreated":
-				launcherStore.tags.push(payload.data.dto);
-				break;
-			case "TagUpdated": {
-				const idx = launcherStore.tags.findIndex((t) => t.id === payload.data.dto.id);
-				if (idx !== -1) launcherStore.tags[idx] = payload.data.dto;
-				break;
-			}
-			case "TagDeleted":
-				launcherStore.tags = launcherStore.tags.filter((t) => t.id !== payload.data.id);
-				// also remove tag from instances
-				for (const inst of launcherStore.loadedInstances) {
-					const tagIdx = inst.tags.indexOf(payload.data.id);
-					if (tagIdx !== -1) inst.tags.splice(tagIdx, 1);
-				}
-				break;
-			case "InstanceTagsChanged": {
-				const inst = launcherStore.loadedInstances.find((i) => i.uuid === payload.data.instance_uuid);
-				if (inst) {
-					inst.tags = payload.data.tags;
-				}
-				break;
-			}
 		}
 	});
 }
@@ -227,11 +203,6 @@ export async function updateInst(
 	} catch (err) {
 		showErrorParsed(err);
 	}
-}
-
-export async function syncTags(): Promise<void> {
-	const tags = await getTags();
-	launcherStore.tags.splice(0, launcherStore.tags.length, ...tags);
 }
 
 export async function getVersions(): Promise<void> {

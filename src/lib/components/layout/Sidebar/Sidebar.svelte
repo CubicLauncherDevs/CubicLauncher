@@ -1,19 +1,18 @@
 <script lang="ts">
 	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
-	import { launcherStore, getUntaggedInstances } from "$lib/state/state.svelte";
+	import {
+		launcherStore,
+	} from "$lib/state/state.svelte";
 	import { SvelteMap } from "svelte/reactivity";
-	import type { InstanceDto, TagDto } from "$lib/types/types";
+	import type { InstanceDto } from "$lib/types/types";
 	import UserMenu from "../UserMenu/UserMenu.svelte";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import DownloadQueue from "../DownloadQueue/DownloadQueue.svelte";
 	import { t } from "$lib/i18n";
 	import ContextMenu from "../ContextMenu.svelte";
-	import { getVersions } from "$lib/api/launcherService";
 	import InstanceItem from "./InstanceItem.svelte";
-	import TagSection from "./TagSection.svelte";
 	import UserProfile from "./UserProfile.svelte";
 	import DeleteInstanceModal from "./DeleteInstanceModal.svelte";
-	import TagManager from "$lib/components/settings/TagManager.svelte";
 
 	interface Props {
 		selectedInstance: InstanceDto | null;
@@ -37,8 +36,6 @@
 	let ctxY = $state(0);
 	let showDeleteModal = $state(false);
 	let instanceToActOn = $state<InstanceDto | null>(null);
-	let showTagManager = $state(false);
-	let untaggedCollapsed = $state(false);
 	let activeUser = $derived(getActiveUser());
 	let username = $derived(activeUser?.username ?? "Steve");
 	let isPremium = $derived(activeUser?.user_type === "Microsoft");
@@ -89,19 +86,6 @@
 		}
 		showDeleteModal = false;
 	}
-
-	let instancesByTag = $derived(() => {
-		const map = new Map<string, InstanceDto[]>();
-		for (const tag of launcherStore.tags) {
-			const instances = launcherStore.loadedInstances.filter((i) => i.tags.includes(tag.id));
-			if (instances.length > 0) {
-				map.set(tag.id, instances);
-			}
-		}
-		return map;
-	});
-
-	let untaggedInstances = $derived(getUntaggedInstances());
 </script>
 
 <aside class="sidebar">
@@ -111,7 +95,6 @@
 
 	<div class="sidebar-content">
 		<div
-			class="instances-area"
 			role="region"
 			aria-label={t("sidebar.yourInstances")}
 			oncontextmenu={(e) => {
@@ -121,65 +104,29 @@
 				ctxOpen = true;
 			}}
 		>
-			<div class="section-label">{t("sidebar.yourInstances")}</div>
+			<span class="section-label">{t("sidebar.yourInstances")}</span>
 			<div class="instance-list" data-tutorial="instance-list">
 				{#if launcherStore.loadedInstances.length === 0}
-					<div
-						class="instance-item"
-						style="opacity: 0.4; cursor: default;"
-					>
-						<span class="instance-name"
-							>{t("sidebar.noInstances")}</span
-						>
+					<div class="empty-instances">
+						{t("sidebar.noInstances")}
 					</div>
 				{:else}
-					{#each launcherStore.tags as tag (tag.id)}
-						{@const tagInstances = launcherStore.loadedInstances.filter((i) => i.tags.includes(tag.id))}
-						{#if tagInstances.length > 0}
-							<TagSection
-								{tag}
-								instances={tagInstances}
-								{selectedInstance}
-								selected={false}
-								onselect={(inst) => (selectedInstance = inst)}
-								onedit={(inst) => onopeneditinstance?.(inst)}
-								ondelete={(inst) => openDeleteModal(inst)}
-								onrename={() => {}}
-								ondeleteTag={() => {}}
-							/>
-						{/if}
+					{#each launcherStore.loadedInstances as instance (instance.uuid)}
+						<InstanceItem
+							{instance}
+							selected={selectedInstance?.uuid ===
+								instance.uuid}
+							onselect={() =>
+								(selectedInstance =
+									selectedInstance?.uuid ===
+									instance.uuid
+										? null
+										: instance)}
+							onedit={() =>
+								onopeneditinstance?.(instance)}
+							ondelete={() => openDeleteModal(instance)}
+						/>
 					{/each}
-					{#if untaggedInstances.length > 0}
-						<div class="untagged-section">
-							<button
-								type="button"
-								class="untagged-header"
-								class:expanded={!untaggedCollapsed}
-								onclick={() => (untaggedCollapsed = !untaggedCollapsed)}
-							>
-								<span class="untagged-label">{t("sidebar.untagged")}</span>
-								<span class="untagged-count">{untaggedInstances.length}</span>
-								<span class="untagged-chevron" class:rotated={!untaggedCollapsed}>▸</span>
-							</button>
-							<div class="untagged-body" class:expanded={!untaggedCollapsed}>
-								<div class="untagged-inner">
-									{#each untaggedInstances as instance (instance.uuid)}
-										<InstanceItem
-											{instance}
-											selected={selectedInstance?.uuid === instance.uuid}
-											onselect={() =>
-												(selectedInstance =
-													selectedInstance?.uuid === instance.uuid
-														? null
-														: instance)}
-											onedit={() => onopeneditinstance?.(instance)}
-											ondelete={() => openDeleteModal(instance)}
-										/>
-									{/each}
-								</div>
-							</div>
-						</div>
-					{/if}
 				{/if}
 			</div>
 		</div>
@@ -251,7 +198,7 @@
 	</div>
 </aside>
 
-<DeleteInstanceModal
+	<DeleteInstanceModal
 	bind:open={showDeleteModal}
 	instanceName={instanceToActOn?.name ?? ""}
 	onconfirm={handleDelete}
@@ -259,13 +206,17 @@
 
 <UserMenu bind:open={showUserMenu} />
 
-<ContextMenu bind:open={ctxOpen} x={ctxX} y={ctxY} items={[
-	{ label: t("sidebar.createInstance"), action: () => onopencreateinstance?.() },
-	{ label: t("sidebar.refreshInstances"), action: () => getVersions() },
-	{ label: t("tags.manage"), action: () => (showTagManager = true) },
-]} />
-
-<TagManager bind:open={showTagManager} onclose={() => (showTagManager = false)} />
+<ContextMenu
+	bind:open={ctxOpen}
+	x={ctxX}
+	y={ctxY}
+	items={[
+		{
+			label: t("sidebar.createInstance"),
+			action: () => onopencreateinstance?.(),
+		},
+	]}
+/>
 
 <style>
 	.sidebar {
@@ -311,36 +262,20 @@
 		padding: 6px 0;
 	}
 
+	.empty-instances {
+		padding: 10px 12px;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+		text-align: center;
+	}
+
 	.instance-list {
 		display: flex;
 		flex-direction: column;
 		gap: 3px;
 	}
 
-	.instance-item {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		padding: 8px 10px;
-		border-radius: var(--border-radius-sm);
-		border: 1px solid transparent;
-		background: transparent;
-		color: var(--text-primary);
-		width: 100%;
-		text-align: left;
-	}
-
-	.instance-name {
-		font-weight: 500;
-		font-size: 0.85rem;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
 	.sidebar-sections {
-		margin-top: 6px;
-		margin-bottom: -12px;
 		border: 1px solid var(--border-color);
 		border-radius: var(--border-radius-sm);
 		overflow: hidden;
@@ -358,78 +293,6 @@
 		background: transparent;
 		border: none;
 		border-bottom: 1px solid var(--border);
-	}
-
-	.untagged-section {
-		margin-top: 4px;
-	}
-
-	.untagged-header {
-		display: flex;
-		align-items: center;
-		gap: 7px;
-		padding: 6px 10px;
-		width: 100%;
-		background: transparent;
-		border: none;
-		border-left: 3px solid var(--text-muted);
-		border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
-		color: var(--text-secondary);
-		font-size: 0.75rem;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: var(--font-family);
-		text-align: left;
-		transition: background 0.15s;
-	}
-
-	.untagged-header:hover {
-		background: rgba(255, 255, 255, 0.04);
-	}
-
-	.untagged-label {
-		flex: 1;
-		font-size: 0.75rem;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.untagged-count {
-		font-size: 0.65rem;
-		opacity: 0.5;
-		margin-left: auto;
-	}
-
-	.untagged-chevron {
-		font-size: 0.6rem;
-		transition: transform 0.2s;
-		opacity: 0.4;
-		line-height: 1;
-	}
-
-	.untagged-chevron.rotated {
-		transform: rotate(90deg);
-	}
-
-	.untagged-body {
-		display: grid;
-		grid-template-rows: 0fr;
-		transition: grid-template-rows 0.2s ease;
-	}
-
-	.untagged-body.expanded {
-		grid-template-rows: 1fr;
-	}
-
-	.untagged-inner {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		overflow: hidden;
-		border-left: 2px solid var(--border-color);
-		margin-left: 15px;
-		padding-left: 8px;
 	}
 
 	:global(.tools-group) {
@@ -482,7 +345,6 @@
 			margin-left: -10px;
 			margin-right: -10px;
 			width: calc(100% + 20px);
-			margin-bottom: -15px;
 		}
 	}
 </style>

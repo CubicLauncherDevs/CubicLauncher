@@ -71,7 +71,7 @@ pub async fn install_mrpack(path: String, instance_name: String) -> Result<Mrpac
     let manager = InstanceManager::get();
 
     let handle = manager
-        .create_instance(instance_name, version_id.clone(), None, Vec::new())
+        .create_instance(instance_name, version_id.clone(), None)
         .await
         .map_err(|e| match e {
             InstanceError::AlreadyExists => "An instance with that name already exists".to_string(),
