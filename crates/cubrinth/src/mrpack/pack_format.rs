@@ -43,13 +43,22 @@ impl PackFormat {
         let game_version = mc_version.map(|mc_ver| {
             let loader = self
                 .dependencies
-                .iter()
-                .find_map(|(k, v)| match k.as_str() {
-                    "fabric-loader" => Some(Loader::Fabric(v.clone())),
-                    "forge" => Some(Loader::Forge(v.clone())),
-                    "neoforge" => Some(Loader::NeoForge(v.clone())),
-                    "quilt-loader" => Some(Loader::Quilt(v.clone())),
-                    _ => None,
+                .get("quilt-loader")
+                .map(|v| Loader::Quilt(v.clone()))
+                .or_else(|| {
+                    self.dependencies
+                        .get("fabric-loader")
+                        .map(|v| Loader::Fabric(v.clone()))
+                })
+                .or_else(|| {
+                    self.dependencies
+                        .get("forge")
+                        .map(|v| Loader::Forge(v.clone()))
+                })
+                .or_else(|| {
+                    self.dependencies
+                        .get("neoforge")
+                        .map(|v| Loader::NeoForge(v.clone()))
                 })
                 .unwrap_or(Loader::Vanilla);
 
