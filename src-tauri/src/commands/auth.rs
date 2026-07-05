@@ -133,7 +133,7 @@ pub async fn start_webview_auth(app_handle: tauri::AppHandle) -> Result<Minecraf
     .map_err(|e| AuthError::SpawnBlocking(e.to_string()).to_string())?;
 
     let close_tx = tx_window;
-    let _close_handler = window.on_window_event(move |event| {
+    window.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { .. } = event {
             drop(close_tx.send("CANCELLED".to_string()));
         }
