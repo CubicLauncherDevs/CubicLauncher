@@ -1,5 +1,6 @@
 use crate::core::path_manager::PathManager;
 use crate::core::{FsError, InstanceError};
+use crate::services::launcher::remove_log_ring;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use tokio::fs as tokio_fs;
@@ -168,6 +169,10 @@ impl InstanceManager {
     }
 
     pub async fn delete_instance(&self, uuid: &str) -> Result<(), String> {
+        signal_kill(uuid);
+        unregister_kill_sender(uuid);
+        remove_log_ring(uuid);
+
         let handle = {
             self.instances
                 .write()

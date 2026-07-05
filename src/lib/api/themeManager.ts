@@ -46,6 +46,8 @@ let currentBlobUrl: string | null = null;
 const addedFonts: Set<globalThis.FontFace> = new Set();
 
 const DEFAULT_FONTS_ID = "cubic-default-fonts";
+const CUSTOM_CSS_ID = "cubic-theme-css";
+const CUSTOM_FONTS_ID = "cubic-theme-fonts";
 
 const defaultFontsCSS = `
 @font-face {
@@ -114,9 +116,53 @@ export async function import_theme_cbth(cbthPath: string): Promise<ThemeEntry> {
 	return invoke<ThemeEntry>("import_theme_cbth", { cbthPath });
 }
 
+function releaseImage(img: HTMLImageElement | null) {
+	if (!img) return;
+	img.onload = null;
+	img.onerror = null;
+	img.src = "";
+	img.removeAttribute("src");
+}
+
+function releaseCurrentThemeResources() {
+	releaseImage(currentImage);
+	currentImage = null;
+
+	if (currentBlobUrl) {
+		URL.revokeObjectURL(currentBlobUrl);
+		currentBlobUrl = null;
+	}
+
+	const root = document.documentElement;
+	root.style.setProperty("--bg-image", "none");
+	root.style.setProperty("--bg-image-loaded", "0");
+
+	const style = root.style;
+	for (let i = style.length - 1; i >= 0; i--) {
+		const prop = style.item(i);
+		if (prop.startsWith("--")) {
+			style.removeProperty(prop);
+		}
+	}
+
+	const existingCustomCss = document.getElementById(CUSTOM_CSS_ID);
+	if (existingCustomCss) existingCustomCss.remove();
+
+	const existingCustom = document.getElementById(CUSTOM_FONTS_ID);
+	if (existingCustom) existingCustom.remove();
+
+	for (const face of addedFonts) {
+		document.fonts.delete(face);
+	}
+	addedFonts.clear();
+}
+
 export async function applyTheme(themeId: string) {
-	console.log("[applyTheme] called with:", themeId);
 	const gen = ++currentGeneration;
+
+	releaseCurrentThemeResources();
+
+	if (gen !== currentGeneration) return;
 
 	let theme: ThemeResponse | null = null;
 
@@ -134,34 +180,10 @@ export async function applyTheme(themeId: string) {
 		}
 	}
 
-	if (!theme) {
-		console.log("[applyTheme] theme is null, bailing");
-		return;
-	}
-	if (gen !== currentGeneration) {
-		console.log("[applyTheme] stale generation, bailing");
-		return;
-	}
-	console.log("[applyTheme] theme loaded:", theme.name, "inject_css present:", !!theme.inject_css, "length:", theme.inject_css?.length);
-
-	if (currentImage) {
-		currentImage.src = "";
-		currentImage = null;
-	}
-
-	if (currentBlobUrl) {
-		URL.revokeObjectURL(currentBlobUrl);
-		currentBlobUrl = null;
-	}
+	if (!theme) return;
+	if (gen !== currentGeneration) return;
 
 	const root = document.documentElement;
-	const style = root.style;
-	for (let i = style.length - 1; i >= 0; i--) {
-		const prop = style.item(i);
-		if (prop.startsWith("--")) {
-			style.removeProperty(prop);
-		}
-	}
 
 	for (const [key, value] of Object.entries(theme.variables)) {
 		root.style.setProperty(key, value);
@@ -203,16 +225,6 @@ export async function applyTheme(themeId: string) {
 			String(theme.bg_image_opacity),
 		);
 	}
-
-	// Clean up old FontFace objects
-	for (const face of addedFonts) {
-		document.fonts.delete(face);
-	}
-	addedFonts.clear();
-
-	const CUSTOM_FONTS_ID = "cubic-theme-fonts";
-	const existingCustom = document.getElementById(CUSTOM_FONTS_ID);
-	if (existingCustom) existingCustom.remove();
 
 	if (theme.fonts && theme.fonts.length > 0) {
 		removeDefaultFonts();
@@ -260,10 +272,6 @@ export async function applyTheme(themeId: string) {
 	} else {
 		injectDefaultFonts();
 	}
-
-	const CUSTOM_CSS_ID = "cubic-theme-css";
-	const existingCustomCss = document.getElementById(CUSTOM_CSS_ID);
-	if (existingCustomCss) existingCustomCss.remove();
 
 	if (theme.inject_css) {
 		const blob = new Blob([theme.inject_css], { type: "text/css" });

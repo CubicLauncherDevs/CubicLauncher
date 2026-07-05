@@ -53,6 +53,7 @@
 								<img
 									src={convertFileSrc(path)}
 									alt="Screenshot"
+									loading="lazy"
 								/>
 							</button>
 						{/each}

@@ -56,7 +56,7 @@
 				onclick={() => (selectedImage = path)}
 				onkeydown={(e) => e.key === "Enter" && (selectedImage = path)}
 			>
-				<img src={convertFileSrc(path)} alt="Screenshot" />
+				<img src={convertFileSrc(path)} alt="Screenshot" loading="lazy" />
 				<div class="overlay">
 					<button
 						type="button"
@@ -117,7 +117,7 @@
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 		>
-			<img src={convertFileSrc(selectedImage)} alt="Full size" />
+			<img src={convertFileSrc(selectedImage)} alt="Full size" loading="lazy" />
 			<button
 				type="button"
 				class="close-btn"

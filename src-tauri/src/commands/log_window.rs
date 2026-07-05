@@ -6,6 +6,12 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 static LOG_WINDOWS: OnceLock<DashMap<String, String>> = OnceLock::new();
 
+fn remove_log_window(instance_id: &str) {
+    if let Some(map) = LOG_WINDOWS.get() {
+        map.remove(instance_id);
+    }
+}
+
 #[tauri::command]
 pub fn get_log_history_cmd(instance_id: String) -> Vec<LogLine> {
     get_log_history(&instance_id)
@@ -31,7 +37,7 @@ pub async fn open_log_window(
     let encoded_name = urlencoding::encode(&instance_name);
     let path = format!("/?log={}&name={}", encoded_id, encoded_name);
 
-    WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(path.into()))
+    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(path.into()))
         .title(format!("Logs — {}", instance_name))
         .inner_size(800.0, 500.0)
         .min_inner_size(400.0, 300.0)
@@ -39,6 +45,13 @@ pub async fn open_log_window(
         .decorations(true)
         .build()
         .map_err(|e| e.to_string())?;
+
+    let id = instance_id.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { .. } = event {
+            remove_log_window(&id);
+        }
+    });
 
     map.insert(instance_id, label);
     Ok(())
