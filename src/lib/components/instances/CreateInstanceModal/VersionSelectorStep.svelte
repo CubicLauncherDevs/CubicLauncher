@@ -56,10 +56,6 @@
 		selectedLoader = loader;
 		const currentLoadId = ++mcLoadId;
 		++loaderLoadId; // invalida cualquier carga de loader anterior que aún esté en vuelo
-		selectedMcVersion = "";
-		selectedLoaderVersion = "";
-		loaderVersions = [];
-		mcVersions = [];
 		loadingMinecraft = true;
 		loadingLoader = true;
 
@@ -107,7 +103,9 @@
 
 			if (currentLoadId !== mcLoadId) return;
 			mcVersions = list;
-			selectedMcVersion = list[0] ?? "";
+			if (!selectedMcVersion || !list.includes(selectedMcVersion)) {
+				selectedMcVersion = list[0] ?? "";
+			}
 			await loadLoaderVersions(selectedMcVersion, loader);
 		} catch {
 			if (currentLoadId !== mcLoadId) return;
@@ -115,7 +113,6 @@
 				"Error",
 				"No se pudieron cargar las versiones de Minecraft",
 			);
-			mcVersions = [];
 			loadingLoader = false;
 		} finally {
 			if (currentLoadId === mcLoadId) loadingMinecraft = false;
@@ -124,10 +121,10 @@
 
 	async function loadLoaderVersions(mcVersion: string, loader: string) {
 		const currentLoadId = ++loaderLoadId;
-		selectedLoaderVersion = "";
-		loaderVersions = [];
 
 		if (!mcVersion || loader === "vanilla") {
+			loaderVersions = [];
+			selectedLoaderVersion = "";
 			loadingLoader = false;
 			return;
 		}
@@ -148,7 +145,12 @@
 
 			if (currentLoadId !== loaderLoadId) return;
 			loaderVersions = list;
-			selectedLoaderVersion = list[0] ?? "";
+			if (
+				!selectedLoaderVersion ||
+				!list.includes(selectedLoaderVersion)
+			) {
+				selectedLoaderVersion = list[0] ?? "";
+			}
 		} catch {
 			if (currentLoadId !== loaderLoadId) return;
 			showError(
