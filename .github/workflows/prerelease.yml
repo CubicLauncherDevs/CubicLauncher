@@ -1,13 +1,16 @@
 name: Prerelease
 on:
-    workflow_dispatch:
+    push:
+        tags:
+            - "v*-beta*"
+            - "v*-alpha*"
+            - "v*-rc*"
 
 env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
     prerelease:
-        if: github.ref == 'refs/heads/develop'
         permissions:
             contents: write
         strategy:
@@ -45,21 +48,23 @@ jobs:
             - name: Install frontend dependencies
               run: bun install
 
-            - name: Build Tauri debug bundle
-              run: bun tauri build --debug ${{ matrix.args }}
+            - name: Build y publicar prerelease
+              uses: tauri-apps/tauri-action@v0
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-
-            - name: Upload Debug Artifacts
-              uses: actions/upload-artifact@v4
               with:
-                  name: CubicLauncher-Debug-${{ matrix.platform }}-${{ matrix.arch }}
-                  path: |
-                      src-tauri/target/**/debug/bundle/msi/*.msi
-                      src-tauri/target/**/debug/bundle/nsis/*.exe
-                      src-tauri/target/**/debug/bundle/deb/*.deb
-                      src-tauri/target/**/debug/bundle/appimage/*.AppImage
-                      src-tauri/target/**/debug/bundle/dmg/*.dmg
-                  if-no-files-found: warn
+                  tagName: ${{ github.ref_name }}
+                  releaseName: "CubicLauncher ${{ github.ref_name }} (Prerelease)"
+                  releaseBody: |
+                      ⚠️ **Esta es una versión previa (beta/rc)**
+
+                      No es una versión estable. Úsala solo para probar nuevas características.
+
+                      ## Cambios en esta versión
+                      Ver los commits para más detalles.
+                  releaseDraft: false
+                  prerelease: true
+                  includeUpdaterJson: false
+                  args: ${{ matrix.args }}
