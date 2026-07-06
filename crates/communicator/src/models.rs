@@ -69,7 +69,10 @@ pub struct Secrets {
 /// Fluent builder for [`Activity`].
 ///
 /// # Example
-/// ```rust
+/// ```rust,no_run
+/// use communicator::Activity;
+///
+/// let now_secs = 1_700_000_000;
 /// let activity = Activity::builder()
 ///     .details("Playing a game")
 ///     .state("In a match")
