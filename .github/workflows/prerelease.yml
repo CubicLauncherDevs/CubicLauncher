@@ -1,16 +1,13 @@
 name: Prerelease
 on:
-    push:
-        tags:
-            - "v*-beta*"
-            - "v*-alpha*"
-            - "v*-rc*"
+    workflow_dispatch:
 
 env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
     prerelease:
+        if: github.ref == 'refs/heads/develop'
         permissions:
             contents: write
         strategy:
@@ -28,31 +25,25 @@ jobs:
         runs-on: ${{ matrix.platform }}
         steps:
             - uses: actions/checkout@v4
-
             - name: Setup Bun
               uses: oven-sh/setup-bun@v1
               with:
                   bun-version: latest
-
             - name: Install dependencies (ubuntu only)
               if: matrix.platform == 'ubuntu-22.04'
               run: |
                   sudo apt-get update
                   sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
-
             - name: Install Rust stable
               uses: dtolnay/rust-toolchain@stable
               with:
                   targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
             - name: Rust cache
               uses: Swatinem/rust-cache@v2
               with:
                   workspaces: ". -> target"
-
             - name: Install frontend dependencies
               run: bun install
-
             - name: Build y publicar prerelease
               uses: tauri-apps/tauri-action@v0
               env:
@@ -60,13 +51,11 @@ jobs:
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
               with:
-                  tagName: ${{ github.ref_name }}
-                  releaseName: "CubicLauncher ${{ github.ref_name }} (Prerelease)"
+                  tagName: v${{ github.run_number }}-dev
+                  releaseName: "CubicLauncher DEV Build #${{ github.run_number }}"
                   releaseBody: |
-                      ⚠️ **Esta es una versión previa (beta/rc)**
-
-                      No es una versión estable. Úsala solo para probar nuevas características.
-
+                      ⚠️ **Esta es una versión de desarrollo**
+                      Build automático desde la rama develop.
                       ## Cambios en esta versión
                       Ver los commits para más detalles.
                   releaseDraft: false
