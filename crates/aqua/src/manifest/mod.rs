@@ -4,6 +4,7 @@ use crate::types::{
     NormalizedVersion, VersionAssets,
 };
 use crate::utilities::HTTP_CLIENT;
+use reqwest::Client;
 use serde::Deserialize;
 use zellkern::VersionManifest;
 
@@ -21,8 +22,8 @@ struct ManifestEntry {
     version_type: String,
 }
 
-async fn fetch_manifest_v2() -> Result<ManifestV2, AquaError> {
-    let resp = HTTP_CLIENT
+async fn fetch_manifest_v2(client: &Client) -> Result<ManifestV2, AquaError> {
+    let resp = client
         .get(MOJANG_MANIFEST_URL)
         .send()
         .await?
@@ -31,8 +32,11 @@ async fn fetch_manifest_v2() -> Result<ManifestV2, AquaError> {
     Ok(resp)
 }
 
-async fn fetch_version_json(url: &str) -> Result<(VersionManifest, Vec<u8>), AquaError> {
-    let bytes = HTTP_CLIENT.get(url).send().await?.bytes().await?;
+async fn fetch_version_json(
+    client: &Client,
+    url: &str,
+) -> Result<(VersionManifest, Vec<u8>), AquaError> {
+    let bytes = client.get(url).send().await?.bytes().await?;
     let manifest = VersionManifest::from_bytes(&bytes)?;
     Ok((manifest, bytes.to_vec()))
 }
@@ -40,7 +44,7 @@ async fn fetch_version_json(url: &str) -> Result<(VersionManifest, Vec<u8>), Aqu
 pub async fn resolve_version_data(
     version_id: &str,
 ) -> Result<(NormalizedVersion, Vec<u8>), AquaError> {
-    let manifest = fetch_manifest_v2().await?;
+    let manifest = fetch_manifest_v2(&HTTP_CLIENT).await?;
 
     let entry = manifest
         .versions
@@ -48,7 +52,7 @@ pub async fn resolve_version_data(
         .find(|v| v.id == version_id)
         .ok_or_else(|| AquaError::VersionNotFound(version_id.to_string()))?;
 
-    let (version, raw_json) = fetch_version_json(&entry.url).await?;
+    let (version, raw_json) = fetch_version_json(&HTTP_CLIENT, &entry.url).await?;
     let normalized = resolve_normalized(version)?;
     Ok((normalized, raw_json))
 }
@@ -220,9 +224,10 @@ fn resolve_normalized(version: VersionManifest) -> Result<NormalizedVersion, Aqu
 }
 
 pub async fn resolve_asset_index(
+    client: &Client,
     version: &NormalizedVersion,
 ) -> Result<(VersionAssets, Vec<u8>), AquaError> {
-    let res = HTTP_CLIENT.get(&version.asset_index.url).send().await?;
+    let res = client.get(&version.asset_index.url).send().await?;
     let bytes = res.bytes().await?;
     let assets: VersionAssets = serde_json::from_slice(&bytes)?;
     Ok((assets, bytes.to_vec()))
@@ -233,12 +238,19 @@ mod tests {
     use super::*;
     use std::collections::{HashMap, HashSet};
 
-    async fn fetch_manifest_for_test() -> ManifestV2 {
-        fetch_manifest_v2().await.unwrap()
+    fn test_client() -> Client {
+        Client::builder()
+            .user_agent("Cubic Proton/2.0 (tests)")
+            .build()
+            .expect("Failed to build test reqwest client")
     }
 
-    async fn fetch_and_parse_version(url: &str) -> VersionManifest {
-        let bytes = HTTP_CLIENT
+    async fn fetch_manifest_for_test() -> ManifestV2 {
+        fetch_manifest_v2(&test_client()).await.unwrap()
+    }
+
+    async fn fetch_and_parse_version(client: &Client, url: &str) -> VersionManifest {
+        let bytes = client
             .get(url)
             .send()
             .await
@@ -252,6 +264,7 @@ mod tests {
     #[tokio::test]
     async fn download_and_parse_manifests_from_all_release_types() {
         let manifest = fetch_manifest_for_test().await;
+        let client = test_client();
 
         let mut by_type: HashMap<String, Vec<&ManifestEntry>> = HashMap::new();
         for entry in &manifest.versions {
@@ -272,7 +285,7 @@ mod tests {
                 continue;
             }
 
-            let version = fetch_and_parse_version(&entry.url).await;
+            let version = fetch_and_parse_version(&client, &entry.url).await;
 
             assert!(
                 !version.id_raw.is_empty(),
@@ -319,6 +332,7 @@ mod tests {
     #[tokio::test]
     async fn resolve_normalized_from_each_release_type() {
         let manifest = fetch_manifest_for_test().await;
+        let client = test_client();
 
         let interesting_types = ["release", "snapshot", "old_alpha", "old_beta"];
         let mut tested: HashSet<&str> = HashSet::new();
@@ -331,7 +345,7 @@ mod tests {
                 continue;
             }
 
-            let version = fetch_and_parse_version(&entry.url).await;
+            let version = fetch_and_parse_version(&client, &entry.url).await;
             let normalized = resolve_normalized(version).unwrap();
 
             assert!(!normalized.id.is_empty(), "normalized id empty");

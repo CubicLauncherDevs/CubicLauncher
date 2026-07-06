@@ -10,6 +10,7 @@ use super::batch::{DownloadBatch, DownloadItemSpec};
 use crate::AquaError;
 use crate::manifest::{resolve_asset_index, resolve_version_data};
 use crate::types::{DownloadProgress, NormalizedVersion, RESOURCES_BASE_URL};
+use crate::utilities::HTTP_CLIENT;
 use zellkern::resolvers::natives_subdir;
 
 #[derive(Clone)]
@@ -74,7 +75,7 @@ impl MinecraftBatch {
             );
         }
 
-        let (asset_index, asset_index_bytes) = resolve_asset_index(&version).await?;
+        let (asset_index, asset_index_bytes) = resolve_asset_index(&HTTP_CLIENT, &version).await?;
         for (name, asset) in asset_index.into_vec() {
             let hash = asset.hash;
             let subhash = &hash[..2];
