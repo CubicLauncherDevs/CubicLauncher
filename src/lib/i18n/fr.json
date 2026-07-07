@@ -175,7 +175,8 @@
 			"screenshots": "Captures d'écran",
 			"logs": "Journaux",
 			"options": "Options",
-			"downloadMods": "Obtenir des Mods"
+			"downloadMods": "Obtenir des Mods",
+			"shaderpacks": "Shader Packs"
 		},
 		"details": {
 			"title": "Détails",

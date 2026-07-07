@@ -9,11 +9,13 @@
 		instance,
 		bannerState = "Idle",
 		isDownloadingVersion = false,
+		activeSection = $bindable("detalles"),
 		onPlay = () => {},
 	}: {
 		instance: InstanceDto;
 		bannerState: string;
 		isDownloadingVersion: boolean;
+		activeSection: string;
 		onPlay: () => void;
 	} = $props();
 
@@ -102,77 +104,137 @@
 	}
 </script>
 
-<header class="instance-header">
+<header class="instance-header" class:compact={activeSection !== "detalles"}>
 	<div class="header-bg"></div>
-	<div class="header-content">
-		<div class="title-row">
-			<div class="title-left">
-				<img
-					class="instance-icon"
-					src={instance.icon || "/images/cubic.svg"}
-					alt={instance.name}
-				/>
-				<h1 class="instance-title">{instance.name}</h1>
+
+	{#if activeSection === "detalles"}
+		<div class="header-content">
+			<div class="title-row">
+				<div class="title-left">
+					<img
+						class="instance-icon"
+						src={instance.icon || "/images/cubic.svg"}
+						alt={instance.name}
+					/>
+					<h1 class="instance-title">{instance.name}</h1>
+				</div>
+				<div class="actions-row">
+					<button type="button" class="action-btn" onclick={() => openDir()}>
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+						</svg>
+						<span class="action-label">{t("instanceView.options.folder")}</span>
+					</button>
+					<button type="button" class="action-btn" onclick={() => openDir("mods")}>
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+						</svg>
+						<span class="action-label">{t("instanceView.tabs.mods")}</span>
+					</button>
+					<button type="button" class="action-btn" onclick={() => openDir("screenshots")}>
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
+						</svg>
+						<span class="action-label">{t("instanceView.tabs.screenshots")}</span>
+					</button>
+					<button type="button" class="action-btn" onclick={() => openDir("resourcepacks")}>
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+						</svg>
+						<span class="action-label">{t("instanceView.tabs.resources")}</span>
+					</button>
+					<button type="button" class="action-btn" onclick={() => openLogs()}>
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
+						</svg>
+						<span class="action-label">{t("instanceView.tabs.logs")}</span>
+					</button>
+				</div>
 			</div>
-			<div class="actions-row">
-				<button type="button" class="action-btn" onclick={() => openDir()}>
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+			<div class="extension-row">
+				<div class="extension-left">
+					<span class="meta-chip">
+						<img src={loaderIcon} alt={instance.loader} class="loader-icon" />
+						{instance.version}
+					</span>
+					<span class="meta-sep">·</span>
+					<span class="inline-status {statusClass}">
+						{#if bannerState === "Starting"}
+							<svg class="status-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+								<circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10" />
+							</svg>
+						{:else if bannerState === "Started"}
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+								<polyline points="20 6 9 17 4 12" />
+							</svg>
+						{/if}
+						<span class="status-text">{statusLabel}</span>
+						{#if bannerState === "Idle" || bannerState === "Error"}
+							<span class="log-snippet">{t("instanceView.status.offlineLog")}</span>
+						{:else}
+							<span class="log-snippet" title={lastLog}>{lastLog}</span>
+						{/if}
+					</span>
+				</div>
+				<div class="launch-area">
+					{#if bannerState == "Started"}
+						<button type="button" class="launch-btn" onclick={onPlay}>
+							{t("instanceView.close")}
+						</button>
+					{:else if bannerState == "Starting"}
+						<button type="button" class="launch-btn" disabled>
+							{t("instanceView.playBtn")}
+						</button>
+					{:else if isDownloadingVersion}
+						<button type="button" class="launch-btn" disabled>
+							{t("instanceView.downloadingBtn")}
+						</button>
+					{:else}
+						<button type="button" class="launch-btn" onclick={onPlay}>
+							{t("instanceView.playBtn")}
+						</button>
+					{/if}
+				</div>
+			</div>
+
+			<div class="details-row">
+				<div class="path-row">
+					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
 					</svg>
-					<span class="action-label">{t("instanceView.options.folder")}</span>
-				</button>
-				<button type="button" class="action-btn" onclick={() => openDir("mods")}>
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+					<span class="path-text" title={instance.path}>{instance.path}</span>
+					<button type="button" class="icon-btn" onclick={() => openDir()} title={t("instanceView.details.location")}>
+						<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+						</svg>
+					</button>
+				</div>
+				<div class="last-played">
+					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
 					</svg>
-					<span class="action-label">{t("instanceView.tabs.mods")}</span>
-				</button>
-				<button type="button" class="action-btn" onclick={() => openDir("screenshots")}>
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
-					</svg>
-					<span class="action-label">{t("instanceView.tabs.screenshots")}</span>
-				</button>
-				<button type="button" class="action-btn" onclick={() => openDir("resourcepacks")}>
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-					</svg>
-					<span class="action-label">{t("instanceView.tabs.resources")}</span>
-				</button>
-				<button type="button" class="action-btn" onclick={() => openLogs()}>
-					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
-					</svg>
-					<span class="action-label">{t("instanceView.tabs.logs")}</span>
-				</button>
+					<span>{t("instanceView.lastPlayed").replace("{date}", lastPlayedLabel)}</span>
+				</div>
 			</div>
 		</div>
-
-		<div class="extension-row">
-			<div class="extension-left">
-				<span class="meta-chip">
-					<img src={loaderIcon} alt={instance.loader} class="loader-icon" />
-					{instance.version}
-				</span>
-				<span class="meta-sep">·</span>
-				<span class="inline-status {statusClass}">
-					{#if bannerState === "Starting"}
-						<svg class="status-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-							<circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10" />
-						</svg>
-					{:else if bannerState === "Started"}
-						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-							<polyline points="20 6 9 17 4 12" />
-						</svg>
-					{/if}
-					<span class="status-text">{statusLabel}</span>
-					{#if bannerState === "Idle" || bannerState === "Error"}
-						<span class="log-snippet">{t("instanceView.status.offlineLog")}</span>
-					{:else}
-						<span class="log-snippet" title={lastLog}>{lastLog}</span>
-					{/if}
-				</span>
+	{:else}
+		<div class="compact-content">
+			<button type="button" class="back-btn" aria-label={t("instanceView.tabs.details")} onclick={() => (activeSection = "detalles")}>
+				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
+				</svg>
+			</button>
+			<img
+				class="compact-icon"
+				src={instance.icon || "/images/cubic.svg"}
+				alt={instance.name}
+			/>
+			<div class="compact-title-area">
+				<span class="compact-title">{instance.name}</span>
+				<span class="compact-version">{instance.version}</span>
 			</div>
+			<div class="compact-spacer"></div>
 			<div class="launch-area">
 				{#if bannerState == "Started"}
 					<button type="button" class="launch-btn" onclick={onPlay}>
@@ -193,27 +255,7 @@
 				{/if}
 			</div>
 		</div>
-
-		<div class="details-row">
-			<div class="path-row">
-				<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-				</svg>
-				<span class="path-text" title={instance.path}>{instance.path}</span>
-				<button type="button" class="icon-btn" onclick={() => openDir()} title={t("instanceView.details.location")}>
-					<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-					</svg>
-				</button>
-			</div>
-			<div class="last-played">
-				<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-				</svg>
-				<span>{t("instanceView.lastPlayed").replace("{date}", lastPlayedLabel)}</span>
-			</div>
-		</div>
-	</div>
+	{/if}
 </header>
 
 <style>
@@ -518,6 +560,72 @@
 		max-width: 120px;
 		margin-left: 4px;
 		opacity: 1;
+	}
+
+	.compact-content {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 12px 24px;
+	}
+
+	.back-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: transparent;
+		border: none;
+		color: var(--text-tertiary);
+		cursor: pointer;
+		padding: 4px;
+		border-radius: 6px;
+		transition: color 0.15s;
+		flex-shrink: 0;
+	}
+
+	.back-btn:hover {
+		color: var(--text-primary);
+	}
+
+	.compact-icon {
+		width: 28px;
+		height: 28px;
+		border-radius: 5px;
+		object-fit: contain;
+		flex-shrink: 0;
+	}
+
+	.compact-title-area {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-width: 0;
+	}
+
+	.compact-title {
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.compact-version {
+		font-size: 0.68rem;
+		font-weight: 600;
+		padding: 2px 7px;
+		border-radius: 4px;
+		background: var(--bg-card);
+		color: var(--text-secondary);
+		border: 1px solid var(--border);
+		white-space: nowrap;
+		flex-shrink: 0;
+	}
+
+	.compact-spacer {
+		flex: 1;
+		min-width: 8px;
 	}
 
 	@media (max-width: 550px) {

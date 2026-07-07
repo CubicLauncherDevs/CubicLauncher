@@ -2,9 +2,16 @@
 	import { InstState, type InstanceDto } from "$lib/types/types";
 	import { launchInstance } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
+	import { fade } from "svelte/transition";
 	import { killInst } from "$lib/api/launcherService";
 	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 	import InstanceHeader from "./InstanceHeader.svelte";
+	import GridIcon from "$lib/icons/GridIcon.svelte";
+	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
+	import BoxIcon from "$lib/icons/BoxIcon.svelte";
+	import ImageIcon from "$lib/icons/ImageIcon.svelte";
+	import ShaderIcon from "$lib/icons/ShaderIcon.svelte";
+	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
 
 	let { selectedInstance } = $props<{ selectedInstance: InstanceDto }>();
 	let activeSection = $state("detalles");
@@ -22,7 +29,7 @@
 	);
 
 	$effect(() => {
-		if (!supportsMods && activeSection === "mods") {
+		if (!supportsMods && (activeSection === "mods" || activeSection === "download_mods" || activeSection === "shaderpacks")) {
 			activeSection = "detalles";
 		}
 	});
@@ -71,97 +78,106 @@
 		instance={selectedInstance}
 		{bannerState}
 		{isDownloadingVersion}
+		bind:activeSection
 		onPlay={handlePlay}
 	/>
 
 	<div class="tab-content">
-		{#if activeSection === "detalles"}
-			<div class="section-links">
-				<button
-					type="button"
-					class="section-link"
-					disabled={!supportsMods}
-					onclick={() => (activeSection = "mods")}
-				>
-					{t("instanceView.tabs.mods")}
-				</button>
-				<button
-					type="button"
-					class="section-link"
-					disabled={!supportsMods}
-					onclick={() => (activeSection = "download_mods")}
-				>
-					{t("instanceView.tabs.downloadMods") || "Get Mods"}
-				</button>
-				<button
-					type="button"
-					class="section-link"
-					onclick={() => (activeSection = "resources")}
-				>
-					{t("instanceView.tabs.resources")}
-				</button>
-				<button
-					type="button"
-					class="section-link"
-					onclick={() => (activeSection = "screenshots")}
-				>
-					{t("instanceView.tabs.screenshots")}
-				</button>
+		{#key activeSection}
+			<div transition:fade={{ duration: 150 }}>
+				{#if activeSection === "detalles"}
+					<div class="nav-card">
+						<span class="nav-card-header">
+							<span class="nav-card-title">{t("instanceView.tabs.details")}</span>
+						</span>
+						<div class="nav-items">
+							{#if supportsMods}
+								<button
+									type="button"
+									class="nav-item priority"
+									onclick={() => (activeSection = "mods")}
+								>
+									<span class="nav-icon"><GridIcon size={18} /></span>
+									<span class="nav-label">{t("instanceView.tabs.mods")}</span>
+									<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
+								</button>
+							{/if}
+							<button
+								type="button"
+								class="nav-item priority"
+								onclick={() => (activeSection = "resources")}
+							>
+								<span class="nav-icon"><BoxIcon size={18} /></span>
+								<span class="nav-label">{t("instanceView.tabs.resources")}</span>
+								<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
+							</button>
+							{#if supportsMods}
+								<button
+									type="button"
+									class="nav-item secondary"
+									onclick={() => (activeSection = "download_mods")}
+								>
+									<span class="nav-icon"><DownloadIcon size={18} /></span>
+									<span class="nav-label">{t("instanceView.tabs.downloadMods") || "Get Mods"}</span>
+									<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
+								</button>
+							{/if}
+							<button
+								type="button"
+								class="nav-item"
+								class:secondary={supportsMods}
+								onclick={() => (activeSection = "screenshots")}
+							>
+								<span class="nav-icon"><ImageIcon size={18} /></span>
+								<span class="nav-label">{t("instanceView.tabs.screenshots")}</span>
+								<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
+							</button>
+							{#if supportsShaders}
+								<button
+									type="button"
+									class="nav-item secondary"
+									onclick={() => (activeSection = "shaderpacks")}
+								>
+									<span class="nav-icon"><ShaderIcon size={18} /></span>
+									<span class="nav-label">{t("instanceView.tabs.shaderpacks")}</span>
+									<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
+								</button>
+							{/if}
+						</div>
+					</div>
+
+				{:else if activeSection === "mods"}
+					{#key selectedInstance.uuid}
+						{#if ModsRow}
+							<ModsRow instanceId={selectedInstance.uuid} />
+						{/if}
+					{/key}
+
+				{:else if activeSection === "download_mods"}
+					{#key selectedInstance.uuid}
+						{#if DownloadMods}
+							<DownloadMods instance={selectedInstance} />
+						{/if}
+					{/key}
+
+				{:else if activeSection === "resources"}
+					{#if ResourcePacksTab}
+						<ResourcePacksTab
+							instanceId={selectedInstance.uuid}
+							gameVersion={selectedInstance.version}
+							loader={selectedInstance.loader}
+							{supportsShaders}
+						/>
+					{/if}
+
+				{:else if activeSection === "screenshots"}
+					{#if ScreenshotsTab}
+						<ScreenshotsTab instance={selectedInstance} />
+					{/if}
+
+				{/if}
 			</div>
-
-		{:else if activeSection === "mods"}
-			<button type="button" class="back-link" onclick={() => (activeSection = "detalles")}>
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
-				</svg>
-				{t("instanceView.tabs.details")}
-			</button>
-			{#key selectedInstance.uuid}
-				{#if ModsRow}
-					<ModsRow instanceId={selectedInstance.uuid} />
-				{/if}
-			{/key}
-
-		{:else if activeSection === "download_mods"}
-			<button type="button" class="back-link" onclick={() => (activeSection = "detalles")}>
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
-				</svg>
-				{t("instanceView.tabs.details")}
-			</button>
-			{#key selectedInstance.uuid}
-				{#if DownloadMods}
-					<DownloadMods instance={selectedInstance} />
-				{/if}
-			{/key}
-
-		{:else if activeSection === "resources"}
-			<button type="button" class="back-link" onclick={() => (activeSection = "detalles")}>
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
-				</svg>
-				{t("instanceView.tabs.details")}
-			</button>
-			{#if ResourcePacksTab}
-				<ResourcePacksTab
-					instanceId={selectedInstance.uuid}
-					gameVersion={selectedInstance.version}
-					loader={selectedInstance.loader}
-					{supportsShaders}
-				/>
-			{/if}
-
-		{:else if activeSection === "screenshots"}
-			<button type="button" class="back-link" onclick={() => (activeSection = "detalles")}>
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
-				</svg>
-				{t("instanceView.tabs.details")}
-			</button>
-			{#if ScreenshotsTab}
-				<ScreenshotsTab instance={selectedInstance} />
-			{/if}
-		{/if}
+		{/key}
 	</div>
 </div>
 
@@ -178,69 +194,127 @@
 		padding: 24px;
 		overflow-y: auto;
 		scrollbar-gutter: stable;
+		position: relative;
 	}
 
-	.section-links {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 6px;
-		margin-top: 24px;
-		padding-top: 24px;
-		border-top: 1px solid var(--border);
-	}
-
-	.section-link {
-		padding: 7px 16px;
-		border-radius: 8px;
+	.nav-card {
+		position: absolute;
+		bottom: 24px;
+		left: 24px;
+		width: 340px;
+		max-width: calc(100% - 48px);
+		border-radius: 12px;
 		background: var(--bg-card);
 		border: 1px solid var(--border);
-		color: var(--text-secondary);
-		font-family: inherit;
-		font-size: 0.78rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition: all 0.15s ease;
+		overflow: hidden;
+		transition: box-shadow 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
 	}
 
-	.section-link:hover:not(:disabled) {
-		color: var(--text-primary);
-		border-color: var(--text-tertiary);
+	.nav-card:hover {
+		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
 	}
 
-	.section-link:disabled {
-		opacity: 0.3;
-		cursor: not-allowed;
-	}
-
-	.back-link {
-		display: inline-flex;
+	.nav-card-header {
+		display: flex;
 		align-items: center;
-		gap: 6px;
-		background: transparent;
-		border: none;
+		gap: 8px;
+		padding: 9px 14px;
 		color: var(--text-tertiary);
 		font-family: inherit;
-		font-size: 0.78rem;
+		font-size: 0.72rem;
 		font-weight: 600;
-		cursor: pointer;
-		padding: 4px 0;
-		margin-bottom: 16px;
-		transition: color 0.15s;
+		letter-spacing: 0.3px;
+		text-transform: uppercase;
+		user-select: none;
 	}
 
-	.back-link:hover {
+	.nav-card-title {
+		flex: 1;
+	}
+
+	.nav-items {
+		overflow: hidden;
+		max-height: 82px;
+		transition: max-height 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+	}
+
+	.nav-card:hover .nav-items {
+		max-height: 300px;
+	}
+
+	.nav-item {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 11px 14px;
+		background: transparent;
+		border: none;
+		border-top: 1px solid var(--border);
+		color: var(--text-secondary);
+		font-family: inherit;
+		font-size: 0.82rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.12s ease, color 0.12s ease;
+		text-align: left;
+		width: 100%;
+	}
+
+	.nav-item:first-child {
+		border-top: none;
+	}
+
+	.nav-item:hover {
+		background: color-mix(in srgb, var(--bg-sidebar) 100%, var(--text-primary) 2%);
 		color: var(--text-primary);
+	}
+
+	.nav-icon {
+		display: flex;
+		flex-shrink: 0;
+		opacity: 0.7;
+	}
+
+	.nav-item:hover .nav-icon {
+		opacity: 1;
+	}
+
+	.nav-label {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.nav-chevron {
+		display: flex;
+		flex-shrink: 0;
+		opacity: 0.4;
+		transition: transform 0.15s ease, opacity 0.15s ease;
+	}
+
+	.nav-item:hover .nav-chevron {
+		opacity: 0.8;
+		transform: translateX(2px);
 	}
 
 	@media (max-width: 700px) {
 		.tab-content {
 			padding: 16px;
 		}
+		.nav-card {
+			bottom: 16px;
+			left: 16px;
+			max-width: calc(100% - 32px);
+		}
 	}
 
 	@media (max-width: 400px) {
 		.tab-content {
 			padding: 12px;
+		}
+		.nav-card {
+			bottom: 12px;
+			left: 12px;
+			max-width: calc(100% - 24px);
 		}
 	}
 </style>
