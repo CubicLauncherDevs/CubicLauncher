@@ -9,6 +9,7 @@ use tokio::io::AsyncWriteExt;
 #[cfg(test)]
 use zellkern::is_native_file;
 
+use crate::progress::DownloadReporter;
 use crate::AquaError;
 
 pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
@@ -20,7 +21,13 @@ pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
 
 const MAX_DOWNLOAD_ATTEMPTS: usize = 3;
 
-pub async fn download_file(url: &str, path: &Path, expected_hash: &str) -> Result<(), AquaError> {
+pub async fn download_file(
+    url: &str,
+    path: &Path,
+    expected_hash: &str,
+    size_hint: Option<u64>,
+    reporter: Option<&DownloadReporter>,
+) -> Result<(), AquaError> {
     if url.is_empty() {
         return Err(AquaError::Other("Empty download URL".into()));
     }
@@ -31,6 +38,9 @@ pub async fn download_file(url: &str, path: &Path, expected_hash: &str) -> Resul
             match verify_file_hash(path, expected_hash).await {
                 Ok(true) => {
                     debug!("File OK (hash match): {:?}", path);
+                    if let Some(r) = reporter {
+                        r.commit_known_size(size_hint.unwrap_or(0));
+                    }
                     return Ok(());
                 }
                 Ok(false) => {
@@ -53,6 +63,10 @@ pub async fn download_file(url: &str, path: &Path, expected_hash: &str) -> Resul
     for attempt in 1..=MAX_DOWNLOAD_ATTEMPTS {
         // Clean temp from previous attempts
         let _ = tokio::fs::remove_file(&temp_file).await;
+
+        if let Some(r) = reporter {
+            r.reset_attempt();
+        }
 
         let response = match HTTP_CLIENT.get(url).send().await {
             Ok(r) if r.status().is_success() => r,
@@ -97,11 +111,15 @@ pub async fn download_file(url: &str, path: &Path, expected_hash: &str) -> Resul
         while let Some(chunk_result) = stream.next().await {
             match chunk_result {
                 Ok(chunk) => {
+                    let len = chunk.len() as u64;
                     hasher.update(&chunk);
                     if let Err(e) = tokio::io::AsyncWriteExt::write_all(&mut file, &chunk).await {
                         error!("Write error: {}", e);
                         write_ok = false;
                         break;
+                    }
+                    if let Some(r) = reporter {
+                        r.report_delta(len);
                     }
                 }
                 Err(e) => {

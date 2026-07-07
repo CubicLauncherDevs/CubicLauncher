@@ -99,6 +99,23 @@
 		}
 	}
 
+	function normalizeStage(stage: string): SegmentKey {
+		const map: Record<string, SegmentKey> = {
+			library: "Library",
+			asset: "Asset",
+			native: "Native",
+			client: "Client",
+			verifying: "Verifying",
+			generic: "Generic",
+			processing: "Processing",
+			jre: "Jre",
+			extracting: "Jre",
+			resolving: "Generic",
+			mc: "Generic",
+		};
+		return map[stage.toLowerCase()] ?? "Generic";
+	}
+
 	let downloads = new SvelteMap<string, DownloadItem>();
 	let expanded = $state(false);
 	let activeCount = $derived(
@@ -129,7 +146,14 @@
 			const payload = event.payload;
 			switch (payload.type) {
 				case "DProgress": {
-					const { version, current, total, d_type } = payload.data;
+					const {
+						version,
+						stage,
+						item_current,
+						item_total,
+						bytes_current,
+						bytes_total,
+					} = payload.data;
 					const isNew = !downloads.has(version);
 					const existing = downloads.get(version) ?? {
 						version,
@@ -137,12 +161,24 @@
 						segments: emptySegments(),
 						done: false,
 					};
-					const key = d_type as SegmentKey;
+					const key = normalizeStage(stage);
+					const useBytes = bytes_total > 0;
+					const current = useBytes ? bytes_current : item_current;
+					const total = useBytes ? bytes_total : item_total;
 					existing.segments[key] = { current, total };
 					existing.activeType = key;
 					existing.done = false;
 					downloads.set(version, { ...existing });
 					if (isNew) expanded = true;
+					break;
+				}
+				case "DStage": {
+					const { version, stage } = payload.data;
+					const existing = downloads.get(version);
+					if (existing) {
+						existing.activeType = normalizeStage(stage);
+						downloads.set(version, { ...existing });
+					}
 					break;
 				}
 				case "DFinish": {
@@ -181,6 +217,12 @@
 
 	function getOverallPct(item: DownloadItem): number {
 		if (item.done) return 100;
+		if (item.activeType) {
+			const s = item.segments[item.activeType];
+			if (s.total > 0) {
+				return Math.round((s.current / s.total) * 100);
+			}
+		}
 		const totalAll = SEGMENTS.reduce(
 			(a, k) => a + item.segments[k].total,
 			0,
@@ -198,7 +240,7 @@
 		<div class="dl-tray-tab-left">
 			{#if activeCount > 0}
 				<span class="dl-tray-spinner"></span>
-				<span>{activeCount} descargando</span>
+				<span>{t("sidebar.downloading")}</span>
 			{:else if doneCount > 0}
 				<CheckIcon size={13} />
 				<span>{doneCount} completadas</span>

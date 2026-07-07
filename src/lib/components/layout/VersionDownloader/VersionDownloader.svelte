@@ -49,6 +49,26 @@
 	let installedForge = $state(new Set<string>());
 	let installedQuilt = $state(new Set<string>());
 	let downloadingVersions = new SvelteSet<string>();
+
+	function gameVersionFromLoaderId(versionId: string): string | null {
+		const fabric = versionId.match(/^fabric-loader-[\d.]+-(.+)$/);
+		if (fabric) return fabric[1];
+		const quilt = versionId.match(/^quilt-loader-[\d.]+-(.+)$/);
+		if (quilt) return quilt[1];
+		return null;
+	}
+
+	function markDownloading(versionId: string) {
+		downloadingVersions.add(versionId);
+		const game = gameVersionFromLoaderId(versionId);
+		if (game) downloadingVersions.add(game);
+	}
+
+	function unmarkDownloading(versionId: string) {
+		downloadingVersions.delete(versionId);
+		const game = gameVersionFromLoaderId(versionId);
+		if (game) downloadingVersions.delete(game);
+	}
 	let filter = $state("release");
 	let rawSearch = $state("");
 	let search = $state("");
@@ -141,7 +161,7 @@
 		getDownloadQueue().then((queue) => {
 			for (const item of queue) {
 				if (item.status !== "done") {
-					downloadingVersions.add(item.version);
+					markDownloading(item.version);
 				}
 			}
 		});
@@ -149,9 +169,9 @@
 		const unlisten = listen<AppEvent>("app-event", (event) => {
 			const p = event.payload;
 			if (p.type === "DEnqueue") {
-				downloadingVersions.add(p.data.version);
+				markDownloading(p.data.version);
 			} else if (p.type === "DFinish") {
-				downloadingVersions.delete(p.data.version);
+				unmarkDownloading(p.data.version);
 				getInstalledVersions().then((raw) => {
 					const { vanilla, fabric, forge, quilt } =
 						getInstalledMcVersions(raw);
@@ -161,7 +181,7 @@
 					installedQuilt = quilt;
 				});
 			} else if (p.type === "DError") {
-				downloadingVersions.delete(p.data.version);
+				unmarkDownloading(p.data.version);
 			}
 		});
 
@@ -338,23 +358,37 @@
 		);
 	});
 
-	const displayVersions = $derived(
-		filteredVersions.map((v) => ({
-			id:
-				(v as MinecraftVersion).id ??
-				(v as FabricGameVersion).version ??
-				(v as ForgeGameVersion).version_id,
-			version:
-				(v as FabricGameVersion).version ??
-				(v as MinecraftVersion).id ??
-				(v as ForgeGameVersion).version_id,
-			game_version: (v as ForgeGameVersion).game_version ?? "",
-			forge_version: (v as ForgeGameVersion).forge_version ?? "",
-			type: (v as MinecraftVersion).type ?? "",
-			stable: (v as FabricGameVersion).stable ?? false,
-			releaseTime: (v as MinecraftVersion).releaseTime ?? "",
-		})),
-	);
+	const displayVersions = $derived.by(() => {
+		const isFabricOrQuilt = filter === "fabric" || filter === "quilt";
+		return filteredVersions.map((v) => {
+			const id = isFabricOrQuilt
+				? (v as FabricGameVersion).version
+				: (v as MinecraftVersion).id ??
+					(v as ForgeGameVersion).version_id;
+			const version = isFabricOrQuilt
+				? (v as FabricGameVersion).version
+				: (v as MinecraftVersion).id ??
+					(v as ForgeGameVersion).version_id;
+			return {
+				id,
+				version,
+				game_version: (v as ForgeGameVersion).game_version ?? "",
+				forge_version: (v as ForgeGameVersion).forge_version ?? "",
+				type: (v as MinecraftVersion).type ?? "",
+				stable: (v as FabricGameVersion).stable ?? false,
+				releaseTime: (v as MinecraftVersion).releaseTime ?? "",
+				isInstalled:
+					filter === "fabric"
+						? installedFabric.has(id)
+						: filter === "quilt"
+							? installedQuilt.has(id)
+							: filter === "forge"
+								? installedForge.has(id)
+								: installedVanilla.has(id),
+				isDownloading: downloadingVersions.has(id),
+			};
+		});
+	});
 
 	$effect(() => {
 		if (!launcherStore.settings.show_snapshots && filter === "snapshot") {
@@ -371,13 +405,18 @@
 		forgeVersion?: string,
 	) {
 		if (filter === "fabric") {
-			await downloadFabric(versionId);
+			const queued = await downloadFabric(versionId);
+			if (queued) markDownloading(queued);
 		} else if (filter === "quilt") {
-			await downloadQuilt(versionId);
+			const queued = await downloadQuilt(versionId);
+			if (queued) markDownloading(queued);
 		} else if (filter === "forge" && gameVersion && forgeVersion) {
+			const queued = `${gameVersion}-forge-${forgeVersion}`;
 			await downloadForge(gameVersion, forgeVersion);
+			markDownloading(queued);
 		} else {
 			await addToQueue(versionId);
+			markDownloading(versionId);
 		}
 	}
 </script>
@@ -420,19 +459,6 @@
 		{:else}
 			<VirtualList items={displayVersions} itemHeight={66} padding={20}>
 				{#snippet children(version, _index)}
-					{@const isInstalled =
-						filter === "fabric"
-							? installedFabric.has(version.version)
-							: filter === "quilt"
-								? installedQuilt.has(version.version)
-								: filter === "forge"
-									? installedForge.has(version.id)
-									: installedVanilla.has(version.id)}
-					{@const isDownloading = downloadingVersions.has(
-						filter === "fabric" || filter === "quilt"
-							? version.version
-							: version.id,
-					)}
 					<div
 						class="virtual-item-container"
 						style="padding: 0 20px;"
@@ -440,13 +466,11 @@
 						<VersionDownloaderItem
 							{version}
 							{filter}
-							{isInstalled}
-							{isDownloading}
+							isInstalled={version.isInstalled}
+							isDownloading={version.isDownloading}
 							ondownload={() =>
 								handleDownload(
-									filter === "fabric" || filter === "quilt"
-										? version.version
-										: version.id,
+									version.id,
 									version.game_version || undefined,
 									version.forge_version || undefined,
 								)}

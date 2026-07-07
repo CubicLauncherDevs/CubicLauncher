@@ -8,6 +8,7 @@ mod quilt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::time::Duration;
 
 pub use batch::{DownloadBatch, DownloadItemSpec, GenericBatch};
 pub use fabric::FabricBatch;
@@ -18,14 +19,12 @@ pub use jre::JreBatch;
 use log::warn;
 pub use minecraft::MinecraftBatch;
 pub use quilt::QuiltBatch;
-use tokio::sync::mpsc::Sender;
 use tokio::sync::{Mutex, Semaphore};
 use tokio::task::JoinHandle;
 
 use crate::AquaError;
-use crate::types::{
-    DownloadProgress, DownloadProgressInfo, DownloadProgressType, NormalizedVersion,
-};
+use crate::progress::{DownloadReporter, ProgressSender, ProgressState};
+use crate::types::NormalizedVersion;
 use crate::utilities::download_file;
 
 const DEFAULT_MAX_HANDLES: usize = 2;
@@ -152,7 +151,7 @@ impl DownloadHandle {
 
     pub async fn download_all(
         &self,
-        progress_tx: Option<Sender<DownloadProgress>>,
+        progress_tx: Option<ProgressSender>,
     ) -> Result<(), AquaError> {
         self.start(progress_tx).await?;
         self.wait().await
@@ -160,7 +159,7 @@ impl DownloadHandle {
 
     pub async fn start(
         &self,
-        progress_tx: Option<Sender<DownloadProgress>>,
+        progress_tx: Option<ProgressSender>,
     ) -> Result<(), AquaError> {
         let mut slot = self.inner.join_handle.lock().await;
         if slot.is_some() {
@@ -192,7 +191,7 @@ impl DownloadHandle {
 
 async fn run_download(
     inner: Arc<DownloadInner>,
-    progress_tx: Option<Sender<DownloadProgress>>,
+    progress_tx: Option<ProgressSender>,
 ) -> Result<(), AquaError> {
     if inner.cancel_flag.load(Ordering::Relaxed) {
         return Err(AquaError::Cancelled);
@@ -200,8 +199,34 @@ async fn run_download(
 
     inner.batch.prepare().await?;
 
-    let total = inner.batch.items().len();
-    inner.total_items.store(total, Ordering::Relaxed);
+    let total_items = inner.batch.items().len();
+    let bytes_total: u64 = inner.batch.items().iter().filter_map(|i| i.size).sum();
+    inner.total_items.store(total_items, Ordering::Relaxed);
+
+    let progress_state: Option<Arc<ProgressState>> =
+        progress_tx.as_ref().map(|_| ProgressState::new(total_items, bytes_total));
+
+    // Spawn a lightweight forwarder so byte-level progress is smooth.
+    let _forwarder = if let (Some(state), Some(tx)) = (&progress_state, &progress_tx) {
+        let state = Arc::clone(state);
+        let tx = tx.clone();
+        Some(tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_millis(100));
+            loop {
+                interval.tick().await;
+                let snapshot = state.snapshot();
+                if tx.send(snapshot).is_err() {
+                    break;
+                }
+                let done = state.item_current.load(Ordering::Relaxed) >= state.item_total;
+                if done {
+                    break;
+                }
+            }
+        }))
+    } else {
+        None
+    };
 
     // Pre-create unique parent directories once
     let mut parents: Vec<&Path> = inner
@@ -217,35 +242,60 @@ async fn run_download(
     }
 
     let completed = Arc::clone(&inner.completed_items);
-    let batch_name = inner.batch.name();
-    let version_arc = Arc::new(batch_name);
     let max_concurrent = inner.max_downloads;
     let items_vec: Vec<_> = inner.batch.items().to_vec();
 
     let inner_for_finalize = Arc::clone(&inner);
-    let progress_tx_for_stream = progress_tx.clone();
+    let progress_state_for_stream = progress_state.clone();
+    let progress_tx_for_notify = progress_tx.clone();
 
     stream::iter(items_vec.into_iter().map(move |item| {
         let c = Arc::clone(&completed);
-        let tx = progress_tx_for_stream.clone();
-        let version_arc = Arc::clone(&version_arc);
+        let state = progress_state_for_stream.clone();
+        let notify_tx = progress_tx_for_notify.clone();
         let inner = Arc::clone(&inner);
 
         async move {
             if inner.cancel_flag.load(Ordering::Relaxed) {
                 return Err(AquaError::Cancelled);
             }
-            if let Err(e) = download_file(&item.url, &item.destination, &item.expected_hash).await {
+
+            if let Some(ref s) = state {
+                s.set_current_item(Some(item.label.clone()), item.size, item.stage.clone())
+                    .await;
+                // Immediate snapshot so the frontend sees the stage change.
+                let _ = notify_tx.as_ref().map(|tx| tx.send(s.snapshot()));
+            }
+
+            let reporter = state.as_ref().map(|s| DownloadReporter::new(Arc::clone(s)));
+
+            if let Err(e) = download_file(
+                &item.url,
+                &item.destination,
+                &item.expected_hash,
+                item.size,
+                reporter.as_ref(),
+            )
+            .await
+            {
                 if let Some(ref fallback) = item.fallback_url {
                     warn!("Main URL failed. Using fallback: {fallback}");
-                    if let Err(_) =
-                        download_file(fallback, &item.destination, &item.expected_hash).await
+                    if let Err(_) = download_file(
+                        fallback,
+                        &item.destination,
+                        &item.expected_hash,
+                        item.size,
+                        reporter.as_ref(),
+                    )
+                    .await
                     {
                         warn!("Fallback failed, using fallback with universal.");
                         if download_file(
                             &fallback.replace(".jar", "-universal.jar"),
                             &item.destination,
                             &item.expected_hash,
+                            item.size,
+                            reporter.as_ref(),
                         )
                         .await
                         .is_err()
@@ -271,15 +321,12 @@ async fn run_download(
             }
 
             let count = c.fetch_add(1, Ordering::Relaxed) + 1;
-            report_progress(
-                &tx,
-                count,
-                inner.total_items.load(Ordering::Relaxed),
-                DownloadProgressType::Generic,
-                item.label,
-                &version_arc,
-            )
-            .await;
+            if let Some(ref s) = state {
+                s.item_current.store(count, Ordering::Relaxed);
+                s.clear_current_item().await;
+                // Notify immediately when an item is finished.
+                let _ = notify_tx.as_ref().map(|tx| tx.send(s.snapshot()));
+            }
             Ok::<_, AquaError>(())
         }
     }))
@@ -290,29 +337,4 @@ async fn run_download(
     inner_for_finalize.batch.finalize(progress_tx).await?;
 
     Ok(())
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async fn report_progress(
-    tx: &Option<Sender<DownloadProgress>>,
-    current: usize,
-    total: usize,
-    dtype: DownloadProgressType,
-    name: impl Into<String>,
-    version: &Arc<String>,
-) {
-    if let Some(tx) = tx {
-        let _ = tx
-            .send(DownloadProgress {
-                current,
-                total,
-                info: DownloadProgressInfo {
-                    name: name.into(),
-                    version: Arc::clone(version),
-                },
-                download_type: dtype,
-            })
-            .await;
-    }
 }

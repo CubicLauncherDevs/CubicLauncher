@@ -2,10 +2,8 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
 
-use tokio::sync::mpsc::Sender;
-
+use crate::progress::{DownloadStage, ProgressSender};
 use crate::AquaError;
-use crate::types::DownloadProgress;
 
 #[derive(Debug, Clone)]
 pub struct DownloadItemSpec {
@@ -15,10 +13,16 @@ pub struct DownloadItemSpec {
     pub expected_hash: String,
     pub label: String,
     pub required: bool,
+    pub stage: DownloadStage,
+    pub size: Option<u64>,
 }
 
 impl DownloadItemSpec {
-    pub fn new(url: impl Into<String>, destination: PathBuf, label: impl Into<String>) -> Self {
+    pub fn new(
+        url: impl Into<String>,
+        destination: PathBuf,
+        label: impl Into<String>,
+    ) -> Self {
         Self {
             url: url.into(),
             fallback_url: None,
@@ -26,6 +30,8 @@ impl DownloadItemSpec {
             expected_hash: String::new(),
             label: label.into(),
             required: true,
+            stage: DownloadStage::Generic,
+            size: None,
         }
     }
 
@@ -43,6 +49,16 @@ impl DownloadItemSpec {
         self.required = false;
         self
     }
+
+    pub fn with_stage(mut self, stage: DownloadStage) -> Self {
+        self.stage = stage;
+        self
+    }
+
+    pub fn with_size(mut self, size: u64) -> Self {
+        self.size = Some(size);
+        self
+    }
 }
 
 pub trait DownloadBatch: Send + Sync {
@@ -56,7 +72,7 @@ pub trait DownloadBatch: Send + Sync {
 
     fn finalize(
         &self,
-        _progress_tx: Option<Sender<DownloadProgress>>,
+        _progress_tx: Option<ProgressSender>,
     ) -> Pin<Box<dyn Future<Output = Result<(), AquaError>> + Send + '_>> {
         Box::pin(async { Ok(()) })
     }

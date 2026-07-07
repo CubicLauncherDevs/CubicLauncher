@@ -318,14 +318,15 @@ export async function getFabricLoaderVersions(
 export async function downloadFabric(
 	gameVersion: string,
 	loaderVersion?: string,
-): Promise<void> {
+): Promise<string | null> {
 	try {
-		await invoke("download_fabric", {
+		return await invoke<string>("download_fabric", {
 			gameVersion,
 			loaderVersion: loaderVersion ?? null,
 		});
 	} catch (err) {
 		showErrorParsed(err);
+		return null;
 	}
 }
 
@@ -392,14 +393,15 @@ export async function getQuiltLoaderVersions(
 export async function downloadQuilt(
 	gameVersion: string,
 	loaderVersion?: string,
-): Promise<void> {
+): Promise<string | null> {
 	try {
-		await invoke("download_quilt", {
+		return await invoke<string>("download_quilt", {
 			gameVersion,
 			loaderVersion: loaderVersion ?? null,
 		});
 	} catch (err) {
 		showErrorParsed(err);
+		return null;
 	}
 }
 

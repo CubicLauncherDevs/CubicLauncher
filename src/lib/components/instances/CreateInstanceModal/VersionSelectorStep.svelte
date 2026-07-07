@@ -1,18 +1,17 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import {
-		getAvailableVersions,
-		getFabricVersions,
 		getFabricLoaderVersions,
 		getForgeVersions,
-		getQuiltVersions,
 		getQuiltLoaderVersions,
+		getInstalledVersions,
+		parseInstalledVersion,
 	} from "$lib/api/cubicApi";
 	import Select from "$lib/components/layout/Select.svelte";
 	import { t } from "$lib/i18n";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { showError } from "$lib/state/state.svelte";
-	import type { MinecraftVersion, ForgeGameVersion } from "$lib/types/types";
+	import type { ForgeGameVersion } from "$lib/types/types";
 
 	let {
 		selectedLoader = $bindable<string>("vanilla"),
@@ -44,13 +43,40 @@
 	let loadingMinecraft = $state(false);
 	let loadingLoader = $state(false);
 
-	let vanillaVersions = $state<MinecraftVersion[]>([]);
-	let fabricVersions = $state<{ version: string; stable: boolean }[]>([]);
-	let quiltVersions = $state<{ version: string; stable: boolean }[]>([]);
 	let forgeVersions = $state<ForgeGameVersion[]>([]);
 
 	let mcLoadId = $state(0);
 	let loaderLoadId = $state(0);
+
+	function compareVersions(a: string, b: string): number {
+		const aParts = a.split(".").map((n) => parseInt(n, 10) || 0);
+		const bParts = b.split(".").map((n) => parseInt(n, 10) || 0);
+		for (
+			let i = 0;
+			i < Math.max(aParts.length, bParts.length);
+			i++
+		) {
+			const av = aParts[i] ?? 0;
+			const bv = bParts[i] ?? 0;
+			if (av !== bv) return bv - av;
+		}
+		return b.localeCompare(a, undefined, { numeric: true });
+	}
+
+	function getInstalledBaseVersions(raw: string[]): Set<string> {
+		const bases = new Set<string>();
+		for (const v of raw) {
+			const parsed = parseInstalledVersion(v);
+			if (!parsed) continue;
+			if (parsed.loader === "forge") {
+				const idx = v.indexOf("-forge-");
+				if (idx >= 0) bases.add(v.substring(0, idx));
+			} else {
+				bases.add(parsed.version);
+			}
+		}
+		return bases;
+	}
 
 	async function loadMcVersions(loader: string) {
 		selectedLoader = loader;
@@ -60,45 +86,12 @@
 		loadingLoader = true;
 
 		try {
-			let list: string[] = [];
+			const raw = await getInstalledVersions();
+			const installedBases = getInstalledBaseVersions(raw);
+			const list = Array.from(installedBases).sort(compareVersions);
 
-			if (loader === "vanilla") {
-				if (vanillaVersions.length === 0) {
-					vanillaVersions = await getAvailableVersions();
-				}
-				list = vanillaVersions
-					.filter((v) => {
-						if (v.type === "release") return true;
-						if (
-							v.type === "snapshot" &&
-							launcherStore.settings.show_snapshots
-						)
-							return true;
-						if (
-							(v.type === "old_alpha" || v.type === "old_beta") &&
-							launcherStore.settings.show_alpha
-						)
-							return true;
-						return false;
-					})
-					.map((v) => v.id);
-			} else if (loader === "fabric") {
-				if (fabricVersions.length === 0) {
-					fabricVersions = await getFabricVersions();
-				}
-				list = fabricVersions.map((v) => v.version);
-			} else if (loader === "quilt") {
-				if (quiltVersions.length === 0) {
-					quiltVersions = await getQuiltVersions();
-				}
-				list = quiltVersions.map((v) => v.version);
-			} else if (loader === "forge") {
-				if (forgeVersions.length === 0) {
-					forgeVersions = await getForgeVersions();
-				}
-				list = Array.from(
-					new Set(forgeVersions.map((v) => v.game_version)),
-				);
+			if (loader === "forge" && forgeVersions.length === 0) {
+				forgeVersions = await getForgeVersions();
 			}
 
 			if (currentLoadId !== mcLoadId) return;
@@ -171,6 +164,12 @@
 		mcVersions.map((v) => ({ value: v, label: v })),
 	);
 
+	const mcPlaceholder = $derived(
+		!loadingMinecraft && mcVersions.length === 0
+			? t("createInstance.noVersionsErr")
+			: t("createInstance.selectMcVersion"),
+	);
+
 	const loaderVersionOptions = $derived(
 		loaderVersions.map((v) => ({ value: v, label: v })),
 	);
@@ -195,7 +194,7 @@
 		<Select
 			bind:value={selectedMcVersion}
 			options={mcVersionOptions}
-			placeholder={t("createInstance.selectMcVersion")}
+			placeholder={mcPlaceholder}
 			loading={loadingMinecraft}
 			loadingPlaceholder={t("createInstance.loading")}
 			disabled={loadingMinecraft || mcVersionOptions.length === 0}

@@ -5,7 +5,6 @@ pub use zellkern::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 pub const MOJANG_MANIFEST_URL: &str =
     "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
@@ -85,30 +84,4 @@ impl VersionAssets {
     }
 }
 
-// ─── Download progress ────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone)]
-pub struct DownloadProgress {
-    pub current: usize,
-    pub total: usize,
-    pub info: DownloadProgressInfo,
-    pub download_type: DownloadProgressType,
-}
-
-#[derive(Debug, Clone)]
-pub struct DownloadProgressInfo {
-    pub name: String,
-    pub version: Arc<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum DownloadProgressType {
-    Library,
-    Asset,
-    Native,
-    Client,
-    Verifying,
-    Generic,
-    Processing,
-    Jre,
-}

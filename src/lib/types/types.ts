@@ -176,9 +176,20 @@ export type AppEvent =
 			type: "DProgress";
 			data: {
 				version: string;
-				current: number;
-				total: number;
-				d_type: string;
+				stage: string;
+				item_current: number;
+				item_total: number;
+				bytes_current: number;
+				bytes_total: number;
+				current_item: string | null;
+			};
+	  }
+	| {
+			type: "DStage";
+			data: {
+				version: string;
+				stage: string;
+				info: string | null;
 			};
 	  }
 	| {

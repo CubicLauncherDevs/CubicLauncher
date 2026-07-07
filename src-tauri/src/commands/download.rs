@@ -1,7 +1,7 @@
 use crate::core::errors::DownloadError;
 use crate::core::{HTTP, PathManager};
 use crate::services::DownloadQueue;
-use aqua::{DownloadManager, FabricBatch, QuiltBatch};
+use aqua::{FabricBatch, QuiltBatch};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
@@ -194,7 +194,7 @@ pub async fn get_fabric_versions() -> Result<Vec<FabricGameVersion>, String> {
 pub async fn download_fabric(
     game_version: String,
     loader_version: Option<String>,
-) -> Result<(), String> {
+) -> Result<String, String> {
     info!(
         "Iniciando descarga de Fabric para Minecraft {}",
         game_version
@@ -211,40 +211,9 @@ pub async fn download_fabric(
     let fabric_version_id = format!("fabric-loader-{}-{}", loader_version, game_version);
     info!("Loader: {}, ID: {}", loader_version, fabric_version_id);
 
-    let shared_dir = PathManager::get().get_shared_dir();
-    let json_path = shared_dir
-        .join("versions")
-        .join(&fabric_version_id)
-        .join(format!("{}.json", fabric_version_id));
+    DownloadQueue::get().enqueue(fabric_version_id.clone()).await;
 
-    if tokio::fs::try_exists(&json_path).await.unwrap_or(false) {
-        info!(
-            "Fabric {} ya instalado, encolando assets",
-            fabric_version_id
-        );
-        DownloadQueue::get().enqueue(fabric_version_id).await;
-        return Ok(());
-    }
-
-    let batch = FabricBatch::new(shared_dir, &game_version, &loader_version)
-        .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
-
-    let manager = DownloadManager::new(shared_dir.to_path_buf());
-    let handle = manager
-        .prepare_batch(Box::new(batch))
-        .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
-
-    handle
-        .download_all(None)
-        .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
-
-    info!("Fabric {} descargado correctamente", fabric_version_id);
-    DownloadQueue::get().enqueue(fabric_version_id).await;
-
-    Ok(())
+    Ok(fabric_version_id)
 }
 #[tauri::command]
 pub async fn refresh_versions() -> Result<Vec<MinecraftVersion>, String> {
@@ -557,7 +526,7 @@ pub async fn refresh_quilt_versions() -> Result<Vec<FabricGameVersion>, String> 
 pub async fn download_quilt(
     game_version: String,
     loader_version: Option<String>,
-) -> Result<(), String> {
+) -> Result<String, String> {
     info!(
         "Iniciando descarga de Quilt para Minecraft {}",
         game_version
@@ -574,37 +543,9 @@ pub async fn download_quilt(
     let quilt_version_id = format!("quilt-loader-{}-{}", loader_version, game_version);
     info!("Loader: {}, ID: {}", loader_version, quilt_version_id);
 
-    let shared_dir = PathManager::get().get_shared_dir();
-    let json_path = shared_dir
-        .join("versions")
-        .join(&quilt_version_id)
-        .join(format!("{}.json", quilt_version_id));
+    DownloadQueue::get().enqueue(quilt_version_id.clone()).await;
 
-    if tokio::fs::try_exists(&json_path).await.unwrap_or(false) {
-        info!("Quilt {} ya instalado, encolando assets", quilt_version_id);
-        DownloadQueue::get().enqueue(quilt_version_id).await;
-        return Ok(());
-    }
-
-    let batch = QuiltBatch::new(shared_dir, &game_version, &loader_version)
-        .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
-
-    let manager = DownloadManager::new(shared_dir.to_path_buf());
-    let handle = manager
-        .prepare_batch(Box::new(batch))
-        .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
-
-    handle
-        .download_all(None)
-        .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
-
-    info!("Quilt {} descargado correctamente", quilt_version_id);
-    DownloadQueue::get().enqueue(quilt_version_id).await;
-
-    Ok(())
+    Ok(quilt_version_id)
 }
 
 // ─── Loader versions per game version ───────────────────────────────────────

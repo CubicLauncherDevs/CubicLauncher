@@ -3,13 +3,13 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
 use log::info;
-use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 
 use super::batch::{DownloadBatch, DownloadItemSpec};
 use crate::AquaError;
 use crate::manifest::{resolve_asset_index, resolve_version_data};
-use crate::types::{DownloadProgress, NormalizedVersion, RESOURCES_BASE_URL};
+use crate::progress::{DownloadStage, ProgressSender};
+use crate::types::{NormalizedVersion, RESOURCES_BASE_URL};
 use crate::utilities::HTTP_CLIENT;
 use zellkern::resolvers::natives_subdir;
 
@@ -59,7 +59,12 @@ impl MinecraftBatch {
 
         for lib in &version.libraries {
             let lib_path = dirs.libraries_dir.join(&lib.path);
-            items.push(DownloadItemSpec::new(&lib.url, lib_path, &lib.name).with_hash(&lib.sha1));
+            items.push(
+                DownloadItemSpec::new(&lib.url, lib_path, &lib.name)
+                    .with_hash(&lib.sha1)
+                    .with_stage(DownloadStage::Library)
+                    .with_size(lib.size),
+            );
         }
 
         for native in &version.natives {
@@ -71,7 +76,10 @@ impl MinecraftBatch {
                 .to_string();
             let temp_path = temp_dir.join(&filename);
             items.push(
-                DownloadItemSpec::new(&native.url, temp_path, &native.name).with_hash(&native.sha1),
+                DownloadItemSpec::new(&native.url, temp_path, &native.name)
+                    .with_hash(&native.sha1)
+                    .with_stage(DownloadStage::Native)
+                    .with_size(native.size),
             );
         }
 
@@ -81,7 +89,12 @@ impl MinecraftBatch {
             let subhash = &hash[..2];
             let url = format!("{}{}/{}", RESOURCES_BASE_URL, subhash, hash);
             let path = dirs.objects_dir.join(subhash).join(&hash);
-            items.push(DownloadItemSpec::new(url, path, name).with_hash(hash));
+            items.push(
+                DownloadItemSpec::new(url, path, name)
+                    .with_hash(hash.clone())
+                    .with_stage(DownloadStage::Asset)
+                    .with_size(asset.size as u64),
+            );
         }
 
         if !version.client_jar.url.is_empty() {
@@ -92,7 +105,9 @@ impl MinecraftBatch {
                     client_path,
                     format!("minecraft-{}", version.id),
                 )
-                .with_hash(&version.client_jar.sha1),
+                .with_hash(&version.client_jar.sha1)
+                .with_stage(DownloadStage::Client)
+                .with_size(version.client_jar.size),
             );
         }
 
@@ -157,7 +172,7 @@ impl DownloadBatch for MinecraftBatch {
 
     fn finalize(
         &self,
-        _progress_tx: Option<Sender<DownloadProgress>>,
+        _progress_tx: Option<ProgressSender>,
     ) -> Pin<Box<dyn Future<Output = Result<(), AquaError>> + Send + '_>> {
         let temp_dir = self.temp_dir.clone();
         let natives_dir = self.dirs.natives_dir.clone();

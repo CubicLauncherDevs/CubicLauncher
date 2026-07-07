@@ -89,9 +89,12 @@ pub async fn install_mrpack(path: String, instance_name: String) -> Result<Mrpac
         while let Some((current, total)) = rx.recv().await {
             emit(AppEvent::DProgress {
                 version: mods_label.clone(),
-                current: current as u32,
-                total: total as u32,
-                d_type: Cow::Borrowed("Generic"),
+                stage: Cow::Borrowed("generic"),
+                item_current: current as u64,
+                item_total: total as u64,
+                bytes_current: 0,
+                bytes_total: 0,
+                current_item: None,
             });
         }
     });
@@ -110,12 +113,7 @@ pub async fn install_mrpack(path: String, instance_name: String) -> Result<Mrpac
     install_result.map_err(|e| format!("Failed to install mrpack: {}", e))?;
 
     match &game_version.loader {
-        zellkern::Loader::Fabric(loader_version) => {
-            download_fabric_loader(&mc_version_only, loader_version).await?;
-            DownloadQueue::get().enqueue(version_id.clone()).await;
-        }
-        zellkern::Loader::Quilt(loader_version) => {
-            download_quilt_loader(&mc_version_only, loader_version).await?;
+        zellkern::Loader::Fabric(_) | zellkern::Loader::Quilt(_) => {
             DownloadQueue::get().enqueue(version_id.clone()).await;
         }
         _ => {
@@ -144,83 +142,4 @@ pub async fn install_mrpack(path: String, instance_name: String) -> Result<Mrpac
     })
 }
 
-async fn download_fabric_loader(game_version: &str, loader_version: &str) -> Result<(), String> {
-    info!(
-        "Downloading Fabric loader {} for MC {}",
-        loader_version, game_version
-    );
 
-    let game_path = crate::core::PathManager::get()
-        .get_shared_dir()
-        .to_path_buf();
-    let fabric_version_id = format!("fabric-loader-{}-{}", loader_version, game_version);
-    let version_json_path = game_path
-        .join("versions")
-        .join(&fabric_version_id)
-        .join(format!("{}.json", fabric_version_id));
-
-    if version_json_path.exists() {
-        info!("Fabric version already downloaded: {}", fabric_version_id);
-        return Ok(());
-    }
-
-    let batch = aqua::FabricBatch::new(&game_path, game_version, loader_version)
-        .await
-        .map_err(|e| format!("Failed to create Fabric batch: {}", e))?;
-
-    let dm = aqua::DownloadManager::new(game_path);
-    let handle = dm
-        .prepare_batch(Box::new(batch))
-        .await
-        .map_err(|e| format!("Failed to prepare Fabric download: {}", e))?;
-
-    handle
-        .download_all(None)
-        .await
-        .map_err(|e| format!("Failed to download Fabric: {}", e))?;
-
-    info!(
-        "Fabric loader downloaded successfully: {}",
-        fabric_version_id
-    );
-    Ok(())
-}
-
-async fn download_quilt_loader(game_version: &str, loader_version: &str) -> Result<(), String> {
-    info!(
-        "Downloading Quilt loader {} for MC {}",
-        loader_version, game_version
-    );
-
-    let game_path = crate::core::PathManager::get()
-        .get_shared_dir()
-        .to_path_buf();
-    let quilt_version_id = format!("quilt-loader-{}-{}", loader_version, game_version);
-    let version_json_path = game_path
-        .join("versions")
-        .join(&quilt_version_id)
-        .join(format!("{}.json", quilt_version_id));
-
-    if version_json_path.exists() {
-        info!("Quilt version already downloaded: {}", quilt_version_id);
-        return Ok(());
-    }
-
-    let batch = aqua::QuiltBatch::new(&game_path, game_version, loader_version)
-        .await
-        .map_err(|e| format!("Failed to create Quilt batch: {}", e))?;
-
-    let dm = aqua::DownloadManager::new(game_path);
-    let handle = dm
-        .prepare_batch(Box::new(batch))
-        .await
-        .map_err(|e| format!("Failed to prepare Quilt download: {}", e))?;
-
-    handle
-        .download_all(None)
-        .await
-        .map_err(|e| format!("Failed to download Quilt: {}", e))?;
-
-    info!("Quilt loader downloaded successfully: {}", quilt_version_id);
-    Ok(())
-}

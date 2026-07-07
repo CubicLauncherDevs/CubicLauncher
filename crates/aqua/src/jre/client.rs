@@ -1,8 +1,8 @@
 use crate::errors::AquaError;
 use crate::jre::types::{JrePackage, ZuluPackage};
+use crate::progress::{DownloadProgress, DownloadStage, ProgressSender};
 use crate::utilities::HTTP_CLIENT;
 use std::path::Path;
-use tokio::sync::mpsc;
 
 pub struct ZuluApi;
 
@@ -63,7 +63,8 @@ impl ZuluApi {
     pub async fn download_and_extract(
         pkg: &JrePackage,
         dest_dir: &Path,
-        progress_tx: Option<mpsc::Sender<(u64, u64)>>,
+        progress_tx: Option<ProgressSender>,
+        item_label: String,
     ) -> Result<(), AquaError> {
         let extract_dir = dest_dir.parent().unwrap_or(dest_dir);
         tokio::fs::create_dir_all(extract_dir).await?;
@@ -89,21 +90,67 @@ impl ZuluApi {
 
         let archive_path = extract_dir.join(format!("jre{}_tmp.{}", pkg.major_version, ext));
 
+        let send_progress = |stage, item_current, bytes_current, current_item: Option<String>| {
+            if let Some(ref tx) = progress_tx {
+                let _ = tx.send(DownloadProgress {
+                    stage,
+                    item_current,
+                    item_total: 1,
+                    bytes_current,
+                    bytes_total: total,
+                    current_item,
+                    current_item_bytes: bytes_current,
+                    current_item_total: if total == 0 { None } else { Some(total) },
+                });
+            }
+        };
+
+        // Initial progress message.
+        send_progress(
+            DownloadStage::Jre,
+            0,
+            0,
+            Some(item_label.clone()),
+        );
+
         {
             let mut file = tokio::fs::File::create(&archive_path).await?;
             let mut stream = response.bytes_stream();
             use futures::StreamExt;
             let mut downloaded = 0u64;
+            let mut last_reported = 0u64;
             while let Some(chunk) = stream.next().await {
                 use tokio::io::AsyncWriteExt;
                 let chunk = chunk?;
                 downloaded += chunk.len() as u64;
                 file.write_all(&chunk).await?;
-                if let Some(ref tx) = progress_tx {
-                    let _ = tx.try_send((downloaded, total));
+
+                // Report roughly every 256 KiB to avoid spamming the watch channel.
+                if downloaded.saturating_sub(last_reported) >= 256 * 1024 {
+                    send_progress(
+                        DownloadStage::Jre,
+                        0,
+                        downloaded,
+                        Some(item_label.clone()),
+                    );
+                    last_reported = downloaded;
                 }
             }
+            // Ensure the final byte count is reported.
+            send_progress(
+                DownloadStage::Jre,
+                0,
+                downloaded,
+                Some(item_label.clone()),
+            );
         }
+
+        send_progress(
+            DownloadStage::Extracting,
+            1,
+            total,
+            Some(item_label.clone()),
+        );
 
         if pkg.is_tar_gz() {
             extract_tar_gz(&archive_path, extract_dir, &pkg.filename).await?;
@@ -124,6 +171,8 @@ impl ZuluApi {
             }
             tokio::fs::rename(&extracted_dir, dest_dir).await?;
         }
+
+        send_progress(DownloadStage::Jre, 1, total, Some(item_label));
 
         Ok(())
     }

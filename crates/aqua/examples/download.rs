@@ -1,7 +1,6 @@
-use aqua::{DownloadManager, DownloadProgress, DownloadProgressType, FabricBatch};
+use aqua::{DownloadManager, DownloadProgress, DownloadStage, FabricBatch};
 use std::env;
 use std::path::PathBuf;
-use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,22 +13,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let download_type = env::var("DOWNLOAD_TYPE").unwrap_or_else(|_| "minecraft".to_string());
 
-    let (tx, mut rx) = mpsc::channel::<DownloadProgress>(100);
+    let (tx, mut rx) = tokio::sync::watch::channel(DownloadProgress::empty(0));
     let progress_handle = tokio::spawn(async move {
-        while let Some(prog) = rx.recv().await {
-            let label = match prog.download_type {
-                DownloadProgressType::Client => "CLIENT",
-                DownloadProgressType::Library => "LIB",
-                DownloadProgressType::Asset => "ASSET",
-                DownloadProgressType::Native => "NATIVE",
-                DownloadProgressType::Verifying => "VERIFY",
-                DownloadProgressType::Generic => "GENERIC",
-                DownloadProgressType::Processing => "PROC",
-                DownloadProgressType::Jre => "JRE",
+        let mut last = None;
+        loop {
+            if rx.changed().await.is_err() {
+                break;
+            }
+            let prog = rx.borrow().clone();
+            if last.as_ref() == Some(&prog) {
+                continue;
+            }
+            last = Some(prog.clone());
+            let label = match prog.stage {
+                DownloadStage::Client => "CLIENT",
+                DownloadStage::Library => "LIB",
+                DownloadStage::Asset => "ASSET",
+                DownloadStage::Native => "NATIVE",
+                DownloadStage::Verifying => "VERIFY",
+                DownloadStage::Generic => "GENERIC",
+                DownloadStage::Processing => "PROC",
+                DownloadStage::Jre => "JRE",
+                DownloadStage::Resolving => "RESOLV",
+                DownloadStage::Extracting => "EXTRACT",
             };
             println!(
-                "[{}/{}] [{label:6}] {}",
-                prog.current, prog.total, prog.info.name
+                "items [{}/{}] bytes [{}/{}] [{label:7}] {}",
+                prog.item_current,
+                prog.item_total,
+                prog.bytes_current,
+                prog.bytes_total,
+                prog.current_item.as_deref().unwrap_or("-"),
             );
         }
     });
