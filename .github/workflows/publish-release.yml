@@ -1,0 +1,44 @@
+name: Publish Release
+
+on:
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "Tag to publish (e.g. v31.0.0)"
+                required: true
+            publish:
+                description: "Publish the release (yes/no)"
+                required: true
+                default: "yes"
+
+jobs:
+    publish:
+        name: Publish release
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - name: Validate input
+              if: github.event.inputs.publish != 'yes'
+              run: |
+                  echo "Publish cancelled by user input."
+                  exit 0
+
+            - name: Publish release
+              if: github.event.inputs.publish == 'yes'
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  gh release edit "${{ github.event.inputs.tag }}" --draft=false
+
+            - name: Verify release is public
+              if: github.event.inputs.publish == 'yes'
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  is_draft=$(gh release view "${{ github.event.inputs.tag }}" --json isDraft -q '.isDraft')
+                  if [ "$is_draft" != "false" ]; then
+                      echo "Release is still draft"
+                      exit 1
+                  fi
+                  echo "Release ${{ github.event.inputs.tag }} is now public."
