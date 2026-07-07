@@ -15,6 +15,13 @@
 
 	let { selectedInstance } = $props<{ selectedInstance: InstanceDto }>();
 	let activeSection = $state("detalles");
+	let tabContentEl: HTMLDivElement | undefined = $state();
+
+	$effect.pre(() => {
+		if (activeSection === "detalles" && tabContentEl) {
+			tabContentEl.scrollTop = 0;
+		}
+	});
 	let bannerState = $derived.by(() => {
 		if (selectedInstance.status === InstState.Started) return "Started";
 		if (selectedInstance.status === InstState.Off) return "Idle";
@@ -82,9 +89,9 @@
 		onPlay={handlePlay}
 	/>
 
-	<div class="tab-content">
+	<div class="tab-content" bind:this={tabContentEl}>
 		{#key activeSection}
-			<div transition:fade={{ duration: 150 }}>
+			<div in:fade={{ duration: 150, delay: 250 }} out:fade={{ duration: 150 }}>
 				{#if activeSection === "detalles"}
 					<div class="nav-card">
 						<span class="nav-card-header">
