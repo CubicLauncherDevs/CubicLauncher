@@ -115,30 +115,35 @@
 				<h1 class="instance-title">{instance.name}</h1>
 			</div>
 			<div class="actions-row">
-				<button type="button" class="action-btn" onclick={() => openDir()} title={t("instanceView.options.folder")}>
+				<button type="button" class="action-btn" onclick={() => openDir()}>
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
 					</svg>
+					<span class="action-label">{t("instanceView.options.folder")}</span>
 				</button>
-				<button type="button" class="action-btn" onclick={() => openDir("mods")} title={t("instanceView.tabs.mods")}>
+				<button type="button" class="action-btn" onclick={() => openDir("mods")}>
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
 					</svg>
+					<span class="action-label">{t("instanceView.tabs.mods")}</span>
 				</button>
-				<button type="button" class="action-btn" onclick={() => openDir("screenshots")} title={t("instanceView.tabs.screenshots")}>
+				<button type="button" class="action-btn" onclick={() => openDir("screenshots")}>
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
 					</svg>
+					<span class="action-label">{t("instanceView.tabs.screenshots")}</span>
 				</button>
-				<button type="button" class="action-btn" onclick={() => openDir("resourcepacks")} title={t("instanceView.tabs.resources")}>
+				<button type="button" class="action-btn" onclick={() => openDir("resourcepacks")}>
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
 					</svg>
+					<span class="action-label">{t("instanceView.tabs.resources")}</span>
 				</button>
-				<button type="button" class="action-btn" onclick={() => openLogs()} title={t("instanceView.tabs.logs")}>
+				<button type="button" class="action-btn" onclick={() => openLogs()}>
 					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
 					</svg>
+					<span class="action-label">{t("instanceView.tabs.logs")}</span>
 				</button>
 			</div>
 		</div>
@@ -473,8 +478,8 @@
 	}
 
 	.action-btn {
-		width: 30px;
 		height: 30px;
+		padding: 0 6px;
 		border-radius: 7px;
 		background: transparent;
 		border: 1px solid var(--border);
@@ -486,10 +491,33 @@
 		transition: all 0.15s ease;
 	}
 
+	.action-btn svg {
+		flex-shrink: 0;
+	}
+
 	.action-btn:hover {
 		background: var(--bg-card);
 		color: var(--text-primary);
 		border-color: var(--text-tertiary);
+	}
+
+	.action-label {
+		font-size: 0.68rem;
+		font-weight: 500;
+		white-space: nowrap;
+		min-width: 0;
+		max-width: 0;
+		margin-left: 0;
+		opacity: 0;
+		overflow: hidden;
+		transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+		pointer-events: none;
+	}
+
+	.action-btn:hover .action-label {
+		max-width: 120px;
+		margin-left: 4px;
+		opacity: 1;
 	}
 
 	@media (max-width: 550px) {
