@@ -165,7 +165,8 @@
 			"starting": "Wird gestartet",
 			"started": "Version gestartet",
 			"idle": "Inaktiv",
-			"error": "Fehler"
+			"error": "Fehler",
+			"offlineLog": "nichts hier ^_^"
 		},
 		"tabs": {
 			"details": "Details",

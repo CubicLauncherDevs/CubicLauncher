@@ -165,7 +165,8 @@
 			"starting": "Starting",
 			"started": "The version has been started",
 			"idle": "Idle",
-			"error": "Error"
+			"error": "Error",
+			"offlineLog": "nothing here ^_^"
 		},
 		"tabs": {
 			"details": "Details",
