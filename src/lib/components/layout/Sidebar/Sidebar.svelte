@@ -1,8 +1,8 @@
 <script lang="ts">
-import { deleteInst, getActiveUser } from "$lib/api/launcherService";
-import { launcherStore } from "$lib/state/state.svelte";
-import { getAvatar, setAvatar } from "$lib/state/avatarCache";
-import type { InstanceDto } from "$lib/types/types";
+	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
+	import { launcherStore } from "$lib/state/state.svelte";
+	import { getAvatar, setAvatar } from "$lib/state/avatarCache";
+	import type { InstanceDto } from "$lib/types/types";
 	import UserMenu from "../UserMenu/UserMenu.svelte";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import DownloadQueue from "../DownloadQueue/DownloadQueue.svelte";

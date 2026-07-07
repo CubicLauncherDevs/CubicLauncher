@@ -156,45 +156,45 @@
 					}
 					break;
 				}
-			case "DProgress": {
-				const {
-					version,
-					stage,
-					item_current,
-					item_total,
-					bytes_current,
-					bytes_total,
-				} = p.data;
-				const existing = downloads.get(version) ?? {
-					version,
-					activeType: null,
-					segs: emptySegs(),
-					done: false,
-					error: null,
-				};
-				const key = normalizeStage(stage);
-				const useBytes = bytes_total > 0;
-				const current = useBytes ? bytes_current : item_current;
-				const total = useBytes ? bytes_total : item_total;
-				downloads.set(version, {
-					...existing,
-					segs: { ...existing.segs, [key]: { current, total } },
-					activeType: key,
-					done: false,
-				});
-				break;
-			}
-			case "DStage": {
-				const { version, stage } = p.data;
-				const existing = downloads.get(version);
-				if (existing) {
+				case "DProgress": {
+					const {
+						version,
+						stage,
+						item_current,
+						item_total,
+						bytes_current,
+						bytes_total,
+					} = p.data;
+					const existing = downloads.get(version) ?? {
+						version,
+						activeType: null,
+						segs: emptySegs(),
+						done: false,
+						error: null,
+					};
+					const key = normalizeStage(stage);
+					const useBytes = bytes_total > 0;
+					const current = useBytes ? bytes_current : item_current;
+					const total = useBytes ? bytes_total : item_total;
 					downloads.set(version, {
 						...existing,
-						activeType: normalizeStage(stage),
+						segs: { ...existing.segs, [key]: { current, total } },
+						activeType: key,
+						done: false,
 					});
+					break;
 				}
-				break;
-			}
+				case "DStage": {
+					const { version, stage } = p.data;
+					const existing = downloads.get(version);
+					if (existing) {
+						downloads.set(version, {
+							...existing,
+							activeType: normalizeStage(stage),
+						});
+					}
+					break;
+				}
 				case "DFinish": {
 					const { version } = p.data;
 					const item = downloads.get(version);

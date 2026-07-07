@@ -363,12 +363,12 @@
 		return filteredVersions.map((v) => {
 			const id = isFabricOrQuilt
 				? (v as FabricGameVersion).version
-				: (v as MinecraftVersion).id ??
-					(v as ForgeGameVersion).version_id;
+				: ((v as MinecraftVersion).id ??
+					(v as ForgeGameVersion).version_id);
 			const version = isFabricOrQuilt
 				? (v as FabricGameVersion).version
-				: (v as MinecraftVersion).id ??
-					(v as ForgeGameVersion).version_id;
+				: ((v as MinecraftVersion).id ??
+					(v as ForgeGameVersion).version_id);
 			return {
 				id,
 				version,

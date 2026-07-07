@@ -5,7 +5,10 @@
 		class: className = "",
 		size = 16,
 		...rest
-	}: { class?: string; size?: number } & SVGAttributes<SVGSVGElement> = $props();
+	}: {
+		class?: string;
+		size?: number;
+	} & SVGAttributes<SVGSVGElement> = $props();
 </script>
 
 <svg

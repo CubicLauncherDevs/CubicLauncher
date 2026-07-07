@@ -37,10 +37,7 @@
 	let activeCategory = $state<string | null>(null);
 	let sortIndex = $state<string>("downloads");
 
-	let basket = new SvelteMap<
-		string,
-		ModrinthProject | CurseForgeProject
-	>();
+	let basket = new SvelteMap<string, ModrinthProject | CurseForgeProject>();
 
 	let selectedMod = $state<ModrinthProject | CurseForgeProject | null>(null);
 

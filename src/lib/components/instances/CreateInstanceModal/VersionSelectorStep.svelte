@@ -51,11 +51,7 @@
 	function compareVersions(a: string, b: string): number {
 		const aParts = a.split(".").map((n) => parseInt(n, 10) || 0);
 		const bParts = b.split(".").map((n) => parseInt(n, 10) || 0);
-		for (
-			let i = 0;
-			i < Math.max(aParts.length, bParts.length);
-			i++
-		) {
+		for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
 			const av = aParts[i] ?? 0;
 			const bv = bParts[i] ?? 0;
 			if (av !== bv) return bv - av;

@@ -53,9 +53,9 @@
 	let SettingsComponent = $state<Component<{ onclose: () => void }> | null>(
 		null,
 	);
-	let VersionDownloaderComponent = $state<
-		Component<{ onclose?: () => void }> | null
-	>(null);
+	let VersionDownloaderComponent = $state<Component<{
+		onclose?: () => void;
+	}> | null>(null);
 
 	onMount(async () => {
 		initEventListeners();
@@ -84,9 +84,7 @@
 		// Lazy load non-critical components after first paint
 		Promise.all([
 			import("$lib/components/settings/Settings.svelte"),
-			import(
-				"$lib/components/layout/VersionDownloader/VersionDownloader.svelte"
-			),
+			import("$lib/components/layout/VersionDownloader/VersionDownloader.svelte"),
 		]).then(([s, v]) => {
 			SettingsComponent = s.default;
 			VersionDownloaderComponent = v.default;

@@ -36,7 +36,9 @@
 				{filter === "fabric" ? version.version : version.id}
 			</div>
 			{#if isInstalled}
-				<span class="inst-badge">{t("versionDownloader.installedTag")}</span>
+				<span class="inst-badge"
+					>{t("versionDownloader.installedTag")}</span
+				>
 			{/if}
 		</div>
 		<div

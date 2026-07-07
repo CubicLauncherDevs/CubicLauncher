@@ -28,7 +28,9 @@
 			class:active={filter === "snapshot"}
 			onclick={() => (filter = "snapshot")}
 		>
-			<span class="qm-tab-label">{t("versionDownloader.tabs.snapshots")}</span>
+			<span class="qm-tab-label"
+				>{t("versionDownloader.tabs.snapshots")}</span
+			>
 		</button>
 	{/if}
 	{#if showAlpha}
@@ -38,7 +40,9 @@
 			class:active={filter === "alpha"}
 			onclick={() => (filter = "alpha")}
 		>
-			<span class="qm-tab-label">{t("versionDownloader.tabs.alphas")}</span>
+			<span class="qm-tab-label"
+				>{t("versionDownloader.tabs.alphas")}</span
+			>
 		</button>
 	{/if}
 	<button
