@@ -2,8 +2,8 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
 
-use crate::progress::{DownloadStage, ProgressSender};
 use crate::AquaError;
+use crate::progress::{DownloadStage, ProgressSender};
 
 #[derive(Debug, Clone)]
 pub struct DownloadItemSpec {
@@ -18,11 +18,7 @@ pub struct DownloadItemSpec {
 }
 
 impl DownloadItemSpec {
-    pub fn new(
-        url: impl Into<String>,
-        destination: PathBuf,
-        label: impl Into<String>,
-    ) -> Self {
+    pub fn new(url: impl Into<String>, destination: PathBuf, label: impl Into<String>) -> Self {
         Self {
             url: url.into(),
             fallback_url: None,

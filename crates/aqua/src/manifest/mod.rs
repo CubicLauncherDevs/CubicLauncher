@@ -250,14 +250,7 @@ mod tests {
     }
 
     async fn fetch_and_parse_version(client: &Client, url: &str) -> VersionManifest {
-        let bytes = client
-            .get(url)
-            .send()
-            .await
-            .unwrap()
-            .bytes()
-            .await
-            .unwrap();
+        let bytes = client.get(url).send().await.unwrap().bytes().await.unwrap();
         VersionManifest::from_bytes(&bytes).unwrap()
     }
 

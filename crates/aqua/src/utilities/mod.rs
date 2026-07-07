@@ -9,8 +9,8 @@ use tokio::io::AsyncWriteExt;
 #[cfg(test)]
 use zellkern::is_native_file;
 
-use crate::progress::DownloadReporter;
 use crate::AquaError;
+use crate::progress::DownloadReporter;
 
 pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()

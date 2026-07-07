@@ -13,7 +13,5 @@ pub use downloaders::{
 pub use errors::AquaError;
 pub use jre::{JrePackage, JreStatus, ZuluApi, ZuluPackage};
 pub use manifest::resolve_version_data;
-pub use progress::{
-    DownloadProgress, DownloadReporter, DownloadStage, ProgressSender,
-};
+pub use progress::{DownloadProgress, DownloadReporter, DownloadStage, ProgressSender};
 pub use types::*;

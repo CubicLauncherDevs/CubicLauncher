@@ -141,5 +141,3 @@ pub async fn install_mrpack(path: String, instance_name: String) -> Result<Mrpac
         version_id_for_instance: Some(version_id),
     })
 }
-
-

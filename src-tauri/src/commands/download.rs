@@ -211,7 +211,9 @@ pub async fn download_fabric(
     let fabric_version_id = format!("fabric-loader-{}-{}", loader_version, game_version);
     info!("Loader: {}, ID: {}", loader_version, fabric_version_id);
 
-    DownloadQueue::get().enqueue(fabric_version_id.clone()).await;
+    DownloadQueue::get()
+        .enqueue(fabric_version_id.clone())
+        .await;
 
     Ok(fabric_version_id)
 }

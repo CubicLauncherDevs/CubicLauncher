@@ -626,7 +626,7 @@ fn add_vj_lib(
             .unwrap_or("")
             .to_string();
 
-            if !path.is_empty() && !seen.contains(&path) {
+        if !path.is_empty() && !seen.contains(&path) {
             if !url.is_empty() {
                 let dest = staging_libs.join(&path);
                 items.push(

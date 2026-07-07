@@ -149,18 +149,12 @@ impl DownloadHandle {
         self.inner.cancel_flag.store(true, Ordering::Relaxed);
     }
 
-    pub async fn download_all(
-        &self,
-        progress_tx: Option<ProgressSender>,
-    ) -> Result<(), AquaError> {
+    pub async fn download_all(&self, progress_tx: Option<ProgressSender>) -> Result<(), AquaError> {
         self.start(progress_tx).await?;
         self.wait().await
     }
 
-    pub async fn start(
-        &self,
-        progress_tx: Option<ProgressSender>,
-    ) -> Result<(), AquaError> {
+    pub async fn start(&self, progress_tx: Option<ProgressSender>) -> Result<(), AquaError> {
         let mut slot = self.inner.join_handle.lock().await;
         if slot.is_some() {
             return Err(AquaError::Other(
@@ -203,8 +197,9 @@ async fn run_download(
     let bytes_total: u64 = inner.batch.items().iter().filter_map(|i| i.size).sum();
     inner.total_items.store(total_items, Ordering::Relaxed);
 
-    let progress_state: Option<Arc<ProgressState>> =
-        progress_tx.as_ref().map(|_| ProgressState::new(total_items, bytes_total));
+    let progress_state: Option<Arc<ProgressState>> = progress_tx
+        .as_ref()
+        .map(|_| ProgressState::new(total_items, bytes_total));
 
     // Spawn a lightweight forwarder so byte-level progress is smooth.
     let _forwarder = if let (Some(state), Some(tx)) = (&progress_state, &progress_tx) {

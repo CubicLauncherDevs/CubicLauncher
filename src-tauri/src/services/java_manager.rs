@@ -97,5 +97,4 @@ impl JavaManager {
         info!("Detected Java {} version: {:?}", version, parsed_version);
         parsed_version
     }
-
 }

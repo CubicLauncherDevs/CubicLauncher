@@ -381,7 +381,8 @@ impl DownloadQueue {
         download_base_mc(version.clone(), gv, manager, queue).await?;
 
         let installer_url = aqua::ForgeBatch::resolve_installer_url(gv, fv);
-        let batch = aqua::ForgeBatch::new(&shared_dir, gv, fv, &installer_url, Some(java_path)).await?;
+        let batch =
+            aqua::ForgeBatch::new(&shared_dir, gv, fv, &installer_url, Some(java_path)).await?;
         let handle = manager.prepare_batch(Box::new(batch)).await?;
         download_with_progress(version, handle, queue.clone()).await
     }
@@ -423,11 +424,7 @@ async fn download_base_mc(
     manager: &DownloadManager,
     queue: &Arc<DownloadQueue>,
 ) -> Result<(), aqua::AquaError> {
-    emit_stage(
-        &version,
-        "mc",
-        Some(format!("Minecraft {}", game_version)),
-    );
+    emit_stage(&version, "mc", Some(format!("Minecraft {}", game_version)));
     let base_handle = manager.prepare(game_version).await?;
     download_with_progress(version, base_handle, queue.clone()).await
 }

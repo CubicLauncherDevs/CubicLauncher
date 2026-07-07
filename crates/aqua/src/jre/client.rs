@@ -106,12 +106,7 @@ impl ZuluApi {
         };
 
         // Initial progress message.
-        send_progress(
-            DownloadStage::Jre,
-            0,
-            0,
-            Some(item_label.clone()),
-        );
+        send_progress(DownloadStage::Jre, 0, 0, Some(item_label.clone()));
 
         {
             let mut file = tokio::fs::File::create(&archive_path).await?;
@@ -127,22 +122,12 @@ impl ZuluApi {
 
                 // Report roughly every 256 KiB to avoid spamming the watch channel.
                 if downloaded.saturating_sub(last_reported) >= 256 * 1024 {
-                    send_progress(
-                        DownloadStage::Jre,
-                        0,
-                        downloaded,
-                        Some(item_label.clone()),
-                    );
+                    send_progress(DownloadStage::Jre, 0, downloaded, Some(item_label.clone()));
                     last_reported = downloaded;
                 }
             }
             // Ensure the final byte count is reported.
-            send_progress(
-                DownloadStage::Jre,
-                0,
-                downloaded,
-                Some(item_label.clone()),
-            );
+            send_progress(DownloadStage::Jre, 0, downloaded, Some(item_label.clone()));
         }
 
         send_progress(

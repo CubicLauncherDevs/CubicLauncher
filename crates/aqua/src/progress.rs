@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use tokio::sync::Mutex;
 
 pub type ProgressSender = tokio::sync::watch::Sender<DownloadProgress>;
@@ -134,11 +134,7 @@ impl ProgressState {
             item_total: self.item_total,
             bytes_current: self.bytes_current.load(Ordering::Relaxed),
             bytes_total: self.bytes_total,
-            current_item: self
-                .current_item
-                .try_lock()
-                .ok()
-                .and_then(|g| g.clone()),
+            current_item: self.current_item.try_lock().ok().and_then(|g| g.clone()),
             current_item_bytes: self.current_item_bytes.load(Ordering::Relaxed),
             current_item_total: if current_item_total == 0 {
                 None

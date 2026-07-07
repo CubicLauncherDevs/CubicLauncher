@@ -83,5 +83,3 @@ impl VersionAssets {
         self.objects.is_empty()
     }
 }
-
-
