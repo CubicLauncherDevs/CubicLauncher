@@ -1,12 +1,7 @@
 name: Build Prerelease Draft
 
 on:
-    push:
-        branches: [develop]
-        tags:
-            - "v*-alpha*"
-            - "v*-beta*"
-            - "v*-rc*"
+    workflow_dispatch:
 
 env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
