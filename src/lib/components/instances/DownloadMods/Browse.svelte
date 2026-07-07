@@ -168,11 +168,15 @@
 				if (idx !== -1) return versionStr.slice(0, idx);
 			}
 		}
-		if (lower.startsWith("fabric-loader-")) {
-			const lastDash = versionStr.lastIndexOf("-");
-			if (lastDash !== -1) return versionStr.slice(lastDash + 1);
-		}
-		return versionStr;
+	if (lower.startsWith("fabric-loader-")) {
+		const lastDash = versionStr.lastIndexOf("-");
+		if (lastDash !== -1) return versionStr.slice(lastDash + 1);
+	}
+	if (lower.startsWith("quilt-loader-")) {
+		const lastDash = versionStr.lastIndexOf("-");
+		if (lastDash !== -1) return versionStr.slice(lastDash + 1);
+	}
+	return versionStr;
 	}
 </script>
 
