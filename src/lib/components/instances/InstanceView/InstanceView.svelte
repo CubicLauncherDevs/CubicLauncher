@@ -210,7 +210,7 @@
 		left: 24px;
 		width: 340px;
 		max-width: calc(100% - 48px);
-		border-radius: 12px;
+		border-radius: var(--border-radius);
 		background: var(--bg-card);
 		border: 1px solid var(--border);
 		overflow: hidden;
