@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import { SvelteSet } from "svelte/reactivity";
 	import {
 		getFabricLoaderVersions,
 		getForgeVersions,
@@ -9,7 +10,6 @@
 	} from "$lib/api/cubicApi";
 	import Select from "$lib/components/layout/Select.svelte";
 	import { t } from "$lib/i18n";
-	import { launcherStore } from "$lib/state/state.svelte";
 	import { showError } from "$lib/state/state.svelte";
 	import type { ForgeGameVersion } from "$lib/types/types";
 
@@ -59,8 +59,8 @@
 		return b.localeCompare(a, undefined, { numeric: true });
 	}
 
-	function getInstalledBaseVersions(raw: string[]): Set<string> {
-		const bases = new Set<string>();
+	function getInstalledBaseVersions(raw: string[]): SvelteSet<string> {
+		const bases = new SvelteSet<string>();
 		for (const v of raw) {
 			const parsed = parseInstalledVersion(v);
 			if (!parsed) continue;
