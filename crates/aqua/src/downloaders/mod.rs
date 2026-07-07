@@ -275,7 +275,7 @@ async fn run_download(
             {
                 if let Some(ref fallback) = item.fallback_url {
                     warn!("Main URL failed. Using fallback: {fallback}");
-                    if let Err(_) = download_file(
+                    if download_file(
                         fallback,
                         &item.destination,
                         &item.expected_hash,
@@ -283,6 +283,7 @@ async fn run_download(
                         reporter.as_ref(),
                     )
                     .await
+                    .is_err()
                     {
                         warn!("Fallback failed, using fallback with universal.");
                         if download_file(
