@@ -12,7 +12,9 @@ env:
 jobs:
     frontend:
         name: Frontend Checks
-        runs-on: ubuntu-22.04
+        runs-on: ubuntu-latest
+        env:
+            NODE_OPTIONS: --max-old-space-size=6144
         steps:
             - uses: actions/checkout@v4
 
@@ -35,7 +37,7 @@ jobs:
 
     rust:
         name: Rust Checks
-        runs-on: ubuntu-22.04
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
 
