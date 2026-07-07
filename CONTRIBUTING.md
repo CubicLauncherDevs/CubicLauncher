@@ -68,10 +68,48 @@ Si agregás textos nuevos en la UI, agregalos en:
 - `src/lib/i18n/de.json`
 - `src/lib/i18n/fr.json`
 
+## Labels de Pull Request
+
+Cuando abras un PR, asignale al menos una de estas labels para que el changelog
+quede organizado:
+
+| Label | Uso |
+|-------|-----|
+| `breaking` | Cambio que rompe compatibilidad con versiones anteriores. |
+| `feature` | Nueva funcionalidad visible para el usuario. |
+| `core` | Cambios en la lógica de backend Rust (servicios, crates, commands). |
+| `ui` | Cambios puramente visuales en Svelte o CSS. |
+| `i18n` | Nuevas traducciones o cambios en archivos de idioma. |
+| `bug` / `fix` / `patch` | Corrección de errores o hotfix. |
+| `perf` | Mejoras de rendimiento. |
+| `test` | Nuevos tests o modificaciones de tests. |
+| `docs` | Cambios en documentación. |
+| `chore` / `refactor` / `deps` / `ci` | Tareas de mantenimiento. |
+| `ignore-for-release` | Cambios que no deben aparecer en el changelog. |
+
+## Flujo de release
+
+CubicLauncher usa un flujo de release en dos etapas:
+
+1. **Crear el tag**: al pushear un tag `v*` (p. ej. `v31.0.0`), el workflow
+   `Build Release Draft` compila la app en todas las plataformas y sube los
+   binarios a un **Release Draft** de GitHub con notas autogeneradas.
+2. **Publicar manualmente**: cuando el draft esté listo, ejecutá el workflow
+   manual `Publish Release` desde GitHub Actions. Solo en ese momento el
+   release se vuelve público y el updater de Tauri lo empieza a distribuir.
+
+Para prereleases (`v*-alpha*`, `v*-beta*`, `v*-rc*`) el proceso es el mismo,
+pero el release se marca como prerelease. Además, cada push a la rama
+`develop` dispara una build de prerelease que deja los binarios como artefactos
+de la ejecución, sin crear un release público.
+
 ## Flujo de trabajo
 
 1. Abrí un issue primero si el cambio es grande o puede discutirse.
 2. Trabajá en una rama propia.
 3. Hacé commits pequeños y descriptivos.
 4. Actualizá este archivo si cambian las reglas del proyecto.
-5. Abrí un PR y asegurate de que pasen los checks de CI.
+5. Abrí un PR y asegurate de que pasen los checks de CI (`lint`, `check`, tests
+   de Rust, build del frontend, etc.).
+6. Una vez mergeado a `main` o `develop`, el equipo decide cuándo publicar un
+   nuevo tag y ejecutar el release correspondiente.
