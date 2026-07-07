@@ -8,7 +8,7 @@ use tokio::fs as tokio_fs;
 
 use super::status::InstanceStatus;
 
-pub(crate) const MAX_LEN: u8 = 16;
+pub(crate) const MAX_LEN: u8 = 24;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct InstanceData {
