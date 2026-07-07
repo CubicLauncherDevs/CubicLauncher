@@ -6,6 +6,8 @@ use crate::core::PathManager;
 use crate::core::errors::{DownloadError, FsError, InstanceError};
 use crate::services::InstanceManager;
 
+const USER_AGENT: &str = concat!("CubicLauncher/", env!("CARGO_PKG_VERSION"));
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ModDownloadInfo {
     pub url: String,
@@ -166,4 +168,45 @@ pub async fn download_shaderpacks(
         count, sp_dir
     );
     Ok(())
+}
+
+#[tauri::command]
+pub async fn download_mrpack(url: String, version_id: String) -> Result<String, String> {
+    info!("Downloading mrpack from {} (version: {})", url, version_id);
+
+    let cache_dir = std::env::temp_dir().join("cubiclauncher").join("mrpack-cache");
+    tokio::fs::create_dir_all(&cache_dir)
+        .await
+        .map_err(|e| format!("Failed to create cache dir: {}", e))?;
+
+    let filename = format!("{}.mrpack", version_id);
+    let dest = cache_dir.join(&filename);
+
+    let client = reqwest::Client::builder()
+        .user_agent(USER_AGENT)
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Download failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP {} when downloading mrpack", response.status()));
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read response: {}", e))?;
+
+    tokio::fs::write(&dest, &bytes)
+        .await
+        .map_err(|e| format!("Failed to write mrpack file: {}", e))?;
+
+    let path_str = dest.to_string_lossy().to_string();
+    info!("Mrpack downloaded to {}", path_str);
+    Ok(path_str)
 }

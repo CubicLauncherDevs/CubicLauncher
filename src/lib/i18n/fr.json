@@ -350,7 +350,17 @@
 		"noLoaderVersionsErr": "Aucune version du loader pour cette version",
 		"selectMcVersion": "Sélectionner une version",
 		"selectLoaderVersion": "Sélectionner une version du loader",
-		"loading": "Chargement..."
+		"loading": "Chargement...",
+		"modpackSearchPlaceholder": "Rechercher des modpacks Modrinth...",
+		"searchBtn": "Rechercher",
+		"searchingModpacks": "Recherche de modpacks...",
+		"noModpacksFound": "Aucun modpack trouvé",
+		"downloadingModpack": "Téléchargement du modpack...",
+		"installingModpack": "Installation du modpack...",
+		"installBtn": "Installer",
+		"loadMore": "Charger plus",
+		"downloads": "téléchargements",
+		"selectMrpackBtn": "Sélectionner un fichier .mrpack"
 	},
 	"themes": {
 		"warning": {

@@ -15,6 +15,7 @@
 	import IconPicker from "./IconPicker.svelte";
 	import VersionSelectorStep from "./VersionSelectorStep.svelte";
 	import PackInfo from "./PackInfo.svelte";
+	import ModrinthModpackBrowser from "./ModrinthModpackBrowser.svelte";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 	let {
@@ -26,6 +27,9 @@
 		mrpackPath?: string | null;
 		oncreated?: () => void;
 	}>();
+
+	type Tab = "manual" | "import" | "modrinth";
+	let tab = $state<Tab>("manual");
 
 	// ── Instance fields ─────────────────────────────────────────────────────────
 	let name = $state("");
@@ -52,7 +56,7 @@
 		return "";
 	});
 
-	// ── Modpack ───────────────────────────────────────────────────────────────
+	// ── Modpack (import) ──────────────────────────────────────────────────────
 	let packInfo = $state<MrpackInfo | null>(null);
 	let parsing = $state(false);
 
@@ -86,6 +90,7 @@
 	$effect(() => {
 		if (open) {
 			nameMsg = null;
+			tab = mrpackPath ? "import" : "manual";
 			if (!namesCache) fetchInstances();
 		}
 	});
@@ -97,7 +102,7 @@
 	});
 
 	$effect(() => {
-		if (open && selectedLoader) {
+		if (open && tab === "manual" && selectedLoader) {
 			const icon = selectIconForLoader(selectedLoader);
 			if (icon && !selectedIcon) {
 				selectedIcon = icon;
@@ -151,7 +156,7 @@
 		}
 	}
 
-	// ── Import modpack ──────────────────────────────────────────────────────────
+	// ── Import modpack (local) ─────────────────────────────────────────────────
 	async function selectMrpackFile() {
 		try {
 			const selected = await openDialog({
@@ -169,9 +174,9 @@
 
 	// ── Create / Import ─────────────────────────────────────────────────────────
 	async function handleFinalAction() {
-		if (mrpackPath && packInfo) {
+		if (tab === "import" && mrpackPath && packInfo) {
 			await handleImport();
-		} else {
+		} else if (tab === "manual") {
 			await handleManualCreate();
 		}
 	}
@@ -253,6 +258,7 @@
 		packInfo = null;
 		loading = false;
 		mrpackPath = null;
+		tab = "manual";
 	}
 
 	function reset() {
@@ -262,7 +268,7 @@
 	}
 
 	$effect(() => {
-		if (open) {
+		if (open && tab === "manual") {
 			updateIconForLoader();
 		}
 	});
@@ -271,24 +277,68 @@
 <ModalBase
 	bind:open
 	title={t("createInstance.title")}
-	width="700px"
+	width={tab === "modrinth" ? "800px" : "700px"}
 	onclose={reset}
 >
 	{#if error}
 		<div class="step-error">{error}</div>
 	{/if}
 
+	<div class="tab-bar">
+		<button
+			type="button"
+			class="tab-btn"
+			class:active={tab === "manual"}
+			onclick={() => (tab = "manual")}
+		>
+			{t("createInstance.manualTab")}
+		</button>
+		<button
+			type="button"
+			class="tab-btn"
+			class:active={tab === "import"}
+			onclick={() => (tab = "import")}
+		>
+			{t("createInstance.importTab")}
+		</button>
+		<button
+			type="button"
+			class="tab-btn"
+			class:active={tab === "modrinth"}
+			onclick={() => (tab = "modrinth")}
+		>
+			Modrinth
+		</button>
+	</div>
+
 	<div class="step-content">
-		{#if packInfo}
-			<div class="modpack-summary">
-				{#if parsing}
-					<div class="parsing-state">
-						<p>{t("createInstance.parsingPack")}</p>
+		{#if tab === "modrinth"}
+			<ModrinthModpackBrowser onInstalled={reset} />
+		{:else if tab === "import"}
+			{#if packInfo}
+				<div class="modpack-summary">
+					{#if parsing}
+						<div class="parsing-state">
+							<p>{t("createInstance.parsingPack")}</p>
+						</div>
+					{:else}
+						<PackInfo {packInfo} onChangeFile={selectMrpackFile} />
+					{/if}
+				</div>
+			{:else}
+				<div class="import-layout">
+					<div class="import-empty">
+						<p>{t("createInstance.selectFile")}</p>
+						<button
+							type="button"
+							class="btn-primary"
+							onclick={selectMrpackFile}
+						>
+							{t("createInstance.selectMrpackBtn")}
+						</button>
 					</div>
-				{:else}
-					<PackInfo {packInfo} onChangeFile={selectMrpackFile} />
-				{/if}
-			</div>
+				</div>
+			{/if}
 		{:else}
 			<div class="create-layout">
 				<div class="create-header">
@@ -333,37 +383,39 @@
 		{/if}
 	</div>
 
-	{#snippet footer()}
-		<div class="footer-actions">
-			<div class="footer-left"></div>
-			<div class="footer-right">
-				<button
-					type="button"
-					class="btn-secondary"
-					onclick={reset}
-					disabled={loading}
-				>
-					{t("createInstance.cancel")}
-				</button>
-				<button
-					type="button"
-					class="btn-primary"
-					onclick={handleFinalAction}
-					disabled={loading ||
-						(packInfo && (!mrpackPath || !name.trim())) ||
-						(!packInfo && !finalVersionId)}
-				>
-					{loading
-						? packInfo
-							? t("createInstance.importingBtn")
-							: t("createInstance.creatingBtn")
-						: packInfo
-							? t("createInstance.importBtn")
-							: t("createInstance.createBtn")}
-				</button>
+	{#if tab !== "modrinth"}
+		{#snippet footer()}
+			<div class="footer-actions">
+				<div class="footer-left"></div>
+				<div class="footer-right">
+					<button
+						type="button"
+						class="btn-secondary"
+						onclick={reset}
+						disabled={loading}
+					>
+						{t("createInstance.cancel")}
+					</button>
+					<button
+						type="button"
+						class="btn-primary"
+						onclick={handleFinalAction}
+						disabled={loading ||
+							(tab === "import" && (!mrpackPath || !name.trim())) ||
+							(tab === "manual" && !finalVersionId)}
+					>
+						{loading
+							? packInfo
+								? t("createInstance.importingBtn")
+								: t("createInstance.creatingBtn")
+							: tab === "import"
+								? t("createInstance.importBtn")
+								: t("createInstance.createBtn")}
+					</button>
+				</div>
 			</div>
-		</div>
-	{/snippet}
+		{/snippet}
+	{/if}
 </ModalBase>
 
 <style>
@@ -376,6 +428,38 @@
 		padding: 10px;
 		text-align: center;
 		font-weight: 500;
+	}
+
+	.tab-bar {
+		display: flex;
+		gap: 4px;
+		margin-bottom: 8px;
+		border-bottom: 1px solid var(--border);
+		padding-bottom: 8px;
+	}
+
+	.tab-btn {
+		padding: 6px 16px;
+		border: 1px solid transparent;
+		border-radius: var(--border-radius-sm);
+		background: transparent;
+		color: var(--text-secondary);
+		font-size: 0.78rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: color 0.15s ease, border-color 0.15s ease,
+			background 0.15s ease;
+	}
+
+	.tab-btn:hover {
+		color: var(--text-primary);
+		background: var(--bg-item-active);
+	}
+
+	.tab-btn.active {
+		color: var(--text-primary);
+		border-color: var(--accent);
+		background: rgba(var(--accent-rgb), 0.08);
 	}
 
 	.step-content {
@@ -459,5 +543,22 @@
 		text-align: center;
 		color: var(--text-secondary);
 		font-size: 0.9rem;
+	}
+
+	.import-layout {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		min-height: 250px;
+	}
+
+	.import-empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 16px;
+		color: var(--text-secondary);
+		font-size: 0.85rem;
 	}
 </style>

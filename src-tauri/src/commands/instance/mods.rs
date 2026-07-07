@@ -1,5 +1,7 @@
 use crate::core::errors::InstanceError;
 use crate::services::{AddonManager, AddonMetadata, InstanceManager};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use tracing::{error, info, warn};
 
@@ -437,4 +439,60 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
         id
     );
     shaderpacks
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ModSourceMetadata {
+    pub project_id: String,
+    pub version_id: String,
+}
+
+fn get_mods_metadata_path(instance_dir: &PathBuf) -> PathBuf {
+    instance_dir.join("mods-metadata.json")
+}
+
+#[tauri::command]
+pub async fn get_instance_mods_metadata(
+    instance_id: String,
+) -> Result<Option<HashMap<String, ModSourceMetadata>>, String> {
+    validate_uuid(&instance_id)?;
+    let manager = InstanceManager::get();
+    let Some(handle) = manager.get_handle(&instance_id).await else {
+        return Err("Instance not found".to_string());
+    };
+    let instance_dir = handle.get_instance_dir().await;
+    let path = get_mods_metadata_path(&instance_dir);
+
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let content =
+        tokio::fs::read_to_string(&path)
+            .await
+            .map_err(|e| format!("Failed to read metadata: {}", e))?;
+    let metadata: HashMap<String, ModSourceMetadata> =
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse metadata: {}", e))?;
+    Ok(Some(metadata))
+}
+
+#[tauri::command]
+pub async fn save_instance_mods_metadata(
+    instance_id: String,
+    metadata: HashMap<String, ModSourceMetadata>,
+) -> Result<(), String> {
+    validate_uuid(&instance_id)?;
+    let manager = InstanceManager::get();
+    let Some(handle) = manager.get_handle(&instance_id).await else {
+        return Err("Instance not found".to_string());
+    };
+    let instance_dir = handle.get_instance_dir().await;
+    let path = get_mods_metadata_path(&instance_dir);
+
+    let content =
+        serde_json::to_string(&metadata).map_err(|e| format!("Failed to serialize: {}", e))?;
+    tokio::fs::write(&path, &content)
+        .await
+        .map_err(|e| format!("Failed to write metadata: {}", e))?;
+    Ok(())
 }

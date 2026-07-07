@@ -282,6 +282,68 @@ export interface ModrinthSearchResult {
 
 export type ModSource = "modrinth" | "curseforge";
 
+export interface ModrinthVersionFileFull {
+	filename: string;
+	url: string;
+	primary: boolean;
+	hashes: Record<string, string>;
+	size: number;
+}
+
+export interface ModrinthVersionFull {
+	id: string;
+	name: string;
+	version_number: string;
+	game_versions: string[];
+	loaders: string[];
+	date_published: string;
+	files: ModrinthVersionFileFull[];
+	dependencies: ModrinthDependency[];
+	version_type: string;
+}
+
+export interface ModrinthProjectFull {
+	id: string;
+	slug: string;
+	project_type: string;
+	title: string;
+	description: string;
+	body: string | null;
+	icon_url: string | null;
+	versions: string[];
+	game_versions: string[];
+	loaders: string[];
+	gallery: string[];
+	categories: string[];
+	client_side: string;
+	server_side: string;
+	downloads: number;
+	follows: number;
+	date_created: string;
+	date_modified: string;
+}
+
+export interface ModFileSource {
+	projectId: string;
+	versionId: string;
+	filename: string;
+}
+
+export interface ModUpdateInfo {
+	filename: string;
+	projectTitle: string;
+	iconUrl: string | null;
+	currentVersion: string;
+	latestVersion: string | null;
+	latestVersionId: string | null;
+	upToDate: boolean;
+	modrinthSource: ModFileSource;
+}
+
+export interface InstanceModsMetadata {
+	mods: ModFileSource[];
+}
+
 export interface CurseForgeAuthor {
 	name: string;
 }
