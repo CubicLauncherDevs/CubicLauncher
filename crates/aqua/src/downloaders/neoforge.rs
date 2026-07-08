@@ -52,7 +52,9 @@ impl NeoForgeBatch {
         java_path: Option<PathBuf>,
     ) -> Result<Self, AquaError> {
         let version_id = format!("{game_version}-neoforge-{neoforge_version}");
-        let temp_dir = shared_dir.join("temp").join(format!("neoforge-{version_id}"));
+        let temp_dir = shared_dir
+            .join("temp")
+            .join(format!("neoforge-{version_id}"));
         let staging_dir = temp_dir.join("staging");
 
         if temp_dir.exists() {

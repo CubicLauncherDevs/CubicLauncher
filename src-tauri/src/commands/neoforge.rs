@@ -18,4 +18,3 @@ pub async fn install_neoforge(
     DownloadQueue::get().enqueue(version_id.clone()).await;
     Ok(version_id)
 }
-
