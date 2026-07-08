@@ -2,7 +2,7 @@ use crate::core::errors::InstanceError;
 use crate::services::{AddonManager, AddonMetadata, InstanceManager};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
 
 use super::launch::validate_uuid;
@@ -447,12 +447,12 @@ pub(crate) struct ModSourceMetadata {
     pub version_id: String,
 }
 
-fn get_mods_metadata_path(instance_dir: &PathBuf) -> PathBuf {
+fn get_mods_metadata_path(instance_dir: &Path) -> PathBuf {
     instance_dir.join("mods-metadata.json")
 }
 
 pub(crate) async fn read_mods_metadata(
-    instance_dir: &PathBuf,
+    instance_dir: &Path,
 ) -> Result<Option<HashMap<String, ModSourceMetadata>>, String> {
     let path = get_mods_metadata_path(instance_dir);
     if !path.exists() {
@@ -467,11 +467,13 @@ pub(crate) async fn read_mods_metadata(
 }
 
 pub(crate) async fn write_mods_metadata(
-    instance_dir: &PathBuf,
+    instance_dir: &Path,
     metadata: HashMap<String, ModSourceMetadata>,
 ) -> Result<(), String> {
     let path = get_mods_metadata_path(instance_dir);
-    let parent = path.parent().ok_or_else(|| "Invalid metadata path".to_string())?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| "Invalid metadata path".to_string())?;
     tokio::fs::create_dir_all(parent)
         .await
         .map_err(|e| format!("Failed to create instance dir: {}", e))?;
