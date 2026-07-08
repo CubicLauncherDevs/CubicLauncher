@@ -485,10 +485,12 @@
 			"alphas": "Alphas",
 			"fabric": "Fabric",
 			"forge": "Forge",
+			"neoforge": "NeoForge",
 			"quilt": "Quilt"
 		},
 		"downloading": "Descargando...",
-		"forgeJavaHint": "Forge requiere Java 21 configurado en Ajustes > Java."
+		"forgeJavaHint": "Forge requiere Java 21 configurado en Ajustes > Java.",
+		"neoForgeJavaHint": "NeoForge requiere Java 17/21 configurado en Ajustes > Java."
 	},
 	"market": {
 		"empty": {

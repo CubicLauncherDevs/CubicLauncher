@@ -7,6 +7,7 @@ import {
 	type MinecraftVersion,
 	type FabricGameVersion,
 	type ForgeGameVersion,
+	type NeoForgeGameVersion,
 	type ModrinthSearchResult,
 	type ModrinthVersion,
 	type ModrinthProjectFull,
@@ -153,6 +154,16 @@ export function parseInstalledVersion(raw: string): McVersion {
 			.replace(/-fabric$/, "");
 		return { loader: "fabric", version: clean, type: "" };
 	}
+	if (raw.includes("-neoforge-")) {
+		const idx = raw.indexOf("-neoforge-");
+		const mcVersion = raw.substring(0, idx);
+		const neoforgeVersion = raw.substring(idx + 10);
+		return {
+			loader: "neoforge",
+			version: `${mcVersion}-neoforge-${neoforgeVersion}`,
+			type: "",
+		};
+	}
 	if (raw.includes("-forge-")) {
 		const idx = raw.indexOf("-forge-");
 		const mcVersion = raw.substring(0, idx);
@@ -174,20 +185,23 @@ export function getInstalledMcVersions(raw: string[]): {
 	vanilla: Set<string>;
 	fabric: Set<string>;
 	forge: Set<string>;
+	neoforge: Set<string>;
 	quilt: Set<string>;
 } {
 	const vanilla = new Set<string>();
 	const fabric = new Set<string>();
 	const forge = new Set<string>();
+	const neoforge = new Set<string>();
 	const quilt = new Set<string>();
 	for (const v of raw) {
 		const parsed = parseInstalledVersion(v);
 		if (parsed.loader === "vanilla") vanilla.add(parsed.version);
 		else if (parsed.loader === "fabric") fabric.add(parsed.version);
 		else if (parsed.loader === "forge") forge.add(parsed.version);
+		else if (parsed.loader === "neoforge") neoforge.add(parsed.version);
 		else if (parsed.loader === "quilt") quilt.add(parsed.version);
 	}
-	return { vanilla, fabric, forge, quilt };
+	return { vanilla, fabric, forge, neoforge, quilt };
 }
 
 export async function getInstanceMods(id: string): Promise<ModDto[]> {
@@ -358,6 +372,36 @@ export async function downloadForge(
 		await invoke("download_forge", { gameVersion, forgeVersion });
 	} catch (err) {
 		showErrorParsed(err);
+	}
+}
+
+export async function getNeoForgeVersions(): Promise<NeoForgeGameVersion[]> {
+	try {
+		return await invoke<NeoForgeGameVersion[]>("get_neoforge_versions");
+	} catch (err) {
+		showErrorParsed(err);
+		return [];
+	}
+}
+
+export async function refreshNeoForgeVersions(): Promise<NeoForgeGameVersion[]> {
+	try {
+		return await invoke<NeoForgeGameVersion[]>("refresh_neoforge_versions");
+	} catch (err) {
+		showErrorParsed(err);
+		return [];
+	}
+}
+
+export async function downloadNeoForge(
+	gameVersion: string,
+	neoforgeVersion: string,
+): Promise<string | null> {
+	try {
+		return await invoke<string>("download_neoforge", { gameVersion, neoforgeVersion });
+	} catch (err) {
+		showErrorParsed(err);
+		return null;
 	}
 }
 
