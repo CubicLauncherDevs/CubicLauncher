@@ -51,10 +51,15 @@ pub async fn parse_mrpack(path: String) -> Result<MrpackInfo, String> {
 }
 
 #[tauri::command]
-pub async fn install_mrpack(path: String, instance_name: String) -> Result<MrpackInfo, String> {
+pub async fn install_mrpack(
+    path: String,
+    instance_name: String,
+    project_id: Option<String>,
+    modrinth_version_id: Option<String>,
+) -> Result<MrpackInfo, String> {
     info!(
-        "Installing mrpack '{}' as instance '{}'",
-        path, instance_name
+        "Installing mrpack '{}' as instance '{}' (project={:?}, version={:?})",
+        path, instance_name, project_id, modrinth_version_id
     );
 
     let metadata = cubrinth::mrpack::parse_mrpack(std::path::Path::new(&path))
@@ -79,6 +84,20 @@ pub async fn install_mrpack(path: String, instance_name: String) -> Result<Mrpac
         })?;
 
     let instance_dir = handle.get_instance_dir().await;
+
+    // Save upstream metadata if provided
+    if let (Some(pid), Some(vid)) = (&project_id, &modrinth_version_id) {
+        let upstream = serde_json::json!({
+            "type": "modrinth-modpack",
+            "projectId": pid,
+            "versionId": vid,
+        });
+        let upstream_path = instance_dir.join("upstream.json");
+        let upstream_content = serde_json::to_string_pretty(&upstream)
+            .map_err(|e| format!("Failed to serialize upstream: {}", e))?;
+        let _ = tokio::fs::write(&upstream_path, &upstream_content).await;
+        info!("Saved upstream metadata to {:?}", upstream_path);
+    }
 
     DownloadQueue::get().enqueue_work("mods").await;
 

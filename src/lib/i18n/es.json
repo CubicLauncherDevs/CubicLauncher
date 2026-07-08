@@ -165,16 +165,19 @@
 			"starting": "Iniciando",
 			"started": "Version iniciada",
 			"idle": "Inactivo",
-			"error": "Error"
+			"error": "Error",
+			"offlineLog": "nada por aqui ^_^"
 		},
 		"tabs": {
 			"details": "Detalles",
 			"mods": "Mods",
+			"market": "Market",
 			"resources": "Recursos",
 			"screenshots": "Capturas",
 			"logs": "Logs",
 			"options": "Opciones",
-			"downloadMods": "Obtener Mods"
+			"downloadMods": "Obtener Mods",
+			"shaderpacks": "Shader Packs"
 		},
 		"details": {
 			"title": "Detalles",
@@ -348,7 +351,17 @@
 		"noLoaderVersionsErr": "No hay versiones del loader para esta versión",
 		"selectMcVersion": "Selecciona una versión",
 		"selectLoaderVersion": "Selecciona un loader",
-		"loading": "Cargando..."
+		"loading": "Cargando...",
+		"modpackSearchPlaceholder": "Buscar modpacks en Modrinth...",
+		"searchBtn": "Buscar",
+		"searchingModpacks": "Buscando modpacks...",
+		"noModpacksFound": "No se encontraron modpacks",
+		"downloadingModpack": "Descargando modpack...",
+		"installingModpack": "Instalando modpack...",
+		"installBtn": "Instalar",
+		"loadMore": "Cargar más",
+		"downloads": "descargas",
+		"selectMrpackBtn": "Seleccionar archivo .mrpack"
 	},
 	"themes": {
 		"warning": {
@@ -453,21 +466,21 @@
 		"searchPlaceholder": "Buscar versión...",
 		"loading": "Cargando versiones...",
 		"notFound": "No se encontraron versiones",
-		"installedTag": "Instalada",
+		"installedTag": "Instalado",
 		"downloadBtn": "Descargar",
-		"refreshBtn": "Recargar caché",
+		"refreshBtn": "Actualizar caché",
 		"filters": {
-			"all": "Todos",
-			"installedOnly": "Solo Instalados",
-			"notInstalledOnly": "No Instalados",
-			"stableOnly": "Solo Estables",
-			"unstableOnly": "Solo Inestables",
+			"all": "Todas",
+			"installedOnly": "Solo instaladas",
+			"notInstalledOnly": "No instaladas",
+			"stableOnly": "Estables",
+			"unstableOnly": "Inestables",
 			"installStatus": "Estado",
-			"majorVersion": "Versión Mayor",
+			"majorVersion": "Versión mayor",
 			"fabricStability": "Estabilidad"
 		},
 		"tabs": {
-			"releases": "Lanzamientos",
+			"releases": "Releases",
 			"snapshots": "Snapshots",
 			"alphas": "Alphas",
 			"fabric": "Fabric",
@@ -475,6 +488,58 @@
 			"quilt": "Quilt"
 		},
 		"downloading": "Descargando...",
-		"forgeJavaHint": "Forge requiere que configures Java 21 en Configuración > Java."
+		"forgeJavaHint": "Forge requiere Java 21 configurado en Ajustes > Java."
+	},
+	"market": {
+		"empty": {
+			"localTitle": "No hay mods instalados",
+			"localSubtitle": "Los mods que instales desde el Market o añadas manualmente aparecerán aquí.",
+			"marketTitle": "Descubre mods",
+			"marketSubtitle": "Busca mods en Modrinth compatibles con esta instancia.",
+			"searchTitle": "No se encontraron mods",
+			"searchSubtitle": "Prueba con otra búsqueda o categoría."
+		},
+		"filter": {
+			"tabMarket": "Market",
+			"tabLocal": "Local",
+			"searchMarket": "Buscar en Modrinth...",
+			"searchLocal": "Buscar mods instalados...",
+			"sortBy": "Ordenar por",
+			"sortDownloads": "Descargas",
+			"sortRelevance": "Relevancia",
+			"sortNewest": "Más nuevos",
+			"sortUpdated": "Actualizados",
+			"category": "Categoría",
+			"allCategories": "Todas",
+			"refresh": "Actualizar"
+		},
+		"item": {
+			"by": "por",
+			"unknownAuthor": "Autor desconocido",
+			"noDescription": "Sin descripción disponible",
+			"install": "Instalar",
+			"installed": "Instalado",
+			"updateAvailable": "Actualizar",
+			"incompatible": "Incompatible"
+		},
+		"detail": {
+			"close": "Cerrar detalles",
+			"unknownAuthor": "Autor desconocido",
+			"downloads": "Descargas",
+			"followers": "Seguidores",
+			"updated": "Actualizado",
+			"version": "Versión",
+			"noVersions": "No hay versiones disponibles",
+			"loadingVersions": "Cargando versiones...",
+			"selectVersion": "Seleccionar versión",
+			"readme": "Acerca de",
+			"gallery": "Galería",
+			"install": "Instalar",
+			"uninstall": "Desinstalar",
+			"enable": "Habilitar",
+			"disable": "Deshabilitar",
+			"openOnModrinth": "Abrir en Modrinth",
+			"noSelection": "Selecciona un mod para ver sus detalles"
+		}
 	}
 }

@@ -165,16 +165,19 @@
 			"starting": "Starting",
 			"started": "The version has been started",
 			"idle": "Idle",
-			"error": "Error"
+			"error": "Error",
+			"offlineLog": "nothing here ^_^"
 		},
 		"tabs": {
 			"details": "Details",
 			"mods": "Mods",
+			"market": "Market",
 			"resources": "Resources",
 			"screenshots": "Screenshots",
 			"logs": "Logs",
 			"options": "Options",
-			"downloadMods": "Get Mods"
+			"downloadMods": "Get Mods",
+			"shaderpacks": "Shader Packs"
 		},
 		"details": {
 			"title": "Details",
@@ -348,7 +351,17 @@
 		"noLoaderVersionsErr": "No loader versions for this version",
 		"selectMcVersion": "Select a version",
 		"selectLoaderVersion": "Select a loader version",
-		"loading": "Loading..."
+		"loading": "Loading...",
+		"modpackSearchPlaceholder": "Search Modrinth modpacks...",
+		"searchBtn": "Search",
+		"searchingModpacks": "Searching modpacks...",
+		"noModpacksFound": "No modpacks found",
+		"downloadingModpack": "Downloading modpack...",
+		"installingModpack": "Installing modpack...",
+		"installBtn": "Install",
+		"loadMore": "Load more",
+		"downloads": "downloads",
+		"selectMrpackBtn": "Select .mrpack file"
 	},
 	"themes": {
 		"warning": {
@@ -476,5 +489,57 @@
 		},
 		"downloading": "Downloading...",
 		"forgeJavaHint": "Forge requires Java 21 to be configured in Settings > Java."
+	},
+	"market": {
+		"empty": {
+			"localTitle": "No mods installed",
+			"localSubtitle": "Mods you install from the Market or add manually will appear here.",
+			"marketTitle": "Discover mods",
+			"marketSubtitle": "Search Modrinth for mods compatible with this instance.",
+			"searchTitle": "No mods found",
+			"searchSubtitle": "Try a different search term or category."
+		},
+		"filter": {
+			"tabMarket": "Market",
+			"tabLocal": "Local",
+			"searchMarket": "Search Modrinth...",
+			"searchLocal": "Search installed mods...",
+			"sortBy": "Sort by",
+			"sortDownloads": "Downloads",
+			"sortRelevance": "Relevance",
+			"sortNewest": "Newest",
+			"sortUpdated": "Updated",
+			"category": "Category",
+			"allCategories": "All",
+			"refresh": "Refresh"
+		},
+		"item": {
+			"by": "by",
+			"unknownAuthor": "Unknown author",
+			"noDescription": "No description available",
+			"install": "Install",
+			"installed": "Installed",
+			"updateAvailable": "Update",
+			"incompatible": "Incompatible"
+		},
+		"detail": {
+			"close": "Close details",
+			"unknownAuthor": "Unknown author",
+			"downloads": "Downloads",
+			"followers": "Followers",
+			"updated": "Updated",
+			"version": "Version",
+			"noVersions": "No versions available",
+			"loadingVersions": "Loading versions...",
+			"selectVersion": "Select version",
+			"readme": "About",
+			"gallery": "Gallery",
+			"install": "Install",
+			"uninstall": "Uninstall",
+			"enable": "Enable",
+			"disable": "Disable",
+			"openOnModrinth": "Open on Modrinth",
+			"noSelection": "Select a mod to view its details"
+		}
 	}
 }

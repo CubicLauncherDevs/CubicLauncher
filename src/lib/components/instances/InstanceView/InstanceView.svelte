@@ -1,23 +1,26 @@
 <script lang="ts">
-	import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 	import { InstState, type InstanceDto } from "$lib/types/types";
-	import InstanceDetails from "../InstanceDetails/InstanceDetails.svelte";
-	import StatusLog from "../StatusLog.svelte";
 	import { launchInstance } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
+	import { fade } from "svelte/transition";
 	import { killInst } from "$lib/api/launcherService";
-	import { launcherStore } from "$lib/state/state.svelte";
 	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
-	import { slide } from "svelte/transition";
-	import ScreenshotPicker from "./ScreenshotPicker.svelte";
-	import HeroSection from "./HeroSection.svelte";
+	import InstanceHeader from "./InstanceHeader.svelte";
+	import GridIcon from "$lib/icons/GridIcon.svelte";
+	import BoxIcon from "$lib/icons/BoxIcon.svelte";
+	import ImageIcon from "$lib/icons/ImageIcon.svelte";
+	import ShaderIcon from "$lib/icons/ShaderIcon.svelte";
+	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
 
 	let { selectedInstance } = $props<{ selectedInstance: InstanceDto }>();
-	let activeTab = $state("detalles");
-	let screenshotUrl = $state<string | null>(null);
-	let allScreenshots = $state<string[]>([]);
-	let showPicker = $state(false);
-	let bannerVersion = $state(0);
+	let activeSection = $state("detalles");
+	let tabContentEl: HTMLDivElement | undefined = $state();
+
+	$effect.pre(() => {
+		if (activeSection === "detalles" && tabContentEl) {
+			tabContentEl.scrollTop = 0;
+		}
+	});
 	let bannerState = $derived.by(() => {
 		if (selectedInstance.status === InstState.Started) return "Started";
 		if (selectedInstance.status === InstState.Off) return "Idle";
@@ -32,98 +35,34 @@
 	);
 
 	$effect(() => {
-		if (!supportsMods && activeTab === "mods") {
-			activeTab = "detalles";
+		if (
+			!supportsMods &&
+			(activeSection === "market" || activeSection === "shaderpacks")
+		) {
+			activeSection = "detalles";
 		}
 	});
 
-	import type ModsRowType from "../ModsRow/ModsRow.svelte";
-	import type DownloadModsType from "../DownloadMods/DownloadMods.svelte";
+	import type MarketType from "../Market/Market.svelte";
 	import type ResourcePacksTabType from "../ResourcePacks/ResourcePacks.svelte";
 	import type ScreenshotsTabType from "../ScreenshotsTab.svelte";
 
-	let ModsRow: typeof ModsRowType | null = $state(null);
-	let DownloadMods: typeof DownloadModsType | null = $state(null);
+	let Market: typeof MarketType | null = $state(null);
 	let ResourcePacksTab: typeof ResourcePacksTabType | null = $state(null);
 	let ScreenshotsTab: typeof ScreenshotsTabType | null = $state(null);
 
 	$effect(() => {
-		if (activeTab === "mods" && !ModsRow) {
-			import("../ModsRow/ModsRow.svelte").then(
-				(m) => (ModsRow = m.default),
-			);
-		} else if (activeTab === "download_mods" && !DownloadMods) {
-			import("../DownloadMods/DownloadMods.svelte").then(
-				(m) => (DownloadMods = m.default),
-			);
-		} else if (activeTab === "resources" && !ResourcePacksTab) {
+		if (activeSection === "market" && !Market) {
+			import("../Market/Market.svelte").then((m) => (Market = m.default));
+		} else if (activeSection === "resources" && !ResourcePacksTab) {
 			import("../ResourcePacks/ResourcePacks.svelte").then(
 				(m) => (ResourcePacksTab = m.default),
 			);
-		} else if (activeTab === "screenshots" && !ScreenshotsTab) {
+		} else if (activeSection === "screenshots" && !ScreenshotsTab) {
 			import("../ScreenshotsTab.svelte").then(
 				(m) => (ScreenshotsTab = m.default),
 			);
 		}
-	});
-
-	async function fetchScreenshot() {
-		if (!selectedInstance) return;
-
-		const path = await invoke<string | null>("get_instance_banner", {
-			instanceId: selectedInstance.uuid,
-		});
-		if (path) {
-			const clean = decodeURIComponent(path);
-			screenshotUrl = convertFileSrc(clean);
-		} else {
-			screenshotUrl = null;
-		}
-	}
-
-	async function pickBanner() {
-		allScreenshots = await invoke<string[]>(
-			"get_all_instance_screenshots",
-			{
-				instanceName: selectedInstance.name,
-			},
-		);
-		showPicker = true;
-	}
-
-	async function selectScreenshot(path: string) {
-		await invoke("set_instance_cover_image", {
-			instanceId: selectedInstance.uuid,
-			path: path,
-		});
-		showPicker = false;
-		bannerVersion++;
-	}
-
-	$effect(() => {
-		void bannerVersion;
-		const id = selectedInstance?.uuid;
-		if (id) fetchScreenshot();
-	});
-
-	const lang = $derived(launcherStore.settings.language);
-	const formatter = $derived(
-		new Intl.DateTimeFormat(lang, {
-			year: "numeric",
-			month: "long",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-		}),
-	);
-
-	const lastPlayedDate = $derived(selectedInstance.last_played);
-
-	const lastPlayedLabel = $derived.by(() => {
-		if (lastPlayedDate < 1) {
-			return t("instanceView.neverPlayed");
-		}
-		return formatter.format(new Date(lastPlayedDate * 1000));
 	});
 
 	function handlePlay() {
@@ -136,116 +75,120 @@
 </script>
 
 <div class="instance-view">
-	<ScreenshotPicker
-		bind:showPicker
-		{allScreenshots}
-		onSelect={selectScreenshot}
-	/>
-
-	<HeroSection
-		instanceName={selectedInstance.name}
-		instanceIcon={selectedInstance.icon}
-		lastPlayedLabel={t("instanceView.lastPlayed").replace(
-			"{date}",
-			lastPlayedLabel,
-		)}
-		{screenshotUrl}
+	<InstanceHeader
+		instance={selectedInstance}
 		{bannerState}
 		{isDownloadingVersion}
+		bind:activeSection
 		onPlay={handlePlay}
-		onPickBanner={pickBanner}
 	/>
 
-	{#if bannerState !== "Idle" && bannerState !== "Error"}
-		<div
-			transition:slide={{
-				duration: 300,
-				easing: (t) => 1 - Math.pow(1 - t, 3),
-			}}
-		>
-			<StatusLog instance={selectedInstance} />
-		</div>
-	{/if}
-
-	<div class="tabs-nav">
-		<button
-			type="button"
-			class="tab-item {activeTab === 'detalles' ? 'active' : ''}"
-			onclick={() => (activeTab = "detalles")}
-		>
-			{t("instanceView.tabs.details")}
-		</button>
-		<button
-			type="button"
-			class="tab-item {activeTab === 'mods' ? 'active' : ''}"
-			onclick={() => supportsMods && (activeTab = "mods")}
-			disabled={!supportsMods}
-		>
-			{t("instanceView.tabs.mods")}
-		</button>
-		<button
-			type="button"
-			class="tab-item {activeTab === 'download_mods' ? 'active' : ''}"
-			onclick={() => supportsMods && (activeTab = "download_mods")}
-			disabled={!supportsMods}
-		>
-			{t("instanceView.tabs.downloadMods") || "Get Mods"}
-		</button>
-		<button
-			type="button"
-			class="tab-item {activeTab === 'resources' ? 'active' : ''}"
-			onclick={() => (activeTab = "resources")}
-		>
-			{t("instanceView.tabs.resources")}
-		</button>
-		<button
-			type="button"
-			class="tab-item {activeTab === 'screenshots' ? 'active' : ''}"
-			onclick={() => (activeTab = "screenshots")}
-		>
-			{t("instanceView.tabs.screenshots")}
-		</button>
-	</div>
-
-	<div class="tab-content">
-		{#if activeTab === "detalles"}
-			<div class="tab-pane">
-				<InstanceDetails instance={selectedInstance} />
-			</div>
-		{:else if activeTab === "mods"}
-			<div class="tab-pane">
-				{#key selectedInstance.uuid}
-					{#if ModsRow}
-						<ModsRow instanceId={selectedInstance.uuid} />
+	<div class="tab-content" bind:this={tabContentEl}>
+		{#key activeSection}
+			<div
+				in:fade={{ duration: 150, delay: 250 }}
+				out:fade={{ duration: 150 }}
+			>
+				{#if activeSection === "detalles"}
+					<div class="nav-card">
+						<span class="nav-card-header">
+							<span class="nav-card-title"
+								>{t("instanceView.tabs.details")}</span
+							>
+						</span>
+						<div class="nav-items">
+							{#if supportsMods}
+								<button
+									type="button"
+									class="nav-item priority"
+									onclick={() => (activeSection = "market")}
+								>
+									<span class="nav-icon"
+										><GridIcon size={18} /></span
+									>
+									<span class="nav-label"
+										>{t("instanceView.tabs.market")}</span
+									>
+									<span class="nav-chevron"
+										><ChevronRightIcon size={14} /></span
+									>
+								</button>
+							{/if}
+							<button
+								type="button"
+								class="nav-item priority"
+								onclick={() => (activeSection = "resources")}
+							>
+								<span class="nav-icon"
+									><BoxIcon size={18} /></span
+								>
+								<span class="nav-label"
+									>{t("instanceView.tabs.resources")}</span
+								>
+								<span class="nav-chevron"
+									><ChevronRightIcon size={14} /></span
+								>
+							</button>
+							<button
+								type="button"
+								class="nav-item"
+								class:secondary={supportsMods}
+								onclick={() => (activeSection = "screenshots")}
+							>
+								<span class="nav-icon"
+									><ImageIcon size={18} /></span
+								>
+								<span class="nav-label"
+									>{t("instanceView.tabs.screenshots")}</span
+								>
+								<span class="nav-chevron"
+									><ChevronRightIcon size={14} /></span
+								>
+							</button>
+							{#if supportsShaders}
+								<button
+									type="button"
+									class="nav-item secondary"
+									onclick={() =>
+										(activeSection = "shaderpacks")}
+								>
+									<span class="nav-icon"
+										><ShaderIcon size={18} /></span
+									>
+									<span class="nav-label"
+										>{t(
+											"instanceView.tabs.shaderpacks",
+										)}</span
+									>
+									<span class="nav-chevron"
+										><ChevronRightIcon size={14} /></span
+									>
+								</button>
+							{/if}
+						</div>
+					</div>
+				{:else if activeSection === "market"}
+					{#key selectedInstance.uuid}
+						{#if Market}
+							<Market instance={selectedInstance} />
+						{/if}
+					{/key}
+				{:else if activeSection === "resources"}
+					{#if ResourcePacksTab}
+						<ResourcePacksTab
+							instanceId={selectedInstance.uuid}
+							gameVersion={selectedInstance.version}
+							loader={selectedInstance.loader}
+							{supportsShaders}
+						/>
 					{/if}
-				{/key}
-			</div>
-		{:else if activeTab === "download_mods"}
-			<div class="tab-pane">
-				{#key selectedInstance.uuid}
-					{#if DownloadMods}
-						<DownloadMods instance={selectedInstance} />
+				{:else if activeSection === "screenshots"}
+					{#if ScreenshotsTab}
+						<ScreenshotsTab instance={selectedInstance} />
 					{/if}
-				{/key}
-			</div>
-		{:else if activeTab === "resources"}
-			<div class="tab-pane">
-				{#if ResourcePacksTab}
-					<ResourcePacksTab
-						instanceId={selectedInstance.uuid}
-						gameVersion={selectedInstance.version}
-						loader={selectedInstance.loader}
-						{supportsShaders}
-					/>
 				{/if}
 			</div>
-		{:else if activeTab === "screenshots"}
-			<div class="tab-pane">
-				{#if ScreenshotsTab}
-					<ScreenshotsTab instance={selectedInstance} />
-				{/if}
-			</div>
-		{/if}
+		{/key}
 	</div>
 </div>
 
@@ -257,174 +200,140 @@
 		height: 100%;
 	}
 
-	.tabs-nav {
-		display: flex;
-		gap: 12px;
-		padding: 0 40px;
-		border-bottom: 1px solid var(--border);
-		background: rgba(255, 255, 255, 0.01);
-		backdrop-filter: blur(var(--backdrop-blur-float, 4px));
-		position: sticky;
-		top: 0;
-		z-index: 10;
-		flex-shrink: 0;
+	.tab-content {
+		flex: 1;
+		padding: 24px;
+		overflow-y: auto;
+		scrollbar-gutter: stable;
+		position: relative;
 	}
 
-	.tab-item {
+	.nav-card {
+		position: absolute;
+		bottom: 24px;
+		left: 24px;
+		width: 340px;
+		max-width: calc(100% - 48px);
+		border-radius: var(--border-radius);
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		overflow: hidden;
+		transition: box-shadow 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+	}
+
+	.nav-card:hover {
+		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+	}
+
+	.nav-card-header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 9px 14px;
+		color: var(--text-tertiary);
+		font-family: inherit;
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.3px;
+		text-transform: uppercase;
+		user-select: none;
+	}
+
+	.nav-card-title {
+		flex: 1;
+	}
+
+	.nav-items {
+		overflow: hidden;
+		max-height: 82px;
+		transition: max-height 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+	}
+
+	.nav-card:hover .nav-items {
+		max-height: 300px;
+	}
+
+	.nav-item {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 11px 14px;
 		background: transparent;
 		border: none;
+		border-top: 1px solid var(--border);
 		color: var(--text-secondary);
-		padding: 16px 4px;
-		margin-right: 20px;
 		font-family: inherit;
-		font-size: 0.85rem;
+		font-size: 0.82rem;
 		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 1px;
 		cursor: pointer;
-		position: relative;
-		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		transition:
+			background 0.12s ease,
+			color 0.12s ease;
+		text-align: left;
+		width: 100%;
+	}
+
+	.nav-item:first-child {
+		border-top: none;
+	}
+
+	.nav-item:hover {
+		background: color-mix(
+			in srgb,
+			var(--bg-sidebar) 100%,
+			var(--text-primary) 2%
+		);
+		color: var(--text-primary);
+	}
+
+	.nav-icon {
+		display: flex;
+		flex-shrink: 0;
 		opacity: 0.7;
 	}
 
-	.tab-item:hover {
-		color: var(--text-primary);
+	.nav-item:hover .nav-icon {
 		opacity: 1;
 	}
 
-	.tab-item.active {
-		color: var(--accent);
-		opacity: 1;
-	}
-
-	.tab-item:disabled {
-		opacity: 0.3;
-		cursor: not-allowed;
-	}
-
-	.tab-item::after {
-		content: "";
-		position: absolute;
-		bottom: -1px;
-		left: 0;
-		right: 0;
-		height: 2px;
-		background: var(--accent);
-		transform: scaleX(0);
-		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-		border-radius: 2px 2px 0 0;
-		box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-	}
-
-	.tab-item.active::after {
-		transform: scaleX(1);
-	}
-
-	.tab-content {
+	.nav-label {
 		flex: 1;
-		padding: 32px 40px;
-		overflow-y: auto;
-		scrollbar-gutter: stable;
+		min-width: 0;
 	}
 
-	.tab-pane {
-		animation: slideUpFade 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-		height: 100%;
-		will-change: transform, opacity;
+	.nav-chevron {
+		display: flex;
+		flex-shrink: 0;
+		opacity: 0.4;
+		transition:
+			transform 0.15s ease,
+			opacity 0.15s ease;
 	}
 
-	@keyframes slideUpFade {
-		from {
-			opacity: 0;
-			transform: translateY(15px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-
-	@media (max-width: 1024px) {
-		.tabs-nav {
-			padding: 0 30px;
-		}
-		.tab-content {
-			padding: 28px 30px;
-		}
-	}
-
-	@media (max-width: 950px) {
-		.tabs-nav {
-			padding: 0 24px;
-		}
-		.tab-content {
-			padding: 24px;
-		}
-	}
-
-	@media (max-width: 850px) {
-		.tabs-nav {
-			padding: 0 20px;
-			gap: 8px;
-		}
-		.tab-item {
-			font-size: 0.75rem;
-			padding: 14px 3px;
-			margin-right: 14px;
-			white-space: nowrap;
-			flex-shrink: 0;
-		}
-		.tab-content {
-			padding: 20px;
-		}
+	.nav-item:hover .nav-chevron {
+		opacity: 0.8;
+		transform: translateX(2px);
 	}
 
 	@media (max-width: 700px) {
-		.tabs-nav {
-			padding: 0 16px;
-			gap: 4px;
-			overflow-x: auto;
-		}
-		:global(.tabs-nav::-webkit-scrollbar) {
-			display: none;
-		}
-		.tab-item {
-			font-size: 0.7rem;
-			padding: 12px 2px;
-			margin-right: 10px;
-		}
 		.tab-content {
 			padding: 16px;
 		}
-	}
-
-	@media (max-width: 550px) {
-		.tabs-nav {
-			padding: 0 12px;
-			gap: 2px;
-		}
-		.tab-item {
-			font-size: 0.6rem;
-			padding: 10px 2px;
-			margin-right: 8px;
-			letter-spacing: 0.5px;
-		}
-		.tab-content {
-			padding: 12px;
+		.nav-card {
+			bottom: 16px;
+			left: 16px;
+			max-width: calc(100% - 32px);
 		}
 	}
 
 	@media (max-width: 400px) {
-		.tabs-nav {
-			padding: 0 8px;
-		}
-		.tab-item {
-			font-size: 0.55rem;
-			padding: 8px 1px;
-			margin-right: 6px;
-		}
 		.tab-content {
-			padding: 8px;
+			padding: 12px;
+		}
+		.nav-card {
+			bottom: 12px;
+			left: 12px;
+			max-width: calc(100% - 24px);
 		}
 	}
 </style>

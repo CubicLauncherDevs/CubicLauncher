@@ -29,7 +29,9 @@
 		"@tauri-apps/api": "^2.11.1",
 		"@tauri-apps/plugin-dialog": "~2.7.1",
 		"@tauri-apps/plugin-process": "~2.3.1",
-		"@tauri-apps/plugin-updater": "~2.10.1"
+		"@tauri-apps/plugin-updater": "~2.10.1",
+		"dompurify": "^3.4.11",
+		"marked": "^18.0.5"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
@@ -37,6 +39,7 @@
 		"@sveltejs/kit": "^2.69.1",
 		"@sveltejs/vite-plugin-svelte": "^5.0.3",
 		"@tauri-apps/cli": "^2.11.4",
+		"@types/dompurify": "^3.2.0",
 		"@types/node": "^26.1.0",
 		"eslint": "^10.6.0",
 		"eslint-plugin-svelte": "^3.20.0",
