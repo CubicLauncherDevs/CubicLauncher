@@ -9,10 +9,13 @@
 		downloadFabric,
 		getForgeVersions,
 		downloadForge,
+		getNeoForgeVersions,
+		downloadNeoForge,
 		getQuiltVersions,
 		downloadQuilt,
 		refreshAvailableVersions,
 		refreshForgeVersions,
+		refreshNeoForgeVersions,
 		refreshQuiltVersions,
 		getDownloadQueue,
 	} from "$lib/api/cubicApi";
@@ -20,6 +23,7 @@
 		MinecraftVersion,
 		FabricGameVersion,
 		ForgeGameVersion,
+		NeoForgeGameVersion,
 		AppEvent,
 	} from "$lib/types/types";
 	import { listen } from "@tauri-apps/api/event";
@@ -43,10 +47,12 @@
 	let manifest = $state<MinecraftVersion[] | null>(null);
 	let fabricManifest = $state<FabricGameVersion[]>([]);
 	let forgeManifest = $state<ForgeGameVersion[]>([]);
+	let neoForgeManifest = $state<NeoForgeGameVersion[]>([]);
 	let quiltManifest = $state<FabricGameVersion[]>([]);
 	let installedVanilla = $state(new Set<string>());
 	let installedFabric = $state(new Set<string>());
 	let installedForge = $state(new Set<string>());
+	let installedNeoForge = $state(new Set<string>());
 	let installedQuilt = $state(new Set<string>());
 	let downloadingVersions = new SvelteSet<string>();
 
@@ -85,12 +91,14 @@
 	let loadingMojang = $state(false);
 	let loadingFabric = $state(false);
 	let loadingForge = $state(false);
+	let loadingNeoForge = $state(false);
 	let loadingQuilt = $state(false);
 	let refreshing = $state(false);
 
 	function refreshCurrentSource() {
 		if (filter === "fabric") refreshFabric();
 		else if (filter === "forge") refreshForge();
+		else if (filter === "neoforge") refreshNeoForge();
 		else if (filter === "quilt") refreshQuilt();
 		else refreshMojang();
 	}
@@ -113,6 +121,12 @@
 		refreshing = false;
 	}
 
+	async function refreshNeoForge() {
+		refreshing = true;
+		neoForgeManifest = await refreshNeoForgeVersions();
+		refreshing = false;
+	}
+
 	async function refreshQuilt() {
 		refreshing = true;
 		quiltManifest = await refreshQuiltVersions();
@@ -122,49 +136,91 @@
 	async function loadMojang() {
 		if (manifest || loadingMojang) return;
 		loadingMojang = true;
-		manifest = await getAvailableVersions();
-		loadingMojang = false;
+		try {
+			manifest = await getAvailableVersions();
+		} finally {
+			loadingMojang = false;
+		}
 	}
 
 	async function loadFabric() {
 		if (fabricManifest.length > 0 || loadingFabric) return;
 		loadingFabric = true;
-		fabricManifest = await getFabricVersions();
-		loadingFabric = false;
+		try {
+			fabricManifest = await getFabricVersions();
+		} finally {
+			loadingFabric = false;
+		}
 	}
 
 	async function loadForge() {
 		if (forgeManifest.length > 0 || loadingForge) return;
 		loadingForge = true;
-		forgeManifest = await getForgeVersions();
-		loadingForge = false;
+		try {
+			forgeManifest = await getForgeVersions();
+		} finally {
+			loadingForge = false;
+		}
+	}
+
+	async function loadNeoForge() {
+		if (neoForgeManifest.length > 0 || loadingNeoForge) return;
+		loadingNeoForge = true;
+		try {
+			console.debug("[VersionDownloader] Loading NeoForge versions…");
+			neoForgeManifest = await getNeoForgeVersions();
+			console.debug(
+				"[VersionDownloader] NeoForge versions loaded:",
+				neoForgeManifest.length,
+			);
+		} catch (e) {
+			console.error("[VersionDownloader] NeoForge load error:", e);
+		} finally {
+			loadingNeoForge = false;
+		}
 	}
 
 	async function loadQuilt() {
 		if (quiltManifest.length > 0 || loadingQuilt) return;
 		loadingQuilt = true;
-		quiltManifest = await getQuiltVersions();
-		loadingQuilt = false;
+		try {
+			quiltManifest = await getQuiltVersions();
+		} finally {
+			loadingQuilt = false;
+		}
 	}
 
 	onMount(() => {
+		const safety = setTimeout(() => {
+			if (loading) {
+				console.warn("[VersionDownloader] loading timed out, forcing false");
+				loading = false;
+			}
+		}, 15000);
+
 		getInstalledVersions().then((raw) => {
-			const { vanilla, fabric, forge, quilt } =
+			clearTimeout(safety);
+			const { vanilla, fabric, forge, neoforge, quilt } =
 				getInstalledMcVersions(raw);
 			installedVanilla = vanilla;
 			installedFabric = fabric;
 			installedForge = forge;
+			installedNeoForge = neoforge;
 			installedQuilt = quilt;
 			loading = false;
 		});
 
-		getDownloadQueue().then((queue) => {
-			for (const item of queue) {
-				if (item.status !== "done") {
-					markDownloading(item.version);
+		getDownloadQueue()
+			.then((queue) => {
+				for (const item of queue) {
+					if (item.status !== "done") {
+						markDownloading(item.version);
+					}
 				}
-			}
-		});
+			})
+			.catch((e) =>
+				console.warn("[VersionDownloader] getDownloadQueue failed:", e),
+			);
 
 		const unlisten = listen<AppEvent>("app-event", (event) => {
 			const p = event.payload;
@@ -173,11 +229,12 @@
 			} else if (p.type === "DFinish") {
 				unmarkDownloading(p.data.version);
 				getInstalledVersions().then((raw) => {
-					const { vanilla, fabric, forge, quilt } =
+					const { vanilla, fabric, forge, neoforge, quilt } =
 						getInstalledMcVersions(raw);
 					installedVanilla = vanilla;
 					installedFabric = fabric;
 					installedForge = forge;
+					installedNeoForge = neoforge;
 					installedQuilt = quilt;
 				});
 			} else if (p.type === "DError") {
@@ -186,6 +243,7 @@
 		});
 
 		return () => {
+			clearTimeout(safety);
 			unlisten.then((u) => u());
 		};
 	});
@@ -193,6 +251,7 @@
 	$effect(() => {
 		if (filter === "fabric") loadFabric();
 		else if (filter === "forge") loadForge();
+		else if (filter === "neoforge") loadNeoForge();
 		else if (filter === "quilt") loadQuilt();
 		else loadMojang();
 	});
@@ -200,14 +259,16 @@
 	const isCurrentManifestLoading = $derived.by(() => {
 		if (filter === "fabric") return loadingFabric;
 		if (filter === "forge") return loadingForge;
+		if (filter === "neoforge") return loadingNeoForge;
 		if (filter === "quilt") return loadingQuilt;
 		return loadingMojang;
 	});
 
 	const availableMajorVersions = $derived.by(() => {
-		if (filter === "forge") {
+		if (filter === "forge" || filter === "neoforge") {
+			const manifest = filter === "forge" ? forgeManifest : neoForgeManifest;
 			const versions = new SvelteSet<string>();
-			forgeManifest.forEach((v) => {
+			manifest.forEach((v) => {
 				const match = v.game_version.match(/^1\.\d+/);
 				if (match) versions.add(match[0]);
 			});
@@ -249,11 +310,14 @@
 	]);
 
 	const filteredVersions = $derived.by(() => {
-		if (filter === "forge") {
-			return forgeManifest
+		if (filter === "forge" || filter === "neoforge") {
+			const isNeoForge = filter === "neoforge";
+			const manifest = isNeoForge ? neoForgeManifest : forgeManifest;
+			const installedSet = isNeoForge ? installedNeoForge : installedForge;
+			return manifest
 				.filter((v) => {
 					const versionId = v.version_id;
-					const isInstalled = installedForge.has(versionId);
+					const isInstalled = installedSet.has(versionId);
 
 					if (installStatusFilter === "installed" && !isInstalled)
 						return false;
@@ -283,11 +347,15 @@
 						const bVal = bParts[i] ?? 0;
 						if (aVal !== bVal) return bVal - aVal;
 					}
-					return b.forge_version.localeCompare(
-						a.forge_version,
-						undefined,
-						{ numeric: true },
-					);
+					const aLoader = isNeoForge
+						? (a as NeoForgeGameVersion).neoforge_version
+						: (a as ForgeGameVersion).forge_version;
+					const bLoader = isNeoForge
+						? (b as NeoForgeGameVersion).neoforge_version
+						: (b as ForgeGameVersion).forge_version;
+					return bLoader.localeCompare(aLoader, undefined, {
+						numeric: true,
+					});
 				});
 		}
 
@@ -360,31 +428,37 @@
 
 	const displayVersions = $derived.by(() => {
 		const isFabricOrQuilt = filter === "fabric" || filter === "quilt";
+		const isForge = filter === "forge";
+		const isNeoForge = filter === "neoforge";
 		return filteredVersions.map((v) => {
 			const id = isFabricOrQuilt
 				? (v as FabricGameVersion).version
 				: ((v as MinecraftVersion).id ??
-					(v as ForgeGameVersion).version_id);
+					(v as ForgeGameVersion | NeoForgeGameVersion).version_id);
 			const version = isFabricOrQuilt
 				? (v as FabricGameVersion).version
 				: ((v as MinecraftVersion).id ??
-					(v as ForgeGameVersion).version_id);
+					(v as ForgeGameVersion | NeoForgeGameVersion).version_id);
+			const forgeLike = v as ForgeGameVersion | NeoForgeGameVersion;
 			return {
 				id,
 				version,
-				game_version: (v as ForgeGameVersion).game_version ?? "",
-				forge_version: (v as ForgeGameVersion).forge_version ?? "",
+				game_version: forgeLike.game_version ?? "",
+				forge_version: isNeoForge
+					? (forgeLike as NeoForgeGameVersion).neoforge_version
+					: (forgeLike as ForgeGameVersion).forge_version,
 				type: (v as MinecraftVersion).type ?? "",
 				stable: (v as FabricGameVersion).stable ?? false,
 				releaseTime: (v as MinecraftVersion).releaseTime ?? "",
-				isInstalled:
-					filter === "fabric"
+				isInstalled: isFabricOrQuilt
+					? filter === "fabric"
 						? installedFabric.has(id)
-						: filter === "quilt"
-							? installedQuilt.has(id)
-							: filter === "forge"
-								? installedForge.has(id)
-								: installedVanilla.has(id),
+						: installedQuilt.has(id)
+					: isForge
+						? installedForge.has(id)
+						: isNeoForge
+							? installedNeoForge.has(id)
+							: installedVanilla.has(id),
 				isDownloading: downloadingVersions.has(id),
 			};
 		});
@@ -414,6 +488,10 @@
 			const queued = `${gameVersion}-forge-${forgeVersion}`;
 			await downloadForge(gameVersion, forgeVersion);
 			markDownloading(queued);
+		} else if (filter === "neoforge" && gameVersion && forgeVersion) {
+			const queued = `${gameVersion}-neoforge-${forgeVersion}`;
+			const enqueued = await downloadNeoForge(gameVersion, forgeVersion);
+			if (enqueued) markDownloading(queued);
 		} else {
 			await addToQueue(versionId);
 			markDownloading(versionId);
@@ -443,11 +521,15 @@
 		{filter}
 	/>
 
-	{#if filter === "forge"}
+	{#if filter === "forge" || filter === "neoforge"}
 		<div
 			style="padding: 0 20px 8px; font-size: 0.75rem; color: var(--text-muted);"
 		>
-			{t("versionDownloader.forgeJavaHint")}
+			{t(
+				filter === "neoforge"
+					? "versionDownloader.neoForgeJavaHint"
+					: "versionDownloader.forgeJavaHint",
+			)}
 		</div>
 	{/if}
 
@@ -489,7 +571,9 @@
 					? "Quilt Meta"
 					: filter === "forge"
 						? "Maven (minecraftforge.net)"
-						: "Mojang Manifest"}</span
+						: filter === "neoforge"
+							? "Maven (neoforged.net)"
+							: "Mojang Manifest"}</span
 		>
 	</div>
 </div>

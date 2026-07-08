@@ -228,7 +228,9 @@ impl DownloadQueue {
             return;
         }
 
-        let result = if version.contains("-forge-") {
+        let result = if version.contains("-neoforge-") {
+            Self::process_neoforge_version(shared_dir, &manager, queue, version.clone()).await
+        } else if version.contains("-forge-") {
             Self::process_forge_version(shared_dir, &manager, queue, version.clone()).await
         } else if let Some((game_version, loader_version)) = parse_fabric_version(&version) {
             Self::process_fabric_version(
@@ -383,6 +385,68 @@ impl DownloadQueue {
         let installer_url = aqua::ForgeBatch::resolve_installer_url(gv, fv);
         let batch =
             aqua::ForgeBatch::new(&shared_dir, gv, fv, &installer_url, Some(java_path)).await?;
+        let handle = manager.prepare_batch(Box::new(batch)).await?;
+        download_with_progress(version, handle, queue.clone()).await
+    }
+
+    async fn process_neoforge_version(
+        shared_dir: PathBuf,
+        manager: &DownloadManager,
+        queue: &Arc<DownloadQueue>,
+        version: Arc<str>,
+    ) -> Result<(), aqua::AquaError> {
+        let parts: Vec<&str> = version.split("-neoforge-").collect();
+        let (gv, nv) = match parts.as_slice() {
+            [gv, nv] => (*gv, *nv),
+            _ => {
+                return Err(aqua::AquaError::Other(format!(
+                    "NeoForge version format invalid: {}",
+                    version
+                )));
+            }
+        };
+
+        // NeoForge only exists for MC 1.20.2+ / future year-based versions.
+        // MC 1.21+ -> Java 21; MC 1.20.x -> Java 17.
+        let java_pref: &[u8] = match parse_mc_major_minor(gv) {
+            Some((1, n)) if n >= 21 => &[21, 17, 8],
+            _ => &[17, 21, 8],
+        };
+
+        if !java_pref.iter().any(|v| JavaManager::is_installed(*v)) {
+            let java_version = java_pref[0];
+            emit_stage(
+                &version,
+                "jre",
+                Some(format!("Java {} para NeoForge {}", java_version, version)),
+            );
+            let pkg = JavaManager::get_latest_package(java_version)
+                .await
+                .map_err(|e| aqua::AquaError::Other(e.to_string()))?;
+            let dest_dir = JavaManager::get_jre_dir(java_version);
+            let jre_batch = JreBatch::new(java_version, pkg, dest_dir);
+            let jre_handle = manager.prepare_batch(Box::new(jre_batch)).await?;
+            download_with_progress(version.clone(), jre_handle, queue.clone()).await?;
+        }
+
+        let java_path = java_pref
+            .iter()
+            .copied()
+            .find(|v| JavaManager::is_installed(*v))
+            .map(JavaManager::get_java_binary);
+
+        let Some(java_path) = java_path else {
+            return Err(aqua::AquaError::Other(
+                "No se pudo instalar un runtime Java compatible".into(),
+            ));
+        };
+
+        // Always download/verify base MC files before NeoForge.
+        download_base_mc(version.clone(), gv, manager, queue).await?;
+
+        let installer_url = aqua::NeoForgeBatch::resolve_installer_url(nv);
+        let batch =
+            aqua::NeoForgeBatch::new(&shared_dir, gv, nv, &installer_url, Some(java_path)).await?;
         let handle = manager.prepare_batch(Box::new(batch)).await?;
         download_with_progress(version, handle, queue.clone()).await
     }

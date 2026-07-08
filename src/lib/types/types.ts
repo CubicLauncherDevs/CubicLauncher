@@ -146,6 +146,12 @@ export interface ForgeGameVersion {
 	forge_version: string;
 }
 
+export interface NeoForgeGameVersion {
+	version_id: string;
+	game_version: string;
+	neoforge_version: string;
+}
+
 export type AppEvent =
 	| {
 			type: "InstanceStarted";

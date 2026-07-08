@@ -7,6 +7,7 @@
 		addToQueue,
 		downloadFabric,
 		downloadForge,
+		downloadNeoForge,
 		downloadQuilt,
 	} from "$lib/api/cubicApi";
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
@@ -52,6 +53,9 @@
 		}
 		if (selectedLoader === "forge" && selectedLoaderVersion) {
 			return `${selectedMcVersion}-forge-${selectedLoaderVersion}`;
+		}
+		if (selectedLoader === "neoforge" && selectedLoaderVersion) {
+			return `${selectedMcVersion}-neoforge-${selectedLoaderVersion}`;
 		}
 		return "";
 	});
@@ -144,7 +148,7 @@
 		if (l === "fabric") return "/images/instances/fabric.png";
 		if (l === "forge") return "/images/instances/forge.png";
 		if (l === "neoforge" || l === "neo")
-			return "/images/instances/modth.png";
+			return "/images/instances/neoforged.png";
 		if (l === "quilt") return "/images/instances/vanilla.png";
 		return null;
 	}
@@ -219,6 +223,8 @@
 			await downloadQuilt(selectedMcVersion, selectedLoaderVersion);
 		} else if (selectedLoader === "forge") {
 			await downloadForge(selectedMcVersion, selectedLoaderVersion);
+		} else if (selectedLoader === "neoforge") {
+			await downloadNeoForge(selectedMcVersion, selectedLoaderVersion);
 		}
 	}
 

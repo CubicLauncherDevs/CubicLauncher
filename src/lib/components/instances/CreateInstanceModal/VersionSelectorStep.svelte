@@ -4,6 +4,7 @@
 	import {
 		getFabricLoaderVersions,
 		getForgeVersions,
+		getNeoForgeVersions,
 		getQuiltLoaderVersions,
 		getInstalledVersions,
 		parseInstalledVersion,
@@ -11,7 +12,7 @@
 	import Select from "$lib/components/layout/Select.svelte";
 	import { t } from "$lib/i18n";
 	import { showError } from "$lib/state/state.svelte";
-	import type { ForgeGameVersion } from "$lib/types/types";
+	import type { ForgeGameVersion, NeoForgeGameVersion } from "$lib/types/types";
 
 	let {
 		selectedLoader = $bindable<string>("vanilla"),
@@ -35,6 +36,11 @@
 			icon: "/images/instances/fabric.png",
 		},
 		{ value: "forge", label: "Forge", icon: "/images/instances/forge.png" },
+		{
+			value: "neoforge",
+			label: "NeoForge",
+			icon: "/images/instances/neoforged.png",
+		},
 		{ value: "quilt", label: "Quilt", icon: "/images/instances/quilt.png" },
 	];
 
@@ -44,6 +50,7 @@
 	let loadingLoader = $state(false);
 
 	let forgeVersions = $state<ForgeGameVersion[]>([]);
+	let neoForgeVersions = $state<NeoForgeGameVersion[]>([]);
 
 	let mcLoadId = $state(0);
 	let loaderLoadId = $state(0);
@@ -64,8 +71,9 @@
 		for (const v of raw) {
 			const parsed = parseInstalledVersion(v);
 			if (!parsed) continue;
-			if (parsed.loader === "forge") {
-				const idx = v.indexOf("-forge-");
+			if (parsed.loader === "forge" || parsed.loader === "neoforge") {
+				const sep = parsed.loader === "neoforge" ? "-neoforge-" : "-forge-";
+				const idx = v.indexOf(sep);
 				if (idx >= 0) bases.add(v.substring(0, idx));
 			} else {
 				bases.add(parsed.version);
@@ -88,6 +96,10 @@
 
 			if (loader === "forge" && forgeVersions.length === 0) {
 				forgeVersions = await getForgeVersions();
+			}
+
+			if (loader === "neoforge" && neoForgeVersions.length === 0) {
+				neoForgeVersions = await getNeoForgeVersions();
 			}
 
 			if (currentLoadId !== mcLoadId) return;
@@ -130,6 +142,10 @@
 				list = forgeVersions
 					.filter((v) => v.game_version === mcVersion)
 					.map((v) => v.forge_version);
+			} else if (loader === "neoforge") {
+				list = neoForgeVersions
+					.filter((v) => v.game_version === mcVersion)
+					.map((v) => v.neoforge_version);
 			}
 
 			if (currentLoadId !== loaderLoadId) return;
