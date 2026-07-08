@@ -383,19 +383,19 @@
 		{/if}
 	</div>
 
-	{#if tab !== "modrinth"}
-		{#snippet footer()}
-			<div class="footer-actions">
-				<div class="footer-left"></div>
-				<div class="footer-right">
-					<button
-						type="button"
-						class="btn-secondary"
-						onclick={reset}
-						disabled={loading}
-					>
-						{t("createInstance.cancel")}
-					</button>
+	{#snippet footer()}
+		<div class="footer-actions">
+			<div class="footer-left"></div>
+			<div class="footer-right">
+				<button
+					type="button"
+					class="btn-secondary"
+					onclick={reset}
+					disabled={loading}
+				>
+					{t("createInstance.cancel")}
+				</button>
+				{#if tab === "import" || tab === "manual"}
 					<button
 						type="button"
 						class="btn-primary"
@@ -413,10 +413,10 @@
 								? t("createInstance.importBtn")
 								: t("createInstance.createBtn")}
 					</button>
-				</div>
+				{/if}
 			</div>
-		{/snippet}
-	{/if}
+		</div>
+	{/snippet}
 </ModalBase>
 
 <style>
