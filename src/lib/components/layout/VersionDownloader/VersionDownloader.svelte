@@ -193,7 +193,9 @@
 	onMount(() => {
 		const safety = setTimeout(() => {
 			if (loading) {
-				console.warn("[VersionDownloader] loading timed out, forcing false");
+				console.warn(
+					"[VersionDownloader] loading timed out, forcing false",
+				);
 				loading = false;
 			}
 		}, 15000);
@@ -266,7 +268,8 @@
 
 	const availableMajorVersions = $derived.by(() => {
 		if (filter === "forge" || filter === "neoforge") {
-			const manifest = filter === "forge" ? forgeManifest : neoForgeManifest;
+			const manifest =
+				filter === "forge" ? forgeManifest : neoForgeManifest;
 			const versions = new SvelteSet<string>();
 			manifest.forEach((v) => {
 				const match = v.game_version.match(/^1\.\d+/);
@@ -313,7 +316,9 @@
 		if (filter === "forge" || filter === "neoforge") {
 			const isNeoForge = filter === "neoforge";
 			const manifest = isNeoForge ? neoForgeManifest : forgeManifest;
-			const installedSet = isNeoForge ? installedNeoForge : installedForge;
+			const installedSet = isNeoForge
+				? installedNeoForge
+				: installedForge;
 			return manifest
 				.filter((v) => {
 					const versionId = v.version_id;

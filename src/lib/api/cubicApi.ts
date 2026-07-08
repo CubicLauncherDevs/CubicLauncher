@@ -384,7 +384,9 @@ export async function getNeoForgeVersions(): Promise<NeoForgeGameVersion[]> {
 	}
 }
 
-export async function refreshNeoForgeVersions(): Promise<NeoForgeGameVersion[]> {
+export async function refreshNeoForgeVersions(): Promise<
+	NeoForgeGameVersion[]
+> {
 	try {
 		return await invoke<NeoForgeGameVersion[]>("refresh_neoforge_versions");
 	} catch (err) {
@@ -398,7 +400,10 @@ export async function downloadNeoForge(
 	neoforgeVersion: string,
 ): Promise<string | null> {
 	try {
-		return await invoke<string>("download_neoforge", { gameVersion, neoforgeVersion });
+		return await invoke<string>("download_neoforge", {
+			gameVersion,
+			neoforgeVersion,
+		});
 	} catch (err) {
 		showErrorParsed(err);
 		return null;
