@@ -3,6 +3,7 @@ mod fabric;
 mod forge;
 mod jre;
 mod minecraft;
+mod neoforge;
 mod quilt;
 
 use std::path::{Path, PathBuf};
@@ -13,6 +14,7 @@ use std::time::Duration;
 pub use batch::{DownloadBatch, DownloadItemSpec, GenericBatch};
 pub use fabric::FabricBatch;
 pub use forge::{ForgeBatch, ForgeVersionInfo};
+pub use neoforge::{NeoForgeBatch, NeoForgeVersionInfo};
 use futures::TryStreamExt;
 use futures::stream::{self, StreamExt};
 pub use jre::JreBatch;

@@ -8,6 +8,8 @@ use tracing::info;
 const MOJANG_MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const FORGE_MAVEN_METADATA_URL: &str =
     "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml";
+const NEOFORGE_MAVEN_METADATA_URL: &str =
+    "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
 
 fn manifest_cache_path() -> std::path::PathBuf {
     PathManager::get().get_settings_dir().join("manifest.crep")
@@ -51,6 +53,13 @@ pub struct ForgeGameVersion {
     pub version_id: String,
     pub game_version: String,
     pub forge_version: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NeoForgeGameVersion {
+    pub version_id: String,
+    pub game_version: String,
+    pub neoforge_version: String,
 }
 
 #[tauri::command]
@@ -411,6 +420,179 @@ pub async fn refresh_forge_versions() -> Result<Vec<ForgeGameVersion>, String> {
     let versions = fetch_forge_versions_from_maven().await?;
     write_forge_cache(&versions).await;
     Ok(versions)
+}
+
+// ─── NeoForge ─────────────────────────────────────────────────────────────────
+
+fn parse_neoforge_game_version(loader_version: &str) -> Option<String> {
+    // NeoForge versions are either:
+    // - 20.2.29[-beta]  -> 1.20.2
+    // - 26.1.0.10[-beta] -> 26.1.0
+    let numeric = loader_version.split('-').next()?;
+    let parts: Vec<u32> = numeric.split('.').filter_map(|s| s.parse().ok()).collect();
+    if parts.len() < 2 {
+        return None;
+    }
+    let major_or_year = parts[0];
+    let minor = parts[1];
+
+    if major_or_year >= 26 {
+        let hotfix = *parts.get(2)?;
+        if hotfix == 0 {
+            Some(format!("{major_or_year}.{minor}"))
+        } else {
+            Some(format!("{major_or_year}.{minor}.{hotfix}"))
+        }
+    } else if minor == 0 {
+        Some(format!("1.{major_or_year}"))
+    } else {
+        Some(format!("1.{major_or_year}.{minor}"))
+    }
+}
+
+fn group_neoforge_versions(all_versions: Vec<String>) -> Vec<NeoForgeGameVersion> {
+    use std::collections::BTreeMap;
+
+    let mut groups: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for v in all_versions {
+        let Some(game_version) = parse_neoforge_game_version(&v) else {
+            continue;
+        };
+        groups.entry(game_version).or_default().push(v);
+    }
+
+    let mut result = Vec::new();
+    for (game_version, mut neoforge_versions) in groups.into_iter().rev() {
+        neoforge_versions.sort_by(|a, b| version_cmp(a, b));
+        for neoforge_version in neoforge_versions.into_iter().rev() {
+            let version_id = format!("{game_version}-neoforge-{neoforge_version}");
+            result.push(NeoForgeGameVersion {
+                version_id,
+                game_version: game_version.clone(),
+                neoforge_version,
+            });
+        }
+    }
+    result
+}
+
+async fn fetch_neoforge_versions_from_maven() -> Result<Vec<NeoForgeGameVersion>, String> {
+    let response = HTTP
+        .get(NEOFORGE_MAVEN_METADATA_URL)
+        .send()
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    let xml = response
+        .text()
+        .await
+        .map_err(|e| DownloadError::ReadResponse(e.to_string()).to_string())?;
+
+    let all_versions = parse_maven_metadata(&xml);
+    info!(
+        "NeoForge maven-metadata.xml parseado: {} versiones totales",
+        all_versions.len()
+    );
+    Ok(group_neoforge_versions(all_versions))
+}
+
+fn get_neoforge_cache_path() -> std::path::PathBuf {
+    PathManager::get().get_settings_dir().join("neoforge.crep")
+}
+
+async fn read_neoforge_cache() -> Option<Vec<NeoForgeGameVersion>> {
+    let cache_path = get_neoforge_cache_path();
+    tokio::task::spawn_blocking(move || {
+        let repo = ablage::Repo::open(&cache_path);
+        let entry = repo.get("neoforge")?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let cached_time = entry.fingerprint;
+        if now.saturating_sub(cached_time) > 3600 {
+            return None;
+        }
+        postcard::from_bytes(&entry.data).ok()
+    })
+    .await
+    .unwrap_or(None)
+}
+
+async fn write_neoforge_cache(versions: &[NeoForgeGameVersion]) {
+    let cache_path = get_neoforge_cache_path();
+    let versions = versions.to_vec();
+    tokio::task::spawn_blocking(move || {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let mut repo = ablage::Repo::open(&cache_path);
+        if let Ok(data) = postcard::to_stdvec(&versions) {
+            repo.put(
+                "neoforge",
+                ablage::Entry {
+                    version: 1,
+                    fingerprint: now,
+                    data,
+                },
+            );
+            let _ = repo.flush();
+        }
+    })
+    .await
+    .ok();
+}
+
+#[tauri::command]
+pub async fn get_neoforge_versions() -> Result<Vec<NeoForgeGameVersion>, String> {
+    if let Some(versions) = read_neoforge_cache().await {
+        info!(
+            "Usando cache de versiones de NeoForge ({} versiones)",
+            versions.len()
+        );
+        return Ok(versions);
+    }
+
+    info!("Cache de NeoForge ausente, descargando desde maven.neoforged.net");
+    let versions = fetch_neoforge_versions_from_maven().await?;
+    write_neoforge_cache(&versions).await;
+    Ok(versions)
+}
+
+#[tauri::command]
+pub async fn refresh_neoforge_versions() -> Result<Vec<NeoForgeGameVersion>, String> {
+    info!("Forzando actualizacion de versiones de NeoForge");
+    let cache_path = get_neoforge_cache_path();
+    tokio::task::spawn_blocking(move || {
+        let mut repo = ablage::Repo::open(&cache_path);
+        repo.remove("neoforge");
+        let _ = repo.flush();
+    })
+    .await
+    .ok();
+
+    let versions = fetch_neoforge_versions_from_maven().await?;
+    write_neoforge_cache(&versions).await;
+    Ok(versions)
+}
+
+#[tauri::command]
+pub async fn download_neoforge(
+    game_version: String,
+    neoforge_version: String,
+) -> Result<String, String> {
+    info!(
+        "Iniciando descarga de NeoForge {} para Minecraft {}",
+        neoforge_version, game_version
+    );
+
+    let version_id = format!("{game_version}-neoforge-{neoforge_version}");
+    info!("ID de version: {}", version_id);
+
+    DownloadQueue::get().enqueue(version_id.clone()).await;
+
+    Ok(version_id)
 }
 
 // ─── Quilt ────────────────────────────────────────────────────────────────────

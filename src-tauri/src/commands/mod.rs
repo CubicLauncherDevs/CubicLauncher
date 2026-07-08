@@ -3,6 +3,7 @@ pub mod discord;
 pub mod download;
 pub mod forge;
 pub mod instance;
+pub mod neoforge;
 pub mod java;
 pub mod log_window;
 pub mod modrinth;

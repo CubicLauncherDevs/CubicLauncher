@@ -64,6 +64,14 @@
 	<button
 		type="button"
 		class="qm-tab-btn"
+		class:active={filter === "neoforge"}
+		onclick={() => (filter = "neoforge")}
+	>
+		<span class="qm-tab-label">{t("versionDownloader.tabs.neoforge")}</span>
+	</button>
+	<button
+		type="button"
+		class="qm-tab-btn"
 		class:active={filter === "quilt"}
 		onclick={() => (filter = "quilt")}
 	>
