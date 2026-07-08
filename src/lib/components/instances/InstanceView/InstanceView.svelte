@@ -44,20 +44,19 @@
 	});
 
 	import type MarketType from "../Market/Market.svelte";
-	import type ResourcePacksTabType from "../ResourcePacks/ResourcePacks.svelte";
 	import type ScreenshotsTabType from "../ScreenshotsTab.svelte";
 
 	let Market: typeof MarketType | null = $state(null);
-	let ResourcePacksTab: typeof ResourcePacksTabType | null = $state(null);
 	let ScreenshotsTab: typeof ScreenshotsTabType | null = $state(null);
 
 	$effect(() => {
-		if (activeSection === "market" && !Market) {
+		if (
+			(activeSection === "market" ||
+				activeSection === "resources" ||
+				activeSection === "shaderpacks") &&
+			!Market
+		) {
 			import("../Market/Market.svelte").then((m) => (Market = m.default));
-		} else if (activeSection === "resources" && !ResourcePacksTab) {
-			import("../ResourcePacks/ResourcePacks.svelte").then(
-				(m) => (ResourcePacksTab = m.default),
-			);
 		} else if (activeSection === "screenshots" && !ScreenshotsTab) {
 			import("../ScreenshotsTab.svelte").then(
 				(m) => (ScreenshotsTab = m.default),
@@ -174,14 +173,23 @@
 						{/if}
 					{/key}
 				{:else if activeSection === "resources"}
-					{#if ResourcePacksTab}
-						<ResourcePacksTab
-							instanceId={selectedInstance.uuid}
-							gameVersion={selectedInstance.version}
-							loader={selectedInstance.loader}
-							{supportsShaders}
-						/>
-					{/if}
+					{#key selectedInstance.uuid}
+						{#if Market}
+							<Market
+								instance={selectedInstance}
+								contentType="resourcepacks"
+							/>
+						{/if}
+					{/key}
+				{:else if activeSection === "shaderpacks"}
+					{#key selectedInstance.uuid}
+						{#if Market}
+							<Market
+								instance={selectedInstance}
+								contentType="shaderpacks"
+							/>
+						{/if}
+					{/key}
 				{:else if activeSection === "screenshots"}
 					{#if ScreenshotsTab}
 						<ScreenshotsTab instance={selectedInstance} />

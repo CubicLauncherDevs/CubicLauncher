@@ -500,9 +500,11 @@
 			"searchSubtitle": "Prueba con otra búsqueda o categoría."
 		},
 		"filter": {
-			"tabMarket": "Market",
+			"tabModrinth": "Modrinth",
+			"tabCurseForge": "CurseForge",
 			"tabLocal": "Local",
-			"searchMarket": "Buscar en Modrinth...",
+			"searchModrinth": "Buscar en Modrinth...",
+			"searchCurseForge": "Buscar en CurseForge...",
 			"searchLocal": "Buscar mods instalados...",
 			"sortBy": "Ordenar por",
 			"sortDownloads": "Descargas",
@@ -539,6 +541,7 @@
 			"enable": "Habilitar",
 			"disable": "Deshabilitar",
 			"openOnModrinth": "Abrir en Modrinth",
+			"openOnCurseForge": "Abrir en CurseForge",
 			"noSelection": "Selecciona un mod para ver sus detalles"
 		}
 	}

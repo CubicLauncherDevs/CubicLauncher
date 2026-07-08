@@ -2,6 +2,7 @@
 	import { t } from "$lib/i18n";
 	import type { InstanceDto } from "$lib/types/types";
 	import { createMarketState } from "$lib/state/marketState.svelte";
+	import type { ContentType } from "$lib/types/market";
 	import MarketFilterPanel from "$lib/components/market/MarketFilterPanel.svelte";
 	import MarketItem from "$lib/components/market/MarketItem.svelte";
 	import MarketDetail from "$lib/components/market/MarketDetail.svelte";
@@ -10,11 +11,12 @@
 
 	interface Props {
 		instance: InstanceDto;
+		contentType?: ContentType;
 	}
 
-	let { instance }: Props = $props();
+	let { instance, contentType = "mods" }: Props = $props();
 
-	const state = $derived(createMarketState(instance));
+	const state = $derived(createMarketState(instance, contentType));
 
 	const emptyState = $derived.by(() => {
 		if (state.filters.source === "local") {
@@ -48,6 +50,7 @@
 		{#snippet filterPanel()}
 			<MarketFilterPanel
 				filters={state.filters}
+				{contentType}
 				loading={state.loading}
 				onSourceChange={state.setSource}
 				onQueryChange={state.setQuery}
@@ -68,7 +71,7 @@
 					{project}
 					selected={project.id === state.selectedId}
 					onSelect={() => state.selectProject(project.id)}
-					onInstall={state.filters.source === "remote" &&
+					onInstall={state.filters.source !== "local" &&
 					!project.installed
 						? () => {
 								const version = state.selectedVersion();

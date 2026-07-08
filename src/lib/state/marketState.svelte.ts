@@ -2,29 +2,41 @@ import {
 	deleteInstanceFile,
 	getInstanceMods,
 	getInstanceModsMetadata,
+	getInstanceResourcePacks,
+	getInstanceShaderPacks,
 	getModrinthProject,
 	getModrinthProjectVersions,
 	searchModrinth,
+	searchCurseForge,
+	getCurseForgeProject,
+	getCurseForgeProjectFiles,
+	getCurseForgeFileDownloadUrl,
 	toggleInstanceMod,
 	downloadMods,
+	downloadResourcePacks,
+	downloadShaderPacks,
 } from "$lib/api/cubicApi";
 import {
 	localModToMarket,
 	modrinthProjectToMarket,
 	modrinthVersionToMarket,
+	curseforgeProjectToMarket,
+	curseforgeVersionToMarket,
 	parseInstanceVersion,
 	type MarketProject,
 	type MarketVersion,
+	type ContentType,
 } from "$lib/types/market";
 import type {
 	InstanceDto,
 	ModDto,
 	ModrinthProjectFull,
+	CurseForgeProject,
 } from "$lib/types/types";
 
 const PAGE_SIZE = 20;
 
-export type MarketSource = "local" | "remote";
+export type MarketSource = "local" | "modrinth" | "curseforge";
 
 export type MarketSort = "relevance" | "downloads" | "newest" | "updated";
 
@@ -38,17 +50,23 @@ export interface MarketFilters {
 }
 
 export interface MarketDetailState {
-	fullProject?: ModrinthProjectFull;
+	fullProject?: ModrinthProjectFull | CurseForgeProject;
 	versions: MarketVersion[];
 	loading: boolean;
 	error: string | null;
 }
 
-export function createMarketState(instance: InstanceDto) {
+export function createMarketState(instance: InstanceDto, contentType: ContentType = "mods") {
 	const parsed = parseInstanceVersion(instance);
 
+	const isModContent = contentType === "mods";
+	const localLoader = isModContent ? getInstanceMods : contentType === "resourcepacks" ? getInstanceResourcePacks : getInstanceShaderPacks;
+	const downloadFn = isModContent ? downloadMods : contentType === "resourcepacks" ? downloadResourcePacks : downloadShaderPacks;
+	const subDir = isModContent ? "mods" : contentType === "resourcepacks" ? "resourcepacks" : "shaderpacks";
+	const projectType = isModContent ? "mod" : contentType === "resourcepacks" ? "resourcepack" : "shader";
+
 	const filters = $state<MarketFilters>({
-		source: "remote",
+		source: "modrinth",
 		query: "",
 		loader: parsed.loader.toLowerCase(),
 		gameVersion: parsed.gameVersion,
@@ -87,7 +105,7 @@ export function createMarketState(instance: InstanceDto) {
 
 	function resetState() {
 		const fresh = parseInstanceVersion(instance);
-		filters.source = "remote";
+		filters.source = isModContent ? "modrinth" : "local";
 		filters.query = "";
 		filters.loader = fresh.loader.toLowerCase();
 		filters.gameVersion = fresh.gameVersion;
@@ -115,42 +133,49 @@ export function createMarketState(instance: InstanceDto) {
 		abortPending();
 
 		try {
-			const [mods, metadata] = await Promise.all([
-				getInstanceMods(instance.uuid),
-				getInstanceModsMetadata(instance.uuid),
-			]);
+			const localItems = await localLoader(instance.uuid);
 
-			const mapped = mods.map((mod) => {
-				const meta = metadata?.[mod.filename];
-				return localModToMarket(mod, meta);
+			const mapped = localItems.map((mod) => {
+				return localModToMarket(mod, undefined);
 			});
 
 			// Enrich local mods that have a projectId with Modrinth data
-			const seen: Record<string, true> = {};
-			const ids: string[] = [];
-			for (const m of mapped) {
-				const pid = m.modrinthProjectId;
-				if (pid && !seen[pid]) {
-					seen[pid] = true;
-					ids.push(pid);
-				}
-			}
-			if (ids.length > 0) {
-				const projects = await Promise.all(
-					ids.map((id) => getModrinthProject(id)),
-				);
-				const projectMap: Record<string, ModrinthProjectFull> = {};
-				for (const p of projects) {
-					if (p) projectMap[p.id] = p;
-				}
+			if (isModContent) {
+				const metadata = await getInstanceModsMetadata(instance.uuid);
 				for (const item of mapped) {
-					if (item.modrinthProjectId) {
-						const full = projectMap[item.modrinthProjectId];
-						if (full) {
-							item.title = full.title;
-							item.description = full.description;
-							item.icon = full.icon_url ?? item.icon;
-							item.downloadCount = full.downloads;
+					const meta = metadata?.[item.installed?.filename ?? ""];
+					if (meta) {
+						item.modrinthProjectId = meta.project_id;
+						item.modrinthVersionId = meta.version_id;
+					}
+				}
+
+				const seen: Record<string, true> = {};
+				const ids: string[] = [];
+				for (const m of mapped) {
+					const pid = m.modrinthProjectId;
+					if (pid && !seen[pid]) {
+						seen[pid] = true;
+						ids.push(pid);
+					}
+				}
+				if (ids.length > 0) {
+					const projects = await Promise.all(
+						ids.map((id) => getModrinthProject(id)),
+					);
+					const projectMap: Record<string, ModrinthProjectFull> = {};
+					for (const p of projects) {
+						if (p) projectMap[p.id] = p;
+					}
+					for (const item of mapped) {
+						if (item.modrinthProjectId) {
+							const full = projectMap[item.modrinthProjectId];
+							if (full) {
+								item.title = full.title;
+								item.description = full.description;
+								item.icon = full.icon_url ?? item.icon;
+								item.downloadCount = full.downloads;
+							}
 						}
 					}
 				}
@@ -172,13 +197,13 @@ export function createMarketState(instance: InstanceDto) {
 			total = filtered.length;
 			hasMore = false;
 		} catch (e) {
-			error = String(e ?? "Error loading local mods");
+			error = String(e ?? "Error loading local items");
 		} finally {
 			loading = false;
 		}
 	}
 
-	async function searchRemote(reset = false) {
+	async function searchRemoteModrinth(reset = false) {
 		if (loading) return;
 
 		if (reset) {
@@ -202,45 +227,48 @@ export function createMarketState(instance: InstanceDto) {
 			const index = filters.sort;
 			const currentOffset = offset;
 
+			const searchLoader = isModContent ? filters.loader : "";
 			const result = await searchModrinth(
 				filters.query,
-				filters.loader,
+				searchLoader,
 				filters.gameVersion,
 				category,
 				index,
 				PAGE_SIZE,
 				currentOffset,
 				signal,
-				"mod",
+				projectType,
 			);
 
 			if (!result) return;
 
-			// Load local metadata to mark installed mods by project id
-			const metadata = await getInstanceModsMetadata(instance.uuid);
-			const localByProjectId: Record<string, { mod: ModDto; versionId?: string }> = {};
-			for (const [filename, meta] of Object.entries(metadata ?? {})) {
-				localByProjectId[meta.project_id] = {
-					mod: {
-						name: filename,
-						filename,
-						version: meta.version_id,
-						enabled: true,
-					} as ModDto,
-					versionId: meta.version_id,
-				};
+			// Load local data to mark installed items
+			const localItems = await localLoader(instance.uuid);
+			const installedByFilename: Record<string, ModDto> = {};
+			for (const item of localItems ?? []) {
+				installedByFilename[item.filename.toLowerCase()] = item;
 			}
 
-			// Load instance mods for filename-based fallback matching
-			const instanceMods = await getInstanceMods(instance.uuid);
-			const modsByFilename: Record<string, ModDto> = {};
-			for (const m of instanceMods ?? []) {
-				modsByFilename[m.filename.toLowerCase()] = m;
+			// Load metadata for mods to match by project_id
+			const localByProjectId: Record<string, { mod: ModDto; versionId?: string }> = {};
+			if (isModContent) {
+				const metadata = await getInstanceModsMetadata(instance.uuid);
+				for (const [filename, meta] of Object.entries(metadata ?? {})) {
+					localByProjectId[meta.project_id] = {
+						mod: {
+							name: filename,
+							filename,
+							version: meta.version_id,
+							enabled: true,
+						} as ModDto,
+						versionId: meta.version_id,
+					};
+				}
 			}
 
 			function modNameFromFilename(filename: string): string {
 				return filename
-					.replace(/\.jar$/i, "")
+					.replace(/\.(jar|zip)$/i, "")
 					.replace(/-mc\d[\w.-]*/gi, "")
 					.replace(/-\d+[\w.-]+/g, "")
 					.replace(/-(fabric|forge|neoforge|quilt|universal)/gi, "")
@@ -276,13 +304,13 @@ export function createMarketState(instance: InstanceDto) {
 					return market;
 				}
 				// Fallback: match by installed filename → project title/slug
-				for (const [filename, installedMod] of Object.entries(modsByFilename)) {
+				for (const [filename, installedItem] of Object.entries(installedByFilename)) {
 					const modName = modNameFromFilename(filename);
 					if (
 						modName &&
 						nameMatchesSearch(modName, hit.title, hit.slug)
 					) {
-						market.installed = installedMod;
+						market.installed = installedItem;
 						market.modrinthProjectId = hit.project_id;
 						break;
 					}
@@ -307,11 +335,143 @@ export function createMarketState(instance: InstanceDto) {
 		}
 	}
 
+	async function searchRemoteCurseForge(reset = false) {
+		if (!isModContent) return;
+		if (loading) return;
+
+		if (reset) {
+			resetPagination();
+		} else if (!hasMore || loadingMore) {
+			return;
+		}
+
+		if (reset) {
+			loading = true;
+		} else {
+			loadingMore = true;
+		}
+		error = null;
+		abortPending();
+		abortController = new AbortController();
+		const signal = abortController.signal;
+
+		try {
+			const category = null; // CurseForge uses numeric category IDs, skip for now
+			const index = filters.sort;
+			const currentOffset = offset;
+
+			const result = await searchCurseForge(
+				filters.query,
+				filters.loader,
+				filters.gameVersion,
+				category,
+				index,
+				PAGE_SIZE,
+				currentOffset,
+				signal,
+			);
+
+			if (!result) return;
+
+			// Load local metadata to mark installed mods
+			const metadata = await getInstanceModsMetadata(instance.uuid);
+			const localByProjectId: Record<string, { mod: ModDto; versionId?: string }> = {};
+			for (const [filename, meta] of Object.entries(metadata ?? {})) {
+				localByProjectId[meta.project_id] = {
+					mod: {
+						name: filename,
+						filename,
+						version: meta.version_id,
+						enabled: true,
+					} as ModDto,
+					versionId: meta.version_id,
+				};
+			}
+
+			const instanceMods = await getInstanceMods(instance.uuid);
+			const modsByFilename: Record<string, ModDto> = {};
+			for (const m of instanceMods ?? []) {
+				modsByFilename[m.filename.toLowerCase()] = m;
+			}
+
+			function modNameFromFilename(filename: string): string {
+				return filename
+					.replace(/\.jar$/i, "")
+					.replace(/-mc\d[\w.-]*/gi, "")
+					.replace(/-\d+[\w.-]+/g, "")
+					.replace(/-(fabric|forge|neoforge|quilt|universal)/gi, "")
+					.replace(/[-_]+/g, " ")
+					.trim()
+					.toLowerCase();
+			}
+
+			function nameMatchesSearch(
+				name: string,
+				hitTitle: string,
+				hitSlug: string,
+			): boolean {
+				const norm = name.toLowerCase();
+				const title = hitTitle.toLowerCase();
+				const slug = hitSlug.toLowerCase();
+				return (
+					title.includes(norm) ||
+					slug.includes(norm) ||
+					norm.includes(title) ||
+					norm.includes(slug)
+				);
+			}
+
+			const mapped = result.data.map((hit) => {
+				const market = curseforgeProjectToMarket(hit);
+				const cfId = String(hit.id);
+				const local = localByProjectId[cfId];
+				if (local) {
+					market.installed = local.mod;
+					market.installedVersion = local.versionId;
+					market.curseforgeProjectId = cfId;
+					market.curseforgeVersionId = local.versionId;
+					return market;
+				}
+				// Fallback: match by installed filename → project name/slug
+				for (const [filename, installedMod] of Object.entries(modsByFilename)) {
+					const modName = modNameFromFilename(filename);
+					if (
+						modName &&
+						nameMatchesSearch(modName, hit.name, hit.slug)
+					) {
+						market.installed = installedMod;
+						market.curseforgeProjectId = cfId;
+						break;
+					}
+				}
+				return market;
+			});
+
+			if (reset) {
+				items.length = 0;
+			}
+			items.push(...mapped);
+			total = result.pagination.totalCount;
+			offset = items.length;
+			hasMore = items.length < result.pagination.totalCount;
+		} catch (e) {
+			if (e instanceof DOMException && e.name === "AbortError") return;
+			error = String(e ?? "Error searching CurseForge");
+		} finally {
+			loading = false;
+			loadingMore = false;
+			abortController = null;
+		}
+	}
+
 	function performSearch(reset = false) {
 		if (filters.source === "local") {
 			return loadLocalItems();
 		}
-		return searchRemote(reset);
+		if (filters.source === "curseforge") {
+			return searchRemoteCurseForge(reset);
+		}
+		return searchRemoteModrinth(reset);
 	}
 
 	function debouncedSearch(reset = true) {
@@ -327,6 +487,40 @@ export function createMarketState(instance: InstanceDto) {
 		overrideVersionId = null;
 		detail.fullProject = undefined;
 		detail.versions = [];
+
+		if (project.source === "curseforge") {
+			const projectId =
+				project.curseforgeProjectId ?? project.id;
+			if (!projectId || isNaN(Number(projectId))) {
+				detail.loading = false;
+				return;
+			}
+
+			try {
+				const [full, files] = await Promise.all([
+					getCurseForgeProject(Number(projectId)),
+					getCurseForgeProjectFiles(
+						Number(projectId),
+						filters.loader,
+						filters.gameVersion,
+					),
+				]);
+
+				if (full) {
+					detail.fullProject = full;
+				}
+
+			const installedFileId = project.curseforgeVersionId;
+				detail.versions = files.map((f) =>
+					curseforgeVersionToMarket(f, installedFileId),
+				);
+			} catch (e) {
+				detail.error = String(e ?? "Error loading CurseForge project details");
+			} finally {
+				detail.loading = false;
+			}
+			return;
+		}
 
 		const projectId =
 			project.modrinthProjectId ??
@@ -405,20 +599,76 @@ export function createMarketState(instance: InstanceDto) {
 	}
 
 	async function install(project: MarketProject, version: MarketVersion) {
-		if (!version?.primaryFileUrl) return;
+		let fileUrl = version.primaryFileUrl;
+
+		if (project.source === "curseforge") {
+			const cfProjectId = project.curseforgeProjectId ?? project.id;
+			if (!fileUrl) {
+				fileUrl = await getCurseForgeFileDownloadUrl(
+					Number(cfProjectId),
+					Number(version.id),
+				) ?? "";
+			}
+			if (!fileUrl) return;
+
+			try {
+				await downloadFn(instance.uuid, [
+					{
+						url: fileUrl,
+						filename: version.primaryFileName,
+						project_id: cfProjectId,
+						version_id: version.id,
+					},
+				]);
+
+				for (const item of items) {
+					if (
+						item.id === project.id ||
+						item.curseforgeProjectId === cfProjectId
+					) {
+						item.installed = {
+							name: version.primaryFileName,
+							filename: version.primaryFileName,
+							version: version.id,
+							description: null,
+							authors: null,
+							icon: null,
+							enabled: true,
+						};
+						item.installedVersion = version.id;
+						item.curseforgeVersionId = version.id;
+						item.curseforgeProjectId = cfProjectId;
+					}
+				}
+
+				if (filters.source === "local") {
+					await loadLocalItems();
+				}
+
+				const current = items.find((i) => i.id === project.id) ?? project;
+				current.installedVersion = version.id;
+				current.curseforgeVersionId = version.id;
+				current.curseforgeProjectId = cfProjectId;
+				await loadDetail(current);
+			} catch (e) {
+				console.error(e);
+			}
+			return;
+		}
 
 		const projectId = project.modrinthProjectId ?? project.id;
+		if (!fileUrl) return;
+
 		try {
-			await downloadMods(instance.uuid, [
+			await downloadFn(instance.uuid, [
 				{
-					url: version.primaryFileUrl,
+					url: fileUrl,
 					filename: version.primaryFileName,
 					project_id: projectId,
 					version_id: version.id,
 				},
 			]);
 
-			// Mark installed on all matching items in-place
 			for (const item of items) {
 				if (
 					item.id === project.id ||
@@ -443,7 +693,6 @@ export function createMarketState(instance: InstanceDto) {
 				await loadLocalItems();
 			}
 
-			// Reload detail for the current project
 			const current = items.find((i) => i.id === project.id) ?? project;
 			current.installedVersion = version.id;
 			current.modrinthVersionId = version.id;
@@ -459,18 +708,22 @@ export function createMarketState(instance: InstanceDto) {
 		try {
 			await deleteInstanceFile(
 				instance.uuid,
-				"mods",
+				subDir,
 				project.installed.filename,
 			);
 			// Remove installed state from all matching items
 			for (const item of items) {
 				if (
 					item.id === project.id ||
-					item.modrinthProjectId === project.modrinthProjectId
+					item.modrinthProjectId === project.modrinthProjectId ||
+					item.curseforgeProjectId === project.curseforgeProjectId
 				) {
 					item.installed = undefined;
 					item.installedVersion = undefined;
 					item.modrinthVersionId = undefined;
+					item.modrinthProjectId = undefined;
+					item.curseforgeVersionId = undefined;
+					item.curseforgeProjectId = undefined;
 				}
 			}
 			if (filters.source === "local") {
@@ -483,7 +736,7 @@ export function createMarketState(instance: InstanceDto) {
 	}
 
 	async function toggleEnabled(project: MarketProject) {
-		if (!project.installed) return;
+		if (!project.installed || !isModContent) return;
 		const newEnabled = !project.installed.enabled;
 		try {
 			await toggleInstanceMod(
@@ -496,7 +749,8 @@ export function createMarketState(instance: InstanceDto) {
 				if (
 					item.installed &&
 					(item.id === project.id ||
-						item.modrinthProjectId === project.modrinthProjectId)
+						item.modrinthProjectId === project.modrinthProjectId ||
+						item.curseforgeProjectId === project.curseforgeProjectId)
 				) {
 					item.installed.enabled = newEnabled;
 					item.disabled = !newEnabled;
@@ -515,7 +769,7 @@ export function createMarketState(instance: InstanceDto) {
 
 	function loadMore() {
 		if (
-			filters.source === "remote" &&
+			filters.source !== "local" &&
 			hasMore &&
 			!loading &&
 			!loadingMore
@@ -525,6 +779,7 @@ export function createMarketState(instance: InstanceDto) {
 	}
 
 	function setSource(source: MarketSource) {
+		if (source === "curseforge" && !isModContent) return;
 		filters.source = source;
 		selectedId = null;
 		clearTimeout(searchTimer);

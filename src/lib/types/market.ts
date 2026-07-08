@@ -4,10 +4,13 @@ import type {
 	ModrinthProject,
 	ModrinthProjectFull,
 	ModrinthVersion,
+	CurseForgeProject,
+	CurseForgeFile,
 	InstanceDto,
 } from "./types";
 
 export type MarketSource = "local" | "modrinth" | "curseforge";
+export type ContentType = "mods" | "resourcepacks" | "shaderpacks";
 
 export interface MarketProject {
 	id: string;
@@ -21,12 +24,14 @@ export interface MarketProject {
 
 	// Remote-specific data
 	modrinth?: ModrinthProject;
-	curseforge?: never; // placeholder for future source support
+	curseforge?: CurseForgeProject;
 
 	// Local-specific data
 	installed?: ModDto;
 	modrinthProjectId?: string;
 	modrinthVersionId?: string;
+	curseforgeProjectId?: string;
+	curseforgeVersionId?: string;
 
 	// UI state, not persisted
 	installedVersion?: string;
@@ -78,21 +83,59 @@ export function modrinthProjectToMarket(
 	};
 }
 
+export function curseforgeProjectToMarket(
+	project: CurseForgeProject,
+): MarketProject {
+	return {
+		id: String(project.id),
+		title: project.name,
+		description: project.summary,
+		author: project.authors.map((a) => a.name).join(", "),
+		icon: project.logo?.url ?? null,
+		source: "curseforge",
+		downloadCount: project.downloadCount,
+		curseforge: project,
+	};
+}
+
+export function curseforgeVersionToMarket(
+	file: CurseForgeFile,
+	installedFileId?: string | number,
+): MarketVersion {
+	return {
+		id: String(file.id),
+		name: file.fileName,
+		versionNumber: file.fileName,
+		datePublished: file.fileDate,
+		loaders: file.modLoaders.map((l) => l.toLowerCase().replace("modloader-", "").replace("-", "")),
+		gameVersions: file.gameVersions,
+		isInstalled: installedFileId !== undefined && file.id === Number(installedFileId),
+		primaryFileUrl: file.downloadUrl ?? "",
+		primaryFileName: file.fileName,
+		dependencies: [],
+	};
+}
+
 export function localModToMarket(
 	mod: ModDto,
 	metadata?: { project_id?: string; version_id?: string },
 ): MarketProject {
+	const isNumericId = metadata?.project_id ? /^\d+$/.test(metadata.project_id) : false;
+	const source: MarketSource = isNumericId ? "curseforge" : metadata?.project_id ? "modrinth" : "local";
+
 	return {
 		id: metadata?.project_id ?? `local-${mod.filename}`,
 		title: mod.name,
 		description: mod.description ?? "",
 		author: mod.authors?.join(", ") ?? "",
 		icon: mod.icon,
-		source: metadata?.project_id ? "modrinth" : "local",
+		source,
 		downloadCount: 0,
 		installed: mod,
-		modrinthProjectId: metadata?.project_id,
-		modrinthVersionId: metadata?.version_id,
+		modrinthProjectId: !isNumericId ? metadata?.project_id : undefined,
+		modrinthVersionId: !isNumericId ? metadata?.version_id : undefined,
+		curseforgeProjectId: isNumericId ? metadata?.project_id : undefined,
+		curseforgeVersionId: isNumericId ? metadata?.version_id : undefined,
 		disabled: !mod.enabled,
 	};
 }

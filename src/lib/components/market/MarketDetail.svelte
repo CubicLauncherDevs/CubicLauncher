@@ -6,6 +6,7 @@
 	import { renderMarkdown } from "$lib/util/markdown";
 	import type { MarketDetailState } from "$lib/state/marketState.svelte";
 	import type { MarketProject, MarketVersion } from "$lib/types/market";
+	import type { ModrinthProjectFull, CurseForgeProject } from "$lib/types/types";
 
 	interface Props {
 		project: MarketProject;
@@ -35,7 +36,9 @@
 	let actionError = $state<string | null>(null);
 
 	const readmeHtml = $derived(
-		detail.fullProject?.body ? renderMarkdown(detail.fullProject.body) : "",
+		project.source !== "curseforge" && (detail.fullProject as ModrinthProjectFull | undefined)?.body
+			? renderMarkdown((detail.fullProject as ModrinthProjectFull).body!)
+			: "",
 	);
 
 	const versionOptions = $derived(
@@ -77,6 +80,13 @@
 	}
 
 	function openProjectUrl() {
+		if (project.source === "curseforge") {
+			const slug = (detail.fullProject as CurseForgeProject | undefined)?.slug ?? project.curseforge?.slug;
+			if (slug) {
+				openUrl(`https://curseforge.com/minecraft/mc-mods/${slug}`);
+			}
+			return;
+		}
 		const slug = detail.fullProject?.slug ?? project.modrinth?.slug;
 		if (slug) {
 			openUrl(`https://modrinth.com/mod/${slug}`);
@@ -120,38 +130,46 @@
 			{project.author || t("market.detail.unknownAuthor")}
 		</p>
 
-		<div class="market-detail-stats">
-			<div class="market-detail-stat">
-				<span class="market-detail-stat-label"
-					>{t("market.detail.downloads")}</span
-				>
-				<span class="market-detail-stat-value"
-					>{formatNumber(project.downloadCount)}</span
-				>
+		{#if project.source !== "local"}
+			<div class="market-detail-stats">
+				<div class="market-detail-stat">
+					<span class="market-detail-stat-label"
+						>{t("market.detail.downloads")}</span
+					>
+					<span class="market-detail-stat-value"
+						>{formatNumber(project.downloadCount)}</span
+					>
+				</div>
+				{#if detail.fullProject}
+					{#if project.source !== "curseforge"}
+						<div class="market-detail-stat">
+							<span class="market-detail-stat-label"
+								>{t("market.detail.followers")}</span
+							>
+							<span class="market-detail-stat-value"
+								>{formatNumber((detail.fullProject as ModrinthProjectFull).follows)}</span
+							>
+						</div>
+					{/if}
+					<div class="market-detail-stat">
+						<span class="market-detail-stat-label"
+							>{t("market.detail.updated")}</span
+						>
+						<span class="market-detail-stat-value"
+							>{formatDate(
+								project.source === "curseforge"
+									? (detail.fullProject as CurseForgeProject).dateModified
+									: (detail.fullProject as ModrinthProjectFull).date_modified,
+							)}</span
+						>
+					</div>
+				{/if}
 			</div>
-			{#if detail.fullProject}
-				<div class="market-detail-stat">
-					<span class="market-detail-stat-label"
-						>{t("market.detail.followers")}</span
-					>
-					<span class="market-detail-stat-value"
-						>{formatNumber(detail.fullProject.follows)}</span
-					>
-				</div>
-				<div class="market-detail-stat">
-					<span class="market-detail-stat-label"
-						>{t("market.detail.updated")}</span
-					>
-					<span class="market-detail-stat-value"
-						>{formatDate(detail.fullProject.date_modified)}</span
-					>
-				</div>
-			{/if}
-		</div>
+		{/if}
 
-		{#if detail.fullProject?.categories && detail.fullProject.categories.length > 0}
+		{#if project.source !== "curseforge" && (detail.fullProject as ModrinthProjectFull)?.categories?.length}
 			<div class="market-detail-tags">
-				{#each detail.fullProject.categories as category (category)}
+				{#each (detail.fullProject as ModrinthProjectFull).categories as category (category)}
 					<span class="market-detail-tag">{category}</span>
 				{/each}
 			</div>
@@ -239,26 +257,30 @@
 			</div>
 		{/if}
 
-		{#if detail.fullProject?.gallery && detail.fullProject.gallery.length > 0}
+		{#if project.source !== "curseforge" && (detail.fullProject as ModrinthProjectFull | undefined)?.gallery?.length}
 			<div class="market-detail-gallery">
 				<h4 class="market-detail-section-title">
 					{t("market.detail.gallery")}
 				</h4>
 				<div class="gallery-grid">
-					{#each detail.fullProject.gallery as image, i (i)}
+					{#each (detail.fullProject as ModrinthProjectFull).gallery as image, i (i)}
 						<img src={image} alt="Gallery {i + 1}" loading="lazy" />
 					{/each}
 				</div>
 			</div>
 		{/if}
 
-		<button
-			type="button"
-			class="market-detail-open-link"
-			onclick={openProjectUrl}
-		>
-			{t("market.detail.openOnModrinth")}
-		</button>
+		{#if project.source !== "local"}
+			<button
+				type="button"
+				class="market-detail-open-link"
+				onclick={openProjectUrl}
+			>
+				{project.source === "curseforge"
+					? t("market.detail.openOnCurseForge")
+					: t("market.detail.openOnModrinth")}
+			</button>
+		{/if}
 	</div>
 
 	{#if detail.loading && !detail.fullProject && detail.versions.length === 0}

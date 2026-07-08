@@ -5,11 +5,12 @@
 	import type {
 		MarketFilters,
 		MarketSort,
-		MarketSource,
 	} from "$lib/state/marketState.svelte";
+	import type { MarketSource, ContentType } from "$lib/types/market";
 
 	interface Props {
 		filters: MarketFilters;
+		contentType: ContentType;
 		loading: boolean;
 		onSourceChange: (source: MarketSource) => void;
 		onQueryChange: (query: string) => void;
@@ -20,6 +21,7 @@
 
 	let {
 		filters,
+		contentType = "mods",
 		loading,
 		onSourceChange,
 		onQueryChange,
@@ -27,6 +29,8 @@
 		onCategoryChange,
 		onRefresh,
 	}: Props = $props();
+
+	const isModContent = $derived(contentType === "mods");
 
 	const sorts: { value: MarketSort; label: string; icon: string }[] = [
 		{
@@ -62,11 +66,21 @@
 		<button
 			type="button"
 			class="filter-tab"
-			class:active={filters.source === "remote"}
-			onclick={() => onSourceChange("remote")}
+			class:active={filters.source === "modrinth"}
+			onclick={() => onSourceChange("modrinth")}
 		>
-			{t("market.filter.tabMarket")}
+			{t("market.filter.tabModrinth")}
 		</button>
+		{#if isModContent}
+			<button
+				type="button"
+				class="filter-tab"
+				class:active={filters.source === "curseforge"}
+				onclick={() => onSourceChange("curseforge")}
+			>
+				{t("market.filter.tabCurseForge")}
+			</button>
+		{/if}
 		<button
 			type="button"
 			class="filter-tab"
@@ -96,7 +110,9 @@
 			class="search-input"
 			placeholder={filters.source === "local"
 				? t("market.filter.searchLocal")
-				: t("market.filter.searchMarket")}
+				: filters.source === "curseforge"
+					? t("market.filter.searchCurseForge")
+					: t("market.filter.searchModrinth")}
 			value={filters.query}
 			oninput={(e) => onQueryChange(e.currentTarget.value)}
 		/>
@@ -140,7 +156,7 @@
 		</button>
 	</div>
 
-	{#if filters.source === "remote"}
+	{#if filters.source === "modrinth" && isModContent}
 		<div transition:slide={{ duration: 150 }}>
 			<div class="filter-section">
 				<span class="filter-label">{t("market.filter.sortBy")}</span>
