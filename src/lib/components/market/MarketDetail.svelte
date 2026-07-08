@@ -6,7 +6,10 @@
 	import { renderMarkdown } from "$lib/util/markdown";
 	import type { MarketDetailState } from "$lib/state/marketState.svelte";
 	import type { MarketProject, MarketVersion } from "$lib/types/market";
-	import type { ModrinthProjectFull, CurseForgeProject } from "$lib/types/types";
+	import type {
+		ModrinthProjectFull,
+		CurseForgeProject,
+	} from "$lib/types/types";
 
 	interface Props {
 		project: MarketProject;
@@ -36,7 +39,8 @@
 	let actionError = $state<string | null>(null);
 
 	const readmeHtml = $derived(
-		project.source !== "curseforge" && (detail.fullProject as ModrinthProjectFull | undefined)?.body
+		project.source !== "curseforge" &&
+			(detail.fullProject as ModrinthProjectFull | undefined)?.body
 			? renderMarkdown((detail.fullProject as ModrinthProjectFull).body!)
 			: "",
 	);
@@ -81,7 +85,9 @@
 
 	function openProjectUrl() {
 		if (project.source === "curseforge") {
-			const slug = (detail.fullProject as CurseForgeProject | undefined)?.slug ?? project.curseforge?.slug;
+			const slug =
+				(detail.fullProject as CurseForgeProject | undefined)?.slug ??
+				project.curseforge?.slug;
 			if (slug) {
 				openUrl(`https://curseforge.com/minecraft/mc-mods/${slug}`);
 			}
@@ -147,7 +153,10 @@
 								>{t("market.detail.followers")}</span
 							>
 							<span class="market-detail-stat-value"
-								>{formatNumber((detail.fullProject as ModrinthProjectFull).follows)}</span
+								>{formatNumber(
+									(detail.fullProject as ModrinthProjectFull)
+										.follows,
+								)}</span
 							>
 						</div>
 					{/if}
@@ -158,8 +167,11 @@
 						<span class="market-detail-stat-value"
 							>{formatDate(
 								project.source === "curseforge"
-									? (detail.fullProject as CurseForgeProject).dateModified
-									: (detail.fullProject as ModrinthProjectFull).date_modified,
+									? (detail.fullProject as CurseForgeProject)
+											.dateModified
+									: (
+											detail.fullProject as ModrinthProjectFull
+										).date_modified,
 							)}</span
 						>
 					</div>

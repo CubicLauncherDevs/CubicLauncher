@@ -56,14 +56,33 @@ export interface MarketDetailState {
 	error: string | null;
 }
 
-export function createMarketState(instance: InstanceDto, contentType: ContentType = "mods") {
+export function createMarketState(
+	instance: InstanceDto,
+	contentType: ContentType = "mods",
+) {
 	const parsed = parseInstanceVersion(instance);
 
 	const isModContent = contentType === "mods";
-	const localLoader = isModContent ? getInstanceMods : contentType === "resourcepacks" ? getInstanceResourcePacks : getInstanceShaderPacks;
-	const downloadFn = isModContent ? downloadMods : contentType === "resourcepacks" ? downloadResourcePacks : downloadShaderPacks;
-	const subDir = isModContent ? "mods" : contentType === "resourcepacks" ? "resourcepacks" : "shaderpacks";
-	const projectType = isModContent ? "mod" : contentType === "resourcepacks" ? "resourcepack" : "shader";
+	const localLoader = isModContent
+		? getInstanceMods
+		: contentType === "resourcepacks"
+			? getInstanceResourcePacks
+			: getInstanceShaderPacks;
+	const downloadFn = isModContent
+		? downloadMods
+		: contentType === "resourcepacks"
+			? downloadResourcePacks
+			: downloadShaderPacks;
+	const subDir = isModContent
+		? "mods"
+		: contentType === "resourcepacks"
+			? "resourcepacks"
+			: "shaderpacks";
+	const projectType = isModContent
+		? "mod"
+		: contentType === "resourcepacks"
+			? "resourcepack"
+			: "shader";
 
 	const filters = $state<MarketFilters>({
 		source: "modrinth",
@@ -250,7 +269,10 @@ export function createMarketState(instance: InstanceDto, contentType: ContentTyp
 			}
 
 			// Load metadata for mods to match by project_id
-			const localByProjectId: Record<string, { mod: ModDto; versionId?: string }> = {};
+			const localByProjectId: Record<
+				string,
+				{ mod: ModDto; versionId?: string }
+			> = {};
 			if (isModContent) {
 				const metadata = await getInstanceModsMetadata(instance.uuid);
 				for (const [filename, meta] of Object.entries(metadata ?? {})) {
@@ -304,7 +326,9 @@ export function createMarketState(instance: InstanceDto, contentType: ContentTyp
 					return market;
 				}
 				// Fallback: match by installed filename → project title/slug
-				for (const [filename, installedItem] of Object.entries(installedByFilename)) {
+				for (const [filename, installedItem] of Object.entries(
+					installedByFilename,
+				)) {
 					const modName = modNameFromFilename(filename);
 					if (
 						modName &&
@@ -375,7 +399,10 @@ export function createMarketState(instance: InstanceDto, contentType: ContentTyp
 
 			// Load local metadata to mark installed mods
 			const metadata = await getInstanceModsMetadata(instance.uuid);
-			const localByProjectId: Record<string, { mod: ModDto; versionId?: string }> = {};
+			const localByProjectId: Record<
+				string,
+				{ mod: ModDto; versionId?: string }
+			> = {};
 			for (const [filename, meta] of Object.entries(metadata ?? {})) {
 				localByProjectId[meta.project_id] = {
 					mod: {
@@ -433,7 +460,9 @@ export function createMarketState(instance: InstanceDto, contentType: ContentTyp
 					return market;
 				}
 				// Fallback: match by installed filename → project name/slug
-				for (const [filename, installedMod] of Object.entries(modsByFilename)) {
+				for (const [filename, installedMod] of Object.entries(
+					modsByFilename,
+				)) {
 					const modName = modNameFromFilename(filename);
 					if (
 						modName &&
@@ -489,8 +518,7 @@ export function createMarketState(instance: InstanceDto, contentType: ContentTyp
 		detail.versions = [];
 
 		if (project.source === "curseforge") {
-			const projectId =
-				project.curseforgeProjectId ?? project.id;
+			const projectId = project.curseforgeProjectId ?? project.id;
 			if (!projectId || isNaN(Number(projectId))) {
 				detail.loading = false;
 				return;
@@ -510,12 +538,14 @@ export function createMarketState(instance: InstanceDto, contentType: ContentTyp
 					detail.fullProject = full;
 				}
 
-			const installedFileId = project.curseforgeVersionId;
+				const installedFileId = project.curseforgeVersionId;
 				detail.versions = files.map((f) =>
 					curseforgeVersionToMarket(f, installedFileId),
 				);
 			} catch (e) {
-				detail.error = String(e ?? "Error loading CurseForge project details");
+				detail.error = String(
+					e ?? "Error loading CurseForge project details",
+				);
 			} finally {
 				detail.loading = false;
 			}
@@ -570,7 +600,9 @@ export function createMarketState(instance: InstanceDto, contentType: ContentTyp
 		if (detail.versions.length === 0) return null;
 
 		if (overrideVersionId) {
-			const overridden = detail.versions.find((v) => v.id === overrideVersionId);
+			const overridden = detail.versions.find(
+				(v) => v.id === overrideVersionId,
+			);
 			if (overridden) return overridden;
 		}
 
@@ -604,10 +636,11 @@ export function createMarketState(instance: InstanceDto, contentType: ContentTyp
 		if (project.source === "curseforge") {
 			const cfProjectId = project.curseforgeProjectId ?? project.id;
 			if (!fileUrl) {
-				fileUrl = await getCurseForgeFileDownloadUrl(
-					Number(cfProjectId),
-					Number(version.id),
-				) ?? "";
+				fileUrl =
+					(await getCurseForgeFileDownloadUrl(
+						Number(cfProjectId),
+						Number(version.id),
+					)) ?? "";
 			}
 			if (!fileUrl) return;
 
@@ -645,7 +678,8 @@ export function createMarketState(instance: InstanceDto, contentType: ContentTyp
 					await loadLocalItems();
 				}
 
-				const current = items.find((i) => i.id === project.id) ?? project;
+				const current =
+					items.find((i) => i.id === project.id) ?? project;
 				current.installedVersion = version.id;
 				current.curseforgeVersionId = version.id;
 				current.curseforgeProjectId = cfProjectId;
@@ -750,7 +784,8 @@ export function createMarketState(instance: InstanceDto, contentType: ContentTyp
 					item.installed &&
 					(item.id === project.id ||
 						item.modrinthProjectId === project.modrinthProjectId ||
-						item.curseforgeProjectId === project.curseforgeProjectId)
+						item.curseforgeProjectId ===
+							project.curseforgeProjectId)
 				) {
 					item.installed.enabled = newEnabled;
 					item.disabled = !newEnabled;
@@ -768,12 +803,7 @@ export function createMarketState(instance: InstanceDto, contentType: ContentTyp
 	}
 
 	function loadMore() {
-		if (
-			filters.source !== "local" &&
-			hasMore &&
-			!loading &&
-			!loadingMore
-		) {
+		if (filters.source !== "local" && hasMore && !loading && !loadingMore) {
 			performSearch(false);
 		}
 	}

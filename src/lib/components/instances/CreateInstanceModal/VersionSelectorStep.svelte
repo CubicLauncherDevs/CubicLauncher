@@ -12,7 +12,10 @@
 	import Select from "$lib/components/layout/Select.svelte";
 	import { t } from "$lib/i18n";
 	import { showError } from "$lib/state/state.svelte";
-	import type { ForgeGameVersion, NeoForgeGameVersion } from "$lib/types/types";
+	import type {
+		ForgeGameVersion,
+		NeoForgeGameVersion,
+	} from "$lib/types/types";
 
 	let {
 		selectedLoader = $bindable<string>("vanilla"),
@@ -72,7 +75,8 @@
 			const parsed = parseInstalledVersion(v);
 			if (!parsed) continue;
 			if (parsed.loader === "forge" || parsed.loader === "neoforge") {
-				const sep = parsed.loader === "neoforge" ? "-neoforge-" : "-forge-";
+				const sep =
+					parsed.loader === "neoforge" ? "-neoforge-" : "-forge-";
 				const idx = v.indexOf(sep);
 				if (idx >= 0) bases.add(v.substring(0, idx));
 			} else {

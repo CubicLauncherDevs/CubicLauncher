@@ -107,9 +107,13 @@ export function curseforgeVersionToMarket(
 		name: file.fileName,
 		versionNumber: file.fileName,
 		datePublished: file.fileDate,
-		loaders: file.modLoaders.map((l) => l.toLowerCase().replace("modloader-", "").replace("-", "")),
+		loaders: file.modLoaders.map((l) =>
+			l.toLowerCase().replace("modloader-", "").replace("-", ""),
+		),
 		gameVersions: file.gameVersions,
-		isInstalled: installedFileId !== undefined && file.id === Number(installedFileId),
+		isInstalled:
+			installedFileId !== undefined &&
+			file.id === Number(installedFileId),
 		primaryFileUrl: file.downloadUrl ?? "",
 		primaryFileName: file.fileName,
 		dependencies: [],
@@ -120,8 +124,14 @@ export function localModToMarket(
 	mod: ModDto,
 	metadata?: { project_id?: string; version_id?: string },
 ): MarketProject {
-	const isNumericId = metadata?.project_id ? /^\d+$/.test(metadata.project_id) : false;
-	const source: MarketSource = isNumericId ? "curseforge" : metadata?.project_id ? "modrinth" : "local";
+	const isNumericId = metadata?.project_id
+		? /^\d+$/.test(metadata.project_id)
+		: false;
+	const source: MarketSource = isNumericId
+		? "curseforge"
+		: metadata?.project_id
+			? "modrinth"
+			: "local";
 
 	return {
 		id: metadata?.project_id ?? `local-${mod.filename}`,

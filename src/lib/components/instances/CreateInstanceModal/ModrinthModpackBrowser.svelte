@@ -249,7 +249,7 @@
 						bind:value={selectedVersion}
 						disabled={loadingVersions || versions.length === 0}
 					>
-						{#each versions as v}
+						{#each versions as v (v)}
 							<option value={v.id}>
 								{v.version_number}
 								{#if v.game_versions.length > 0}
