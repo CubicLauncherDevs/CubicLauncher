@@ -29,8 +29,16 @@
 	}: Props = $props();
 
 	const sorts: { value: MarketSort; label: string; icon: string }[] = [
-		{ value: "downloads", label: t("market.filter.sortDownloads"), icon: "↓" },
-		{ value: "relevance", label: t("market.filter.sortRelevance"), icon: "◎" },
+		{
+			value: "downloads",
+			label: t("market.filter.sortDownloads"),
+			icon: "↓",
+		},
+		{
+			value: "relevance",
+			label: t("market.filter.sortRelevance"),
+			icon: "◎",
+		},
 		{ value: "newest", label: t("market.filter.sortNewest"), icon: "★" },
 		{ value: "updated", label: t("market.filter.sortUpdated"), icon: "↻" },
 	];
@@ -71,7 +79,14 @@
 
 	<div class="filter-row search-row">
 		<span class="search-icon">
-			<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<svg
+				width="15"
+				height="15"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+			>
 				<circle cx="11" cy="11" r="8" />
 				<path d="m21 21-4.35-4.35" />
 			</svg>
@@ -104,10 +119,21 @@
 			{#if loading}
 				<Loading class="filter-refresh-spinner" />
 			{:else}
-				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+				<svg
+					width="14"
+					height="14"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+				>
+					<path
+						d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+					/>
 					<path d="M3 3v5h5" />
-					<path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+					<path
+						d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"
+					/>
 					<path d="M16 16h5v5" />
 				</svg>
 			{/if}

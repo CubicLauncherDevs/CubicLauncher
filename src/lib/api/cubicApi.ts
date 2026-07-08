@@ -714,9 +714,10 @@ export async function getInstanceModsMetadata(
 	instanceId: string,
 ): Promise<Record<string, { project_id: string; version_id: string }> | null> {
 	try {
-		return await invoke<
-			Record<string, { project_id: string; version_id: string }> | null
-		>("get_instance_mods_metadata", { instanceId });
+		return await invoke<Record<
+			string,
+			{ project_id: string; version_id: string }
+		> | null>("get_instance_mods_metadata", { instanceId });
 	} catch (err) {
 		showErrorParsed(err);
 		return null;

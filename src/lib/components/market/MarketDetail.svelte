@@ -42,7 +42,9 @@
 		detail.versions.map((v) => ({
 			value: v.id,
 			label: `${v.versionNumber} — ${v.name}`,
-			subtitle: isVersionCompatible(v) ? "✓ Compatible" : v.gameVersions.slice(0, 2).join(", "),
+			subtitle: isVersionCompatible(v)
+				? "✓ Compatible"
+				: v.gameVersions.slice(0, 2).join(", "),
 		})),
 	);
 
@@ -90,7 +92,14 @@
 			onclick={onClose}
 			aria-label={t("market.detail.close")}
 		>
-			<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+			<svg
+				width="14"
+				height="14"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2.5"
+			>
 				<path d="M18 6 6 18M6 6l12 12" />
 			</svg>
 		</button>
@@ -107,22 +116,35 @@
 
 		<h3 class="market-detail-title">{project.title}</h3>
 		<p class="market-detail-author">
-			{t("market.detail.by")} {project.author || t("market.detail.unknownAuthor")}
+			{t("market.detail.by")}
+			{project.author || t("market.detail.unknownAuthor")}
 		</p>
 
 		<div class="market-detail-stats">
 			<div class="market-detail-stat">
-				<span class="market-detail-stat-label">{t("market.detail.downloads")}</span>
-				<span class="market-detail-stat-value">{formatNumber(project.downloadCount)}</span>
+				<span class="market-detail-stat-label"
+					>{t("market.detail.downloads")}</span
+				>
+				<span class="market-detail-stat-value"
+					>{formatNumber(project.downloadCount)}</span
+				>
 			</div>
 			{#if detail.fullProject}
 				<div class="market-detail-stat">
-					<span class="market-detail-stat-label">{t("market.detail.followers")}</span>
-					<span class="market-detail-stat-value">{formatNumber(detail.fullProject.follows)}</span>
+					<span class="market-detail-stat-label"
+						>{t("market.detail.followers")}</span
+					>
+					<span class="market-detail-stat-value"
+						>{formatNumber(detail.fullProject.follows)}</span
+					>
 				</div>
 				<div class="market-detail-stat">
-					<span class="market-detail-stat-label">{t("market.detail.updated")}</span>
-					<span class="market-detail-stat-value">{formatDate(detail.fullProject.date_modified)}</span>
+					<span class="market-detail-stat-label"
+						>{t("market.detail.updated")}</span
+					>
+					<span class="market-detail-stat-value"
+						>{formatDate(detail.fullProject.date_modified)}</span
+					>
 				</div>
 			{/if}
 		</div>
@@ -141,17 +163,23 @@
 					{#if detail.loading}
 						<Loading class="detail-version-spinner" />
 					{/if}
-					{detail.loading ? t("market.detail.loadingVersions") : t("market.detail.noVersions")}
+					{detail.loading
+						? t("market.detail.loadingVersions")
+						: t("market.detail.noVersions")}
 				</span>
 			{:else}
 				<div class="market-detail-version-row">
-					<span class="market-detail-version-label">{t("market.detail.version")}</span>
+					<span class="market-detail-version-label"
+						>{t("market.detail.version")}</span
+					>
 					<Dropdown
 						value={selectedVersion?.id ?? ""}
 						options={versionOptions}
 						placeholder={t("market.detail.selectVersion")}
 						onchange={(value) => {
-							const version = detail.versions.find((v) => v.id === value);
+							const version = detail.versions.find(
+								(v) => v.id === value,
+							);
 							if (version) onVersionSelect(version);
 						}}
 					/>
@@ -202,7 +230,9 @@
 
 		{#if readmeHtml}
 			<div class="market-detail-readme">
-				<h4 class="market-detail-section-title">{t("market.detail.readme")}</h4>
+				<h4 class="market-detail-section-title">
+					{t("market.detail.readme")}
+				</h4>
 				<div class="markdown-body">
 					{@html readmeHtml}
 				</div>
@@ -211,7 +241,9 @@
 
 		{#if detail.fullProject?.gallery && detail.fullProject.gallery.length > 0}
 			<div class="market-detail-gallery">
-				<h4 class="market-detail-section-title">{t("market.detail.gallery")}</h4>
+				<h4 class="market-detail-section-title">
+					{t("market.detail.gallery")}
+				</h4>
 				<div class="gallery-grid">
 					{#each detail.fullProject.gallery as image, i (i)}
 						<img src={image} alt="Gallery {i + 1}" loading="lazy" />

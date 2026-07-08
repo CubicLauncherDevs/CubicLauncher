@@ -19,7 +19,9 @@
 		onPlay: () => void;
 	} = $props();
 
-	const loaderIcon = $derived(`/images/instances/${instance.loader.toLowerCase()}.png`);
+	const loaderIcon = $derived(
+		`/images/instances/${instance.loader.toLowerCase()}.png`,
+	);
 
 	const statusLabel = $derived(
 		instance.status === "started"
@@ -58,29 +60,23 @@
 	});
 
 	let lastLog = $state("");
-	let lastLevel = $state("default");
-
-	function computeLevel(line: string): string {
-		const lower = line.toLowerCase();
-		if (lower.includes("[error]") || lower.includes("fatal") || lower.includes("exception") || lower.includes("stacktrace")) return "error";
-		if (lower.includes("[warn") || lower.includes("warning")) return "warn";
-		if (lower.includes("[info]")) return "info";
-		return "default";
-	}
 
 	$effect(() => {
 		const id = instance.uuid;
 		lastLog = "";
-		lastLevel = "default";
 		let destroyed = false;
 		const unlistenPromise = listen<{
 			id: string;
 			lines: { line: string; stream: string; timestamp: number }[];
 		}>("instance-log-batch", (event) => {
-			if (!destroyed && event.payload.id === id && event.payload.lines.length > 0) {
-				const last = event.payload.lines[event.payload.lines.length - 1];
+			if (
+				!destroyed &&
+				event.payload.id === id &&
+				event.payload.lines.length > 0
+			) {
+				const last =
+					event.payload.lines[event.payload.lines.length - 1];
 				lastLog = last.line;
-				lastLevel = last.stream === "stderr" ? "error" : computeLevel(last.line);
 			}
 		});
 		return () => {
@@ -119,35 +115,128 @@
 					<h1 class="instance-title">{instance.name}</h1>
 				</div>
 				<div class="actions-row">
-					<button type="button" class="action-btn" onclick={() => openDir()}>
-						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+					<button
+						type="button"
+						class="action-btn"
+						onclick={() => openDir()}
+					>
+						<svg
+							width="15"
+							height="15"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path
+								d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+							/>
 						</svg>
-						<span class="action-label">{t("instanceView.options.folder")}</span>
+						<span class="action-label"
+							>{t("instanceView.options.folder")}</span
+						>
 					</button>
-					<button type="button" class="action-btn" onclick={() => openDir("mods")}>
-						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+					<button
+						type="button"
+						class="action-btn"
+						onclick={() => openDir("mods")}
+					>
+						<svg
+							width="15"
+							height="15"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<rect x="3" y="3" width="7" height="7" /><rect
+								x="14"
+								y="3"
+								width="7"
+								height="7"
+							/><rect x="14" y="14" width="7" height="7" /><rect
+								x="3"
+								y="14"
+								width="7"
+								height="7"
+							/>
 						</svg>
-						<span class="action-label">{t("instanceView.tabs.mods")}</span>
+						<span class="action-label"
+							>{t("instanceView.tabs.mods")}</span
+						>
 					</button>
-					<button type="button" class="action-btn" onclick={() => openDir("screenshots")}>
-						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
+					<button
+						type="button"
+						class="action-btn"
+						onclick={() => openDir("screenshots")}
+					>
+						<svg
+							width="15"
+							height="15"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path
+								d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+							/><circle cx="12" cy="13" r="4" />
 						</svg>
-						<span class="action-label">{t("instanceView.tabs.screenshots")}</span>
+						<span class="action-label"
+							>{t("instanceView.tabs.screenshots")}</span
+						>
 					</button>
-					<button type="button" class="action-btn" onclick={() => openDir("resourcepacks")}>
-						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+					<button
+						type="button"
+						class="action-btn"
+						onclick={() => openDir("resourcepacks")}
+					>
+						<svg
+							width="15"
+							height="15"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<ellipse cx="12" cy="5" rx="9" ry="3" /><path
+								d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"
+							/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
 						</svg>
-						<span class="action-label">{t("instanceView.tabs.resources")}</span>
+						<span class="action-label"
+							>{t("instanceView.tabs.resources")}</span
+						>
 					</button>
-					<button type="button" class="action-btn" onclick={() => openLogs()}>
-						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
+					<button
+						type="button"
+						class="action-btn"
+						onclick={() => openLogs()}
+					>
+						<svg
+							width="15"
+							height="15"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<polyline points="16 18 22 12 16 6" /><polyline
+								points="8 6 2 12 8 18"
+							/>
 						</svg>
-						<span class="action-label">{t("instanceView.tabs.logs")}</span>
+						<span class="action-label"
+							>{t("instanceView.tabs.logs")}</span
+						>
 					</button>
 				</div>
 			</div>
@@ -155,31 +244,66 @@
 			<div class="extension-row">
 				<div class="extension-left">
 					<span class="meta-chip">
-						<img src={loaderIcon} alt={instance.loader} class="loader-icon" />
+						<img
+							src={loaderIcon}
+							alt={instance.loader}
+							class="loader-icon"
+						/>
 						{instance.version}
 					</span>
 					<span class="meta-sep">·</span>
 					<span class="inline-status {statusClass}">
 						{#if bannerState === "Starting"}
-							<svg class="status-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-								<circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10" />
+							<svg
+								class="status-spin"
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.5"
+							>
+								<circle
+									cx="12"
+									cy="12"
+									r="10"
+									stroke-dasharray="31.4"
+									stroke-dashoffset="10"
+								/>
 							</svg>
 						{:else if bannerState === "Started"}
-							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+							<svg
+								width="12"
+								height="12"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
 								<polyline points="20 6 9 17 4 12" />
 							</svg>
 						{/if}
 						<span class="status-text">{statusLabel}</span>
 						{#if bannerState === "Idle" || bannerState === "Error"}
-							<span class="log-snippet">{t("instanceView.status.offlineLog")}</span>
+							<span class="log-snippet"
+								>{t("instanceView.status.offlineLog")}</span
+							>
 						{:else}
-							<span class="log-snippet" title={lastLog}>{lastLog}</span>
+							<span class="log-snippet" title={lastLog}
+								>{lastLog}</span
+							>
 						{/if}
 					</span>
 				</div>
 				<div class="launch-area">
 					{#if bannerState == "Started"}
-						<button type="button" class="launch-btn" onclick={onPlay}>
+						<button
+							type="button"
+							class="launch-btn"
+							onclick={onPlay}
+						>
 							{t("instanceView.close")}
 						</button>
 					{:else if bannerState == "Starting"}
@@ -191,7 +315,11 @@
 							{t("instanceView.downloadingBtn")}
 						</button>
 					{:else}
-						<button type="button" class="launch-btn" onclick={onPlay}>
+						<button
+							type="button"
+							class="launch-btn"
+							onclick={onPlay}
+						>
 							{t("instanceView.playBtn")}
 						</button>
 					{/if}
@@ -200,29 +328,95 @@
 
 			<div class="details-row">
 				<div class="path-row">
-					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+					<svg
+						width="12"
+						height="12"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path
+							d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+						/>
 					</svg>
-					<span class="path-text" title={instance.path}>{instance.path}</span>
-					<button type="button" class="icon-btn" onclick={() => openDir()} title={t("instanceView.details.location")}>
-						<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+					<span class="path-text" title={instance.path}
+						>{instance.path}</span
+					>
+					<button
+						type="button"
+						class="icon-btn"
+						onclick={() => openDir()}
+						title={t("instanceView.details.location")}
+					>
+						<svg
+							width="13"
+							height="13"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path
+								d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+							/><polyline points="15 3 21 3 21 9" /><line
+								x1="10"
+								y1="14"
+								x2="21"
+								y2="3"
+							/>
 						</svg>
 					</button>
 				</div>
 				<div class="last-played">
-					<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+					<svg
+						width="12"
+						height="12"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<circle cx="12" cy="12" r="10" /><polyline
+							points="12 6 12 12 16 14"
+						/>
 					</svg>
-					<span>{t("instanceView.lastPlayed").replace("{date}", lastPlayedLabel)}</span>
+					<span
+						>{t("instanceView.lastPlayed").replace(
+							"{date}",
+							lastPlayedLabel,
+						)}</span
+					>
 				</div>
 			</div>
 		</div>
 	{:else}
 		<div class="compact-content">
-			<button type="button" class="back-btn" aria-label={t("instanceView.tabs.details")} onclick={() => (activeSection = "detalles")}>
-				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
+			<button
+				type="button"
+				class="back-btn"
+				aria-label={t("instanceView.tabs.details")}
+				onclick={() => (activeSection = "detalles")}
+			>
+				<svg
+					width="18"
+					height="18"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<line x1="19" y1="12" x2="5" y2="12" /><polyline
+						points="12 19 5 12 12 5"
+					/>
 				</svg>
 			</button>
 			<img
@@ -274,7 +468,11 @@
 		background: var(--bg-sidebar);
 		-webkit-backdrop-filter: blur(12px);
 		backdrop-filter: blur(12px);
-		-webkit-mask-image: linear-gradient(black 0%, black 30%, transparent 80%);
+		-webkit-mask-image: linear-gradient(
+			black 0%,
+			black 30%,
+			transparent 80%
+		);
 		mask-image: linear-gradient(black 0%, black 30%, transparent 80%);
 		border-bottom: 1px solid var(--border);
 	}
@@ -401,7 +599,10 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		transition: max-width 0.25s ease, opacity 0.25s ease, margin-left 0.25s ease;
+		transition:
+			max-width 0.25s ease,
+			opacity 0.25s ease,
+			margin-left 0.25s ease;
 		pointer-events: none;
 	}
 
@@ -416,8 +617,12 @@
 	}
 
 	@keyframes spin {
-		from { transform: rotate(0deg); }
-		to { transform: rotate(-360deg); }
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(-360deg);
+		}
 	}
 
 	.launch-area {
@@ -440,7 +645,9 @@
 		cursor: pointer;
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
-		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15), 0 4px 15px rgba(0, 0, 0, 0.3);
+		box-shadow:
+			inset 0 1px 3px rgba(0, 0, 0, 0.15),
+			0 4px 15px rgba(0, 0, 0, 0.3);
 		transition:
 			background 0.2s ease,
 			box-shadow 0.2s ease;
@@ -553,7 +760,9 @@
 		margin-left: 0;
 		opacity: 0;
 		overflow: hidden;
-		transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+		transition:
+			max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+			opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 		pointer-events: none;
 	}
 

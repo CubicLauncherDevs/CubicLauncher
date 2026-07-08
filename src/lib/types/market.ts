@@ -1,4 +1,11 @@
-import type { ModDto, ModrinthDependency, ModrinthProject, ModrinthProjectFull, ModrinthVersion, InstanceDto } from "./types";
+import type {
+	ModDto,
+	ModrinthDependency,
+	ModrinthProject,
+	ModrinthProjectFull,
+	ModrinthVersion,
+	InstanceDto,
+} from "./types";
 
 export type MarketSource = "local" | "modrinth" | "curseforge";
 
@@ -56,7 +63,9 @@ export interface MarketDetailData {
 	error: string | null;
 }
 
-export function modrinthProjectToMarket(project: ModrinthProject): MarketProject {
+export function modrinthProjectToMarket(
+	project: ModrinthProject,
+): MarketProject {
 	return {
 		id: project.project_id,
 		title: project.title,
@@ -105,13 +114,15 @@ export function parseInstanceVersion(instance: InstanceDto): {
 
 	if (lower.startsWith("fabric-loader-")) {
 		const lastDash = version.lastIndexOf("-");
-		const gameVersion = lastDash !== -1 ? version.slice(lastDash + 1) : version;
+		const gameVersion =
+			lastDash !== -1 ? version.slice(lastDash + 1) : version;
 		return { loader: "fabric", gameVersion };
 	}
 
 	if (lower.startsWith("quilt-loader-")) {
 		const lastDash = version.lastIndexOf("-");
-		const gameVersion = lastDash !== -1 ? version.slice(lastDash + 1) : version;
+		const gameVersion =
+			lastDash !== -1 ? version.slice(lastDash + 1) : version;
 		return { loader: "quilt", gameVersion };
 	}
 
@@ -132,7 +143,8 @@ export function modrinthVersionToMarket(
 	version: ModrinthVersion,
 	installedVersionId?: string,
 ): MarketVersion {
-	const primaryFile = version.files.find((f) => f.primary) ?? version.files[0];
+	const primaryFile =
+		version.files.find((f) => f.primary) ?? version.files[0];
 
 	return {
 		id: version.id,
@@ -144,11 +156,15 @@ export function modrinthVersionToMarket(
 		isInstalled: version.id === installedVersionId,
 		primaryFileUrl: primaryFile?.url ?? "",
 		primaryFileName: primaryFile?.filename ?? "",
-		dependencies: (version.dependencies ?? []).map(modrinthDependencyToMarket),
+		dependencies: (version.dependencies ?? []).map(
+			modrinthDependencyToMarket,
+		),
 	};
 }
 
-export function modrinthDependencyToMarket(dep: ModrinthDependency): MarketDependency {
+export function modrinthDependencyToMarket(
+	dep: ModrinthDependency,
+): MarketDependency {
 	return {
 		projectId: dep.project_id ?? "",
 		versionId: dep.version_id,

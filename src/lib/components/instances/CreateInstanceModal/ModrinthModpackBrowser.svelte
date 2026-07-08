@@ -6,10 +6,7 @@
 		downloadMrpack,
 		installMrpackWithUpstream,
 	} from "$lib/api/cubicApi";
-	import type {
-		ModrinthProject,
-		ModrinthVersion,
-	} from "$lib/types/types";
+	import type { ModrinthProject, ModrinthVersion } from "$lib/types/types";
 	import Loading from "$lib/icons/Loading.svelte";
 
 	let {
@@ -95,7 +92,8 @@
 		try {
 			const ver = versions.find((v) => v.id === selectedVersion);
 			if (!ver) throw new Error("Version not found");
-			const primaryFile = ver.files.find((f) => f.primary) ?? ver.files[0];
+			const primaryFile =
+				ver.files.find((f) => f.primary) ?? ver.files[0];
 			if (!primaryFile) throw new Error("No file found in version");
 
 			installStep = t("createInstance.downloadingModpack");
@@ -188,7 +186,8 @@
 						<button
 							type="button"
 							class="pack-card"
-							class:selected={selectedPack?.project_id === pack.project_id}
+							class:selected={selectedPack?.project_id ===
+								pack.project_id}
 							onclick={() => selectPack(pack)}
 						>
 							<div class="pack-icon-wrap">
@@ -202,7 +201,8 @@
 							</div>
 							<div class="pack-info">
 								<span class="pack-title">{pack.title}</span>
-								<span class="pack-desc">{pack.description}</span>
+								<span class="pack-desc">{pack.description}</span
+								>
 								<span class="pack-meta">
 									{formatDownloads(pack.downloads)}
 									{t("createInstance.downloads")}
@@ -236,9 +236,7 @@
 					{/if}
 					<div class="detail-title-group">
 						<h3>{selectedPack.title}</h3>
-						<span class="detail-author"
-							>{selectedPack.author}</span
-						>
+						<span class="detail-author">{selectedPack.author}</span>
 					</div>
 				</div>
 				<p class="detail-desc">{selectedPack.description}</p>
@@ -373,7 +371,9 @@
 		cursor: pointer;
 		text-align: left;
 		width: 100%;
-		transition: background 0.15s ease, border-color 0.15s ease;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease;
 	}
 
 	.pack-card:hover {

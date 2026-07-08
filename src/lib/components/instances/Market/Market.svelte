@@ -68,14 +68,13 @@
 					{project}
 					selected={project.id === state.selectedId}
 					onSelect={() => state.selectProject(project.id)}
-					onInstall={
-						state.filters.source === "remote" && !project.installed
-							? () => {
-									const version = state.selectedVersion();
-									if (version) state.install(project, version);
-							  }
-							: undefined
-					}
+					onInstall={state.filters.source === "remote" &&
+					!project.installed
+						? () => {
+								const version = state.selectedVersion();
+								if (version) state.install(project, version);
+							}
+						: undefined}
 				/>
 			{/if}
 		{/snippet}
@@ -84,11 +83,11 @@
 			{#if state.selectedProject}
 				{@const project = state.selectedProject}
 				<MarketDetail
-					project={project}
+					{project}
 					detail={state.detail}
 					selectedVersion={state.selectedVersion()}
 					isVersionCompatible={state.isVersionCompatible}
-					onVersionSelect={(v) => {}}
+					onVersionSelect={state.setSelectedVersion}
 					onInstall={() => {
 						const version = state.selectedVersion();
 						if (version) return state.install(project, version);

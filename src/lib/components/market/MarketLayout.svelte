@@ -70,7 +70,9 @@
 						<span>Loading more...</span>
 					</div>
 				{:else if !hasMore && items.length > 0}
-					<div class="market-list-end">— {items.length} results —</div>
+					<div class="market-list-end">
+						— {items.length} results —
+					</div>
 				{/if}
 			{/if}
 
@@ -92,7 +94,9 @@
 						<span class="market-empty-icon">
 							<Lupa width="32" height="32" />
 						</span>
-						<p class="market-empty-title">{t("market.detail.noSelection")}</p>
+						<p class="market-empty-title">
+							{t("market.detail.noSelection")}
+						</p>
 					</div>
 				{/if}
 			</div>

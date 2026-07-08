@@ -35,7 +35,10 @@
 	);
 
 	$effect(() => {
-		if (!supportsMods && (activeSection === "market" || activeSection === "shaderpacks")) {
+		if (
+			!supportsMods &&
+			(activeSection === "market" || activeSection === "shaderpacks")
+		) {
 			activeSection = "detalles";
 		}
 	});
@@ -50,9 +53,7 @@
 
 	$effect(() => {
 		if (activeSection === "market" && !Market) {
-			import("../Market/Market.svelte").then(
-				(m) => (Market = m.default),
-			);
+			import("../Market/Market.svelte").then((m) => (Market = m.default));
 		} else if (activeSection === "resources" && !ResourcePacksTab) {
 			import("../ResourcePacks/ResourcePacks.svelte").then(
 				(m) => (ResourcePacksTab = m.default),
@@ -84,64 +85,94 @@
 
 	<div class="tab-content" bind:this={tabContentEl}>
 		{#key activeSection}
-			<div in:fade={{ duration: 150, delay: 250 }} out:fade={{ duration: 150 }}>
+			<div
+				in:fade={{ duration: 150, delay: 250 }}
+				out:fade={{ duration: 150 }}
+			>
 				{#if activeSection === "detalles"}
 					<div class="nav-card">
 						<span class="nav-card-header">
-							<span class="nav-card-title">{t("instanceView.tabs.details")}</span>
+							<span class="nav-card-title"
+								>{t("instanceView.tabs.details")}</span
+							>
 						</span>
 						<div class="nav-items">
-						{#if supportsMods}
+							{#if supportsMods}
+								<button
+									type="button"
+									class="nav-item priority"
+									onclick={() => (activeSection = "market")}
+								>
+									<span class="nav-icon"
+										><GridIcon size={18} /></span
+									>
+									<span class="nav-label"
+										>{t("instanceView.tabs.market")}</span
+									>
+									<span class="nav-chevron"
+										><ChevronRightIcon size={14} /></span
+									>
+								</button>
+							{/if}
 							<button
 								type="button"
 								class="nav-item priority"
-								onclick={() => (activeSection = "market")}
+								onclick={() => (activeSection = "resources")}
 							>
-								<span class="nav-icon"><GridIcon size={18} /></span>
-								<span class="nav-label">{t("instanceView.tabs.market")}</span>
-								<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
+								<span class="nav-icon"
+									><BoxIcon size={18} /></span
+								>
+								<span class="nav-label"
+									>{t("instanceView.tabs.resources")}</span
+								>
+								<span class="nav-chevron"
+									><ChevronRightIcon size={14} /></span
+								>
 							</button>
-						{/if}
-						<button
-							type="button"
-							class="nav-item priority"
-							onclick={() => (activeSection = "resources")}
-						>
-							<span class="nav-icon"><BoxIcon size={18} /></span>
-							<span class="nav-label">{t("instanceView.tabs.resources")}</span>
-							<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
-						</button>
-						<button
-							type="button"
-							class="nav-item"
-							class:secondary={supportsMods}
-							onclick={() => (activeSection = "screenshots")}
-						>
-								<span class="nav-icon"><ImageIcon size={18} /></span>
-								<span class="nav-label">{t("instanceView.tabs.screenshots")}</span>
-								<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
+							<button
+								type="button"
+								class="nav-item"
+								class:secondary={supportsMods}
+								onclick={() => (activeSection = "screenshots")}
+							>
+								<span class="nav-icon"
+									><ImageIcon size={18} /></span
+								>
+								<span class="nav-label"
+									>{t("instanceView.tabs.screenshots")}</span
+								>
+								<span class="nav-chevron"
+									><ChevronRightIcon size={14} /></span
+								>
 							</button>
 							{#if supportsShaders}
 								<button
 									type="button"
 									class="nav-item secondary"
-									onclick={() => (activeSection = "shaderpacks")}
+									onclick={() =>
+										(activeSection = "shaderpacks")}
 								>
-									<span class="nav-icon"><ShaderIcon size={18} /></span>
-									<span class="nav-label">{t("instanceView.tabs.shaderpacks")}</span>
-									<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
+									<span class="nav-icon"
+										><ShaderIcon size={18} /></span
+									>
+									<span class="nav-label"
+										>{t(
+											"instanceView.tabs.shaderpacks",
+										)}</span
+									>
+									<span class="nav-chevron"
+										><ChevronRightIcon size={14} /></span
+									>
 								</button>
 							{/if}
 						</div>
 					</div>
-
 				{:else if activeSection === "market"}
 					{#key selectedInstance.uuid}
 						{#if Market}
 							<Market instance={selectedInstance} />
 						{/if}
 					{/key}
-
 				{:else if activeSection === "resources"}
 					{#if ResourcePacksTab}
 						<ResourcePacksTab
@@ -151,12 +182,10 @@
 							{supportsShaders}
 						/>
 					{/if}
-
 				{:else if activeSection === "screenshots"}
 					{#if ScreenshotsTab}
 						<ScreenshotsTab instance={selectedInstance} />
 					{/if}
-
 				{/if}
 			</div>
 		{/key}
@@ -237,7 +266,9 @@
 		font-size: 0.82rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: background 0.12s ease, color 0.12s ease;
+		transition:
+			background 0.12s ease,
+			color 0.12s ease;
 		text-align: left;
 		width: 100%;
 	}
@@ -247,7 +278,11 @@
 	}
 
 	.nav-item:hover {
-		background: color-mix(in srgb, var(--bg-sidebar) 100%, var(--text-primary) 2%);
+		background: color-mix(
+			in srgb,
+			var(--bg-sidebar) 100%,
+			var(--text-primary) 2%
+		);
 		color: var(--text-primary);
 	}
 
@@ -270,7 +305,9 @@
 		display: flex;
 		flex-shrink: 0;
 		opacity: 0.4;
-		transition: transform 0.15s ease, opacity 0.15s ease;
+		transition:
+			transform 0.15s ease,
+			opacity 0.15s ease;
 	}
 
 	.nav-item:hover .nav-chevron {

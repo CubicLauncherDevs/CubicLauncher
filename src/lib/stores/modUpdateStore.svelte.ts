@@ -30,24 +30,28 @@ export function useModUpdates() {
 			if (entries.length === 0) return [];
 
 			const hashes: string[] = [];
-			const hashToSource = new Map<string, ModFileSource>();
+			const hashToSource: Record<string, ModFileSource> = {};
 			for (const [filename, src] of entries) {
 				const mod = mods.find((m) => m.filename === filename);
 				if (mod) {
 					hashes.push(filename);
-					hashToSource.set(filename, { ...src, filename });
+					hashToSource[filename] = { ...src, filename };
 				}
 			}
 
 			if (hashes.length === 0) return [];
 
 			const loaders = ["fabric", "forge", "neoforge", "quilt"];
-			const result = await getModrinthLatestVersions(hashes, "sha1", loaders);
+			const result = await getModrinthLatestVersions(
+				hashes,
+				"sha1",
+				loaders,
+			);
 			if (!result) return [];
 
 			const updates: ModUpdateInfo[] = [];
 			for (const [hash, version] of Object.entries(result)) {
-				const src = hashToSource.get(hash);
+				const src = hashToSource[hash];
 				if (!src) continue;
 				const isNewer = version.id !== src.version_id;
 				const mod = mods.find((m) => m.filename === src.filename);

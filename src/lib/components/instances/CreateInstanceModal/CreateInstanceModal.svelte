@@ -401,7 +401,8 @@
 						class="btn-primary"
 						onclick={handleFinalAction}
 						disabled={loading ||
-							(tab === "import" && (!mrpackPath || !name.trim())) ||
+							(tab === "import" &&
+								(!mrpackPath || !name.trim())) ||
 							(tab === "manual" && !finalVersionId)}
 					>
 						{loading
@@ -447,7 +448,9 @@
 		font-size: 0.78rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: color 0.15s ease, border-color 0.15s ease,
+		transition:
+			color 0.15s ease,
+			border-color 0.15s ease,
 			background 0.15s ease;
 	}
 

@@ -16,7 +16,11 @@ import {
 	type MarketProject,
 	type MarketVersion,
 } from "$lib/types/market";
-import type { InstanceDto, ModDto, ModrinthProjectFull } from "$lib/types/types";
+import type {
+	InstanceDto,
+	ModDto,
+	ModrinthProjectFull,
+} from "$lib/types/types";
 
 const PAGE_SIZE = 20;
 
@@ -66,6 +70,7 @@ export function createMarketState(instance: InstanceDto) {
 		error: null,
 	});
 
+	let overrideVersionId = $state<string | null>(null);
 	let abortController: AbortController | null = null;
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -90,6 +95,7 @@ export function createMarketState(instance: InstanceDto) {
 		filters.sort = "downloads";
 		resetPagination();
 		selectedId = null;
+		overrideVersionId = null;
 		detail.fullProject = undefined;
 		detail.versions = [];
 		detail.loading = false;
@@ -120,24 +126,26 @@ export function createMarketState(instance: InstanceDto) {
 			});
 
 			// Enrich local mods that have a projectId with Modrinth data
-			const ids = [
-				...new Set(
-					mapped
-						.filter((m) => m.modrinthProjectId)
-						.map((m) => m.modrinthProjectId!),
-				),
-			];
+			const seen: Record<string, true> = {};
+			const ids: string[] = [];
+			for (const m of mapped) {
+				const pid = m.modrinthProjectId;
+				if (pid && !seen[pid]) {
+					seen[pid] = true;
+					ids.push(pid);
+				}
+			}
 			if (ids.length > 0) {
 				const projects = await Promise.all(
 					ids.map((id) => getModrinthProject(id)),
 				);
-				const projectMap = new Map<string, ModrinthProjectFull>();
+				const projectMap: Record<string, ModrinthProjectFull> = {};
 				for (const p of projects) {
-					if (p) projectMap.set(p.id, p);
+					if (p) projectMap[p.id] = p;
 				}
 				for (const item of mapped) {
 					if (item.modrinthProjectId) {
-						const full = projectMap.get(item.modrinthProjectId);
+						const full = projectMap[item.modrinthProjectId];
 						if (full) {
 							item.title = full.title;
 							item.description = full.description;
@@ -210,19 +218,24 @@ export function createMarketState(instance: InstanceDto) {
 
 			// Load local metadata to mark installed mods by project id
 			const metadata = await getInstanceModsMetadata(instance.uuid);
-			const localByProjectId = new Map<string, { mod: ModDto; versionId?: string }>();
+			const localByProjectId: Record<string, { mod: ModDto; versionId?: string }> = {};
 			for (const [filename, meta] of Object.entries(metadata ?? {})) {
-				localByProjectId.set(meta.project_id, {
-					mod: { name: filename, filename, version: meta.version_id, enabled: true } as ModDto,
+				localByProjectId[meta.project_id] = {
+					mod: {
+						name: filename,
+						filename,
+						version: meta.version_id,
+						enabled: true,
+					} as ModDto,
 					versionId: meta.version_id,
-				});
+				};
 			}
 
 			// Load instance mods for filename-based fallback matching
 			const instanceMods = await getInstanceMods(instance.uuid);
-			const modsByFilename = new Map<string, ModDto>();
+			const modsByFilename: Record<string, ModDto> = {};
 			for (const m of instanceMods ?? []) {
-				modsByFilename.set(m.filename.toLowerCase(), m);
+				modsByFilename[m.filename.toLowerCase()] = m;
 			}
 
 			function modNameFromFilename(filename: string): string {
@@ -236,16 +249,25 @@ export function createMarketState(instance: InstanceDto) {
 					.toLowerCase();
 			}
 
-			function nameMatchesSearch(name: string, hitTitle: string, hitSlug: string): boolean {
+			function nameMatchesSearch(
+				name: string,
+				hitTitle: string,
+				hitSlug: string,
+			): boolean {
 				const norm = name.toLowerCase();
 				const title = hitTitle.toLowerCase();
 				const slug = hitSlug.toLowerCase();
-				return title.includes(norm) || slug.includes(norm) || norm.includes(title) || norm.includes(slug);
+				return (
+					title.includes(norm) ||
+					slug.includes(norm) ||
+					norm.includes(title) ||
+					norm.includes(slug)
+				);
 			}
 
 			const mapped = result.hits.map((hit) => {
 				const market = modrinthProjectToMarket(hit);
-				const local = localByProjectId.get(hit.project_id);
+				const local = localByProjectId[hit.project_id];
 				if (local) {
 					market.installed = local.mod;
 					market.installedVersion = local.versionId;
@@ -254,9 +276,12 @@ export function createMarketState(instance: InstanceDto) {
 					return market;
 				}
 				// Fallback: match by installed filename → project title/slug
-				for (const [filename, installedMod] of modsByFilename) {
+				for (const [filename, installedMod] of Object.entries(modsByFilename)) {
 					const modName = modNameFromFilename(filename);
-					if (modName && nameMatchesSearch(modName, hit.title, hit.slug)) {
+					if (
+						modName &&
+						nameMatchesSearch(modName, hit.title, hit.slug)
+					) {
 						market.installed = installedMod;
 						market.modrinthProjectId = hit.project_id;
 						break;
@@ -299,10 +324,13 @@ export function createMarketState(instance: InstanceDto) {
 	async function loadDetail(project: MarketProject) {
 		detail.loading = true;
 		detail.error = null;
+		overrideVersionId = null;
 		detail.fullProject = undefined;
 		detail.versions = [];
 
-		const projectId = project.modrinthProjectId ?? (project.source === "modrinth" ? project.id : undefined);
+		const projectId =
+			project.modrinthProjectId ??
+			(project.source === "modrinth" ? project.id : undefined);
 		if (!projectId) {
 			detail.loading = false;
 			return;
@@ -311,7 +339,11 @@ export function createMarketState(instance: InstanceDto) {
 		try {
 			const [full, versions] = await Promise.all([
 				getModrinthProject(projectId),
-				getModrinthProjectVersions(projectId, filters.loader, filters.gameVersion),
+				getModrinthProjectVersions(
+					projectId,
+					filters.loader,
+					filters.gameVersion,
+				),
 			]);
 
 			if (full) {
@@ -343,6 +375,11 @@ export function createMarketState(instance: InstanceDto) {
 	function selectedVersion(): MarketVersion | null {
 		if (detail.versions.length === 0) return null;
 
+		if (overrideVersionId) {
+			const overridden = detail.versions.find((v) => v.id === overrideVersionId);
+			if (overridden) return overridden;
+		}
+
 		const installed = detail.versions.find((v) => v.isInstalled);
 		if (installed) return installed;
 
@@ -350,10 +387,14 @@ export function createMarketState(instance: InstanceDto) {
 			(v) =>
 				v.gameVersions.includes(filters.gameVersion) &&
 				v.loaders.includes(filters.loader),
-			);
+		);
 		if (compatible) return compatible;
 
 		return detail.versions[0];
+	}
+
+	function setSelectedVersion(version: MarketVersion) {
+		overrideVersionId = version.id;
 	}
 
 	function isVersionCompatible(version: MarketVersion): boolean {
@@ -379,7 +420,10 @@ export function createMarketState(instance: InstanceDto) {
 
 			// Mark installed on all matching items in-place
 			for (const item of items) {
-				if (item.id === project.id || item.modrinthProjectId === projectId) {
+				if (
+					item.id === project.id ||
+					item.modrinthProjectId === projectId
+				) {
 					item.installed = {
 						name: version.primaryFileName,
 						filename: version.primaryFileName,
@@ -413,10 +457,17 @@ export function createMarketState(instance: InstanceDto) {
 	async function uninstall(project: MarketProject) {
 		if (!project.installed) return;
 		try {
-			await deleteInstanceFile(instance.uuid, "mods", project.installed.filename);
+			await deleteInstanceFile(
+				instance.uuid,
+				"mods",
+				project.installed.filename,
+			);
 			// Remove installed state from all matching items
 			for (const item of items) {
-				if (item.id === project.id || item.modrinthProjectId === project.modrinthProjectId) {
+				if (
+					item.id === project.id ||
+					item.modrinthProjectId === project.modrinthProjectId
+				) {
 					item.installed = undefined;
 					item.installedVersion = undefined;
 					item.modrinthVersionId = undefined;
@@ -435,10 +486,18 @@ export function createMarketState(instance: InstanceDto) {
 		if (!project.installed) return;
 		const newEnabled = !project.installed.enabled;
 		try {
-			await toggleInstanceMod(instance.uuid, project.installed.filename, newEnabled);
+			await toggleInstanceMod(
+				instance.uuid,
+				project.installed.filename,
+				newEnabled,
+			);
 			// Update enabled state in all matching items
 			for (const item of items) {
-				if (item.installed && (item.id === project.id || item.modrinthProjectId === project.modrinthProjectId)) {
+				if (
+					item.installed &&
+					(item.id === project.id ||
+						item.modrinthProjectId === project.modrinthProjectId)
+				) {
 					item.installed.enabled = newEnabled;
 					item.disabled = !newEnabled;
 				}
@@ -455,7 +514,12 @@ export function createMarketState(instance: InstanceDto) {
 	}
 
 	function loadMore() {
-		if (filters.source === "remote" && hasMore && !loading && !loadingMore) {
+		if (
+			filters.source === "remote" &&
+			hasMore &&
+			!loading &&
+			!loadingMore
+		) {
 			performSearch(false);
 		}
 	}
@@ -493,17 +557,38 @@ export function createMarketState(instance: InstanceDto) {
 	});
 
 	return {
-		get filters() { return filters; },
-		get items() { return items; },
-		get total() { return total; },
-		get loading() { return loading; },
-		get loadingMore() { return loadingMore; },
-		get error() { return error; },
-		get hasMore() { return hasMore; },
-		get selectedId() { return selectedId; },
-		get selectedProject() { return selectedProject; },
-		get detail() { return detail; },
+		get filters() {
+			return filters;
+		},
+		get items() {
+			return items;
+		},
+		get total() {
+			return total;
+		},
+		get loading() {
+			return loading;
+		},
+		get loadingMore() {
+			return loadingMore;
+		},
+		get error() {
+			return error;
+		},
+		get hasMore() {
+			return hasMore;
+		},
+		get selectedId() {
+			return selectedId;
+		},
+		get selectedProject() {
+			return selectedProject;
+		},
+		get detail() {
+			return detail;
+		},
 		selectedVersion,
+		setSelectedVersion,
 		isVersionCompatible,
 		setSource,
 		setQuery,

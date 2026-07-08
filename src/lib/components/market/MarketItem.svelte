@@ -81,7 +81,8 @@
 		</div>
 
 		<span class="market-item-author">
-			{t("market.item.by")} {project.author || t("market.item.unknownAuthor")}
+			{t("market.item.by")}
+			{project.author || t("market.item.unknownAuthor")}
 		</span>
 
 		<p class="market-item-description" title={project.description}>
@@ -97,7 +98,9 @@
 		{/if}
 
 		{#if project.installed}
-			<span class="market-item-installed-badge">{t("market.item.installed")}</span>
+			<span class="market-item-installed-badge"
+				>{t("market.item.installed")}</span
+			>
 		{:else if onInstall}
 			<button
 				type="button"
@@ -105,11 +108,11 @@
 				disabled={installing}
 				onclick={handleInstall}
 			>
-			{#if installing}
-				<Loading class="item-install-spinner" />
-			{:else}
-				{t("market.item.install")}
-			{/if}
+				{#if installing}
+					<Loading class="item-install-spinner" />
+				{:else}
+					{t("market.item.install")}
+				{/if}
 			</button>
 		{/if}
 	</div>
