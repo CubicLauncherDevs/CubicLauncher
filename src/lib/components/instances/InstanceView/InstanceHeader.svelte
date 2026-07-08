@@ -4,6 +4,7 @@
 	import { listen } from "@tauri-apps/api/event";
 	import type { InstanceDto } from "$lib/types/types";
 	import { launcherStore } from "$lib/state/state.svelte";
+	import { getLoaderLogo } from "$lib/icons/logos";
 
 	let {
 		instance,
@@ -19,9 +20,7 @@
 		onPlay: () => void;
 	} = $props();
 
-	const loaderIcon = $derived(
-		`/images/instances/${instance.loader.toLowerCase()}.png`,
-	);
+	const loaderIcon = $derived(getLoaderLogo(instance.loader));
 
 	const statusLabel = $derived(
 		instance.status === "started"
