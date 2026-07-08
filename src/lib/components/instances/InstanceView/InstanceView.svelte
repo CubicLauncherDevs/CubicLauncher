@@ -7,7 +7,6 @@
 	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 	import InstanceHeader from "./InstanceHeader.svelte";
 	import GridIcon from "$lib/icons/GridIcon.svelte";
-	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
 	import BoxIcon from "$lib/icons/BoxIcon.svelte";
 	import ImageIcon from "$lib/icons/ImageIcon.svelte";
 	import ShaderIcon from "$lib/icons/ShaderIcon.svelte";
@@ -36,29 +35,23 @@
 	);
 
 	$effect(() => {
-		if (!supportsMods && (activeSection === "mods" || activeSection === "download_mods" || activeSection === "shaderpacks")) {
+		if (!supportsMods && (activeSection === "market" || activeSection === "shaderpacks")) {
 			activeSection = "detalles";
 		}
 	});
 
-	import type ModsRowType from "../ModsRow/ModsRow.svelte";
-	import type DownloadModsType from "../DownloadMods/DownloadMods.svelte";
+	import type MarketType from "../Market/Market.svelte";
 	import type ResourcePacksTabType from "../ResourcePacks/ResourcePacks.svelte";
 	import type ScreenshotsTabType from "../ScreenshotsTab.svelte";
 
-	let ModsRow: typeof ModsRowType | null = $state(null);
-	let DownloadMods: typeof DownloadModsType | null = $state(null);
+	let Market: typeof MarketType | null = $state(null);
 	let ResourcePacksTab: typeof ResourcePacksTabType | null = $state(null);
 	let ScreenshotsTab: typeof ScreenshotsTabType | null = $state(null);
 
 	$effect(() => {
-		if (activeSection === "mods" && !ModsRow) {
-			import("../ModsRow/ModsRow.svelte").then(
-				(m) => (ModsRow = m.default),
-			);
-		} else if (activeSection === "download_mods" && !DownloadMods) {
-			import("../DownloadMods/DownloadMods.svelte").then(
-				(m) => (DownloadMods = m.default),
+		if (activeSection === "market" && !Market) {
+			import("../Market/Market.svelte").then(
+				(m) => (Market = m.default),
 			);
 		} else if (activeSection === "resources" && !ResourcePacksTab) {
 			import("../ResourcePacks/ResourcePacks.svelte").then(
@@ -98,43 +91,32 @@
 							<span class="nav-card-title">{t("instanceView.tabs.details")}</span>
 						</span>
 						<div class="nav-items">
-							{#if supportsMods}
-								<button
-									type="button"
-									class="nav-item priority"
-									onclick={() => (activeSection = "mods")}
-								>
-									<span class="nav-icon"><GridIcon size={18} /></span>
-									<span class="nav-label">{t("instanceView.tabs.mods")}</span>
-									<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
-								</button>
-							{/if}
+						{#if supportsMods}
 							<button
 								type="button"
 								class="nav-item priority"
-								onclick={() => (activeSection = "resources")}
+								onclick={() => (activeSection = "market")}
 							>
-								<span class="nav-icon"><BoxIcon size={18} /></span>
-								<span class="nav-label">{t("instanceView.tabs.resources")}</span>
+								<span class="nav-icon"><GridIcon size={18} /></span>
+								<span class="nav-label">{t("instanceView.tabs.market")}</span>
 								<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
 							</button>
-							{#if supportsMods}
-								<button
-									type="button"
-									class="nav-item secondary"
-									onclick={() => (activeSection = "download_mods")}
-								>
-									<span class="nav-icon"><DownloadIcon size={18} /></span>
-									<span class="nav-label">{t("instanceView.tabs.downloadMods") || "Get Mods"}</span>
-									<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
-								</button>
-							{/if}
-							<button
-								type="button"
-								class="nav-item"
-								class:secondary={supportsMods}
-								onclick={() => (activeSection = "screenshots")}
-							>
+						{/if}
+						<button
+							type="button"
+							class="nav-item priority"
+							onclick={() => (activeSection = "resources")}
+						>
+							<span class="nav-icon"><BoxIcon size={18} /></span>
+							<span class="nav-label">{t("instanceView.tabs.resources")}</span>
+							<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
+						</button>
+						<button
+							type="button"
+							class="nav-item"
+							class:secondary={supportsMods}
+							onclick={() => (activeSection = "screenshots")}
+						>
 								<span class="nav-icon"><ImageIcon size={18} /></span>
 								<span class="nav-label">{t("instanceView.tabs.screenshots")}</span>
 								<span class="nav-chevron"><ChevronRightIcon size={14} /></span>
@@ -153,17 +135,10 @@
 						</div>
 					</div>
 
-				{:else if activeSection === "mods"}
+				{:else if activeSection === "market"}
 					{#key selectedInstance.uuid}
-						{#if ModsRow}
-							<ModsRow instanceId={selectedInstance.uuid} />
-						{/if}
-					{/key}
-
-				{:else if activeSection === "download_mods"}
-					{#key selectedInstance.uuid}
-						{#if DownloadMods}
-							<DownloadMods instance={selectedInstance} />
+						{#if Market}
+							<Market instance={selectedInstance} />
 						{/if}
 					{/key}
 

@@ -270,6 +270,7 @@
 		inset: 0;
 		bottom: -40px;
 		z-index: -1;
+		pointer-events: none;
 		background: var(--bg-sidebar);
 		-webkit-backdrop-filter: blur(12px);
 		backdrop-filter: blur(12px);

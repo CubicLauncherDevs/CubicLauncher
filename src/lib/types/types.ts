@@ -324,8 +324,8 @@ export interface ModrinthProjectFull {
 }
 
 export interface ModFileSource {
-	projectId: string;
-	versionId: string;
+	project_id: string;
+	version_id: string;
 	filename: string;
 }
 

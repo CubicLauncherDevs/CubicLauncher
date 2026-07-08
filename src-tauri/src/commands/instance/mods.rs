@@ -441,14 +441,46 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
     shaderpacks
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ModSourceMetadata {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct ModSourceMetadata {
     pub project_id: String,
     pub version_id: String,
 }
 
 fn get_mods_metadata_path(instance_dir: &PathBuf) -> PathBuf {
     instance_dir.join("mods-metadata.json")
+}
+
+pub(crate) async fn read_mods_metadata(
+    instance_dir: &PathBuf,
+) -> Result<Option<HashMap<String, ModSourceMetadata>>, String> {
+    let path = get_mods_metadata_path(instance_dir);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let content = tokio::fs::read_to_string(&path)
+        .await
+        .map_err(|e| format!("Failed to read mods metadata: {}", e))?;
+    let metadata: HashMap<String, ModSourceMetadata> = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse mods metadata: {}", e))?;
+    Ok(Some(metadata))
+}
+
+pub(crate) async fn write_mods_metadata(
+    instance_dir: &PathBuf,
+    metadata: HashMap<String, ModSourceMetadata>,
+) -> Result<(), String> {
+    let path = get_mods_metadata_path(instance_dir);
+    let parent = path.parent().ok_or_else(|| "Invalid metadata path".to_string())?;
+    tokio::fs::create_dir_all(parent)
+        .await
+        .map_err(|e| format!("Failed to create instance dir: {}", e))?;
+    let content = serde_json::to_string(&metadata)
+        .map_err(|e| format!("Failed to serialize mods metadata: {}", e))?;
+    tokio::fs::write(&path, &content)
+        .await
+        .map_err(|e| format!("Failed to write mods metadata: {}", e))?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -461,19 +493,7 @@ pub async fn get_instance_mods_metadata(
         return Err("Instance not found".to_string());
     };
     let instance_dir = handle.get_instance_dir().await;
-    let path = get_mods_metadata_path(&instance_dir);
-
-    if !path.exists() {
-        return Ok(None);
-    }
-
-    let content =
-        tokio::fs::read_to_string(&path)
-            .await
-            .map_err(|e| format!("Failed to read metadata: {}", e))?;
-    let metadata: HashMap<String, ModSourceMetadata> =
-        serde_json::from_str(&content).map_err(|e| format!("Failed to parse metadata: {}", e))?;
-    Ok(Some(metadata))
+    read_mods_metadata(&instance_dir).await
 }
 
 #[tauri::command]
@@ -487,12 +507,5 @@ pub async fn save_instance_mods_metadata(
         return Err("Instance not found".to_string());
     };
     let instance_dir = handle.get_instance_dir().await;
-    let path = get_mods_metadata_path(&instance_dir);
-
-    let content =
-        serde_json::to_string(&metadata).map_err(|e| format!("Failed to serialize: {}", e))?;
-    tokio::fs::write(&path, &content)
-        .await
-        .map_err(|e| format!("Failed to write metadata: {}", e))?;
-    Ok(())
+    write_mods_metadata(&instance_dir, metadata).await
 }

@@ -712,10 +712,10 @@ export async function installMrpackWithUpstream(
 
 export async function getInstanceModsMetadata(
 	instanceId: string,
-): Promise<Record<string, { projectId: string; versionId: string }> | null> {
+): Promise<Record<string, { project_id: string; version_id: string }> | null> {
 	try {
 		return await invoke<
-			Record<string, { projectId: string; versionId: string }> | null
+			Record<string, { project_id: string; version_id: string }> | null
 		>("get_instance_mods_metadata", { instanceId });
 	} catch (err) {
 		showErrorParsed(err);
@@ -725,7 +725,7 @@ export async function getInstanceModsMetadata(
 
 export async function saveInstanceModsMetadata(
 	instanceId: string,
-	metadata: Record<string, { projectId: string; versionId: string }>,
+	metadata: Record<string, { project_id: string; version_id: string }>,
 ): Promise<void> {
 	try {
 		await invoke("save_instance_mods_metadata", { instanceId, metadata });
@@ -913,6 +913,8 @@ export interface ModDownloadInfo {
 	filename: string;
 	projectTitle?: string;
 	iconUrl?: string;
+	project_id?: string;
+	version_id?: string;
 }
 
 export async function downloadMods(

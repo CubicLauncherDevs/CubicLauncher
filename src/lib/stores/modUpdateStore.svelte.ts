@@ -49,14 +49,14 @@ export function useModUpdates() {
 			for (const [hash, version] of Object.entries(result)) {
 				const src = hashToSource.get(hash);
 				if (!src) continue;
-				const isNewer = version.id !== src.versionId;
+				const isNewer = version.id !== src.version_id;
 				const mod = mods.find((m) => m.filename === src.filename);
 				updates.push({
 					filename: src.filename,
 					projectTitle:
 						mod?.name ?? src.filename.replace(/\.jar$/, ""),
 					iconUrl: mod?.icon ?? null,
-					currentVersion: src.versionId,
+					currentVersion: src.version_id,
 					latestVersion: isNewer ? version.version_number : null,
 					latestVersionId: isNewer ? version.id : null,
 					upToDate: !isNewer,
