@@ -2,9 +2,7 @@ use aqua::{DownloadItemSpec, DownloadManager, GenericBatch};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use crate::commands::instance::mods::{
-    read_mods_metadata, write_mods_metadata, ModSourceMetadata,
-};
+use crate::commands::instance::mods::{ModSourceMetadata, read_mods_metadata, write_mods_metadata};
 use crate::core::PathManager;
 use crate::core::errors::{DownloadError, FsError, InstanceError};
 use crate::services::InstanceManager;
@@ -81,7 +79,10 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
     }
     write_mods_metadata(&instance_dir, metadata).await?;
 
-    info!("{} mods descargados y metadata persistida en {:?}", count, mods_dir);
+    info!(
+        "{} mods descargados y metadata persistida en {:?}",
+        count, mods_dir
+    );
     Ok(())
 }
 
@@ -197,7 +198,9 @@ pub async fn download_shaderpacks(
 pub async fn download_mrpack(url: String, version_id: String) -> Result<String, String> {
     info!("Downloading mrpack from {} (version: {})", url, version_id);
 
-    let cache_dir = std::env::temp_dir().join("cubiclauncher").join("mrpack-cache");
+    let cache_dir = std::env::temp_dir()
+        .join("cubiclauncher")
+        .join("mrpack-cache");
     tokio::fs::create_dir_all(&cache_dir)
         .await
         .map_err(|e| format!("Failed to create cache dir: {}", e))?;
@@ -217,7 +220,10 @@ pub async fn download_mrpack(url: String, version_id: String) -> Result<String, 
         .map_err(|e| format!("Download failed: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("HTTP {} when downloading mrpack", response.status()));
+        return Err(format!(
+            "HTTP {} when downloading mrpack",
+            response.status()
+        ));
     }
 
     let bytes = response
