@@ -44,15 +44,17 @@
 				<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
 			</svg>
 		</button>
-		<button type="button" class="qm-close-btn" onclick={onclose}
-			>✕</button
-		>
+		<button type="button" class="qm-close-btn" onclick={onclose}>✕</button>
 	</div>
 </div>
 
 <style>
 	@keyframes spin {
-		from { transform: rotate(0deg); }
-		to { transform: rotate(360deg); }
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>

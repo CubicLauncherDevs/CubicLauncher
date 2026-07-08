@@ -8,7 +8,7 @@ use tokio::fs as tokio_fs;
 
 use super::status::InstanceStatus;
 
-pub(crate) const MAX_LEN: u8 = 16;
+pub(crate) const MAX_LEN: u8 = 24;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct InstanceData {
@@ -35,8 +35,8 @@ pub struct InstOverrides {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 #[serde(rename_all = "camelCase")]
 pub struct RamOverrides {
-    pub min_mem: u32,  // MB
-    pub max_mem: u32,  // MB
+    pub min_mem: u32, // MB
+    pub max_mem: u32, // MB
 }
 
 impl InstanceData {

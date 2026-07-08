@@ -459,10 +459,10 @@ async fn refresh_microsoft_token(mut user: MinecraftUser) -> Result<MinecraftUse
 
     // Defensa: si el refresh_token no está cargado (p. ej. llamada desde otro
     // sitio), intentar recuperarlo desde el almacenamiento seguro.
-    if user.refresh_token.is_none() {
-        if let Err(e) = user.load_tokens() {
-            warn!("No se pudieron cargar tokens de Microsoft: {:?}", e);
-        }
+    if user.refresh_token.is_none()
+        && let Err(e) = user.load_tokens()
+    {
+        warn!("No se pudieron cargar tokens de Microsoft: {:?}", e);
     }
 
     let Some(refresh_token) = user.refresh_token.clone() else {
@@ -646,9 +646,7 @@ fn is_forge_version_safe(forge_ver: &str) -> bool {
         [major, minor, patch, ..] => (*major, *minor, *patch) >= (36, 2, 26),
         _ => false,
     };
-    debug!(
-        "Forge version safety check: forge_ver={forge_ver}, parts={parts:?}, safe={safe}"
-    );
+    debug!("Forge version safety check: forge_ver={forge_ver}, parts={parts:?}, safe={safe}");
     safe
 }
 

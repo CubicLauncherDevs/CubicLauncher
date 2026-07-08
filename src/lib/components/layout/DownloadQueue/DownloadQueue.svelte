@@ -54,19 +54,47 @@
 		};
 	}
 
-	let downloads = $state(new SvelteMap<string, DlItem>());
+	let downloads = new SvelteMap<string, DlItem>();
+	function normalizeStage(stage: string): SegKey {
+		const map: Record<string, SegKey> = {
+			library: "Library",
+			asset: "Asset",
+			native: "Native",
+			client: "Client",
+			verifying: "Verifying",
+			generic: "Generic",
+			processing: "Processing",
+			jre: "Jre",
+			extracting: "Jre",
+			resolving: "Generic",
+			mc: "Generic",
+		};
+		return map[stage.toLowerCase()] ?? "Generic";
+	}
+
 	let open = $state(false);
 	let counts = $derived.by(() => {
-		let active = 0, done = 0;
+		let active = 0,
+			done = 0;
 		for (const d of downloads.values()) {
-			if (d.done) done++; else active++;
+			if (d.done) done++;
+			else active++;
 		}
 		return { active, done };
 	});
 
-	function pct(segs: Record<SegKey, SegProg>): number {
-		const totalAll = SEGS.reduce((a, k) => a + segs[k].total, 0);
-		const curAll = SEGS.reduce((a, k) => a + segs[k].current, 0);
+	function pct(item: DlItem): number {
+		if (item.done) return 100;
+		const active = item.activeType;
+		if (active) {
+			const s = item.segs[active];
+			if (s.total > 0) {
+				return Math.round((s.current / s.total) * 100);
+			}
+		}
+		// Fallback when no active segment is known.
+		const totalAll = SEGS.reduce((a, k) => a + item.segs[k].total, 0);
+		const curAll = SEGS.reduce((a, k) => a + item.segs[k].current, 0);
 		return totalAll > 0 ? Math.round((curAll / totalAll) * 100) : 0;
 	}
 
@@ -129,24 +157,42 @@
 					break;
 				}
 				case "DProgress": {
-					const { version, current, total, d_type } = p.data;
-					let existing = downloads.get(version);
-					if (!existing) {
-						existing = {
-							version,
-							activeType: null,
-							segs: emptySegs(),
-							done: false,
-							error: null,
-						};
+					const {
+						version,
+						stage,
+						item_current,
+						item_total,
+						bytes_current,
+						bytes_total,
+					} = p.data;
+					const existing = downloads.get(version) ?? {
+						version,
+						activeType: null,
+						segs: emptySegs(),
+						done: false,
+						error: null,
+					};
+					const key = normalizeStage(stage);
+					const useBytes = bytes_total > 0;
+					const current = useBytes ? bytes_current : item_current;
+					const total = useBytes ? bytes_total : item_total;
+					downloads.set(version, {
+						...existing,
+						segs: { ...existing.segs, [key]: { current, total } },
+						activeType: key,
+						done: false,
+					});
+					break;
+				}
+				case "DStage": {
+					const { version, stage } = p.data;
+					const existing = downloads.get(version);
+					if (existing) {
+						downloads.set(version, {
+							...existing,
+							activeType: normalizeStage(stage),
+						});
 					}
-					const key = SEGS.includes(d_type as SegKey)
-						? (d_type as SegKey)
-						: (existing.activeType ?? "Library");
-					existing.segs[key] = { current, total };
-					existing.activeType = key;
-					existing.done = false;
-					downloads.set(version, existing);
 					break;
 				}
 				case "DFinish": {
@@ -198,17 +244,22 @@
 </script>
 
 <div class="sd-root">
-	<DownloadQueueHeader bind:open activeCount={counts.active} doneCount={counts.done} />
+	<DownloadQueueHeader
+		bind:open
+		activeCount={counts.active}
+		doneCount={counts.done}
+	/>
 	{#if open}
 		<div class="sd-body" transition:slide={{ duration: 150 }}>
 			{#if downloads.size === 0}
 				<div class="sd-empty">{t("sidebar.noDownloadDesc")}</div>
 			{:else}
 				{#each [...downloads.values()] as item (item.version)}
-					{@const overall = pct(item.segs)}
-					{@const label = !item.done && !item.error && item.activeType
-						? statusLabel(item.activeType)
-						: null}
+					{@const overall = pct(item)}
+					{@const label =
+						!item.done && !item.error && item.activeType
+							? statusLabel(item.activeType)
+							: null}
 					<DownloadQueueItem
 						version={item.version}
 						{overall}

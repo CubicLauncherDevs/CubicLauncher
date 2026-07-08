@@ -1,0 +1,58 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+    authors:
+      - github-actions
+
+  categories:
+    - title: Breaking Changes
+      labels:
+        - breaking
+
+    - title: New Features
+      labels:
+        - feature
+        - enhancement
+
+    - title: Core
+      labels:
+        - core
+
+    - title: User Interface
+      labels:
+        - ui
+
+    - title: Internationalization
+      labels:
+        - i18n
+
+    - title: Bug Fixes
+      labels:
+        - bug
+        - fix
+        - patch
+
+    - title: Performance
+      labels:
+        - perf
+
+    - title: Tests
+      labels:
+        - test
+
+    - title: Documentation
+      labels:
+        - docs
+        - documentation
+
+    - title: Maintenance
+      labels:
+        - chore
+        - refactor
+        - deps
+        - ci
+
+    - title: Other Changes
+      labels:
+        - "*"

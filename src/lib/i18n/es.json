@@ -96,7 +96,6 @@
 		"noInstances": "Sin instancias",
 		"createInstance": "Crear Instancia",
 		"refreshInstances": "Refrescar Instancias",
-		"downloadVersions": "Descargar Versiones",
 		"settings": "Ajustes",
 		"tools": "Herramientas",
 		"downloading": "descargando",
@@ -116,7 +115,8 @@
 			"deleteDesc1": "¿Estás seguro de que deseas eliminar la instancia",
 			"deleteDesc2": "? Esta acción no se puede deshacer.",
 			"deleteBtn": "Eliminar"
-		}
+		},
+		"downloadVersions": "Descargar Versiones"
 	},
 	"userMenu": {
 		"title": "Perfil de Usuario",
@@ -150,6 +150,7 @@
 		"neverPlayed": "Nunca jugado",
 		"lastPlayed": "Última vez jugado: {date}",
 		"playBtn": "Jugar",
+		"downloadingBtn": "Descargando...",
 		"close": "Forzar cierre",
 		"deleteSelected": "Eliminar Seleccionados",
 		"deleteConfirm": "¿Estás seguro de que deseas eliminar {name}?",
@@ -164,16 +165,19 @@
 			"starting": "Iniciando",
 			"started": "Version iniciada",
 			"idle": "Inactivo",
-			"error": "Error"
+			"error": "Error",
+			"offlineLog": "nada por aqui ^_^"
 		},
 		"tabs": {
 			"details": "Detalles",
 			"mods": "Mods",
+			"market": "Market",
 			"resources": "Recursos",
 			"screenshots": "Capturas",
 			"logs": "Logs",
 			"options": "Opciones",
-			"downloadMods": "Obtener Mods"
+			"downloadMods": "Obtener Mods",
+			"shaderpacks": "Shader Packs"
 		},
 		"details": {
 			"title": "Detalles",
@@ -337,36 +341,27 @@
 		"orDownloadFrom": "o descarga desde",
 		"parsingPack": "Analizando modpack...",
 		"packInfo": "Información del Pack",
-		"instanceName": "Nombre de la instancia"
-	},
-	"versionDownloader": {
-		"title": "Descargar Versiones",
-		"searchPlaceholder": "Buscar versión...",
-		"loading": "Cargando versiones...",
-		"notFound": "No se encontraron versiones",
-		"installedTag": "Instalada",
-		"downloadBtn": "Descargar",
-		"refreshBtn": "Recargar caché",
-		"filters": {
-			"all": "Todos",
-			"installedOnly": "Solo Instalados",
-			"notInstalledOnly": "No Instalados",
-			"stableOnly": "Solo Estables",
-			"unstableOnly": "Solo Inestables",
-			"installStatus": "Estado",
-			"majorVersion": "Versión Mayor",
-			"fabricStability": "Estabilidad"
-		},
-		"tabs": {
-			"releases": "Lanzamientos",
-			"snapshots": "Snapshots",
-			"alphas": "Alphas",
-			"fabric": "Fabric",
-			"forge": "Forge",
-			"quilt": "Quilt"
-		},
-		"downloading": "Descargando...",
-		"forgeJavaHint": "Forge requiere que configures Java 21 en Configuración > Java."
+		"instanceName": "Nombre de la instancia",
+		"importModpackBtn": "Importar modpack",
+		"loaderLabel": "Loader",
+		"mcVersionLabel": "Versión de Minecraft",
+		"loaderVersionLabel": "Versión del loader",
+		"noLoader": "Sin loader",
+		"noLoaderNeeded": "No se necesita loader",
+		"noLoaderVersionsErr": "No hay versiones del loader para esta versión",
+		"selectMcVersion": "Selecciona una versión",
+		"selectLoaderVersion": "Selecciona un loader",
+		"loading": "Cargando...",
+		"modpackSearchPlaceholder": "Buscar modpacks en Modrinth...",
+		"searchBtn": "Buscar",
+		"searchingModpacks": "Buscando modpacks...",
+		"noModpacksFound": "No se encontraron modpacks",
+		"downloadingModpack": "Descargando modpack...",
+		"installingModpack": "Instalando modpack...",
+		"installBtn": "Instalar",
+		"loadMore": "Cargar más",
+		"downloads": "descargas",
+		"selectMrpackBtn": "Seleccionar archivo .mrpack"
 	},
 	"themes": {
 		"warning": {
@@ -465,5 +460,89 @@
 		"AUTH_BLOCKED": "Error interno: {error}",
 		"AUTH_SESSION_EXPIRED": "Sesión expirada. Reinicia el launcher e inicia sesión de nuevo: {error}",
 		"GENERIC": "Ocurrió un error inesperado: {error}"
+	},
+	"versionDownloader": {
+		"title": "Descargar Versiones",
+		"searchPlaceholder": "Buscar versión...",
+		"loading": "Cargando versiones...",
+		"notFound": "No se encontraron versiones",
+		"installedTag": "Instalado",
+		"downloadBtn": "Descargar",
+		"refreshBtn": "Actualizar caché",
+		"filters": {
+			"all": "Todas",
+			"installedOnly": "Solo instaladas",
+			"notInstalledOnly": "No instaladas",
+			"stableOnly": "Estables",
+			"unstableOnly": "Inestables",
+			"installStatus": "Estado",
+			"majorVersion": "Versión mayor",
+			"fabricStability": "Estabilidad"
+		},
+		"tabs": {
+			"releases": "Releases",
+			"snapshots": "Snapshots",
+			"alphas": "Alphas",
+			"fabric": "Fabric",
+			"forge": "Forge",
+			"quilt": "Quilt"
+		},
+		"downloading": "Descargando...",
+		"forgeJavaHint": "Forge requiere Java 21 configurado en Ajustes > Java."
+	},
+	"market": {
+		"empty": {
+			"localTitle": "No hay mods instalados",
+			"localSubtitle": "Los mods que instales desde el Market o añadas manualmente aparecerán aquí.",
+			"marketTitle": "Descubre mods",
+			"marketSubtitle": "Busca mods en Modrinth compatibles con esta instancia.",
+			"searchTitle": "No se encontraron mods",
+			"searchSubtitle": "Prueba con otra búsqueda o categoría."
+		},
+		"filter": {
+			"tabModrinth": "Modrinth",
+			"tabCurseForge": "CurseForge",
+			"tabLocal": "Local",
+			"searchModrinth": "Buscar en Modrinth...",
+			"searchCurseForge": "Buscar en CurseForge...",
+			"searchLocal": "Buscar mods instalados...",
+			"sortBy": "Ordenar por",
+			"sortDownloads": "Descargas",
+			"sortRelevance": "Relevancia",
+			"sortNewest": "Más nuevos",
+			"sortUpdated": "Actualizados",
+			"category": "Categoría",
+			"allCategories": "Todas",
+			"refresh": "Actualizar"
+		},
+		"item": {
+			"by": "por",
+			"unknownAuthor": "Autor desconocido",
+			"noDescription": "Sin descripción disponible",
+			"install": "Instalar",
+			"installed": "Instalado",
+			"updateAvailable": "Actualizar",
+			"incompatible": "Incompatible"
+		},
+		"detail": {
+			"close": "Cerrar detalles",
+			"unknownAuthor": "Autor desconocido",
+			"downloads": "Descargas",
+			"followers": "Seguidores",
+			"updated": "Actualizado",
+			"version": "Versión",
+			"noVersions": "No hay versiones disponibles",
+			"loadingVersions": "Cargando versiones...",
+			"selectVersion": "Seleccionar versión",
+			"readme": "Acerca de",
+			"gallery": "Galería",
+			"install": "Instalar",
+			"uninstall": "Desinstalar",
+			"enable": "Habilitar",
+			"disable": "Deshabilitar",
+			"openOnModrinth": "Abrir en Modrinth",
+			"openOnCurseForge": "Abrir en CurseForge",
+			"noSelection": "Selecciona un mod para ver sus detalles"
+		}
 	}
 }

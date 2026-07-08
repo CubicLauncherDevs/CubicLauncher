@@ -2,17 +2,15 @@ use std::collections::HashSet;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::sync::Arc;
 
 use log::{debug, error, info, warn};
-use tokio::sync::mpsc::Sender;
 use zellkern::{
     InstallProfile, LegacyInstallProfile, Processor, ProfileLibrary, VersionManifest, maven_to_path,
 };
 
 use super::batch::{DownloadBatch, DownloadItemSpec};
 use crate::AquaError;
-use crate::types::DownloadProgress;
+use crate::progress::{DownloadProgress, DownloadStage, ProgressSender};
 use crate::utilities::{
     compute_sha1_sync, extract_zip_to_dir, read_jar_main_class, run_java_process,
 };
@@ -27,8 +25,8 @@ pub struct ForgeVersionInfo {
 
 /// Internal representation — either modern or legacy Forge.
 enum ProfileKind {
-    Modern { profile: InstallProfile },
-    Legacy { profile: LegacyInstallProfile },
+    Modern { profile: Box<InstallProfile> },
+    Legacy { profile: Box<LegacyInstallProfile> }, //puntero el el heap mierda
 }
 
 pub struct ForgeBatch {
@@ -65,7 +63,8 @@ impl ForgeBatch {
         // 1. Download installer — try modern URL first, fallback with MC suffix
         let installer_path = temp_dir.join("installer.jar");
         info!("Downloading Forge installer: {installer_url}");
-        let dl_result = crate::utilities::download_file(installer_url, &installer_path, "").await;
+        let dl_result =
+            crate::utilities::download_file(installer_url, &installer_path, "", None, None).await;
         if let Err(ref e) = dl_result {
             if e.to_string().contains("HTTP") {
                 let fallback_url = format!(
@@ -73,7 +72,8 @@ impl ForgeBatch {
                 );
                 if fallback_url != installer_url {
                     info!("Installer download failed ({e}), trying legacy URL: {fallback_url}");
-                    crate::utilities::download_file(&fallback_url, &installer_path, "").await?;
+                    crate::utilities::download_file(&fallback_url, &installer_path, "", None, None)
+                        .await?;
                 }
             } else {
                 dl_result?;
@@ -121,7 +121,9 @@ impl ForgeBatch {
                     .map_err(|e| {
                         AquaError::ForgeExtract(format!("Cannot read version.json: {e}"))
                     })?;
-                profile_kind = ProfileKind::Modern { profile };
+                profile_kind = ProfileKind::Modern {
+                    profile: Box::new(profile),
+                };
             }
             Err(e) => {
                 info!("Modern parse failed ({e}), trying legacy install_profile.json format");
@@ -157,13 +159,14 @@ impl ForgeBatch {
                         ));
                     }
                 }
-                version_json_text =
-                    serde_json::to_string_pretty(&vi).map_err(|e| {
-                        AquaError::ForgeProfileParse(format!(
-                            "Failed to serialize legacy versionInfo: {e}"
-                        ))
-                    })?;
-                profile_kind = ProfileKind::Legacy { profile: legacy };
+                version_json_text = serde_json::to_string_pretty(&vi).map_err(|e| {
+                    AquaError::ForgeProfileParse(format!(
+                        "Failed to serialize legacy versionInfo: {e}"
+                    ))
+                })?;
+                profile_kind = ProfileKind::Legacy {
+                    profile: Box::new(legacy),
+                };
             }
         }
 
@@ -203,8 +206,7 @@ impl ForgeBatch {
         }
 
         // Resolve expected MC jar SHA1 (for verification in finalize)
-        let mc_jar_expected_sha1 = match crate::manifest::resolve_version_data(game_version).await
-        {
+        let mc_jar_expected_sha1 = match crate::manifest::resolve_version_data(game_version).await {
             Ok((ver, _)) => ver.client_jar.sha1,
             Err(e) => {
                 warn!("Could not resolve MC version data for hash verification: {e}");
@@ -212,7 +214,11 @@ impl ForgeBatch {
             }
         };
 
-        info!("Forge batch: {} libraries to download, MC jar SHA1={}", items.len(), &mc_jar_expected_sha1[..8.min(mc_jar_expected_sha1.len())]);
+        info!(
+            "Forge batch: {} libraries to download, MC jar SHA1={}",
+            items.len(),
+            &mc_jar_expected_sha1[..8.min(mc_jar_expected_sha1.len())]
+        );
 
         Ok(Self {
             version_id,
@@ -311,7 +317,7 @@ impl DownloadBatch for ForgeBatch {
 
     fn finalize(
         &self,
-        progress_tx: Option<Sender<DownloadProgress>>,
+        progress_tx: Option<ProgressSender>,
     ) -> Pin<Box<dyn Future<Output = Result<(), AquaError>> + Send + '_>> {
         let shared_dir = self.shared_dir.clone();
         let staging_dir = self.staging_dir.clone();
@@ -404,17 +410,16 @@ impl DownloadBatch for ForgeBatch {
                 info!("Processor {}/{}: {}", i + 1, total, proc_name);
 
                 if let Some(ref tx) = progress_tx {
-                    let _ = tx
-                        .send(DownloadProgress {
-                            current: i,
-                            total,
-                            info: crate::types::DownloadProgressInfo {
-                                name: format!("Forge post-processor: {proc_name}"),
-                                version: Arc::new(version_id.clone()),
-                            },
-                            download_type: crate::types::DownloadProgressType::Processing,
-                        })
-                        .await;
+                    let _ = tx.send(DownloadProgress {
+                        stage: DownloadStage::Processing,
+                        item_current: i + 1,
+                        item_total: total,
+                        bytes_current: 0,
+                        bytes_total: 0,
+                        current_item: Some(format!("Forge post-processor: {proc_name}")),
+                        current_item_bytes: 0,
+                        current_item_total: None,
+                    });
                 }
 
                 // Build classpath — processor JARs live in staging/libraries/
@@ -457,7 +462,10 @@ impl DownloadBatch for ForgeBatch {
                     .collect();
 
                 debug!("Processor {proc_name} resolved args: {resolved_args:?}");
-                debug!("Processor {proc_name} classpath ({:#}): {classpath}", cp_parts.len());
+                debug!(
+                    "Processor {proc_name} classpath ({:#}): {classpath}",
+                    cp_parts.len()
+                );
 
                 run_java_process(java_path, &classpath, &main_class, resolved_args, &proc.jar)
                     .await?;
@@ -505,17 +513,16 @@ impl DownloadBatch for ForgeBatch {
             }
 
             if let Some(ref tx) = progress_tx {
-                let _ = tx
-                    .send(DownloadProgress {
-                        current: total,
-                        total,
-                        info: crate::types::DownloadProgressInfo {
-                            name: "Forge installation complete".into(),
-                            version: Arc::new(version_id.clone()),
-                        },
-                        download_type: crate::types::DownloadProgressType::Processing,
-                    })
-                    .await;
+                let _ = tx.send(DownloadProgress {
+                    stage: DownloadStage::Processing,
+                    item_current: total,
+                    item_total: total,
+                    bytes_current: 0,
+                    bytes_total: 0,
+                    current_item: Some("Forge installation complete".into()),
+                    current_item_bytes: 0,
+                    current_item_total: None,
+                });
             }
 
             info!("All Forge post-processors completed successfully");
@@ -565,7 +572,9 @@ fn add_modern_libs(
                 let dest = staging_libs.join(&artifact.path);
                 items.push(
                     DownloadItemSpec::new(url.clone(), dest, &lib.name)
-                        .with_hash(artifact.sha1.clone().unwrap_or_default()),
+                        .with_hash(artifact.sha1.clone().unwrap_or_default())
+                        .with_stage(DownloadStage::Library)
+                        .with_size(artifact.size.unwrap_or(0)),
                 );
             }
             seen.insert(artifact.path.clone());
@@ -577,7 +586,10 @@ fn add_modern_libs(
             if !seen.contains(&path) {
                 let full_url = format!("{}/{path}", base_url.trim_end_matches('/'));
                 let dest = staging_libs.join(&path);
-                items.push(DownloadItemSpec::new(full_url, dest, &lib.name));
+                items.push(
+                    DownloadItemSpec::new(full_url, dest, &lib.name)
+                        .with_stage(DownloadStage::Library),
+                );
                 seen.insert(path);
             }
         }
@@ -617,7 +629,11 @@ fn add_vj_lib(
         if !path.is_empty() && !seen.contains(&path) {
             if !url.is_empty() {
                 let dest = staging_libs.join(&path);
-                items.push(DownloadItemSpec::new(url, dest, &name).with_hash(sha1));
+                items.push(
+                    DownloadItemSpec::new(url, dest, &name)
+                        .with_hash(sha1)
+                        .with_stage(DownloadStage::Library),
+                );
             }
             seen.insert(path);
         }
@@ -627,7 +643,9 @@ fn add_vj_lib(
         if !seen.contains(&path) {
             let full_url = format!("{}/{path}", base_url.trim_end_matches('/'));
             let dest = staging_libs.join(&path);
-            items.push(DownloadItemSpec::new(full_url, dest, &name));
+            items.push(
+                DownloadItemSpec::new(full_url, dest, &name).with_stage(DownloadStage::Library),
+            );
             seen.insert(path);
         }
     }
@@ -660,12 +678,16 @@ fn add_legacy_libs(
                 // Forge legacy installer uses https://libraries.minecraft.net/ as
                 // default URL for libs without an explicit url field (launchwrapper,
                 // asm-all, lzma, etc).  Forge Maven is the fallback.
-                info!("Library {} has no url, using libraries.minecraft.net", lib.name);
+                info!(
+                    "Library {} has no url, using libraries.minecraft.net",
+                    lib.name
+                );
                 items.push(
                     DownloadItemSpec::new(mojang_url, dest, &lib.name)
                         .with_hash(sha1)
                         .with_fallback_url(forge_url)
-                        .non_required(),
+                        .non_required()
+                        .with_stage(DownloadStage::Library),
                 );
                 seen.insert(path);
                 continue;
@@ -674,7 +696,8 @@ fn add_legacy_libs(
         items.push(
             DownloadItemSpec::new(url, dest, &lib.name)
                 .with_hash(sha1)
-                .with_fallback_url(forge_url),
+                .with_fallback_url(forge_url)
+                .with_stage(DownloadStage::Library),
         );
         seen.insert(path);
     }

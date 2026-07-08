@@ -89,7 +89,7 @@ impl InstanceHandle {
     }
 
     pub async fn get_overrides(&self) -> Option<InstOverrides> {
-        self.data.read().await.overrides.clone()
+        self.data.read().await.overrides
     }
 
     pub async fn to_dto(&self) -> InstanceDto {

@@ -60,7 +60,7 @@
 			style="left: {x}px; top: {y}px;"
 			transition:fly={{ y: -4, duration: 120 }}
 		>
-			{#each items as item}
+			{#each items as item (item.label)}
 				<button
 					type="button"
 					class="ctx-item"

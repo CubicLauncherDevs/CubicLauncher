@@ -76,15 +76,18 @@ impl std::fmt::Display for Loader {
 ///   "1.21-neoforge-21.0.0"           → "21.0.0"
 ///   "quilt-loader-0.25.0-1.20.1"     → "0.25.0"
 fn extract_loader_version(full_id: &str) -> String {
-    if let Some(rest) = full_id.strip_prefix("fabric-loader-") {
-        if let Some(last_dash) = rest.rfind('-') {
-            return rest[..last_dash].to_string();
-        }
+    // Fabric/Quilt loader: "fabric-loader-{loader_version}-{mc_version}"
+    // Use the first dash after the prefix to avoid including hyphens from
+    // snapshot Minecraft versions such as "26.3-snapshot-2".
+    if let Some(rest) = full_id.strip_prefix("fabric-loader-")
+        && let Some(dash) = rest.find('-')
+    {
+        return rest[..dash].to_string();
     }
-    if let Some(rest) = full_id.strip_prefix("quilt-loader-") {
-        if let Some(last_dash) = rest.rfind('-') {
-            return rest[..last_dash].to_string();
-        }
+    if let Some(rest) = full_id.strip_prefix("quilt-loader-")
+        && let Some(dash) = rest.find('-')
+    {
+        return rest[..dash].to_string();
     }
     for loader_name in &["-forge-", "-neoforge-"] {
         if let Some(idx) = full_id.find(loader_name) {

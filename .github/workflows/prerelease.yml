@@ -1,9 +1,11 @@
-name: Prerelease
+name: Build Prerelease Draft
+
 on:
     workflow_dispatch:
 
 env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    VERSION_TAG: v${{ inputs.version }}
 
 jobs:
     prerelease:
@@ -16,12 +18,21 @@ jobs:
                 include:
                     - platform: "macos-latest"
                       args: "--target aarch64-apple-darwin"
+                      short_target: "aarch64"
+                      bundle_path: "src-tauri/target/aarch64-apple-darwin/release/bundle/"
                     - platform: "macos-latest"
                       args: "--target x86_64-apple-darwin"
+                      short_target: "x86_64"
+                      bundle_path: "src-tauri/target/x86_64-apple-darwin/release/bundle/"
                     - platform: "ubuntu-22.04"
                       args: ""
+                      short_target: "x86_64"
+                      bundle_path: "src-tauri/target/release/bundle/"
                     - platform: "windows-latest"
                       args: ""
+                      short_target: "x86_64"
+                      bundle_path: "src-tauri/target/release/bundle/"
+
         runs-on: ${{ matrix.platform }}
         steps:
             - uses: actions/checkout@v4

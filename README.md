@@ -22,19 +22,19 @@
 | Backend      | Rust (edition 2024)                                                                 |
 | Runtime JS   | [Bun](https://bun.sh/)                                                              |
 | Auth         | OAuth 2.0 (Microsoft device-code), Yggdrasil, Cracked                               |
-| Addons       | Modrinth + CurseForge API                                                            |
+| Addons       | Modrinth + CurseForge API                                                           |
 | UI           | Componentes nativos Svelte 5 (sin framework CSS)                                    |
 
 ## Paquetes Rust (crates/)
 
-| Crate | Descripción |
-| ----- | ----------- |
-| **zellkern** | Modelo de datos de Minecraft. Define manifiestos de versiones, resolución de librerías, classpath, perfiles de instalación de Forge, extracción de nativos y el enum `Loader` (Vanilla/Fabric/Forge/NeoForge/Quilt). Crate base del que dependen todos los demás. |
-| **aqua** | Motor de descargas y gestor JRE. `DownloadManager` con tipos batch (`MinecraftBatch`, `FabricBatch`, `ForgeBatch`, `GenericBatch`), reporte de progreso, e instalación de JREs vía la API de Azul Zulu. |
-| **launchwerk** | Orquestador de lanzamiento. Construye el comando completo (classpaths, JVM args, tokens de auth, env vars, quick-play), spawne el proceso Minecraft, maneja stdout/stderr via broadcast channels, y soporta auto-refresh de tokens Microsoft/Yggdrasil (con `aes-gcm` para cifrado en disco). |
-| **cubrinth** | Soporte de modpacks. Parsea archivos `.mrpack` (Modrinth), resuelve dependencias e instala mods en directorios de instancia. |
-| **communicator** | Discord Rich Presence. Implementa el protocolo Discord IPC para mostrar estado de juego ("Idle" / "Playing {instance}") en Discord. |
-| **ablage** | Caché binario en disco. Formato custom con CRC32, escrituras atómicas (temp+rename+fsync), y un índice ordenado para búsquedas rápidas. Usado para cachear manifiestos de Mojang, versiones de Fabric/Forge y metadata de mods. |
+| Crate            | Descripción                                                                                                                                                                                                                                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **zellkern**     | Modelo de datos de Minecraft. Define manifiestos de versiones, resolución de librerías, classpath, perfiles de instalación de Forge, extracción de nativos y el enum `Loader` (Vanilla/Fabric/Forge/NeoForge/Quilt). Crate base del que dependen todos los demás.                             |
+| **aqua**         | Motor de descargas y gestor JRE. `DownloadManager` con tipos batch (`MinecraftBatch`, `FabricBatch`, `ForgeBatch`, `GenericBatch`), reporte de progreso, e instalación de JREs vía la API de Azul Zulu.                                                                                       |
+| **launchwerk**   | Orquestador de lanzamiento. Construye el comando completo (classpaths, JVM args, tokens de auth, env vars, quick-play), spawne el proceso Minecraft, maneja stdout/stderr via broadcast channels, y soporta auto-refresh de tokens Microsoft/Yggdrasil (con `aes-gcm` para cifrado en disco). |
+| **cubrinth**     | Soporte de modpacks. Parsea archivos `.mrpack` (Modrinth), resuelve dependencias e instala mods en directorios de instancia.                                                                                                                                                                  |
+| **communicator** | Discord Rich Presence. Implementa el protocolo Discord IPC para mostrar estado de juego ("Idle" / "Playing {instance}") en Discord.                                                                                                                                                           |
+| **ablage**       | Caché binario en disco. Formato custom con CRC32, escrituras atómicas (temp+rename+fsync), y un índice ordenado para búsquedas rápidas. Usado para cachear manifiestos de Mojang, versiones de Fabric/Forge y metadata de mods.                                                               |
 
 ## Arquitectura
 
@@ -42,23 +42,23 @@ El frontend se comunica con el backend mediante **77 Tauri Commands** (IPC). El 
 
 ### Backend
 
-| Módulo | Función |
-| ------ | ------- |
-| `commands/` | 12 módulos, ~77 comandos IPC: instance CRUD, launch/kill, mods, screenshots, download, auth, settings, themes, modrinth, forge, discord, java, log window |
-| `services/` | Lógica de negocio: `SettingsManager` (auto-save con debounce), `Launcher` (proceso Java), `DownloadQueue` (worker async con eventos de progreso), `InstanceManager` (CRUD + persistencia), `JavaManager` (JREs bundled 8/17/21/25), `AddonManager` (metadata de mods con caché 500 entries) |
-| `core/` | Infraestructura: `PathManager` (resolución de directorios `~/.cubic/`), `EventBus` (wrapper de Tauri emit), `HttpClient` (reqwest singleton), `errors/` (jerarquía de errores con serialización JSON para i18n: `{"code":"ERROR_CODE","params":{...}}`) |
-| `theme_watcher/` | File watcher (`notify` crate) del directorio de temas del usuario, emite `ThemeChanged` para edición en vivo |
+| Módulo           | Función                                                                                                                                                                                                                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `commands/`      | 12 módulos, ~77 comandos IPC: instance CRUD, launch/kill, mods, screenshots, download, auth, settings, themes, modrinth, forge, discord, java, log window                                                                                                                                   |
+| `services/`      | Lógica de negocio: `SettingsManager` (auto-save con debounce), `Launcher` (proceso Java), `DownloadQueue` (worker async con eventos de progreso), `InstanceManager` (CRUD + persistencia), `JavaManager` (JREs bundled 8/17/21/25), `AddonManager` (metadata de mods con caché 500 entries) |
+| `core/`          | Infraestructura: `PathManager` (resolución de directorios `~/.cubic/`), `EventBus` (wrapper de Tauri emit), `HttpClient` (reqwest singleton), `errors/` (jerarquía de errores con serialización JSON para i18n: `{"code":"ERROR_CODE","params":{...}}`)                                     |
+| `theme_watcher/` | File watcher (`notify` crate) del directorio de temas del usuario, emite `ThemeChanged` para edición en vivo                                                                                                                                                                                |
 
 ### Frontend
 
-| Módulo | Función |
-| ------ | ------- |
-| `api/cubicApi.ts` | Wrapper central de IPC. Todas las llamadas `invoke()` con error handling. Búsqueda de mods vía `fetch()` directo a Modrinth/CurseForge APIs (en el browser). |
+| Módulo                   | Función                                                                                                                                                               |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api/cubicApi.ts`        | Wrapper central de IPC. Todas las llamadas `invoke()` con error handling. Búsqueda de mods vía `fetch()` directo a Modrinth/CurseForge APIs (en el browser).          |
 | `api/launcherService.ts` | Hub de event listeners. Suscribe a `app-event` y actualiza `launcherStore` reactivamente. Helpers: `getActiveUser()`, `saveSettings()`, `killInst()`, `deleteInst()`. |
-| `api/themeManager.ts` | Motor de temas. Carga temas vía IPC, aplica CSS custom properties, background images (lazy loading), font-face injection. |
-| `state/state.svelte.ts` | Estado global reactivo con `$state` de Svelte 5. Un solo `launcherStore` con: instances, settings, notifications, update state. |
-| `types/types.ts` | Tipos TypeScript compartidos: `InstanceDto`, `Settings`, `MinecraftUser`, `AppEvent` (discriminated union que espeja el enum Rust). |
-| `i18n/` | Internacionalización: es, en, de, fr. |
+| `api/themeManager.ts`    | Motor de temas. Carga temas vía IPC, aplica CSS custom properties, background images (lazy loading), font-face injection.                                             |
+| `state/state.svelte.ts`  | Estado global reactivo con `$state` de Svelte 5. Un solo `launcherStore` con: instances, settings, notifications, update state.                                       |
+| `types/types.ts`         | Tipos TypeScript compartidos: `InstanceDto`, `Settings`, `MinecraftUser`, `AppEvent` (discriminated union que espeja el enum Rust).                                   |
+| `i18n/`                  | Internacionalización: es, en, de, fr.                                                                                                                                 |
 
 ### Decisiones clave
 
@@ -114,6 +114,13 @@ makepkg -si
 > ⚠️ **Compilar localmente es obligatorio.** Los binarios de CI (Ubuntu) pueden no ser compatibles con Arch Linux por su modelo rolling release.
 
 > ⚠️ **Inestable** — Revisá `dist/arch/IMPORTANTE.md`.
+
+## Documentación del proyecto
+
+| Documento                          | Contenido                                                 |
+| ---------------------------------- | --------------------------------------------------------- |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Cómo colaborar, convenciones de código y flujo de trabajo |
+| [TESTING.md](TESTING.md)           | Checklist de QA automática y manual antes de release      |
 
 ## Comunidad
 

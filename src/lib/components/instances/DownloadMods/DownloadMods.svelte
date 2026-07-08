@@ -37,7 +37,7 @@
 	let activeCategory = $state<string | null>(null);
 	let sortIndex = $state<string>("downloads");
 
-	let basket = $state(new SvelteMap<string, ModrinthProject | CurseForgeProject>());
+	let basket = new SvelteMap<string, ModrinthProject | CurseForgeProject>();
 
 	let selectedMod = $state<ModrinthProject | CurseForgeProject | null>(null);
 
@@ -49,7 +49,7 @@
 	let selectedModVersions = $state<(ModrinthVersion | CurseForgeFile)[]>([]);
 	let selectedVersionId = $state<string>("");
 	let loadingVersions = $state(false);
-	let versionSelection = $state(new SvelteMap<string, string>());
+	let versionSelection = new SvelteMap<string, string>();
 
 	let installedModNames = $state<Set<string>>(new Set());
 
@@ -66,6 +66,10 @@
 			}
 		}
 		if (lower.startsWith("fabric-loader-")) {
+			const lastDash = versionStr.lastIndexOf("-");
+			if (lastDash !== -1) return versionStr.slice(lastDash + 1);
+		}
+		if (lower.startsWith("quilt-loader-")) {
 			const lastDash = versionStr.lastIndexOf("-");
 			if (lastDash !== -1) return versionStr.slice(lastDash + 1);
 		}
@@ -355,8 +359,7 @@
 						if (downloadUrl) {
 							if (
 								!queue.find(
-									(q) =>
-										q.filename === targetFile!.fileName,
+									(q) => q.filename === targetFile!.fileName,
 								)
 							) {
 								queue.push({
@@ -380,7 +383,7 @@
 		downloading = true;
 		try {
 			await downloadMods(instance.uuid, downloadQueue);
-			basket = new SvelteMap();
+			basket.clear();
 			reviewing = false;
 			selectedMod = null;
 		} finally {

@@ -14,7 +14,9 @@
 		value = $bindable(),
 		options = [],
 		placeholder = "Seleccionar...",
+		loadingPlaceholder = "Cargando...",
 		disabled = false,
+		loading = false,
 		label,
 		id,
 		onchange,
@@ -22,7 +24,9 @@
 		value: string;
 		options: Option[];
 		placeholder?: string;
+		loadingPlaceholder?: string;
 		disabled?: boolean;
+		loading?: boolean;
 		label?: string;
 		id?: string;
 		onchange?: (value: string) => void;
@@ -33,6 +37,16 @@
 	let triggerEl: HTMLButtonElement;
 	let dropdownEl = $state<HTMLDivElement>();
 	let dropdownStyles = $state("");
+
+	const triggerDisabled = $derived(disabled || loading);
+	const triggerOpen = $derived(isOpen && !loading);
+
+	$effect(() => {
+		if (loading && isOpen) {
+			isOpen = false;
+			dropdownStyles = "";
+		}
+	});
 
 	function portal(el: HTMLElement) {
 		document.body.appendChild(el);
@@ -49,7 +63,7 @@
 	}
 
 	function toggle() {
-		if (disabled) return;
+		if (triggerDisabled) return;
 		isOpen = !isOpen;
 		if (isOpen) {
 			updateDropdownPosition();
@@ -59,6 +73,7 @@
 	}
 
 	function selectOption(option: Option) {
+		if (loading) return;
 		value = option.value;
 		isOpen = false;
 		dropdownStyles = "";
@@ -87,8 +102,9 @@
 	});
 
 	onMount(() => {
-		window.addEventListener("click", handleClickOutside);
-		return () => window.removeEventListener("click", handleClickOutside);
+		window.addEventListener("click", handleClickOutside, true);
+		return () =>
+			window.removeEventListener("click", handleClickOutside, true);
 	});
 
 	const selectedLabel = $derived(
@@ -104,18 +120,26 @@
 	<button
 		type="button"
 		class="select-trigger"
-		class:disabled
-		class:open={isOpen}
+		class:disabled={triggerDisabled}
+		class:open={triggerOpen}
 		onclick={toggle}
-		aria-expanded={isOpen}
+		aria-expanded={triggerOpen}
 		aria-haspopup="listbox"
+		aria-busy={loading}
 		bind:this={triggerEl}
 	>
-		<span class="selected-value">{selectedLabel}</span>
-		<ChevronDownIcon size={16} class="chevron-icon" />
+		{#if loading}
+			<span class="select-spinner" aria-hidden="true"></span>
+		{/if}
+		<span class="selected-value">
+			{loading ? loadingPlaceholder : selectedLabel}
+		</span>
+		{#if !loading}
+			<ChevronDownIcon size={16} class="chevron-icon" />
+		{/if}
 	</button>
 
-	{#if isOpen}
+	{#if triggerOpen}
 		<div
 			use:portal
 			bind:this={dropdownEl}
@@ -146,3 +170,21 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.select-spinner {
+		width: 14px;
+		height: 14px;
+		border: 2px solid var(--border);
+		border-top-color: var(--accent);
+		border-radius: 50%;
+		animation: select-spin 0.8s linear infinite;
+		flex-shrink: 0;
+	}
+
+	@keyframes select-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+</style>

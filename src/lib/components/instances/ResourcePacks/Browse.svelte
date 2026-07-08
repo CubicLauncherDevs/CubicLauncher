@@ -45,11 +45,11 @@
 	let searching = $state(false);
 	let loadingMore = $state(false);
 	let totalHits = $state(0);
-	let basket = $state(new SvelteMap<string, ModrinthProject>());
+	let basket = new SvelteMap<string, ModrinthProject>();
 	let selectedMod = $state<ModrinthProject | null>(null);
 	let selectedModVersions = $state<ModrinthVersion[]>([]);
 	let selectedVersionId = $state<string>("");
-	let versionSelection = $state(new SvelteMap<string, string>());
+	let versionSelection = new SvelteMap<string, string>();
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let abortController = $state<AbortController | null>(null);
 

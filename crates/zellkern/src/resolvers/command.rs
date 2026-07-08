@@ -131,7 +131,12 @@ impl<'a> CommandBuilder<'a> {
         let natives_dir = self.shared_dir.join("natives").join(&base_id).join(sub);
         let natives_base = self.shared_dir.join("natives").join(&base_id);
 
-        debug!("CommandBuilder: lib_dir={}, assets_dir={}, natives_dir={}", lib_dir.display(), assets_dir.display(), natives_dir.display());
+        debug!(
+            "CommandBuilder: lib_dir={}, assets_dir={}, natives_dir={}",
+            lib_dir.display(),
+            assets_dir.display(),
+            natives_dir.display()
+        );
 
         let classpath = ClasspathResolver::new(&final_manifest, &base_id, &lib_dir).build();
         if classpath.is_empty() {
@@ -180,7 +185,9 @@ impl<'a> CommandBuilder<'a> {
             let loader = crate::Loader::from_version_id(&final_manifest.id_raw);
             match loader {
                 crate::Loader::Forge(_) | crate::Loader::NeoForge(_) => {
-                    debug!("Injecting --tweakClass cpw.mods.fml.relauncher.FMLTweaker for legacy Forge");
+                    debug!(
+                        "Injecting --tweakClass cpw.mods.fml.relauncher.FMLTweaker for legacy Forge"
+                    );
                     cmd.push("--tweakClass".into());
                     cmd.push("cpw.mods.fml.relauncher.FMLTweaker".into());
                 }
@@ -283,7 +290,10 @@ impl<'a> CommandBuilder<'a> {
                     }
                 }
             }
-            debug!("Game args: {} entries from manifest.arguments.game", cmd.len() - before);
+            debug!(
+                "Game args: {} entries from manifest.arguments.game",
+                cmd.len() - before
+            );
             return;
         }
         if let Some(legacy) = &manifest.minecraft_arguments {
@@ -291,7 +301,10 @@ impl<'a> CommandBuilder<'a> {
             for token in legacy.split_whitespace() {
                 cmd.push(replace_vars(token, vars));
             }
-            debug!("Game args: {} entries from legacy minecraft_arguments", cmd.len() - before);
+            debug!(
+                "Game args: {} entries from legacy minecraft_arguments",
+                cmd.len() - before
+            );
         }
     }
 

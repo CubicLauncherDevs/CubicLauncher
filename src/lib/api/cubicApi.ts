@@ -9,6 +9,8 @@ import {
 	type ForgeGameVersion,
 	type ModrinthSearchResult,
 	type ModrinthVersion,
+	type ModrinthProjectFull,
+	type ModrinthVersionFull,
 	type CurseForgeSearchResult,
 	type CurseForgeFilesResult,
 	type CurseForgeProject,
@@ -302,17 +304,31 @@ export async function getFabricVersions(): Promise<FabricGameVersion[]> {
 	}
 }
 
+export async function getFabricLoaderVersions(
+	gameVersion: string,
+): Promise<string[]> {
+	try {
+		return await invoke<string[]>("get_fabric_loader_versions", {
+			gameVersion,
+		});
+	} catch (err) {
+		showErrorParsed(err);
+		return [];
+	}
+}
+
 export async function downloadFabric(
 	gameVersion: string,
 	loaderVersion?: string,
-): Promise<void> {
+): Promise<string | null> {
 	try {
-		await invoke("download_fabric", {
+		return await invoke<string>("download_fabric", {
 			gameVersion,
 			loaderVersion: loaderVersion ?? null,
 		});
 	} catch (err) {
 		showErrorParsed(err);
+		return null;
 	}
 }
 
@@ -363,17 +379,31 @@ export async function refreshQuiltVersions(): Promise<FabricGameVersion[]> {
 	}
 }
 
+export async function getQuiltLoaderVersions(
+	gameVersion: string,
+): Promise<string[]> {
+	try {
+		return await invoke<string[]>("get_quilt_loader_versions", {
+			gameVersion,
+		});
+	} catch (err) {
+		showErrorParsed(err);
+		return [];
+	}
+}
+
 export async function downloadQuilt(
 	gameVersion: string,
 	loaderVersion?: string,
-): Promise<void> {
+): Promise<string | null> {
 	try {
-		await invoke("download_quilt", {
+		return await invoke<string>("download_quilt", {
 			gameVersion,
 			loaderVersion: loaderVersion ?? null,
 		});
 	} catch (err) {
 		showErrorParsed(err);
+		return null;
 	}
 }
 
@@ -586,6 +616,131 @@ export async function getModrinthProjectVersions(
 	}
 }
 
+export async function getModrinthProject(
+	projectId: string,
+): Promise<ModrinthProjectFull | null> {
+	try {
+		const res = await fetch(
+			`https://api.modrinth.com/v2/project/${projectId}`,
+		);
+		if (!res.ok) throw new Error(`Modrinth API error: ${res.status}`);
+		return (await res.json()) as ModrinthProjectFull;
+	} catch (err) {
+		showErrorParsed(err);
+		return null;
+	}
+}
+
+export async function getModrinthVersion(
+	versionId: string,
+): Promise<ModrinthVersionFull | null> {
+	try {
+		const res = await fetch(
+			`https://api.modrinth.com/v2/version/${versionId}`,
+		);
+		if (!res.ok) throw new Error(`Modrinth API error: ${res.status}`);
+		return (await res.json()) as ModrinthVersionFull;
+	} catch (err) {
+		showErrorParsed(err);
+		return null;
+	}
+}
+
+export async function getModrinthLatestVersions(
+	hashes: string[],
+	algorithm: string = "sha1",
+	loaders?: string[],
+	gameVersions?: string[],
+): Promise<Record<string, ModrinthVersionFull> | null> {
+	try {
+		const res = await fetch(
+			"https://api.modrinth.com/v2/version_files/update",
+			{
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					hashes,
+					algorithm,
+					loaders: loaders ?? [],
+					game_versions: gameVersions ?? [],
+				}),
+			},
+		);
+		if (!res.ok) throw new Error(`Modrinth API error: ${res.status}`);
+		return (await res.json()) as Record<string, ModrinthVersionFull>;
+	} catch (err) {
+		showErrorParsed(err);
+		return null;
+	}
+}
+
+export async function downloadMrpack(
+	url: string,
+	versionId: string,
+): Promise<string | null> {
+	try {
+		return await invoke<string>("download_mrpack", { url, versionId });
+	} catch (err) {
+		showErrorParsed(err);
+		return null;
+	}
+}
+
+export async function installMrpackWithUpstream(
+	path: string,
+	instanceName: string,
+	projectId?: string,
+	versionId?: string,
+	callback?: () => void,
+	onError?: (err: unknown) => void,
+): Promise<MrpackInfo | null> {
+	try {
+		const result = await invoke<MrpackInfo>("install_mrpack", {
+			path,
+			instanceName,
+			projectId: projectId ?? null,
+			modrinthVersionId: versionId ?? null,
+		});
+		callback?.();
+		return result;
+	} catch (err) {
+		showErrorParsed(err);
+		onError?.(err);
+		return null;
+	}
+}
+
+export async function getInstanceModsMetadata(
+	instanceId: string,
+): Promise<Record<string, { project_id: string; version_id: string }> | null> {
+	try {
+		return await invoke<Record<
+			string,
+			{ project_id: string; version_id: string }
+		> | null>("get_instance_mods_metadata", { instanceId });
+	} catch (err) {
+		showErrorParsed(err);
+		return null;
+	}
+}
+
+export async function saveInstanceModsMetadata(
+	instanceId: string,
+	metadata: Record<string, { project_id: string; version_id: string }>,
+): Promise<void> {
+	try {
+		await invoke("save_instance_mods_metadata", { instanceId, metadata });
+	} catch (err) {
+		showErrorParsed(err);
+	}
+}
+
+export async function getInstanceScreenshotDir(
+	instanceId: string,
+): Promise<string> {
+	return await invoke<string>("get_instance_screenshot_dir", { instanceId });
+}
+
 const CURSEFORGE_API_BASE = "https://api.curseforge.com/v1";
 const MINECRAFT_GAME_ID = 432;
 const CURSEFORGE_API_KEY =
@@ -759,6 +914,8 @@ export interface ModDownloadInfo {
 	filename: string;
 	projectTitle?: string;
 	iconUrl?: string;
+	project_id?: string;
+	version_id?: string;
 }
 
 export async function downloadMods(

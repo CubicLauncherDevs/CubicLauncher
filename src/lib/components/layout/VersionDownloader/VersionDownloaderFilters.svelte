@@ -59,7 +59,10 @@
 			<Select
 				label={t("versionDownloader.filters.fabricStability")}
 				options={[
-					{ value: "all", label: t("versionDownloader.filters.all") },
+					{
+						value: "all",
+						label: t("versionDownloader.filters.all"),
+					},
 					{
 						value: "stable",
 						label: t("versionDownloader.filters.stableOnly"),

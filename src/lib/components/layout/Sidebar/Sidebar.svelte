@@ -1,10 +1,7 @@
 <script lang="ts">
 	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
-	import {
-		launcherStore,
-	} from "$lib/state/state.svelte";
+	import { launcherStore } from "$lib/state/state.svelte";
 	import { getAvatar, setAvatar } from "$lib/state/avatarCache";
-	import { SvelteMap } from "svelte/reactivity";
 	import type { InstanceDto } from "$lib/types/types";
 	import UserMenu from "../UserMenu/UserMenu.svelte";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
@@ -19,16 +16,16 @@
 		selectedInstance: InstanceDto | null;
 		onopenquickmenu?: () => void;
 		onopeneditinstance: (instance: InstanceDto) => void;
-		onopenversiondownloader?: () => void;
 		onopencreateinstance?: () => void;
+		onopenversiondownloader?: () => void;
 	}
 
 	let {
 		selectedInstance = $bindable(),
 		onopenquickmenu,
-		onopenversiondownloader,
 		onopeneditinstance,
 		onopencreateinstance,
+		onopenversiondownloader,
 	}: Props = $props();
 
 	let showUserMenu = $state(false);
@@ -113,16 +110,13 @@
 					{#each launcherStore.loadedInstances as instance (instance.uuid)}
 						<InstanceItem
 							{instance}
-							selected={selectedInstance?.uuid ===
-								instance.uuid}
+							selected={selectedInstance?.uuid === instance.uuid}
 							onselect={() =>
 								(selectedInstance =
-									selectedInstance?.uuid ===
-									instance.uuid
+									selectedInstance?.uuid === instance.uuid
 										? null
 										: instance)}
-							onedit={() =>
-								onopeneditinstance?.(instance)}
+							onedit={() => onopeneditinstance?.(instance)}
 							ondelete={() => openDeleteModal(instance)}
 						/>
 					{/each}
@@ -197,7 +191,7 @@
 	</div>
 </aside>
 
-	<DeleteInstanceModal
+<DeleteInstanceModal
 	bind:open={showDeleteModal}
 	instanceName={instanceToActOn?.name ?? ""}
 	onconfirm={handleDelete}

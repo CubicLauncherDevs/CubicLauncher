@@ -53,7 +53,8 @@
 
 	$effect(() => {
 		if (hasProgress) return;
-		if (!circleEl || !notification.timeout || notification.timeout <= 0) return;
+		if (!circleEl || !notification.timeout || notification.timeout <= 0)
+			return;
 
 		const style = document.createElement("style");
 		const name = `cd-${uid}`;
@@ -145,7 +146,9 @@
 						stroke-linejoin="round"
 						aria-hidden="true"
 					>
-						<path d="M7 2.5L1.5 11.5h11L7 2.5zM7 6v2.5M7 10.5v.01" />
+						<path
+							d="M7 2.5L1.5 11.5h11L7 2.5zM7 6v2.5M7 10.5v.01"
+						/>
 					</svg>
 				{:else if notification.type === "success"}
 					<svg

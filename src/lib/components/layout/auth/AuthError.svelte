@@ -123,22 +123,53 @@
 	}
 
 	@keyframes flashPop {
-		0% { opacity: 0; transform: scale(0); }
-		15% { opacity: 1; transform: scale(1.15); }
-		35% { transform: scale(0.95); }
-		55% { transform: scale(1.03); }
-		100% { opacity: 1; transform: scale(1); }
+		0% {
+			opacity: 0;
+			transform: scale(0);
+		}
+		15% {
+			opacity: 1;
+			transform: scale(1.15);
+		}
+		35% {
+			transform: scale(0.95);
+		}
+		55% {
+			transform: scale(1.03);
+		}
+		100% {
+			opacity: 1;
+			transform: scale(1);
+		}
 	}
 
 	@keyframes flashGlow {
-		0% { opacity: 0; transform: scale(0.3); }
-		15% { opacity: 0.9; transform: scale(1.3); }
-		35% { opacity: 0.4; transform: scale(1); }
-		100% { opacity: 0.3; transform: scale(1); }
+		0% {
+			opacity: 0;
+			transform: scale(0.3);
+		}
+		15% {
+			opacity: 0.9;
+			transform: scale(1.3);
+		}
+		35% {
+			opacity: 0.4;
+			transform: scale(1);
+		}
+		100% {
+			opacity: 0.3;
+			transform: scale(1);
+		}
 	}
 
 	@keyframes fadeIn {
-		from { opacity: 0; transform: translateY(8px); }
-		to { opacity: 1; transform: translateY(0); }
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 </style>

@@ -1,9 +1,7 @@
 use crate::core::path_manager::PathManager;
 use crate::services::DownloadQueue;
-use crate::services::java_manager::JavaManager;
 
-/// Install a Forge version. Downloads the installer, extracts, downloads libraries,
-/// and runs post-processors. The version will be available for launch afterward.
+/// Queues a Forge version installation. The actual work is done by the download queue.
 #[tauri::command]
 pub async fn install_forge(game_version: String, forge_version: String) -> Result<String, String> {
     let shared_dir = PathManager::get().get_shared_dir();
@@ -14,18 +12,8 @@ pub async fn install_forge(game_version: String, forge_version: String) -> Resul
         return Ok(version_id);
     }
 
-    if !JavaManager::is_installed(21) {
-        JavaManager::install(21)
-            .await
-            .map_err(|e| format!("No se pudo instalar Java 21: {e}"))?;
-    }
-    let java_path = Some(JavaManager::get_java_binary(21));
-
-    let manifest = aqua::ForgeBatch::install(shared_dir, &game_version, &forge_version, java_path)
-        .await
-        .map_err(|e| format!("Forge installation failed: {e}"))?;
-
-    Ok(manifest.id_raw)
+    DownloadQueue::get().enqueue(version_id.clone()).await;
+    Ok(version_id)
 }
 
 /// Queue a Forge installation through the download queue.

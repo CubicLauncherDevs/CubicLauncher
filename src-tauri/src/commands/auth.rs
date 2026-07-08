@@ -1,9 +1,9 @@
 use crate::commands::others::open_url;
 use crate::core::errors::{AuthError, CoreError};
 use crate::services::SettingsManager;
+use launchwerk::auth::MinecraftUser;
 use launchwerk::auth::microsoft::MicrosoftAuth;
 use launchwerk::auth::yggdrasil::YggdrasilAuth;
-use launchwerk::auth::MinecraftUser;
 use serde::Serialize;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -82,8 +82,8 @@ pub async fn start_webview_auth(app_handle: tauri::AppHandle) -> Result<Minecraf
     let state = uuid::Uuid::new_v4().to_string();
     let redirect_uri = launchwerk::auth::microsoft::REDIRECT_URI.to_string();
 
-    let auth_url = MicrosoftAuth::new(client_id.clone())
-        .get_webview_auth_url(&code_challenge, &state);
+    let auth_url =
+        MicrosoftAuth::new(client_id.clone()).get_webview_auth_url(&code_challenge, &state);
 
     let (tx, rx) = mpsc::channel::<String>();
     let tx_nav = tx.clone();
@@ -95,7 +95,11 @@ pub async fn start_webview_auth(app_handle: tauri::AppHandle) -> Result<Minecraf
     let window = WebviewWindowBuilder::new(
         &app_handle,
         &label,
-        WebviewUrl::External(auth_url.parse().map_err(|e: url::ParseError| e.to_string())?),
+        WebviewUrl::External(
+            auth_url
+                .parse()
+                .map_err(|e: url::ParseError| e.to_string())?,
+        ),
     )
     .title("Iniciar sesión con Microsoft")
     .inner_size(800.0, 700.0)
@@ -133,7 +137,7 @@ pub async fn start_webview_auth(app_handle: tauri::AppHandle) -> Result<Minecraf
     .map_err(|e| AuthError::SpawnBlocking(e.to_string()).to_string())?;
 
     let close_tx = tx_window;
-    let _close_handler = window.on_window_event(move |event| {
+    window.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { .. } = event {
             drop(close_tx.send("CANCELLED".to_string()));
         }
@@ -142,8 +146,9 @@ pub async fn start_webview_auth(app_handle: tauri::AppHandle) -> Result<Minecraf
     info!("WebView de autenticación abierta, esperando callback...");
 
     let code = tokio::task::spawn_blocking(move || {
-        rx.recv_timeout(Duration::from_secs(300))
-            .map_err(|_| AuthError::AuthCancelled("Tiempo de espera agotado (5 min)".to_string()).to_string())
+        rx.recv_timeout(Duration::from_secs(300)).map_err(|_| {
+            AuthError::AuthCancelled("Tiempo de espera agotado (5 min)".to_string()).to_string()
+        })
     })
     .await
     .map_err(|e| AuthError::SpawnBlocking(e.to_string()).to_string())??;
@@ -155,7 +160,9 @@ pub async fn start_webview_auth(app_handle: tauri::AppHandle) -> Result<Minecraf
         return Err(code.replacen("ERROR:", "", 1));
     }
     if code == "CANCELLED" {
-        return Err(AuthError::AuthCancelled("Ventana cerrada por el usuario".to_string()).to_string());
+        return Err(
+            AuthError::AuthCancelled("Ventana cerrada por el usuario".to_string()).to_string(),
+        );
     }
 
     info!("Código de autorización recibido, intercambiando por tokens...");

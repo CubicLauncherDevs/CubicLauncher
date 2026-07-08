@@ -51,9 +51,7 @@
 			{:else if filter === "forge"}
 				Forge • MC {version.game_version}
 			{:else}
-				{version.type} • {dateFmt.format(
-					new Date(version.releaseTime),
-				)}
+				{version.type} • {dateFmt.format(new Date(version.releaseTime))}
 			{/if}
 		</div>
 	</div>
@@ -63,7 +61,12 @@
 			<CheckIcon size={10} />
 		</div>
 	{:else if isDownloading}
-		<button type="button" class="download-btn" class:downloading={true} disabled>
+		<button
+			type="button"
+			class="download-btn"
+			class:downloading={true}
+			disabled
+		>
 			<span class="dl-spinner"></span>
 			{t("versionDownloader.downloading")}
 		</button>
@@ -114,7 +117,9 @@
 	}
 
 	@keyframes dl-spin {
-		to { transform: rotate(360deg); }
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.inst-badge {

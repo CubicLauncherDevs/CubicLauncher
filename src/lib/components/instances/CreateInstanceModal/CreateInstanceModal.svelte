@@ -2,17 +2,21 @@
 	import {
 		createInstance,
 		fetchAll,
-		getInstalledVersions,
 		parseMrpack,
 		installMrpack,
+		addToQueue,
+		downloadFabric,
+		downloadForge,
+		downloadQuilt,
 	} from "$lib/api/cubicApi";
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import { t } from "$lib/i18n";
-	import { launcherStore } from "$lib/state/state.svelte";
 	import type { MrpackInfo } from "$lib/types/types";
-	import StepIndicator from "./StepIndicator.svelte";
 	import IconPicker from "./IconPicker.svelte";
-	import SourceStep from "./SourceStep.svelte";
+	import VersionSelectorStep from "./VersionSelectorStep.svelte";
+	import PackInfo from "./PackInfo.svelte";
+	import ModrinthModpackBrowser from "./ModrinthModpackBrowser.svelte";
+	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 	let {
 		open = $bindable(),
@@ -24,33 +28,42 @@
 		oncreated?: () => void;
 	}>();
 
-	// ── Step 1: Name + Icon ───────────────────────────────────────────────────
+	type Tab = "manual" | "import" | "modrinth";
+	let tab = $state<Tab>("manual");
+
+	// ── Instance fields ─────────────────────────────────────────────────────────
 	let name = $state("");
 	let selectedIcon = $state<string | null>(null);
 
-	// ── Step 2: Version or Modpack ────────────────────────────────────────────
-	type ContentSource = "version" | "modpack";
-	let contentSource = $state<ContentSource>("version");
+	// ── Version selector ──────────────────────────────────────────────────────
+	let selectedLoader = $state("vanilla");
+	let selectedMcVersion = $state("");
+	let selectedLoaderVersion = $state("");
 
-	// Version
-	let selectedVersion = $state("");
-	let versions = $state<string[]>([]);
-	let versionOptions = $derived(
-		versions.map((v) => ({ value: v, label: v })),
-	);
+	const finalVersionId = $derived.by(() => {
+		if (selectedLoader === "vanilla") {
+			return selectedMcVersion;
+		}
+		if (selectedLoader === "fabric" && selectedLoaderVersion) {
+			return `fabric-loader-${selectedLoaderVersion}-${selectedMcVersion}`;
+		}
+		if (selectedLoader === "quilt" && selectedLoaderVersion) {
+			return `quilt-loader-${selectedLoaderVersion}-${selectedMcVersion}`;
+		}
+		if (selectedLoader === "forge" && selectedLoaderVersion) {
+			return `${selectedMcVersion}-forge-${selectedLoaderVersion}`;
+		}
+		return "";
+	});
 
-	// Modpack
+	// ── Modpack (import) ──────────────────────────────────────────────────────
 	let packInfo = $state<MrpackInfo | null>(null);
 	let parsing = $state(false);
 
-	// ── Common ────────────────────────────────────────────────────────────────
+	// ── Common ──────────────────────────────────────────────────────────────────
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let existingNames = $state<string[]>([]);
-
-	// ── Steps ─────────────────────────────────────────────────────────────────
-	let currentStep = $state(0);
-	const TOTAL_STEPS = 2;
 	let nameMsg = $state<string | null>(null);
 
 	function validateName(): boolean {
@@ -71,61 +84,40 @@
 		return true;
 	}
 
-	function nextStep() {
-		if (currentStep === 0 && !validateName()) return;
-		if (currentStep < TOTAL_STEPS - 1) currentStep++;
-	}
-	function prevStep() {
-		if (currentStep > 0) currentStep--;
-	}
-	function isLastStep() {
-		return currentStep === TOTAL_STEPS - 1;
-	}
-
-	// ── Effects ───────────────────────────────────────────────────────────────
-	let versionsCache: string[] | null = null;
+	// ── Effects ─────────────────────────────────────────────────────────────────
 	let namesCache: string[] | null = null;
 
 	$effect(() => {
 		if (open) {
-			currentStep = 0;
-			contentSource = "version";
 			nameMsg = null;
-			if (!versionsCache) fetchVersions();
+			tab = mrpackPath ? "import" : "manual";
 			if (!namesCache) fetchInstances();
 		}
 	});
 
 	$effect(() => {
 		if (open && mrpackPath) {
-			contentSource = "modpack";
 			loadPackInfo();
 		}
 	});
 
-	// ── Fetch instances ───────────────────────────────────────────────────────
+	$effect(() => {
+		if (open && tab === "manual" && selectedLoader) {
+			const icon = selectIconForLoader(selectedLoader);
+			if (icon && !selectedIcon) {
+				selectedIcon = icon;
+			}
+		}
+	});
+
+	// ── Fetch instances ─────────────────────────────────────────────────────────
 	async function fetchInstances() {
 		const instances = await fetchAll();
 		namesCache = instances.map((i) => i.name);
 		existingNames = namesCache;
 	}
 
-	// ── Fetch versions ────────────────────────────────────────────────────────
-	async function fetchVersions() {
-		const rawVersions = await getInstalledVersions();
-		versionsCache = rawVersions.sort((a, b) =>
-			b.localeCompare(a, undefined, {
-				numeric: true,
-				sensitivity: "base",
-			}),
-		);
-		versions = versionsCache;
-		if (versions.length > 0 && !selectedVersion) {
-			selectedVersion = versions[0];
-		}
-	}
-
-	// ── Load pack info ────────────────────────────────────────────────────────
+	// ── Load pack info ─────────────────────────────────────────────────────────
 	async function loadPackInfo() {
 		if (!mrpackPath) return;
 		parsing = true;
@@ -145,7 +137,7 @@
 		}
 	}
 
-	// ── Helpers ───────────────────────────────────────────────────────────────
+	// ── Helpers ─────────────────────────────────────────────────────────────────
 	function selectIconForLoader(loader: string | null): string | null {
 		if (!loader) return null;
 		const l = loader.toLowerCase();
@@ -157,21 +149,41 @@
 		return null;
 	}
 
-	// ── Create / Import ──────────────────────────────────────────────────────
+	function updateIconForLoader() {
+		const icon = selectIconForLoader(selectedLoader);
+		if (icon && !selectedIcon) {
+			selectedIcon = icon;
+		}
+	}
+
+	// ── Import modpack (local) ─────────────────────────────────────────────────
+	async function selectMrpackFile() {
+		try {
+			const selected = await openDialog({
+				multiple: false,
+				filters: [{ name: "Modpacks", extensions: ["mrpack"] }],
+			});
+			if (selected) {
+				mrpackPath = selected;
+				await loadPackInfo();
+			}
+		} catch (e) {
+			console.error("Error selecting file:", e);
+		}
+	}
+
+	// ── Create / Import ─────────────────────────────────────────────────────────
 	async function handleFinalAction() {
-		if (contentSource === "modpack" && mrpackPath) {
+		if (tab === "import" && mrpackPath && packInfo) {
 			await handleImport();
-		} else {
+		} else if (tab === "manual") {
 			await handleManualCreate();
 		}
 	}
 
 	async function handleManualCreate() {
-		if (!name.trim()) {
-			error = t("createInstance.emptyNameErr");
-			return;
-		}
-		if (!selectedVersion) {
+		if (!validateName()) return;
+		if (!finalVersionId) {
 			error = t("createInstance.noVersionsErr");
 			return;
 		}
@@ -180,9 +192,10 @@
 		try {
 			await createInstance(
 				name,
-				selectedVersion,
+				finalVersionId,
 				selectedIcon,
-				() => {
+				async () => {
+					await enqueueSelectedVersion();
 					open = false;
 					resetState();
 					oncreated?.();
@@ -194,6 +207,18 @@
 			);
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function enqueueSelectedVersion() {
+		if (selectedLoader === "vanilla") {
+			await addToQueue(finalVersionId);
+		} else if (selectedLoader === "fabric") {
+			await downloadFabric(selectedMcVersion, selectedLoaderVersion);
+		} else if (selectedLoader === "quilt") {
+			await downloadQuilt(selectedMcVersion, selectedLoaderVersion);
+		} else if (selectedLoader === "forge") {
+			await downloadForge(selectedMcVersion, selectedLoaderVersion);
 		}
 	}
 
@@ -221,18 +246,19 @@
 		}
 	}
 
-	// ── Reset ─────────────────────────────────────────────────────────────────
+	// ── Reset ───────────────────────────────────────────────────────────────────
 	function resetState() {
 		name = "";
-		selectedVersion = "";
+		selectedLoader = "vanilla";
+		selectedMcVersion = "";
+		selectedLoaderVersion = "";
 		selectedIcon = null;
-		versions = [];
 		error = null;
 		parsing = false;
 		packInfo = null;
 		loading = false;
-		currentStep = 0;
-		contentSource = "version";
+		mrpackPath = null;
+		tab = "manual";
 	}
 
 	function reset() {
@@ -240,103 +266,156 @@
 		mrpackPath = null;
 		resetState();
 	}
+
+	$effect(() => {
+		if (open && tab === "manual") {
+			updateIconForLoader();
+		}
+	});
 </script>
 
 <ModalBase
 	bind:open
 	title={t("createInstance.title")}
-	width="700px"
+	width={tab === "modrinth" ? "800px" : "700px"}
 	onclose={reset}
 >
-	<StepIndicator bind:currentStep totalSteps={TOTAL_STEPS} />
-
 	{#if error}
 		<div class="step-error">{error}</div>
 	{/if}
 
-	<div class="step-content">
-		{#if currentStep === 0}
-			<div class="step1-layout">
-				<IconPicker bind:selectedIcon disabled={loading} />
-				<div class="fields-column">
-					<div class="input-group">
-						<span class="input-label"
-							>{t("createInstance.nameLabel")}</span
-						>
-						<input
-							type="text"
-							class="text-input"
-							class:error={nameMsg}
-							maxlength={16}
-							bind:value={name}
-							placeholder={t("createInstance.namePlaceholder")}
-							disabled={loading}
-							oninput={() => (nameMsg = null)}
-							onkeydown={(e) => e.key === "Enter" && nextStep()}
-						/>
-						{#if nameMsg}
-							<span class="input-error">{t(nameMsg)}</span>
-						{/if}
-					</div>
-					</div>
-			</div>
-		{/if}
+	<div class="tab-bar">
+		<button
+			type="button"
+			class="tab-btn"
+			class:active={tab === "manual"}
+			onclick={() => (tab = "manual")}
+		>
+			{t("createInstance.manualTab")}
+		</button>
+		<button
+			type="button"
+			class="tab-btn"
+			class:active={tab === "import"}
+			onclick={() => (tab = "import")}
+		>
+			{t("createInstance.importTab")}
+		</button>
+		<button
+			type="button"
+			class="tab-btn"
+			class:active={tab === "modrinth"}
+			onclick={() => (tab = "modrinth")}
+		>
+			Modrinth
+		</button>
+	</div>
 
-		{#if currentStep === 1}
-			<SourceStep
-				bind:contentSource
-				bind:mrpackPath
-				{packInfo}
-				{parsing}
-				{loading}
-				bind:error
-				{versions}
-				bind:selectedVersion
-				{versionOptions}
-				onloadPackInfo={loadPackInfo}
-			/>
+	<div class="step-content">
+		{#if tab === "modrinth"}
+			<ModrinthModpackBrowser onInstalled={reset} />
+		{:else if tab === "import"}
+			{#if packInfo}
+				<div class="modpack-summary">
+					{#if parsing}
+						<div class="parsing-state">
+							<p>{t("createInstance.parsingPack")}</p>
+						</div>
+					{:else}
+						<PackInfo {packInfo} onChangeFile={selectMrpackFile} />
+					{/if}
+				</div>
+			{:else}
+				<div class="import-layout">
+					<div class="import-empty">
+						<p>{t("createInstance.selectFile")}</p>
+						<button
+							type="button"
+							class="btn-primary"
+							onclick={selectMrpackFile}
+						>
+							{t("createInstance.selectMrpackBtn")}
+						</button>
+					</div>
+				</div>
+			{/if}
+		{:else}
+			<div class="create-layout">
+				<div class="create-header">
+					<IconPicker bind:selectedIcon disabled={loading} />
+					<div class="fields-column">
+						<div class="input-group">
+							<span class="input-label">
+								{t("createInstance.nameLabel")}
+							</span>
+							<input
+								type="text"
+								class="text-input"
+								class:error={nameMsg}
+								maxlength={16}
+								bind:value={name}
+								disabled={loading}
+								oninput={() => (nameMsg = null)}
+								onkeydown={(e) =>
+									e.key === "Enter" && handleFinalAction()}
+							/>
+							{#if nameMsg}
+								<span class="input-error">{t(nameMsg)}</span>
+							{/if}
+						</div>
+						<button
+							type="button"
+							class="btn-secondary import-pack-btn"
+							onclick={selectMrpackFile}
+							disabled={loading}
+						>
+							{t("createInstance.importModpackBtn")}
+						</button>
+					</div>
+				</div>
+
+				<VersionSelectorStep
+					bind:selectedLoader
+					bind:selectedMcVersion
+					bind:selectedLoaderVersion
+				/>
+			</div>
 		{/if}
 	</div>
 
 	{#snippet footer()}
-		<button
-			type="button"
-			class="btn-secondary"
-			onclick={currentStep > 0 ? prevStep : reset}
-			disabled={loading}
-		>
-			{currentStep > 0
-				? t("createInstance.back")
-				: t("createInstance.cancel")}
-		</button>
-		{#if !isLastStep()}
-			<button
-				type="button"
-				class="btn-primary"
-				onclick={nextStep}
-				disabled={loading}
-			>
-				{t("createInstance.next")}
-			</button>
-		{:else}
-			<button
-				type="button"
-				class="btn-primary"
-				onclick={handleFinalAction}
-				disabled={loading ||
-					(contentSource === "modpack" &&
-						(!mrpackPath || !name.trim())) ||
-					(contentSource === "version" && !selectedVersion)}
-			>
-				{loading
-					? contentSource === "modpack"
-						? t("createInstance.importingBtn")
-						: t("createInstance.creatingBtn")
-					: contentSource === "modpack"
-						? t("createInstance.importBtn")
-						: t("createInstance.createBtn")}
-			</button>
-		{/if}
+		<div class="footer-actions">
+			<div class="footer-left"></div>
+			<div class="footer-right">
+				<button
+					type="button"
+					class="btn-secondary"
+					onclick={reset}
+					disabled={loading}
+				>
+					{t("createInstance.cancel")}
+				</button>
+				{#if tab === "import" || tab === "manual"}
+					<button
+						type="button"
+						class="btn-primary"
+						onclick={handleFinalAction}
+						disabled={loading ||
+							(tab === "import" &&
+								(!mrpackPath || !name.trim())) ||
+							(tab === "manual" && !finalVersionId)}
+					>
+						{loading
+							? packInfo
+								? t("createInstance.importingBtn")
+								: t("createInstance.creatingBtn")
+							: tab === "import"
+								? t("createInstance.importBtn")
+								: t("createInstance.createBtn")}
+					</button>
+				{/if}
+			</div>
+		</div>
 	{/snippet}
 </ModalBase>
 
@@ -352,11 +431,55 @@
 		font-weight: 500;
 	}
 
-	.step-content {
-		min-height: 200px;
+	.tab-bar {
+		display: flex;
+		gap: 4px;
+		margin-bottom: 8px;
+		border-bottom: 1px solid var(--border);
+		padding-bottom: 8px;
 	}
 
-	.step1-layout {
+	.tab-btn {
+		padding: 6px 16px;
+		border: 1px solid transparent;
+		border-radius: var(--border-radius-sm);
+		background: transparent;
+		color: var(--text-secondary);
+		font-size: 0.78rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition:
+			color 0.15s ease,
+			border-color 0.15s ease,
+			background 0.15s ease;
+	}
+
+	.tab-btn:hover {
+		color: var(--text-primary);
+		background: var(--bg-item-active);
+	}
+
+	.tab-btn.active {
+		color: var(--text-primary);
+		border-color: var(--accent);
+		background: rgba(var(--accent-rgb), 0.08);
+	}
+
+	.step-content {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		min-height: 320px;
+	}
+
+	.create-layout {
+		display: flex;
+		flex-direction: column;
+		gap: 24px;
+		height: 100%;
+	}
+
+	.create-header {
 		display: flex;
 		gap: 24px;
 		align-items: flex-start;
@@ -396,4 +519,49 @@
 		display: block;
 	}
 
+	.import-pack-btn {
+		align-self: flex-start;
+	}
+
+	.footer-actions {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+	}
+
+	.footer-right {
+		display: flex;
+		gap: 10px;
+	}
+
+	.modpack-summary {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.parsing-state {
+		padding: 28px 16px;
+		text-align: center;
+		color: var(--text-secondary);
+		font-size: 0.9rem;
+	}
+
+	.import-layout {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		min-height: 250px;
+	}
+
+	.import-empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 16px;
+		color: var(--text-secondary);
+		font-size: 0.85rem;
+	}
 </style>

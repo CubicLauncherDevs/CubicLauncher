@@ -19,9 +19,7 @@
 		class:active={filter === "release"}
 		onclick={() => (filter = "release")}
 	>
-		<span class="qm-tab-label"
-			>{t("versionDownloader.tabs.releases")}</span
-		>
+		<span class="qm-tab-label">{t("versionDownloader.tabs.releases")}</span>
 	</button>
 	{#if showSnapshots}
 		<button
@@ -53,9 +51,7 @@
 		class:active={filter === "fabric"}
 		onclick={() => (filter = "fabric")}
 	>
-		<span class="qm-tab-label"
-			>{t("versionDownloader.tabs.fabric")}</span
-		>
+		<span class="qm-tab-label">{t("versionDownloader.tabs.fabric")}</span>
 	</button>
 	<button
 		type="button"
@@ -63,8 +59,7 @@
 		class:active={filter === "forge"}
 		onclick={() => (filter = "forge")}
 	>
-		<span class="qm-tab-label">{t("versionDownloader.tabs.forge")}</span
-		>
+		<span class="qm-tab-label">{t("versionDownloader.tabs.forge")}</span>
 	</button>
 	<button
 		type="button"
@@ -72,7 +67,6 @@
 		class:active={filter === "quilt"}
 		onclick={() => (filter = "quilt")}
 	>
-		<span class="qm-tab-label">{t("versionDownloader.tabs.quilt")}</span
-		>
+		<span class="qm-tab-label">{t("versionDownloader.tabs.quilt")}</span>
 	</button>
 </div>

@@ -1,7 +1,7 @@
 use crate::core::errors::DownloadError;
 use crate::core::{HTTP, PathManager};
 use crate::services::DownloadQueue;
-use aqua::{DownloadManager, FabricBatch, QuiltBatch};
+use aqua::{FabricBatch, QuiltBatch};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
@@ -194,7 +194,7 @@ pub async fn get_fabric_versions() -> Result<Vec<FabricGameVersion>, String> {
 pub async fn download_fabric(
     game_version: String,
     loader_version: Option<String>,
-) -> Result<(), String> {
+) -> Result<String, String> {
     info!(
         "Iniciando descarga de Fabric para Minecraft {}",
         game_version
@@ -211,40 +211,11 @@ pub async fn download_fabric(
     let fabric_version_id = format!("fabric-loader-{}-{}", loader_version, game_version);
     info!("Loader: {}, ID: {}", loader_version, fabric_version_id);
 
-    let shared_dir = PathManager::get().get_shared_dir();
-    let json_path = shared_dir
-        .join("versions")
-        .join(&fabric_version_id)
-        .join(format!("{}.json", fabric_version_id));
+    DownloadQueue::get()
+        .enqueue(fabric_version_id.clone())
+        .await;
 
-    if tokio::fs::try_exists(&json_path).await.unwrap_or(false) {
-        info!(
-            "Fabric {} ya instalado, encolando assets",
-            fabric_version_id
-        );
-        DownloadQueue::get().enqueue(fabric_version_id).await;
-        return Ok(());
-    }
-
-    let batch = FabricBatch::new(shared_dir, &game_version, &loader_version)
-        .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
-
-    let manager = DownloadManager::new(shared_dir.to_path_buf());
-    let handle = manager
-        .prepare_batch(Box::new(batch))
-        .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
-
-    handle
-        .download_all(None)
-        .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
-
-    info!("Fabric {} descargado correctamente", fabric_version_id);
-    DownloadQueue::get().enqueue(fabric_version_id).await;
-
-    Ok(())
+    Ok(fabric_version_id)
 }
 #[tauri::command]
 pub async fn refresh_versions() -> Result<Vec<MinecraftVersion>, String> {
@@ -325,17 +296,18 @@ fn group_forge_versions(all_versions: Vec<String>) -> Vec<ForgeGameVersion> {
     }
 
     let mut result = Vec::new();
-    for (mc_version, forge_versions) in groups.into_iter().rev() {
-        let latest = forge_versions
-            .into_iter()
-            .max_by(|a, b| version_cmp(a, b))
-            .unwrap_or_default();
-        let version_id = format!("{mc_version}-forge-{latest}");
-        result.push(ForgeGameVersion {
-            version_id,
-            game_version: mc_version,
-            forge_version: latest,
-        });
+    // BTreeMap iterates mc_versions in ascending order; reverse so newest MC versions come first.
+    for (mc_version, mut forge_versions) in groups.into_iter().rev() {
+        // Sort by version and reverse so newest Forge builds come first.
+        forge_versions.sort_by(|a, b| version_cmp(a, b));
+        for forge_version in forge_versions.into_iter().rev() {
+            let version_id = format!("{mc_version}-forge-{forge_version}");
+            result.push(ForgeGameVersion {
+                version_id,
+                game_version: mc_version.clone(),
+                forge_version,
+            });
+        }
     }
     result
 }
@@ -556,7 +528,7 @@ pub async fn refresh_quilt_versions() -> Result<Vec<FabricGameVersion>, String> 
 pub async fn download_quilt(
     game_version: String,
     loader_version: Option<String>,
-) -> Result<(), String> {
+) -> Result<String, String> {
     info!(
         "Iniciando descarga de Quilt para Minecraft {}",
         game_version
@@ -573,38 +545,85 @@ pub async fn download_quilt(
     let quilt_version_id = format!("quilt-loader-{}-{}", loader_version, game_version);
     info!("Loader: {}, ID: {}", loader_version, quilt_version_id);
 
-    let shared_dir = PathManager::get().get_shared_dir();
-    let json_path = shared_dir
-        .join("versions")
-        .join(&quilt_version_id)
-        .join(format!("{}.json", quilt_version_id));
+    DownloadQueue::get().enqueue(quilt_version_id.clone()).await;
 
-    if tokio::fs::try_exists(&json_path).await.unwrap_or(false) {
-        info!(
-            "Quilt {} ya instalado, encolando assets",
-            quilt_version_id
-        );
-        DownloadQueue::get().enqueue(quilt_version_id).await;
-        return Ok(());
+    Ok(quilt_version_id)
+}
+
+// ─── Loader versions per game version ───────────────────────────────────────
+
+async fn fetch_fabric_loader_versions(game_version: &str) -> Result<Vec<String>, String> {
+    let url = format!("https://meta.fabricmc.net/v2/versions/loader/{game_version}");
+    let response = HTTP
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| DownloadError::ParseJson(e.to_string()).to_string())?;
+
+    let mut versions = Vec::new();
+    if let Some(arr) = json.as_array() {
+        for entry in arr {
+            if let Some(version) = entry
+                .get("loader")
+                .and_then(|l| l.get("version"))
+                .and_then(|v| v.as_str())
+            {
+                versions.push(version.to_string());
+            }
+        }
     }
 
-    let batch = QuiltBatch::new(shared_dir, &game_version, &loader_version)
+    Ok(versions)
+}
+
+#[tauri::command]
+pub async fn get_fabric_loader_versions(game_version: String) -> Result<Vec<String>, String> {
+    info!(
+        "Obteniendo loaders de Fabric para Minecraft {}",
+        game_version
+    );
+    fetch_fabric_loader_versions(&game_version).await
+}
+
+async fn fetch_quilt_loader_versions(game_version: &str) -> Result<Vec<String>, String> {
+    let url = format!("https://meta.quiltmc.org/v3/versions/loader/{game_version}");
+    let response = HTTP
+        .get(&url)
+        .send()
         .await
         .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
 
-    let manager = DownloadManager::new(shared_dir.to_path_buf());
-    let handle = manager
-        .prepare_batch(Box::new(batch))
+    let json: serde_json::Value = response
+        .json()
         .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+        .map_err(|e| DownloadError::ParseJson(e.to_string()).to_string())?;
 
-    handle
-        .download_all(None)
-        .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+    let mut versions = Vec::new();
+    if let Some(arr) = json.as_array() {
+        for entry in arr {
+            if let Some(version) = entry
+                .get("loader")
+                .and_then(|l| l.get("version"))
+                .and_then(|v| v.as_str())
+            {
+                versions.push(version.to_string());
+            }
+        }
+    }
 
-    info!("Quilt {} descargado correctamente", quilt_version_id);
-    DownloadQueue::get().enqueue(quilt_version_id).await;
+    Ok(versions)
+}
 
-    Ok(())
+#[tauri::command]
+pub async fn get_quilt_loader_versions(game_version: String) -> Result<Vec<String>, String> {
+    info!(
+        "Obteniendo loaders de Quilt para Minecraft {}",
+        game_version
+    );
+    fetch_quilt_loader_versions(&game_version).await
 }

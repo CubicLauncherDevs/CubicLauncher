@@ -79,8 +79,10 @@
 		{:else if error}
 			<AuthError
 				title="Error de autenticación"
-				message={t("userMenu.authModal.error")?.replace("{error}", error) ||
-					error}
+				message={t("userMenu.authModal.error")?.replace(
+					"{error}",
+					error,
+				) || error}
 				onRetry={startAuth}
 			/>
 		{:else if success}

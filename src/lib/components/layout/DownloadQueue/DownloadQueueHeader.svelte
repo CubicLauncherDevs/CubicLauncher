@@ -25,23 +25,16 @@
 	<span class="sd-header-left">
 		{#if activeCount > 0}
 			<span class="sd-spinner"></span>
-			<span class="sd-label"
-				>{activeCount} {t("sidebar.downloading")}</span
-			>
+			<span class="sd-label">{t("sidebar.downloading")}</span>
 		{:else if doneCount > 0}
 			<CheckIcon size={12} color="var(--color-success)" />
-			<span class="sd-label"
-				>{doneCount} {t("sidebar.completed")}</span
-			>
+			<span class="sd-label">{doneCount} {t("sidebar.completed")}</span>
 		{:else}
 			<DownloadIcon size={18} />
 			<span class="sd-label">{t("sidebar.noDownloads")}</span>
 		{/if}
 	</span>
-	<ChevronDownIcon
-		size={16}
-		class={"sd-chevron" + (open ? " open" : "")}
-	/>
+	<ChevronDownIcon size={16} class={"sd-chevron" + (open ? " open" : "")} />
 </button>
 
 <style>

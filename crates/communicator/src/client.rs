@@ -129,10 +129,19 @@ impl DiscordRpcClient {
     /// Waits until the handshake with Discord completes.
     /// Always call this before `set_activity`.
     ///
-    /// ```rust
-    /// let mut client = DiscordRpcClient::new("app_id");
-    /// client.connect().await?;
-    /// client.set_activity(activity).await?;
+    /// ```rust,no_run
+    /// use communicator::{Activity, DiscordRpcClient};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let mut client = DiscordRpcClient::new("app_id");
+    ///     client.connect().await?;
+    ///     let activity = Activity::builder()
+    ///         .details("In game")
+    ///         .build();
+    ///     client.set_activity(activity).await?;
+    ///     Ok(())
+    /// }
     /// ```
     pub async fn connect(&mut self) -> Result<(), DiscordRpcError> {
         if let Some(rx) = self.ready_rx.take() {

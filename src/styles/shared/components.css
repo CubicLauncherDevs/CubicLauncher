@@ -117,7 +117,11 @@
 	font-family: inherit;
 	font-size: 0.85rem;
 	cursor: pointer;
-	transition: all 0.2s ease;
+	transition:
+		background-color 0.2s ease,
+		color 0.2s ease,
+		border-color 0.2s ease,
+		box-shadow 0.2s ease;
 	text-align: left;
 	width: 100%;
 	outline: none;

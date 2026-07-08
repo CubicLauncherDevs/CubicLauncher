@@ -7,6 +7,7 @@ use serde::Deserialize;
 
 use super::batch::{DownloadBatch, DownloadItemSpec};
 use crate::AquaError;
+use crate::progress::DownloadStage;
 use crate::utilities::HTTP_CLIENT;
 
 #[derive(Deserialize)]
@@ -116,7 +117,10 @@ impl FabricBatch {
             let dest_path = lib_base_dir.join(&rel_path);
             let download_url = format!("{}{}", lib.url, rel_path);
 
-            items.push(DownloadItemSpec::new(download_url, dest_path, &lib.name));
+            items.push(
+                DownloadItemSpec::new(download_url, dest_path, &lib.name)
+                    .with_stage(DownloadStage::Library),
+            );
         }
 
         Ok(Self {

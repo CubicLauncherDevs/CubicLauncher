@@ -11,8 +11,8 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 use uuid::Uuid;
-use zellkern::resolvers::natives::natives_subdir;
 use zellkern::resolvers::CommandBuilder;
+use zellkern::resolvers::natives::natives_subdir;
 use zellkern::{LaunchConfig, extract_natives};
 
 // ─── Internal state ───────────────────────────────────────────────────────────
@@ -83,22 +83,19 @@ impl InstanceHandle {
 
         debug!(
             "Launching instance {} (loader={}, version={})",
-            inner.uuid,
-            inner.loader,
-            inner.manifest.id_raw
+            inner.uuid, inner.loader, inner.manifest.id_raw
         );
 
         // ── Extract natives ───────────────────────────────────────────────
         let lib_dir = inner.shared_dir.join("libraries");
         // Resolve base_id: for Forge, inherits_from points to the vanilla version
-        let base_id = inner.manifest.inherits_from.clone()
+        let base_id = inner
+            .manifest
+            .inherits_from
+            .clone()
             .unwrap_or_else(|| inner.manifest.id_raw.clone());
         let sub = natives_subdir(&inner.manifest.id);
-        let natives_dir = inner
-            .shared_dir
-            .join("natives")
-            .join(&base_id)
-            .join(sub);
+        let natives_dir = inner.shared_dir.join("natives").join(&base_id).join(sub);
         debug!("Natives dir (base_id={base_id}): {}", natives_dir.display());
 
         extract_natives(&inner.manifest, &lib_dir, &natives_dir)?;

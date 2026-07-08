@@ -19,9 +19,17 @@ pub enum AppEvent {
     },
     DProgress {
         version: Arc<str>,
-        current: u32,
-        total: u32,
-        d_type: Cow<'static, str>,
+        stage: Cow<'static, str>,
+        item_current: u64,
+        item_total: u64,
+        bytes_current: u64,
+        bytes_total: u64,
+        current_item: Option<String>,
+    },
+    DStage {
+        version: Arc<str>,
+        stage: Cow<'static, str>,
+        info: Option<String>,
     },
     DEnqueue {
         version: Arc<str>,
