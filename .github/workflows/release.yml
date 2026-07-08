@@ -48,7 +48,7 @@ jobs:
                     - platform: "ubuntu-22.04"
                       args: ""
                     - platform: "windows-latest"
-                      args: ""
+                      args: "-b nsis"
 
         runs-on: ${{ matrix.platform }}
         steps:
