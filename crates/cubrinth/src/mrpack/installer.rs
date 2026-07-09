@@ -90,11 +90,7 @@ pub async fn install_mrpack(
         .filter_map(|f| {
             let url = f.downloads.first()?;
             let dest = instance_dir.join(&f.path);
-            let hash = f
-                .hashes
-                .get("sha1")
-                .map(|s| s.as_str())
-                .unwrap_or("");
+            let hash = f.hashes.get("sha1").map(|s| s.as_str()).unwrap_or("");
             Some(
                 aqua::DownloadItemSpec::new(url.clone(), dest, &f.path)
                     .with_hash(hash)
@@ -104,10 +100,7 @@ pub async fn install_mrpack(
         .collect();
 
     if !items.is_empty() {
-        let batch = aqua::GenericBatch::new(
-            format!("mrpack-{}", metadata.version_id),
-            items,
-        );
+        let batch = aqua::GenericBatch::new(format!("mrpack-{}", metadata.version_id), items);
 
         let dm = aqua::DownloadManager::new(shared_dir.to_path_buf());
         let handle = dm
