@@ -2,11 +2,11 @@ use aqua::{DownloadItemSpec, DownloadManager, GenericBatch};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
-use crate::commands::instance::mods::{repo_path, PerFileCacheEntry};
+use crate::commands::instance::mods::{PerFileCacheEntry, repo_path};
 use crate::core::PathManager;
 use crate::core::errors::{DownloadError, FsError, InstanceError};
-use crate::services::compute_file_sha1;
 use crate::services::InstanceManager;
+use crate::services::compute_file_sha1;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ModDownloadInfo {
@@ -98,9 +98,7 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
             continue;
         }
 
-        let source = if let (Some(project_id), Some(version_id)) =
-            (&m.project_id, &m.version_id)
-        {
+        let source = if let (Some(project_id), Some(version_id)) = (&m.project_id, &m.version_id) {
             crate::services::ModSource::Modrinth {
                 project_id: project_id.clone(),
                 version_id: version_id.clone(),
@@ -141,10 +139,7 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
         let _ = repo.flush();
     }
 
-    info!(
-        "{} mods descargados y cacheados en {:?}",
-        count, mods_dir
-    );
+    info!("{} mods descargados y cacheados en {:?}", count, mods_dir);
     Ok(())
 }
 
