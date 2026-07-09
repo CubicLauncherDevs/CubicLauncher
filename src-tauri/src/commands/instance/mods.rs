@@ -316,7 +316,7 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
             .filter_map(|r| r.ok())
             .collect();
 
-        for (entry, raw) in entries.into_iter().zip(raw_results.into_iter()) {
+        for (entry, raw) in entries.into_iter().zip(raw_results) {
             let existing = repo.get(&entry.filename).and_then(|e| {
                 if e.fingerprint == entry.fingerprint {
                     postcard::from_bytes::<PerFileCacheEntry>(&e.data).ok()
