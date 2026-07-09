@@ -101,9 +101,8 @@
 
 <header class="instance-header" class:compact={activeSection !== "detalles"}>
 	<div class="header-bg"></div>
-
-	{#if activeSection === "detalles"}
-		<div class="header-content">
+	<div class="header-body">
+	<div class="header-content" class:visible={activeSection === "detalles"}>
 			<div class="title-row">
 				<div class="title-left">
 					<img
@@ -395,8 +394,7 @@
 				</div>
 			</div>
 		</div>
-	{:else}
-		<div class="compact-content">
+	<div class="compact-content" class:visible={activeSection !== "detalles"}>
 			<button
 				type="button"
 				class="back-btn"
@@ -448,7 +446,7 @@
 				{/if}
 			</div>
 		</div>
-	{/if}
+	</div>
 </header>
 
 <style>
@@ -456,6 +454,17 @@
 		position: relative;
 		flex-shrink: 0;
 		z-index: 10;
+		height: 180px;
+		transition: height 0.25s ease;
+	}
+	.instance-header.compact {
+		height: 56px;
+	}
+
+	.header-body {
+		position: relative;
+		height: 100%;
+		overflow: hidden;
 	}
 
 	.header-bg {
@@ -477,10 +486,20 @@
 	}
 
 	.header-content {
+		position: absolute;
+		inset: 0;
 		padding: 24px 24px 16px;
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+		transition: transform 0.22s ease, opacity 0.18s ease;
+		opacity: 1;
+		transform: translateX(0);
+	}
+	.header-content:not(.visible) {
+		opacity: 0;
+		transform: translateX(-100%);
+		pointer-events: none;
 	}
 
 	.title-row {
@@ -772,10 +791,20 @@
 	}
 
 	.compact-content {
+		position: absolute;
+		inset: 0;
 		display: flex;
 		align-items: center;
 		gap: 10px;
 		padding: 12px 24px;
+		transition: transform 0.22s ease, opacity 0.18s ease;
+		opacity: 1;
+		transform: translateX(0);
+	}
+	.compact-content:not(.visible) {
+		opacity: 0;
+		transform: translateX(100%);
+		pointer-events: none;
 	}
 
 	.back-btn {

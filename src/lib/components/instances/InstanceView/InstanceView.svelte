@@ -2,7 +2,7 @@
 	import { InstState, type InstanceDto } from "$lib/types/types";
 	import { launchInstance } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
-	import { fade } from "svelte/transition";
+	import { fly } from "svelte/transition";
 	import { killInst } from "$lib/api/launcherService";
 	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 	import InstanceHeader from "./InstanceHeader.svelte";
@@ -83,90 +83,89 @@
 	/>
 
 	<div class="tab-content" bind:this={tabContentEl}>
-		{#key activeSection}
-			<div
-				in:fade={{ duration: 150, delay: 250 }}
-				out:fade={{ duration: 150 }}
-			>
-				{#if activeSection === "detalles"}
-					<div class="nav-card">
-						<span class="nav-card-header">
-							<span class="nav-card-title"
-								>{t("instanceView.tabs.details")}</span
-							>
-						</span>
-						<div class="nav-items">
-							{#if supportsMods}
-								<button
-									type="button"
-									class="nav-item priority"
-									onclick={() => (activeSection = "market")}
-								>
-									<span class="nav-icon"
-										><GridIcon size={18} /></span
-									>
-									<span class="nav-label"
-										>{t("instanceView.tabs.market")}</span
-									>
-									<span class="nav-chevron"
-										><ChevronRightIcon size={14} /></span
-									>
-								</button>
-							{/if}
+		{#if activeSection === "detalles"}
+			<div class="details-section" in:fly={{ x: -200, duration: 220 }} out:fly={{ x: -200, duration: 180 }}>
+				<div class="nav-card">
+					<span class="nav-card-header">
+						<span class="nav-card-title"
+							>{t("instanceView.tabs.details")}</span
+						>
+					</span>
+					<div class="nav-items">
+						{#if supportsMods}
 							<button
 								type="button"
 								class="nav-item priority"
-								onclick={() => (activeSection = "resources")}
+								onclick={() => (activeSection = "market")}
 							>
 								<span class="nav-icon"
-									><BoxIcon size={18} /></span
+									><GridIcon size={18} /></span
 								>
 								<span class="nav-label"
-									>{t("instanceView.tabs.resources")}</span
+									>{t("instanceView.tabs.market")}</span
 								>
 								<span class="nav-chevron"
 									><ChevronRightIcon size={14} /></span
 								>
 							</button>
+						{/if}
+						<button
+							type="button"
+							class="nav-item priority"
+							onclick={() => (activeSection = "resources")}
+						>
+							<span class="nav-icon"
+								><BoxIcon size={18} /></span
+							>
+							<span class="nav-label"
+								>{t("instanceView.tabs.resources")}</span
+							>
+							<span class="nav-chevron"
+								><ChevronRightIcon size={14} /></span
+							>
+						</button>
+						<button
+							type="button"
+							class="nav-item"
+							class:secondary={supportsMods}
+							onclick={() => (activeSection = "screenshots")}
+						>
+							<span class="nav-icon"
+								><ImageIcon size={18} /></span
+							>
+							<span class="nav-label"
+								>{t("instanceView.tabs.screenshots")}</span
+							>
+							<span class="nav-chevron"
+								><ChevronRightIcon size={14} /></span
+							>
+						</button>
+						{#if supportsShaders}
 							<button
 								type="button"
-								class="nav-item"
-								class:secondary={supportsMods}
-								onclick={() => (activeSection = "screenshots")}
+								class="nav-item secondary"
+								onclick={() =>
+									(activeSection = "shaderpacks")}
 							>
 								<span class="nav-icon"
-									><ImageIcon size={18} /></span
+									><ShaderIcon size={18} /></span
 								>
 								<span class="nav-label"
-									>{t("instanceView.tabs.screenshots")}</span
+									>{t(
+										"instanceView.tabs.shaderpacks",
+									)}</span
 								>
 								<span class="nav-chevron"
 									><ChevronRightIcon size={14} /></span
 								>
 							</button>
-							{#if supportsShaders}
-								<button
-									type="button"
-									class="nav-item secondary"
-									onclick={() =>
-										(activeSection = "shaderpacks")}
-								>
-									<span class="nav-icon"
-										><ShaderIcon size={18} /></span
-									>
-									<span class="nav-label"
-										>{t(
-											"instanceView.tabs.shaderpacks",
-										)}</span
-									>
-									<span class="nav-chevron"
-										><ChevronRightIcon size={14} /></span
-									>
-								</button>
-							{/if}
-						</div>
+						{/if}
 					</div>
-				{:else if activeSection === "market"}
+				</div>
+			</div>
+		{:else}
+			<div class="subview-section" in:fly={{ x: 200, duration: 220 }} out:fly={{ x: 200, duration: 180 }}>
+				{#if activeSection === "market"}
 					{#key selectedInstance.uuid}
 						{#if Market}
 							<Market instance={selectedInstance} />
@@ -196,7 +195,7 @@
 					{/if}
 				{/if}
 			</div>
-		{/key}
+		{/if}
 	</div>
 </div>
 
