@@ -8,50 +8,49 @@ changelog:
   categories:
     - title: Breaking Changes
       labels:
-        - breaking
+        - type:breaking
 
     - title: New Features
       labels:
-        - feature
-        - enhancement
+        - type:feature
+        - type:enhancement
 
     - title: Core
       labels:
-        - core
+        - area:core
 
     - title: User Interface
       labels:
-        - ui
+        - area:ui
 
     - title: Internationalization
       labels:
-        - i18n
+        - area:i18n
 
     - title: Bug Fixes
       labels:
-        - bug
-        - fix
-        - patch
+        - type:bug
+        - type:unconfirmed-bug
+        - type:patch
 
     - title: Performance
       labels:
-        - perf
+        - type:perf
 
     - title: Tests
       labels:
-        - test
+        - type:test
 
     - title: Documentation
       labels:
-        - docs
-        - documentation
+        - type:docs
 
     - title: Maintenance
       labels:
-        - chore
-        - refactor
-        - deps
-        - ci
+        - type:chore
+        - type:refactor
+        - area:deps
+        - area:ci
 
     - title: Other Changes
       labels:

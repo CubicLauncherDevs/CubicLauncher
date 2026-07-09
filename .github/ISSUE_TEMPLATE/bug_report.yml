@@ -1,0 +1,68 @@
+name: Bug Report
+description: Reportar un bug para ayudarnos a mejorar
+title: "[Bug] "
+labels: ["type:unconfirmed-bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+      Gracias por reportar un bug. Completa el formulario para ayudarnos a diagnosticarlo.
+
+  - type: textarea
+    attributes:
+      label: Descripcion
+      description: Describe el bug de forma clara y concisa
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Pasos para reproducir
+      description: Pasos para reproducir el comportamiento
+      placeholder: |
+      1. Ir a '...'
+      2. Click en '...'
+      3. Scroll a '...'
+      4. Ver error
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Comportamiento esperado
+      description: Que esperabas que ocurriera?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Capturas de pantalla
+      description: Si aplica, agrega capturas para explicar el problema
+
+  - type: dropdown
+    attributes:
+      label: Sistema operativo
+      options:
+        - Linux
+        - Windows
+        - macOS
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Version del launcher
+      description: Ej. v31.0.0
+
+  - type: checkboxes
+    attributes:
+      label: Plataformas afectadas
+      options:
+        - label: Linux
+        - label: Windows
+        - label: macOS
+
+  - type: textarea
+    attributes:
+      label: Contexto adicional
+      description: Cualquier otro contexto relevante (logs, configuracion, etc.)
