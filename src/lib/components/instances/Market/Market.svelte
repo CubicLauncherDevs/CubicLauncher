@@ -46,6 +46,7 @@
 		error={state.error}
 		onSelect={state.selectProject}
 		onLoadMore={state.loadMore}
+		keyFn={(p) => p.id}
 	>
 		{#snippet filterPanel()}
 			<MarketFilterPanel
