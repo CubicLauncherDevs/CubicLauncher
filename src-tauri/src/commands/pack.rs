@@ -1,4 +1,5 @@
 use crate::core::{AppEvent, InstanceError, emit};
+use crate::core::PathManager;
 use crate::services::{DownloadQueue, InstanceManager};
 use serde::Serialize;
 use std::borrow::Cow;
@@ -101,26 +102,32 @@ pub async fn install_mrpack(
 
     DownloadQueue::get().enqueue_work("mods").await;
 
-    let (progress_tx, progress_rx) = tokio::sync::mpsc::channel::<(usize, usize)>(32);
+    let (progress_tx, mut progress_rx) =
+        tokio::sync::watch::channel(aqua::progress::DownloadProgress::empty(0));
     let mods_label: Arc<str> = "mods".into();
     let progress_task = tokio::spawn(async move {
-        let mut rx = progress_rx;
-        while let Some((current, total)) = rx.recv().await {
+        loop {
+            if progress_rx.changed().await.is_err() {
+                break;
+            }
+            let p = progress_rx.borrow_and_update().clone();
             emit(AppEvent::DProgress {
                 version: mods_label.clone(),
-                stage: Cow::Borrowed("generic"),
-                item_current: current as u64,
-                item_total: total as u64,
-                bytes_current: 0,
-                bytes_total: 0,
-                current_item: None,
+                stage: Cow::Owned(p.stage.as_str().to_string()),
+                item_current: p.item_current as u64,
+                item_total: p.item_total as u64,
+                bytes_current: p.bytes_current,
+                bytes_total: p.bytes_total,
+                current_item: p.current_item,
             });
         }
     });
 
+    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
     let install_result = cubrinth::mrpack::install_mrpack(
         std::path::Path::new(&path),
         &instance_dir,
+        &shared_dir,
         Some(progress_tx),
     )
     .await;

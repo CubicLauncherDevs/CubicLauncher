@@ -1,4 +1,5 @@
 use crate::core::errors::InstanceError;
+use crate::services::{compute_file_sha1, ModSource};
 use crate::services::{AddonManager, AddonMetadata, InstanceManager};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -16,6 +17,31 @@ pub struct ModDto {
     pub authors: Option<Vec<String>>,
     pub icon: Option<String>,
     pub enabled: bool,
+    pub sha1: String,
+    pub file_size: u64,
+    pub source: String,
+    pub project_id: Option<String>,
+    pub slug: Option<String>,
+}
+
+/// Cached in ablage, keyed by SHA1
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModCacheEntry {
+    pub metadata: Option<AddonMetadata>,
+    pub source: ModSource,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthVersionEntry {
+    id: String,
+    project_id: String,
+}
+
+const MODRINTH_API: &str = "https://api.modrinth.com/v2";
+const USER_AGENT: &str = concat!("CubicLauncher/", env!("CARGO_PKG_VERSION"));
+
+pub(crate) fn repo_path(mods_dir: &Path) -> PathBuf {
+    mods_dir.join(".mod_cache.crep")
 }
 
 #[tauri::command]
@@ -31,19 +57,18 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
     };
 
     let mods_dir = handle.get_instance_dir().await.join("mods");
-    let mods_dir2 = mods_dir.clone();
     info!("Listando mods de instancia {} en {:?}", id, mods_dir);
 
-    struct ModEntry {
+    // --- Phase 1: List files ---
+    struct FileEntry {
         path: PathBuf,
         filename: String,
         display_name: String,
         enabled: bool,
-        mtime: std::time::SystemTime,
         size: u64,
     }
 
-    let entries = tokio::task::spawn_blocking(move || -> Vec<ModEntry> {
+    let entries = tokio::task::spawn_blocking(move || -> Vec<FileEntry> {
         let dir = match std::fs::read_dir(&mods_dir) {
             Ok(d) => d,
             Err(_) => return Vec::new(),
@@ -80,15 +105,13 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
                     .unwrap_or_else(|| file_name.clone());
 
                 let meta = std::fs::metadata(&path).ok()?;
-                let mtime = meta.modified().ok()?;
                 let size = meta.len();
 
-                Some(ModEntry {
+                Some(FileEntry {
                     path,
                     filename: file_name,
                     display_name,
                     enabled,
-                    mtime,
                     size,
                 })
             })
@@ -101,174 +124,251 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
         return Vec::new();
     }
 
-    // cache via ablage
-    let repo_path = mods_dir2.join(".mod_cache.crep");
-    let mut repo = ablage::Repo::open(&repo_path);
+    let mods_dir2 = match entries.first() {
+        Some(e) => e.path.parent().unwrap().to_path_buf(),
+        None => return Vec::new(),
+    };
+    let repo_path = repo_path(&mods_dir2);
 
-    fn entry_fingerprint(filename: &str, mtime: &std::time::SystemTime, size: u64) -> u64 {
-        let nanos = mtime
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos() as u64;
-        let name_hash = {
-            use std::hash::{Hash, Hasher};
-            let mut h = std::collections::hash_map::DefaultHasher::new();
-            filename.hash(&mut h);
-            h.finish()
-        };
-        name_hash ^ nanos ^ size
+    // --- Phase 2: Compute SHA1 + parse JARs in parallel ---
+    struct RawResult {
+        filename: String,
+        display_name: String,
+        enabled: bool,
+        sha1: String,
+        size: u64,
+        metadata: Option<AddonMetadata>,
     }
 
-    // compute global fingerprint (XOR of all individual fingerprints)
-    let global_fp: u64 = entries.iter().fold(0, |acc, e| {
-        acc ^ entry_fingerprint(&e.filename, &e.mtime, e.size)
-    });
+    let handles: Vec<_> = entries
+        .into_iter()
+        .map(|e| {
+            let path = e.path;
+            let filename = e.filename;
+            let display_name = e.display_name;
+            let enabled = e.enabled;
+            let size = e.size;
 
-    let cache_hit = repo
-        .get("__global")
-        .and_then(|entry| {
-            if entry.data.len() != 8 {
-                return None;
-            }
-            let mut buf = [0u8; 8];
-            buf.copy_from_slice(&entry.data);
-            Some(u64::from_le_bytes(buf))
-        })
-        .map(|stored| stored == global_fp)
-        .unwrap_or(false);
-
-    if cache_hit {
-        // fast path: read all metadata from cache
-        let mods: Vec<ModDto> = entries
-            .into_iter()
-            .map(|e| {
-                let meta: Option<AddonMetadata> = repo
-                    .get(&e.filename)
-                    .and_then(|entry| postcard::from_bytes(&entry.data).ok());
-                let (md_name, md_version, md_desc, md_authors, md_icon) = match meta {
-                    Some(m) => (m.name, m.version, m.description, m.authors, m.icon),
-                    None => (e.display_name, None, None, None, None),
-                };
-                ModDto {
-                    name: md_name,
-                    filename: e.filename,
-                    version: md_version,
-                    description: md_desc,
-                    authors: md_authors,
-                    icon: md_icon.map(|s| (*s).clone()),
-                    enabled: e.enabled,
+            tokio::task::spawn_blocking(move || -> RawResult {
+                let sha1 = compute_file_sha1(&path).unwrap_or_default();
+                let parsed = AddonManager::get_mod_info(&path);
+                RawResult {
+                    filename,
+                    display_name,
+                    enabled,
+                    sha1,
+                    size,
+                    metadata: parsed,
                 }
             })
-            .collect();
-        info!(
-            "{} mods cargados desde cache en instancia {}",
-            mods.len(),
-            id
-        );
-        return mods;
-    }
-
-    // slow path: parse only changed files in parallel
-    let handles: Vec<_> = entries
-        .iter()
-        .map(|e| {
-            let path = e.path.clone();
-            let filename = e.filename.clone();
-            let fp = entry_fingerprint(&e.filename, &e.mtime, e.size);
-            // check individual cache first
-            let cached = repo.get(&filename).and_then(|entry| {
-                if entry.fingerprint == fp {
-                    postcard::from_bytes::<AddonMetadata>(&entry.data).ok()
-                } else {
-                    None
-                }
-            });
-            if let Some(meta) = cached {
-                // fully cached
-                tokio::task::spawn_blocking(move || (filename, fp, Some(meta)))
-            } else {
-                tokio::task::spawn_blocking(move || {
-                    let meta = AddonManager::get_mod_info(&path);
-                    (filename, fp, meta)
-                })
-            }
         })
         .collect();
 
-    let results = futures::future::join_all(handles).await;
+    let raw_results: Vec<RawResult> = futures::future::join_all(handles)
+        .await
+        .into_iter()
+        .filter_map(|r| r.ok())
+        .collect();
+
+    // --- Phase 3: Resolve from cache + auto-enrich via Modrinth API ---
+    let mut repo = ablage::Repo::open(&repo_path);
+    let mut to_resolve: Vec<String> = Vec::new();
     let mut dirty = false;
 
-    let mods: Vec<ModDto> = entries
-        .into_iter()
-        .zip(results)
-        .map(|(entry, result)| {
-            let (filename, fp, meta_option) = match result {
-                Ok(r) => r,
-                Err(_) => {
-                    warn!("Error parsing mod {}", entry.filename);
-                    return ModDto {
-                        name: entry.display_name,
-                        filename: entry.filename,
-                        version: None,
-                        description: None,
-                        authors: None,
-                        icon: None,
-                        enabled: entry.enabled,
-                    };
-                }
-            };
-            let (md_name, md_version, md_desc, md_authors, md_icon) = match &meta_option {
-                Some(m) => (
-                    m.name.clone(),
-                    m.version.clone(),
-                    m.description.clone(),
-                    m.authors.clone(),
-                    m.icon.clone().map(|s| (*s).clone()),
-                ),
-                None => (entry.display_name, None, None, None, None),
-            };
-            // update cache for this entry
-            if let Some(meta) = &meta_option
-                && repo.get(&filename).map(|e| e.fingerprint) != Some(fp)
-                && let Ok(data) = postcard::to_stdvec(meta)
-            {
-                repo.put(
-                    filename,
-                    ablage::Entry {
-                        version: 1,
-                        fingerprint: fp,
-                        data,
-                    },
-                );
-                dirty = true;
-            }
-            ModDto {
-                name: md_name,
-                filename: entry.filename,
-                version: md_version,
-                description: md_desc,
-                authors: md_authors,
-                icon: md_icon,
-                enabled: entry.enabled,
-            }
-        })
-        .collect();
+    let mut cached: Vec<(RawResult, ModCacheEntry)> = Vec::with_capacity(raw_results.len());
 
-    // update global fingerprint
-    let global_entry = ablage::Entry {
-        version: 1,
-        fingerprint: 0,
-        data: global_fp.to_le_bytes().to_vec(),
-    };
-    repo.put("__global", global_entry);
-    dirty = true;
+    for r in &raw_results {
+        if r.sha1.is_empty() {
+            cached.push((RawResult {
+                sha1: r.sha1.clone(),
+                ..RawResult {
+                    filename: r.filename.clone(),
+                    display_name: r.display_name.clone(),
+                    enabled: r.enabled,
+                    sha1: String::new(),
+                    size: r.size,
+                    metadata: r.metadata.clone(),
+                }
+            }, ModCacheEntry {
+                metadata: r.metadata.clone(),
+                source: ModSource::Local,
+            }));
+            continue;
+        }
+
+        if let Some(entry) = repo.get(&r.sha1) {
+            if let Ok(cached_entry) = postcard::from_bytes::<ModCacheEntry>(&entry.data) {
+                cached.push((RawResult {
+                    sha1: r.sha1.clone(),
+                    ..RawResult {
+                        filename: r.filename.clone(),
+                        display_name: r.display_name.clone(),
+                        enabled: r.enabled,
+                        sha1: r.sha1.clone(),
+                        size: r.size,
+                        metadata: r.metadata.clone(),
+                    }
+                }, cached_entry));
+                continue;
+            }
+        }
+
+        // Cache miss: use parsed metadata (if any) + Local source initially
+        let entry = ModCacheEntry {
+            metadata: r.metadata.clone(),
+            source: ModSource::Local,
+        };
+        if let Ok(data) = postcard::to_stdvec(&entry) {
+            repo.put(
+                r.sha1.clone(),
+                ablage::Entry {
+                    version: 1,
+                    fingerprint: 0,
+                    data,
+                },
+            );
+            dirty = true;
+        }
+        to_resolve.push(r.sha1.clone());
+        cached.push((RawResult {
+            sha1: r.sha1.clone(),
+            ..RawResult {
+                filename: r.filename.clone(),
+                display_name: r.display_name.clone(),
+                enabled: r.enabled,
+                sha1: r.sha1.clone(),
+                size: r.size,
+                metadata: r.metadata.clone(),
+            }
+        }, entry));
+    }
+
+    // --- Phase 4: Batch-resolve unresolved SHA1s via Modrinth ---
+    if !to_resolve.is_empty() {
+        // Filter to only those still marked Local (not yet enriched)
+        let pending: Vec<String> = cached
+            .iter()
+            .filter(|(_, entry)| matches!(entry.source, ModSource::Local))
+            .filter(|(r, _)| !r.sha1.is_empty())
+            .map(|(r, _)| r.sha1.clone())
+            .collect();
+
+        if !pending.is_empty() {
+            info!(
+                "Resolviendo {} mods via Modrinth hash lookup en instancia {}",
+                pending.len(),
+                id
+            );
+            match resolve_modrinth_hashes(&pending).await {
+                Ok(api_results) => {
+                    for (sha1, version) in api_results {
+                        let source = ModSource::Modrinth {
+                            project_id: version.project_id,
+                            version_id: version.id,
+                            slug: None,
+                        };
+                        // Update cache
+                        let updated = ModCacheEntry {
+                            source: source.clone(),
+                            // Keep existing metadata if present
+                            metadata: cached
+                                .iter()
+                                .find(|(r, _)| r.sha1 == sha1)
+                                .and_then(|(r, _)| r.metadata.clone()),
+                        };
+                        if let Ok(data) = postcard::to_stdvec(&updated) {
+                            repo.put(
+                                sha1.clone(),
+                                ablage::Entry {
+                                    version: 1,
+                                    fingerprint: 0,
+                                    data,
+                                },
+                            );
+                            dirty = true;
+                        }
+                        // Update in-memory entry
+                        if let Some((_, entry)) =
+                            cached.iter_mut().find(|(r, _)| r.sha1 == sha1)
+                        {
+                            *entry = updated;
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("Error resolviendo hashes via Modrinth: {}", e);
+                }
+            }
+        }
+    }
 
     if dirty {
         let _ = repo.flush();
     }
 
-    info!("{} mods parseados en instancia {}", mods.len(), id);
+    // --- Phase 5: Build ModDto list ---
+    let mods: Vec<ModDto> = cached
+        .into_iter()
+        .map(|(raw, entry)| {
+            let md = entry.metadata.as_ref();
+            ModDto {
+                name: md
+                    .map(|m| m.name.clone())
+                    .unwrap_or(raw.display_name),
+                filename: raw.filename,
+                version: md.and_then(|m| m.version.clone()),
+                description: md.and_then(|m| m.description.clone()),
+                authors: md.map(|m| {
+                    m.authors
+                        .clone()
+                        .unwrap_or_default()
+                }),
+                icon: md
+                    .and_then(|m| m.icon.clone().map(|s| (*s).clone())),
+                enabled: raw.enabled,
+                sha1: raw.sha1,
+                file_size: raw.size,
+                source: entry.source.source_str().to_string(),
+                project_id: entry.source.project_id().map(|s| s.to_string()),
+                slug: entry.source.slug().map(|s| s.to_string()),
+            }
+        })
+        .collect();
+
+    info!("{} mods listados en instancia {}", mods.len(), id);
     mods
+}
+
+async fn resolve_modrinth_hashes(
+    hashes: &[String],
+) -> Result<HashMap<String, ModrinthVersionEntry>, String> {
+    let client = reqwest::Client::builder()
+        .user_agent(USER_AGENT)
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+
+    let body = serde_json::json!({
+        "hashes": hashes,
+        "algorithm": "sha1",
+    });
+
+    let resp = client
+        .post(format!("{}/version_files/update", MODRINTH_API))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth API request failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Modrinth API returned {}", resp.status()));
+    }
+
+    let result: HashMap<String, ModrinthVersionEntry> = resp
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Modrinth response: {}", e))?;
+
+    Ok(result)
 }
 
 #[tauri::command]
@@ -349,10 +449,17 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
         };
         let filename = file_name.to_string_lossy().to_string();
         let path_clone = path.clone();
-        let metadata =
-            tokio::task::spawn_blocking(move || AddonManager::get_resourcepack_info(&path_clone))
-                .await
-                .unwrap_or(None);
+        let sha1_fut = tokio::task::spawn_blocking(move || compute_file_sha1(&path_clone));
+        let size = std::fs::metadata(&path).ok().map(|m| m.len()).unwrap_or(0);
+        let metadata_fut =
+            tokio::task::spawn_blocking({
+                let p = path.clone();
+                move || AddonManager::get_resourcepack_info(&p)
+            });
+
+        let (sha1, metadata) = tokio::join!(sha1_fut, metadata_fut);
+        let sha1 = sha1.unwrap_or(Ok(String::new())).unwrap_or_default();
+        let metadata = metadata.unwrap_or(None);
 
         let (md_name, md_desc, md_icon) = match metadata {
             Some(m) => (m.name, m.description, m.icon),
@@ -367,6 +474,11 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
             authors: None,
             icon: md_icon.map(|s| (*s).clone()),
             enabled: true,
+            sha1,
+            file_size: size,
+            source: "local".to_string(),
+            project_id: None,
+            slug: None,
         });
     }
     resourcepacks.sort_by_key(|a| a.name.to_lowercase());
@@ -412,10 +524,17 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
         };
         let filename = file_name.to_string_lossy().to_string();
         let path_clone = path.clone();
-        let metadata =
-            tokio::task::spawn_blocking(move || AddonManager::get_shaderpack_info(&path_clone))
-                .await
-                .unwrap_or(None);
+        let sha1_fut = tokio::task::spawn_blocking(move || compute_file_sha1(&path_clone));
+        let size = std::fs::metadata(&path).ok().map(|m| m.len()).unwrap_or(0);
+        let metadata_fut =
+            tokio::task::spawn_blocking({
+                let p = path.clone();
+                move || AddonManager::get_shaderpack_info(&p)
+            });
+
+        let (sha1, metadata) = tokio::join!(sha1_fut, metadata_fut);
+        let sha1 = sha1.unwrap_or(Ok(String::new())).unwrap_or_default();
+        let metadata = metadata.unwrap_or(None);
 
         let (md_name, md_desc, md_icon) = match metadata {
             Some(m) => (m.name, m.description, m.icon),
@@ -430,6 +549,11 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
             authors: None,
             icon: md_icon.map(|s| (*s).clone()),
             enabled: true,
+            sha1,
+            file_size: size,
+            source: "local".to_string(),
+            project_id: None,
+            slug: None,
         });
     }
     shaderpacks.sort_by_key(|a| a.name.to_lowercase());
@@ -439,75 +563,4 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
         id
     );
     shaderpacks
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ModSourceMetadata {
-    pub project_id: String,
-    pub version_id: String,
-}
-
-fn get_mods_metadata_path(instance_dir: &Path) -> PathBuf {
-    instance_dir.join("mods-metadata.json")
-}
-
-pub(crate) async fn read_mods_metadata(
-    instance_dir: &Path,
-) -> Result<Option<HashMap<String, ModSourceMetadata>>, String> {
-    let path = get_mods_metadata_path(instance_dir);
-    if !path.exists() {
-        return Ok(None);
-    }
-    let content = tokio::fs::read_to_string(&path)
-        .await
-        .map_err(|e| format!("Failed to read mods metadata: {}", e))?;
-    let metadata: HashMap<String, ModSourceMetadata> = serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse mods metadata: {}", e))?;
-    Ok(Some(metadata))
-}
-
-pub(crate) async fn write_mods_metadata(
-    instance_dir: &Path,
-    metadata: HashMap<String, ModSourceMetadata>,
-) -> Result<(), String> {
-    let path = get_mods_metadata_path(instance_dir);
-    let parent = path
-        .parent()
-        .ok_or_else(|| "Invalid metadata path".to_string())?;
-    tokio::fs::create_dir_all(parent)
-        .await
-        .map_err(|e| format!("Failed to create instance dir: {}", e))?;
-    let content = serde_json::to_string(&metadata)
-        .map_err(|e| format!("Failed to serialize mods metadata: {}", e))?;
-    tokio::fs::write(&path, &content)
-        .await
-        .map_err(|e| format!("Failed to write mods metadata: {}", e))?;
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn get_instance_mods_metadata(
-    instance_id: String,
-) -> Result<Option<HashMap<String, ModSourceMetadata>>, String> {
-    validate_uuid(&instance_id)?;
-    let manager = InstanceManager::get();
-    let Some(handle) = manager.get_handle(&instance_id).await else {
-        return Err("Instance not found".to_string());
-    };
-    let instance_dir = handle.get_instance_dir().await;
-    read_mods_metadata(&instance_dir).await
-}
-
-#[tauri::command]
-pub async fn save_instance_mods_metadata(
-    instance_id: String,
-    metadata: HashMap<String, ModSourceMetadata>,
-) -> Result<(), String> {
-    validate_uuid(&instance_id)?;
-    let manager = InstanceManager::get();
-    let Some(handle) = manager.get_handle(&instance_id).await else {
-        return Err("Instance not found".to_string());
-    };
-    let instance_dir = handle.get_instance_dir().await;
-    write_mods_metadata(&instance_dir, metadata).await
 }

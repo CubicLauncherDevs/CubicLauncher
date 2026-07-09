@@ -1,6 +1,5 @@
 import {
 	getModrinthLatestVersions,
-	getInstanceModsMetadata,
 	getInstanceMods,
 } from "$lib/api/cubicApi";
 import type { ModUpdateInfo, ModFileSource } from "$lib/types/types";
@@ -23,27 +22,28 @@ export function useModUpdates() {
 			const mods = await getInstanceMods(instanceId);
 			if (!mods || mods.length === 0) return [];
 
-			const metadata = await getInstanceModsMetadata(instanceId);
-			if (!metadata) return [];
-
-			const entries = Object.entries(metadata);
-			if (entries.length === 0) return [];
-
-			const hashes: string[] = [];
-			const hashToSource: Record<string, ModFileSource> = {};
-			for (const [filename, src] of entries) {
-				const mod = mods.find((m) => m.filename === filename);
-				if (mod) {
-					hashes.push(filename);
-					hashToSource[filename] = { ...src, filename };
+			// Collect SHA1s from mods that have a modrinth source
+			const sha1s: string[] = [];
+			const sha1ToMod: Record<string, { mod: typeof mods[0]; source: ModFileSource }> = {};
+			for (const mod of mods) {
+				if (mod.source === "modrinth" && mod.project_id && mod.sha1) {
+					sha1s.push(mod.sha1);
+					sha1ToMod[mod.sha1] = {
+						mod,
+						source: {
+							project_id: mod.project_id,
+							version_id: mod.version ?? "",
+							filename: mod.filename,
+						},
+					};
 				}
 			}
 
-			if (hashes.length === 0) return [];
+			if (sha1s.length === 0) return [];
 
 			const loaders = ["fabric", "forge", "neoforge", "quilt"];
 			const result = await getModrinthLatestVersions(
-				hashes,
+				sha1s,
 				"sha1",
 				loaders,
 			);
@@ -51,20 +51,18 @@ export function useModUpdates() {
 
 			const updates: ModUpdateInfo[] = [];
 			for (const [hash, version] of Object.entries(result)) {
-				const src = hashToSource[hash];
-				if (!src) continue;
-				const isNewer = version.id !== src.version_id;
-				const mod = mods.find((m) => m.filename === src.filename);
+				const entry = sha1ToMod[hash];
+				if (!entry) continue;
+				const isNewer = version.id !== entry.source.version_id;
 				updates.push({
-					filename: src.filename,
-					projectTitle:
-						mod?.name ?? src.filename.replace(/\.jar$/, ""),
-					iconUrl: mod?.icon ?? null,
-					currentVersion: src.version_id,
+					filename: entry.mod.filename,
+					projectTitle: entry.mod.name,
+					iconUrl: entry.mod.icon ?? null,
+					currentVersion: entry.source.version_id,
 					latestVersion: isNewer ? version.version_number : null,
 					latestVersionId: isNewer ? version.id : null,
 					upToDate: !isNewer,
-					modrinthSource: src,
+					modrinthSource: entry.source,
 				});
 			}
 

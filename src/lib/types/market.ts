@@ -37,6 +37,7 @@ export interface MarketProject {
 	installedVersion?: string;
 	hasUpdate?: boolean;
 	disabled?: boolean;
+	hasRemoteData?: boolean;
 }
 
 export interface MarketVersion {
@@ -122,19 +123,12 @@ export function curseforgeVersionToMarket(
 
 export function localModToMarket(
 	mod: ModDto,
-	metadata?: { project_id?: string; version_id?: string },
 ): MarketProject {
-	const isNumericId = metadata?.project_id
-		? /^\d+$/.test(metadata.project_id)
-		: false;
-	const source: MarketSource = isNumericId
-		? "curseforge"
-		: metadata?.project_id
-			? "modrinth"
-			: "local";
+	const isNumericId = mod.project_id ? /^\d+$/.test(mod.project_id) : false;
+	const source: MarketSource = (mod.source as MarketSource) ?? "local";
 
 	return {
-		id: metadata?.project_id ?? `local-${mod.filename}`,
+		id: mod.project_id ?? `local-${mod.filename}`,
 		title: mod.name,
 		description: mod.description ?? "",
 		author: mod.authors?.join(", ") ?? "",
@@ -142,11 +136,14 @@ export function localModToMarket(
 		source,
 		downloadCount: 0,
 		installed: mod,
-		modrinthProjectId: !isNumericId ? metadata?.project_id : undefined,
-		modrinthVersionId: !isNumericId ? metadata?.version_id : undefined,
-		curseforgeProjectId: isNumericId ? metadata?.project_id : undefined,
-		curseforgeVersionId: isNumericId ? metadata?.version_id : undefined,
+		modrinthProjectId: source === "modrinth" ? mod.project_id ?? undefined : undefined,
+		modrinthVersionId: undefined,
+		curseforgeProjectId: source === "curseforge" ? mod.project_id ?? undefined : undefined,
+		curseforgeVersionId: undefined,
 		disabled: !mod.enabled,
+		hasRemoteData: source !== "local",
+		curseforge: mod.slug && isNumericId ? { slug: mod.slug } as unknown as CurseForgeProject : undefined,
+		modrinth: mod.slug && !isNumericId ? { slug: mod.slug } as unknown as ModrinthProject : undefined,
 	};
 }
 
