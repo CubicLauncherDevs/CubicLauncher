@@ -28,11 +28,7 @@
 		return fallback;
 	}
 
-	let open = $state(false);
-
-	$effect.pre(() => {
-		open = loadSaved(storageKey, defaultOpen);
-	});
+	let open = $state(loadSaved(storageKey, defaultOpen));
 
 	$effect(() => {
 		if (storageKey) {
