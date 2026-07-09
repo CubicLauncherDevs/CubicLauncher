@@ -263,8 +263,7 @@
 				<h4 class="market-detail-section-title">
 					{t("market.detail.readme")}
 				</h4>
-					<!-- svelte-ignore a11y_click_events_have_key_events -->
-				<div
+					<div
 					class="markdown-body"
 					role="presentation"
 					onclick={(e) => {
