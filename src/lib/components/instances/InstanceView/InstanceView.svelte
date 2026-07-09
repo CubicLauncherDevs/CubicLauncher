@@ -86,8 +86,8 @@
 		{#if activeSection === "detalles"}
 			<div
 				class="details-section"
-in:fly={{ x: -200, duration: 450 }}
-out:fly={{ x: -200, duration: 400 }}
+				in:fly={{ x: -200, duration: 450 }}
+				out:fly={{ x: -200, duration: 400 }}
 			>
 				<div class="nav-card">
 					<span class="nav-card-header">
@@ -164,8 +164,8 @@ out:fly={{ x: -200, duration: 400 }}
 		{:else}
 			<div
 				class="subview-section"
-in:fly={{ x: 200, duration: 450 }}
-out:fly={{ x: 200, duration: 400 }}
+				in:fly={{ x: 200, duration: 450 }}
+				out:fly={{ x: 200, duration: 400 }}
 			>
 				{#if activeSection === "market"}
 					{#key selectedInstance.uuid}

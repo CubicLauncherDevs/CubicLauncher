@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-	import { onMount } from "svelte";
+	import { onMount, onDestroy } from "svelte";
 	import { fly } from "svelte/transition";
 	import type { Snippet } from "svelte";
 
@@ -27,6 +27,7 @@
 	let scrollTop = $state(0);
 	let containerHeight = $state(0);
 	let ticking = false;
+	let disposed = false;
 
 	const totalHeight = $derived(items.length * itemHeight + padding);
 
@@ -48,6 +49,7 @@
 		const target = e.target as HTMLDivElement;
 		if (!ticking) {
 			requestAnimationFrame(() => {
+				if (disposed) return;
 				scrollTop = target.scrollTop;
 				if (target.scrollHeight - scrollTop - containerHeight < 500) {
 					onNearEnd?.();
@@ -66,6 +68,10 @@
 		});
 		resizeObserver.observe(container);
 		return () => resizeObserver.disconnect();
+	});
+
+	onDestroy(() => {
+		disposed = true;
 	});
 </script>
 
