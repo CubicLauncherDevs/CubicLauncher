@@ -319,6 +319,16 @@ export interface ModrinthVersionFull {
 	version_type: string;
 }
 
+export interface ModrinthGalleryImage {
+	url: string;
+	raw_url: string;
+	featured: boolean;
+	title: string | null;
+	description: string | null;
+	created: string;
+	ordering: number;
+}
+
 export interface ModrinthProjectFull {
 	id: string;
 	slug: string;
@@ -330,7 +340,7 @@ export interface ModrinthProjectFull {
 	versions: string[];
 	game_versions: string[];
 	loaders: string[];
-	gallery: string[];
+	gallery: ModrinthGalleryImage[];
 	categories: string[];
 	client_side: string;
 	server_side: string;

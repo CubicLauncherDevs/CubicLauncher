@@ -287,7 +287,7 @@
 				</h4>
 				<div class="gallery-grid">
 					{#each (detail.fullProject as ModrinthProjectFull).gallery as image, i (i)}
-						<img src={image} alt="Gallery {i + 1}" loading="lazy" />
+						<img src={image.url} alt={image.title ?? `Gallery ${i + 1}`} loading="lazy" />
 					{/each}
 				</div>
 			</div>
