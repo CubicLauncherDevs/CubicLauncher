@@ -1,5 +1,5 @@
-use crate::core::{AppEvent, InstanceError, emit};
 use crate::core::PathManager;
+use crate::core::{AppEvent, InstanceError, emit};
 use crate::services::{DownloadQueue, InstanceManager};
 use serde::Serialize;
 use std::borrow::Cow;

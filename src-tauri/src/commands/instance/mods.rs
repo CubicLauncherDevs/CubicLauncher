@@ -1,7 +1,7 @@
 use crate::core::errors::InstanceError;
 use crate::core::event_bus;
-use crate::services::{compute_file_sha1, ModSource};
 use crate::services::{AddonManager, AddonMetadata, InstanceManager};
+use crate::services::{ModSource, compute_file_sha1};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -79,7 +79,6 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
         display_name: String,
         enabled: bool,
         size: u64,
-        mtime: std::time::SystemTime,
         fingerprint: u64,
     }
 
@@ -130,7 +129,6 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
                     display_name,
                     enabled,
                     size,
-                    mtime,
                     fingerprint,
                 })
             })
@@ -145,7 +143,7 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
 
     let mods_dir2 = entries[0].path.parent().unwrap().to_path_buf();
     let repo_path = repo_path(&mods_dir2);
-    let mut repo = ablage::Repo::open(&repo_path);
+    let repo = ablage::Repo::open(&repo_path);
 
     // --- Phase 2: Fast-path via global fingerprint ---
     let global_fp: u64 = entries.iter().fold(0, |acc, e| acc ^ e.fingerprint);
@@ -170,14 +168,34 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
                 let entry: Option<PerFileCacheEntry> = repo
                     .get(&e.filename)
                     .and_then(|entry| postcard::from_bytes(&entry.data).ok());
-                let (sha1, md_name, md_version, md_desc, md_authors, md_icon, source, project_id, slug) = match entry {
+                let (
+                    sha1,
+                    md_name,
+                    md_version,
+                    md_desc,
+                    md_authors,
+                    md_icon,
+                    source,
+                    project_id,
+                    slug,
+                ) = match entry {
                     Some(cached) => (
                         cached.sha1,
-                        cached.metadata.as_ref().map(|m| m.name.clone()).unwrap_or(e.display_name),
+                        cached
+                            .metadata
+                            .as_ref()
+                            .map(|m| m.name.clone())
+                            .unwrap_or(e.display_name),
                         cached.metadata.as_ref().and_then(|m| m.version.clone()),
                         cached.metadata.as_ref().and_then(|m| m.description.clone()),
-                        cached.metadata.as_ref().map(|m| m.authors.clone().unwrap_or_default()),
-                        cached.metadata.as_ref().and_then(|m| m.icon.clone().map(|s| (*s).clone())),
+                        cached
+                            .metadata
+                            .as_ref()
+                            .map(|m| m.authors.clone().unwrap_or_default()),
+                        cached
+                            .metadata
+                            .as_ref()
+                            .and_then(|m| m.icon.clone().map(|s| (*s).clone())),
                         cached.source.source_str().to_string(),
                         cached.source.project_id().map(|s| s.to_string()),
                         cached.source.slug().map(|s| s.to_string()),
@@ -185,9 +203,13 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
                     None => (
                         String::new(),
                         e.display_name,
-                        None, None, None, None,
+                        None,
+                        None,
+                        None,
+                        None,
                         "local".to_string(),
-                        None, None,
+                        None,
+                        None,
                     ),
                 };
                 ModDto {
@@ -246,14 +268,10 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
         let mut repo = ablage::Repo::open(&repo_path2);
 
         struct RawResult {
-            filename: String,
-            display_name: String,
-            enabled: bool,
             sha1: String,
             metadata: Option<AddonMetadata>,
         }
 
-        let mut dirty = false;
         let mut to_resolve: Vec<String> = Vec::new();
         let mut cached: Vec<(FileEntry, PerFileCacheEntry)> = Vec::with_capacity(entries.len());
 
@@ -262,8 +280,6 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
             .map(|e| {
                 let path = e.path.clone();
                 let filename = e.filename.clone();
-                let display_name = e.display_name.clone();
-                let enabled = e.enabled;
                 let fingerprint = e.fingerprint;
 
                 let cached_entry = repo.get(&filename).and_then(|entry| {
@@ -277,9 +293,6 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
                 if let Some(cached) = cached_entry {
                     tokio::task::spawn_blocking(move || -> RawResult {
                         RawResult {
-                            filename,
-                            display_name,
-                            enabled,
                             sha1: cached.sha1,
                             metadata: cached.metadata,
                         }
@@ -289,9 +302,6 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
                         let sha1 = compute_file_sha1(&path).unwrap_or_default();
                         let parsed = AddonManager::get_mod_info(&path);
                         RawResult {
-                            filename,
-                            display_name,
-                            enabled,
                             sha1,
                             metadata: parsed,
                         }
@@ -334,7 +344,6 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
                                 data,
                             },
                         );
-                        dirty = true;
                     }
                     if !raw.sha1.is_empty() {
                         to_resolve.push(raw.sha1.clone());
@@ -383,7 +392,6 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
                                                 data,
                                             },
                                         );
-                                        dirty = true;
                                     }
                                 }
                             }
@@ -404,11 +412,8 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
                 data: global_fp.to_le_bytes().to_vec(),
             },
         );
-        dirty = true;
 
-        if dirty {
-            let _ = repo.flush();
-        }
+        let _ = repo.flush();
 
         event_bus::emit(event_bus::AppEvent::ModsEnriched { id: id2.into() });
     });
@@ -528,11 +533,10 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
         let path_clone = path.clone();
         let sha1_fut = tokio::task::spawn_blocking(move || compute_file_sha1(&path_clone));
         let size = std::fs::metadata(&path).ok().map(|m| m.len()).unwrap_or(0);
-        let metadata_fut =
-            tokio::task::spawn_blocking({
-                let p = path.clone();
-                move || AddonManager::get_resourcepack_info(&p)
-            });
+        let metadata_fut = tokio::task::spawn_blocking({
+            let p = path.clone();
+            move || AddonManager::get_resourcepack_info(&p)
+        });
 
         let (sha1, metadata) = tokio::join!(sha1_fut, metadata_fut);
         let sha1 = sha1.unwrap_or(Ok(String::new())).unwrap_or_default();
@@ -603,11 +607,10 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
         let path_clone = path.clone();
         let sha1_fut = tokio::task::spawn_blocking(move || compute_file_sha1(&path_clone));
         let size = std::fs::metadata(&path).ok().map(|m| m.len()).unwrap_or(0);
-        let metadata_fut =
-            tokio::task::spawn_blocking({
-                let p = path.clone();
-                move || AddonManager::get_shaderpack_info(&p)
-            });
+        let metadata_fut = tokio::task::spawn_blocking({
+            let p = path.clone();
+            move || AddonManager::get_shaderpack_info(&p)
+        });
 
         let (sha1, metadata) = tokio::join!(sha1_fut, metadata_fut);
         let sha1 = sha1.unwrap_or(Ok(String::new())).unwrap_or_default();
