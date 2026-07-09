@@ -233,6 +233,12 @@ export type AppEvent =
 			data: {
 				id: string;
 			};
+	  }
+	| {
+			type: "ModsEnriched";
+			data: {
+				id: string;
+			};
 	  };
 
 export interface ConsoleOutputPayload {
