@@ -153,8 +153,10 @@ export function createMarketState(
 
 	function sortLocalItems(list: MarketProject[]): MarketProject[] {
 		const sort = filters.localSort;
-		if (sort === "name-asc") return [...list].sort((a, b) => a.title.localeCompare(b.title));
-		if (sort === "name-desc") return [...list].sort((a, b) => b.title.localeCompare(a.title));
+		if (sort === "name-asc")
+			return [...list].sort((a, b) => a.title.localeCompare(b.title));
+		if (sort === "name-desc")
+			return [...list].sort((a, b) => b.title.localeCompare(a.title));
 		return [...list];
 	}
 
@@ -281,7 +283,10 @@ export function createMarketState(
 				const local = localByProjectId[hit.project_id];
 				if (local) {
 					market.installed = local;
-					market.installedVersion = local.source === "modrinth" ? (local.version ?? undefined) : undefined;
+					market.installedVersion =
+						local.source === "modrinth"
+							? (local.version ?? undefined)
+							: undefined;
 					market.modrinthProjectId = hit.project_id;
 					market.modrinthVersionId = local.version ?? undefined;
 					return market;
@@ -807,11 +812,14 @@ export function createMarketState(
 	});
 
 	// Auto-refresh local items when background enrichment completes
-	const _unregisterRefresh = registerModsRefreshCallback(instance.uuid, () => {
-		if (filters.source === "local") {
-			loadLocalItems();
-		}
-	});
+	const _unregisterRefresh = registerModsRefreshCallback(
+		instance.uuid,
+		() => {
+			if (filters.source === "local") {
+				loadLocalItems();
+			}
+		},
+	);
 
 	return {
 		get filters() {
