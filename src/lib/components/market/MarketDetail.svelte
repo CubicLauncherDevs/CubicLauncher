@@ -265,7 +265,16 @@
 				<h4 class="market-detail-section-title">
 					{t("market.detail.readme")}
 				</h4>
-				<div class="markdown-body">
+				<div
+					class="markdown-body"
+					onclick={(e) => {
+						const a = (e.target as HTMLElement).closest("a");
+						if (a?.href && !a.href.startsWith("#")) {
+							e.preventDefault();
+							openUrl(a.href);
+						}
+					}}
+				>
 					{@html readmeHtml}
 				</div>
 			</div>

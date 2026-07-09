@@ -2,7 +2,7 @@ use aqua::{DownloadItemSpec, DownloadManager, GenericBatch};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
-use crate::commands::instance::mods::{repo_path, ModCacheEntry};
+use crate::commands::instance::mods::{repo_path, PerFileCacheEntry};
 use crate::core::PathManager;
 use crate::core::errors::{DownloadError, FsError, InstanceError};
 use crate::services::compute_file_sha1;
@@ -116,7 +116,8 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
             crate::services::ModSource::Local
         };
 
-        let entry = ModCacheEntry {
+        let entry = PerFileCacheEntry {
+            sha1: sha1.clone(),
             metadata: None,
             source,
         };
@@ -124,7 +125,7 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
         if let Ok(data) = postcard::to_stdvec(&entry) {
             if repo.get(&sha1).is_none() {
                 repo.put(
-                    sha1,
+                    sha1.clone(),
                     ablage::Entry {
                         version: 1,
                         fingerprint: 0,

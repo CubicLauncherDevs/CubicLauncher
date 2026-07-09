@@ -15,6 +15,7 @@ import {
 	downloadResourcePacks,
 	downloadShaderPacks,
 } from "$lib/api/cubicApi";
+import { registerModsRefreshCallback } from "$lib/api/launcherService";
 import {
 	localModToMarket,
 	modrinthProjectToMarket,
@@ -805,6 +806,13 @@ export function createMarketState(
 		}
 	});
 
+	// Auto-refresh local items when background enrichment completes
+	const _unregisterRefresh = registerModsRefreshCallback(instance.uuid, () => {
+		if (filters.source === "local") {
+			loadLocalItems();
+		}
+	});
+
 	return {
 		get filters() {
 			return filters;
@@ -850,5 +858,6 @@ export function createMarketState(
 		uninstall,
 		toggleEnabled,
 		refresh: () => performSearch(true),
+		destroy: () => _unregisterRefresh(),
 	};
 }
