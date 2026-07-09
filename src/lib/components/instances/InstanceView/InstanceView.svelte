@@ -84,7 +84,11 @@
 
 	<div class="tab-content" bind:this={tabContentEl}>
 		{#if activeSection === "detalles"}
-			<div class="details-section" in:fly={{ x: -200, duration: 220 }} out:fly={{ x: -200, duration: 180 }}>
+			<div
+				class="details-section"
+				in:fly={{ x: -200, duration: 220 }}
+				out:fly={{ x: -200, duration: 180 }}
+			>
 				<div class="nav-card">
 					<span class="nav-card-header">
 						<span class="nav-card-title"
@@ -114,9 +118,7 @@
 							class="nav-item priority"
 							onclick={() => (activeSection = "resources")}
 						>
-							<span class="nav-icon"
-								><BoxIcon size={18} /></span
-							>
+							<span class="nav-icon"><BoxIcon size={18} /></span>
 							<span class="nav-label"
 								>{t("instanceView.tabs.resources")}</span
 							>
@@ -130,8 +132,7 @@
 							class:secondary={supportsMods}
 							onclick={() => (activeSection = "screenshots")}
 						>
-							<span class="nav-icon"
-								><ImageIcon size={18} /></span
+							<span class="nav-icon"><ImageIcon size={18} /></span
 							>
 							<span class="nav-label"
 								>{t("instanceView.tabs.screenshots")}</span
@@ -144,16 +145,13 @@
 							<button
 								type="button"
 								class="nav-item secondary"
-								onclick={() =>
-									(activeSection = "shaderpacks")}
+								onclick={() => (activeSection = "shaderpacks")}
 							>
 								<span class="nav-icon"
 									><ShaderIcon size={18} /></span
 								>
 								<span class="nav-label"
-									>{t(
-										"instanceView.tabs.shaderpacks",
-									)}</span
+									>{t("instanceView.tabs.shaderpacks")}</span
 								>
 								<span class="nav-chevron"
 									><ChevronRightIcon size={14} /></span
@@ -164,7 +162,11 @@
 				</div>
 			</div>
 		{:else}
-			<div class="subview-section" in:fly={{ x: 200, duration: 220 }} out:fly={{ x: 200, duration: 180 }}>
+			<div
+				class="subview-section"
+				in:fly={{ x: 200, duration: 220 }}
+				out:fly={{ x: 200, duration: 180 }}
+			>
 				{#if activeSection === "market"}
 					{#key selectedInstance.uuid}
 						{#if Market}

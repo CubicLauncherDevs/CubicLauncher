@@ -98,8 +98,6 @@
 			openUrl(`https://modrinth.com/mod/${slug}`);
 		}
 	}
-
-	
 </script>
 
 <div class="market-detail">
@@ -304,8 +302,6 @@
 					: t("market.detail.openOnModrinth")}
 			</button>
 		{/if}
-
-		
 	</div>
 
 	{#if detail.loading && !detail.fullProject && detail.versions.length === 0}
