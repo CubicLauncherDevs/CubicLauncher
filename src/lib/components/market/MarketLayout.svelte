@@ -18,6 +18,7 @@
 		filterPanel: Snippet;
 		itemSnippet: Snippet<[MarketProject]>;
 		detailSnippet: Snippet;
+		keyFn?: (item: MarketProject) => string | number;
 	}
 
 	let {
@@ -32,6 +33,7 @@
 		filterPanel,
 		itemSnippet,
 		detailSnippet,
+		keyFn,
 	}: Props = $props();
 </script>
 
@@ -50,7 +52,7 @@
 					{@render itemSnippet({} as unknown as MarketProject)}
 				</div>
 			{:else}
-				<VirtualList {items} itemHeight={106} onNearEnd={onLoadMore}>
+				<VirtualList {items} itemHeight={106} {keyFn} onNearEnd={onLoadMore}>
 					{#snippet children(project)}
 						<!-- svelte-ignore a11y_click_events_have_key_events -->
 						<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -131,6 +133,7 @@
 		border-radius: var(--border-radius-sm);
 		transition: background 0.15s;
 		padding: 0 2px;
+		cursor: pointer;
 	}
 
 	.market-item-wrapper:hover {

@@ -1,5 +1,6 @@
 <script lang="ts" generics="T">
 	import { onMount } from "svelte";
+	import { fly } from "svelte/transition";
 	import type { Snippet } from "svelte";
 
 	interface Props {
@@ -9,6 +10,7 @@
 		class?: string;
 		padding?: number;
 		onNearEnd?: () => void;
+		keyFn?: (item: T) => string | number;
 	}
 
 	let {
@@ -18,6 +20,7 @@
 		class: className = "",
 		padding = 20,
 		onNearEnd,
+		keyFn,
 	}: Props = $props();
 
 	let container: HTMLDivElement = $state() as HTMLDivElement;
@@ -80,12 +83,14 @@
 		class="virtual-list-content"
 		style="position: absolute; top: 0; left: 0; width: 100%;"
 	>
-		{#each visibleSlice as item, idx (startIndex + idx)}
+		{#each visibleSlice as item, idx (keyFn ? keyFn(item) : startIndex + idx)}
 			{@const index = startIndex + idx}
 			<div
 				class="virtual-list-item-wrapper"
 				style="position: absolute; transform: translateY({index *
 					itemHeight}px); left: 0; width: 100%; height: {itemHeight}px;"
+				in:fly={{ y: 8, duration: 200, delay: idx * 20 }}
+				out:fly={{ y: -8, duration: 100 }}
 			>
 				{@render children(item, index)}
 			</div>
@@ -95,16 +100,10 @@
 
 <style>
 	.virtual-list-container {
-		scrollbar-width: thin;
-		scrollbar-color: var(--border) transparent;
+		scrollbar-width: none;
 	}
 
-	:global(.virtual-list-container::-webkit-scrollbar) {
-		width: 6px;
-	}
-
-	:global(.virtual-list-container::-webkit-scrollbar-thumb) {
-		background: var(--border);
-		border-radius: 10px;
+	.virtual-list-container::-webkit-scrollbar {
+		display: none;
 	}
 </style>
