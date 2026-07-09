@@ -84,7 +84,8 @@ pub async fn install_mrpack(
         .filter(|f| {
             f.env
                 .as_ref()
-                .and_then(|env| env.get("client")).is_none_or(|v| v != "unsupported")
+                .and_then(|env| env.get("client"))
+                .is_none_or(|v| v != "unsupported")
         })
         .filter_map(|f| {
             let url = f.downloads.first()?;
