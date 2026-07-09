@@ -46,6 +46,9 @@ pub enum AppEvent {
     ThemeChanged {
         id: CompactString,
     },
+    ModsEnriched {
+        id: CompactString,
+    },
 }
 
 pub fn init(app: AppHandle) {

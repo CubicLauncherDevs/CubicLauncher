@@ -4,6 +4,25 @@ import {
 	showSuccess,
 	clearPendingJreLaunch,
 } from "../state/state.svelte";
+
+export type RefreshLocalCallback = () => void;
+const _refreshCallbacks = new Map<string, Set<RefreshLocalCallback>>();
+
+export function registerModsRefreshCallback(
+	instanceId: string,
+	cb: RefreshLocalCallback,
+): () => void {
+	let callbacks = _refreshCallbacks.get(instanceId);
+	if (!callbacks) {
+		callbacks = new Set();
+		_refreshCallbacks.set(instanceId, callbacks);
+	}
+	callbacks.add(cb);
+	return () => {
+		callbacks.delete(cb);
+		if (callbacks.size === 0) _refreshCallbacks.delete(instanceId);
+	};
+}
 import { listen } from "@tauri-apps/api/event";
 import type {
 	AppEvent,
@@ -98,6 +117,13 @@ export function initEventListeners(): void {
 					applyTheme(payload.data.id);
 				}
 				break;
+			case "ModsEnriched": {
+				const callbacks = _refreshCallbacks.get(payload.data.id);
+				if (callbacks) {
+					for (const cb of callbacks) cb();
+				}
+				break;
+			}
 		}
 	});
 }
