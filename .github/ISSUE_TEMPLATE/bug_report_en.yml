@@ -1,0 +1,68 @@
+name: Bug Report (English)
+description: Report a bug to help us improve
+title: "[Bug] "
+labels: ["type:unconfirmed-bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the form to help us diagnose the issue.
+
+  - type: textarea
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll to '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain the problem
+
+  - type: dropdown
+    attributes:
+      label: Operating System
+      options:
+        - Linux
+        - Windows
+        - macOS
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Launcher version
+      description: "e.g. v31.0.0"
+
+  - type: checkboxes
+    attributes:
+      label: Affected platforms
+      options:
+        - label: Linux
+        - label: Windows
+        - label: macOS
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Any other relevant context (logs, configuration, etc.)
