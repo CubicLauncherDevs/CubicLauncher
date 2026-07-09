@@ -44,9 +44,10 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
         .map(|m| {
             let mut spec = DownloadItemSpec::new(m.url.clone(), mods_dir.join(&m.filename), "mod");
             if let Some(hash) = &m.sha1
-                && !hash.is_empty() {
-                    spec = spec.with_hash(hash.clone());
-                }
+                && !hash.is_empty()
+            {
+                spec = spec.with_hash(hash.clone());
+            }
             info!(
                 "Encolando mod: {} -> {:?}{}",
                 m.filename,
@@ -120,17 +121,18 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
         };
 
         if let Ok(data) = postcard::to_stdvec(&entry)
-            && repo.get(&sha1).is_none() {
-                repo.put(
-                    sha1.clone(),
-                    ablage::Entry {
-                        version: 1,
-                        fingerprint: 0,
-                        data,
-                    },
-                );
-                dirty = true;
-            }
+            && repo.get(&sha1).is_none()
+        {
+            repo.put(
+                sha1.clone(),
+                ablage::Entry {
+                    version: 1,
+                    fingerprint: 0,
+                    data,
+                },
+            );
+            dirty = true;
+        }
     }
 
     if dirty {
