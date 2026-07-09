@@ -5,6 +5,7 @@
 	import type {
 		MarketFilters,
 		MarketSort,
+		LocalSort,
 	} from "$lib/state/marketState.svelte";
 	import type { MarketSource, ContentType } from "$lib/types/market";
 
@@ -16,6 +17,7 @@
 		onQueryChange: (query: string) => void;
 		onSortChange: (sort: MarketSort) => void;
 		onCategoryChange: (category: string | null) => void;
+		onLocalSortChange?: (sort: LocalSort) => void;
 		onRefresh: () => void;
 	}
 
@@ -27,6 +29,7 @@
 		onQueryChange,
 		onSortChange,
 		onCategoryChange,
+		onLocalSortChange,
 		onRefresh,
 	}: Props = $props();
 
@@ -45,6 +48,11 @@
 		},
 		{ value: "newest", label: t("market.filter.sortNewest"), icon: "★" },
 		{ value: "updated", label: t("market.filter.sortUpdated"), icon: "↻" },
+	];
+
+	const localSorts: { value: LocalSort; label: string; icon: string }[] = [
+		{ value: "name-asc", label: "Name A-Z", icon: "A" },
+		{ value: "name-desc", label: "Name Z-A", icon: "Z" },
 	];
 
 	const categories = [
@@ -156,7 +164,26 @@
 		</button>
 	</div>
 
-	{#if filters.source === "modrinth" && isModContent}
+	{#if filters.source === "local"}
+		<div transition:slide={{ duration: 150 }}>
+			<div class="filter-section">
+				<span class="filter-label">{t("market.filter.sortBy")}</span>
+				<div class="filter-chips">
+					{#each localSorts as sort (sort.value)}
+						<button
+							type="button"
+							class="filter-chip"
+							class:active={filters.localSort === sort.value}
+							onclick={() => onLocalSortChange?.(sort.value)}
+						>
+							<span class="chip-icon">{sort.icon}</span>
+							{sort.label}
+						</button>
+					{/each}
+				</div>
+			</div>
+		</div>
+	{:else if filters.source === "modrinth" && isModContent}
 		<div transition:slide={{ duration: 150 }}>
 			<div class="filter-section">
 				<span class="filter-label">{t("market.filter.sortBy")}</span>

@@ -1,13 +1,12 @@
 use aqua::{DownloadItemSpec, DownloadManager, GenericBatch};
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{info, warn};
 
-use crate::commands::instance::mods::{ModSourceMetadata, read_mods_metadata, write_mods_metadata};
+use crate::commands::instance::mods::{repo_path, ModCacheEntry};
 use crate::core::PathManager;
 use crate::core::errors::{DownloadError, FsError, InstanceError};
+use crate::services::compute_file_sha1;
 use crate::services::InstanceManager;
-
-const USER_AGENT: &str = concat!("CubicLauncher/", env!("CARGO_PKG_VERSION"));
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ModDownloadInfo {
@@ -17,6 +16,8 @@ pub struct ModDownloadInfo {
     pub project_id: Option<String>,
     #[serde(default)]
     pub version_id: Option<String>,
+    #[serde(default)]
+    pub sha1: Option<String>,
 }
 
 #[tauri::command]
@@ -41,12 +42,22 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
     let items: Vec<DownloadItemSpec> = mods
         .iter()
         .map(|m| {
+            let mut spec = DownloadItemSpec::new(m.url.clone(), mods_dir.join(&m.filename), "mod");
+            if let Some(hash) = &m.sha1 {
+                if !hash.is_empty() {
+                    spec = spec.with_hash(hash.clone());
+                }
+            }
             info!(
-                "Encolando mod: {} -> {:?}",
+                "Encolando mod: {} -> {:?}{}",
                 m.filename,
-                mods_dir.join(&m.filename)
+                mods_dir.join(&m.filename),
+                m.sha1
+                    .as_ref()
+                    .map(|h| format!(" (sha1: {})", &h[..8.min(h.len())]))
+                    .unwrap_or_default()
             );
-            DownloadItemSpec::new(m.url.clone(), mods_dir.join(&m.filename), "mod")
+            spec
         })
         .collect();
 
@@ -64,23 +75,73 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
         .await
         .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
 
-    // Persist source metadata for installed mods so the market can match local files to projects.
-    let mut metadata = read_mods_metadata(&instance_dir).await?.unwrap_or_default();
+    // Post-download: compute SHA1 and cache metadata in ablage
+    let cache_path = repo_path(&mods_dir);
+    let mut repo = ablage::Repo::open(&cache_path);
+    let mut dirty = false;
+
     for m in &mods {
-        if let (Some(project_id), Some(version_id)) = (&m.project_id, &m.version_id) {
-            metadata.insert(
-                m.filename.clone(),
-                ModSourceMetadata {
-                    project_id: project_id.clone(),
-                    version_id: version_id.clone(),
-                },
-            );
+        let file_path = mods_dir.join(&m.filename);
+        if !file_path.exists() {
+            continue;
+        }
+        let sha1 = tokio::task::spawn_blocking({
+            let p = file_path.clone();
+            move || compute_file_sha1(&p)
+        })
+        .await
+        .unwrap_or(Ok(String::new()))
+        .unwrap_or_default();
+
+        if sha1.is_empty() {
+            warn!("No se pudo computar SHA1 para {}", m.filename);
+            continue;
+        }
+
+        let source = if let (Some(project_id), Some(version_id)) =
+            (&m.project_id, &m.version_id)
+        {
+            crate::services::ModSource::Modrinth {
+                project_id: project_id.clone(),
+                version_id: version_id.clone(),
+                slug: None,
+            }
+        } else if let Some(project_id) = &m.project_id {
+            // Numeric project_id → CurseForge
+            crate::services::ModSource::CurseForge {
+                project_id: project_id.clone(),
+                file_id: m.version_id.clone().unwrap_or_default(),
+            }
+        } else {
+            crate::services::ModSource::Local
+        };
+
+        let entry = ModCacheEntry {
+            metadata: None,
+            source,
+        };
+
+        if let Ok(data) = postcard::to_stdvec(&entry) {
+            if repo.get(&sha1).is_none() {
+                repo.put(
+                    sha1,
+                    ablage::Entry {
+                        version: 1,
+                        fingerprint: 0,
+                        data,
+                    },
+                );
+                dirty = true;
+            }
         }
     }
-    write_mods_metadata(&instance_dir, metadata).await?;
+
+    if dirty {
+        let _ = repo.flush();
+    }
 
     info!(
-        "{} mods descargados y metadata persistida en {:?}",
+        "{} mods descargados y cacheados en {:?}",
         count, mods_dir
     );
     Ok(())
@@ -208,32 +269,20 @@ pub async fn download_mrpack(url: String, version_id: String) -> Result<String, 
     let filename = format!("{}.mrpack", version_id);
     let dest = cache_dir.join(&filename);
 
-    let client = reqwest::Client::builder()
-        .user_agent(USER_AGENT)
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    let item = aqua::DownloadItemSpec::new(url, dest.clone(), "mrpack");
+    let batch = aqua::GenericBatch::new(format!("mrpack-{}", version_id), vec![item]);
 
-    let response = client
-        .get(&url)
-        .send()
+    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let dm = aqua::DownloadManager::new(shared_dir);
+    let handle = dm
+        .prepare_batch(Box::new(batch))
         .await
-        .map_err(|e| format!("Download failed: {}", e))?;
+        .map_err(|e| format!("Failed to prepare mrpack download: {}", e))?;
 
-    if !response.status().is_success() {
-        return Err(format!(
-            "HTTP {} when downloading mrpack",
-            response.status()
-        ));
-    }
-
-    let bytes = response
-        .bytes()
+    handle
+        .download_all(None)
         .await
-        .map_err(|e| format!("Failed to read response: {}", e))?;
-
-    tokio::fs::write(&dest, &bytes)
-        .await
-        .map_err(|e| format!("Failed to write mrpack file: {}", e))?;
+        .map_err(|e| format!("Failed to download mrpack: {}", e))?;
 
     let path_str = dest.to_string_lossy().to_string();
     info!("Mrpack downloaded to {}", path_str);

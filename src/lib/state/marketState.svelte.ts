@@ -1,7 +1,6 @@
 import {
 	deleteInstanceFile,
 	getInstanceMods,
-	getInstanceModsMetadata,
 	getInstanceResourcePacks,
 	getInstanceShaderPacks,
 	getModrinthProject,
@@ -39,6 +38,7 @@ const PAGE_SIZE = 20;
 export type MarketSource = "local" | "modrinth" | "curseforge";
 
 export type MarketSort = "relevance" | "downloads" | "newest" | "updated";
+export type LocalSort = "name-asc" | "name-desc";
 
 export interface MarketFilters {
 	source: MarketSource;
@@ -47,6 +47,7 @@ export interface MarketFilters {
 	gameVersion: string;
 	category: string | null;
 	sort: MarketSort;
+	localSort: LocalSort;
 }
 
 export interface MarketDetailState {
@@ -91,6 +92,7 @@ export function createMarketState(
 		gameVersion: parsed.gameVersion,
 		category: null,
 		sort: "downloads",
+		localSort: "name-asc",
 	});
 
 	const items = $state<MarketProject[]>([]);
@@ -109,6 +111,7 @@ export function createMarketState(
 
 	let overrideVersionId = $state<string | null>(null);
 	let abortController: AbortController | null = null;
+	let localAbortController: AbortController | null = null;
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const selectedProject = $derived<MarketProject | null>(
@@ -130,6 +133,7 @@ export function createMarketState(
 		filters.gameVersion = fresh.gameVersion;
 		filters.category = null;
 		filters.sort = "downloads";
+		filters.localSort = "name-asc";
 		resetPagination();
 		selectedId = null;
 		overrideVersionId = null;
@@ -146,61 +150,28 @@ export function createMarketState(
 		}
 	}
 
+	function sortLocalItems(list: MarketProject[]): MarketProject[] {
+		const sort = filters.localSort;
+		if (sort === "name-asc") return [...list].sort((a, b) => a.title.localeCompare(b.title));
+		if (sort === "name-desc") return [...list].sort((a, b) => b.title.localeCompare(a.title));
+		return [...list];
+	}
+
 	async function loadLocalItems() {
 		loading = true;
 		error = null;
 		abortPending();
+		localAbortController?.abort();
+		localAbortController = new AbortController();
+		const signal = localAbortController.signal;
 
 		try {
 			const localItems = await localLoader(instance.uuid);
+			if (signal.aborted) return;
 
-			const mapped = localItems.map((mod) => {
-				return localModToMarket(mod, undefined);
-			});
+			const mapped = localItems.map((mod) => localModToMarket(mod));
+			if (signal.aborted) return;
 
-			// Enrich local mods that have a projectId with Modrinth data
-			if (isModContent) {
-				const metadata = await getInstanceModsMetadata(instance.uuid);
-				for (const item of mapped) {
-					const meta = metadata?.[item.installed?.filename ?? ""];
-					if (meta) {
-						item.modrinthProjectId = meta.project_id;
-						item.modrinthVersionId = meta.version_id;
-					}
-				}
-
-				const seen: Record<string, true> = {};
-				const ids: string[] = [];
-				for (const m of mapped) {
-					const pid = m.modrinthProjectId;
-					if (pid && !seen[pid]) {
-						seen[pid] = true;
-						ids.push(pid);
-					}
-				}
-				if (ids.length > 0) {
-					const projects = await Promise.all(
-						ids.map((id) => getModrinthProject(id)),
-					);
-					const projectMap: Record<string, ModrinthProjectFull> = {};
-					for (const p of projects) {
-						if (p) projectMap[p.id] = p;
-					}
-					for (const item of mapped) {
-						if (item.modrinthProjectId) {
-							const full = projectMap[item.modrinthProjectId];
-							if (full) {
-								item.title = full.title;
-								item.description = full.description;
-								item.icon = full.icon_url ?? item.icon;
-								item.downloadCount = full.downloads;
-							}
-						}
-					}
-				}
-			}
-
-			// Apply local search filter
 			const query = filters.query.trim().toLowerCase();
 			const filtered = query
 				? mapped.filter(
@@ -211,13 +182,16 @@ export function createMarketState(
 					)
 				: mapped;
 
+			const sorted = sortLocalItems(filtered);
 			items.length = 0;
-			items.push(...filtered);
-			total = filtered.length;
+			items.push(...sorted);
+			total = sorted.length;
 			hasMore = false;
 		} catch (e) {
+			if (e instanceof DOMException && e.name === "AbortError") return;
 			error = String(e ?? "Error loading local items");
 		} finally {
+			localAbortController = null;
 			loading = false;
 		}
 	}
@@ -261,31 +235,17 @@ export function createMarketState(
 
 			if (!result) return;
 
-			// Load local data to mark installed items
+			// Load local mods to mark installed items
 			const localItems = await localLoader(instance.uuid);
-			const installedByFilename: Record<string, ModDto> = {};
-			for (const item of localItems ?? []) {
-				installedByFilename[item.filename.toLowerCase()] = item;
-			}
-
-			// Load metadata for mods to match by project_id
-			const localByProjectId: Record<
-				string,
-				{ mod: ModDto; versionId?: string }
-			> = {};
-			if (isModContent) {
-				const metadata = await getInstanceModsMetadata(instance.uuid);
-				for (const [filename, meta] of Object.entries(metadata ?? {})) {
-					localByProjectId[meta.project_id] = {
-						mod: {
-							name: filename,
-							filename,
-							version: meta.version_id,
-							enabled: true,
-						} as ModDto,
-						versionId: meta.version_id,
-					};
+			const localByProjectId: Record<string, ModDto> = {};
+			for (const mod of localItems ?? []) {
+				if (mod.project_id) {
+					localByProjectId[mod.project_id] = mod;
 				}
+			}
+			const localByFilename: Record<string, ModDto> = {};
+			for (const mod of localItems ?? []) {
+				localByFilename[mod.filename.toLowerCase()] = mod;
 			}
 
 			function modNameFromFilename(filename: string): string {
@@ -319,22 +279,21 @@ export function createMarketState(
 				const market = modrinthProjectToMarket(hit);
 				const local = localByProjectId[hit.project_id];
 				if (local) {
-					market.installed = local.mod;
-					market.installedVersion = local.versionId;
+					market.installed = local;
+					market.installedVersion = local.source === "modrinth" ? (local.version ?? undefined) : undefined;
 					market.modrinthProjectId = hit.project_id;
-					market.modrinthVersionId = local.versionId;
+					market.modrinthVersionId = local.version ?? undefined;
 					return market;
 				}
-				// Fallback: match by installed filename → project title/slug
-				for (const [filename, installedItem] of Object.entries(
-					installedByFilename,
+				for (const [filename, installedMod] of Object.entries(
+					localByFilename,
 				)) {
 					const modName = modNameFromFilename(filename);
 					if (
 						modName &&
 						nameMatchesSearch(modName, hit.title, hit.slug)
 					) {
-						market.installed = installedItem;
+						market.installed = installedMod;
 						market.modrinthProjectId = hit.project_id;
 						break;
 					}
@@ -380,7 +339,7 @@ export function createMarketState(
 		const signal = abortController.signal;
 
 		try {
-			const category = null; // CurseForge uses numeric category IDs, skip for now
+			const category = null;
 			const index = filters.sort;
 			const currentOffset = offset;
 
@@ -397,28 +356,17 @@ export function createMarketState(
 
 			if (!result) return;
 
-			// Load local metadata to mark installed mods
-			const metadata = await getInstanceModsMetadata(instance.uuid);
-			const localByProjectId: Record<
-				string,
-				{ mod: ModDto; versionId?: string }
-			> = {};
-			for (const [filename, meta] of Object.entries(metadata ?? {})) {
-				localByProjectId[meta.project_id] = {
-					mod: {
-						name: filename,
-						filename,
-						version: meta.version_id,
-						enabled: true,
-					} as ModDto,
-					versionId: meta.version_id,
-				};
+			// Load local mods to mark installed items
+			const localItems = await localLoader(instance.uuid);
+			const localByProjectId: Record<string, ModDto> = {};
+			for (const mod of localItems ?? []) {
+				if (mod.project_id) {
+					localByProjectId[mod.project_id] = mod;
+				}
 			}
-
-			const instanceMods = await getInstanceMods(instance.uuid);
-			const modsByFilename: Record<string, ModDto> = {};
-			for (const m of instanceMods ?? []) {
-				modsByFilename[m.filename.toLowerCase()] = m;
+			const localByFilename: Record<string, ModDto> = {};
+			for (const mod of localItems ?? []) {
+				localByFilename[mod.filename.toLowerCase()] = mod;
 			}
 
 			function modNameFromFilename(filename: string): string {
@@ -453,15 +401,14 @@ export function createMarketState(
 				const cfId = String(hit.id);
 				const local = localByProjectId[cfId];
 				if (local) {
-					market.installed = local.mod;
-					market.installedVersion = local.versionId;
+					market.installed = local;
+					market.installedVersion = local.version ?? undefined;
 					market.curseforgeProjectId = cfId;
-					market.curseforgeVersionId = local.versionId;
+					market.curseforgeVersionId = local.version ?? undefined;
 					return market;
 				}
-				// Fallback: match by installed filename → project name/slug
 				for (const [filename, installedMod] of Object.entries(
-					modsByFilename,
+					localByFilename,
 				)) {
 					const modName = modNameFromFilename(filename);
 					if (
@@ -667,6 +614,11 @@ export function createMarketState(
 							authors: null,
 							icon: null,
 							enabled: true,
+							sha1: "",
+							file_size: 0,
+							source: "local",
+							project_id: null,
+							slug: null,
 						};
 						item.installedVersion = version.id;
 						item.curseforgeVersionId = version.id;
@@ -716,6 +668,11 @@ export function createMarketState(
 						authors: null,
 						icon: null,
 						enabled: true,
+						sha1: "",
+						file_size: 0,
+						source: "local",
+						project_id: null,
+						slug: null,
 					};
 					item.installedVersion = version.id;
 					item.modrinthVersionId = version.id;
@@ -831,6 +788,13 @@ export function createMarketState(
 		debouncedSearch(true);
 	}
 
+	function setLocalSort(sort: LocalSort) {
+		filters.localSort = sort;
+		if (filters.source === "local") {
+			loadLocalItems();
+		}
+	}
+
 	// Watch instance changes and reset
 	let lastInstanceId = "";
 	$effect(() => {
@@ -879,6 +843,7 @@ export function createMarketState(
 		setQuery,
 		setCategory,
 		setSort,
+		setLocalSort,
 		selectProject,
 		loadMore,
 		install,

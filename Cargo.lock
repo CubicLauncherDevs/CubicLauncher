@@ -846,6 +846,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "sha1",
  "smallvec",
  "tauri",
  "tauri-build",
@@ -869,11 +870,9 @@ dependencies = [
 name = "cubrinth"
 version = "0.1.0"
 dependencies = [
- "futures",
- "reqwest",
+ "aqua",
  "serde",
  "serde_json",
- "sha1",
  "thiserror 2.0.18",
  "tokio",
  "tracing",

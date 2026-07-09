@@ -8,9 +8,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 zellkern = { path = "../zellkern" }
 zip = "8.6.0"
-reqwest = { version = "0.13", features = ["stream"] }
 tokio = { version = "1", features = ["full"] }
-sha1 = "0.11"
 thiserror = "2"
-futures = "0.3"
 tracing = "0.1"
+aqua = { path = "../aqua" }

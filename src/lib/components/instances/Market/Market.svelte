@@ -56,6 +56,7 @@
 				onQueryChange={state.setQuery}
 				onSortChange={state.setSort}
 				onCategoryChange={state.setCategory}
+				onLocalSortChange={state.setLocalSort}
 				onRefresh={state.refresh}
 			/>
 		{/snippet}

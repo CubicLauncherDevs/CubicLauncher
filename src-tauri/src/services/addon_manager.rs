@@ -1,5 +1,6 @@
 use base64::{Engine as _, engine::general_purpose};
 use serde::{Deserialize, Serialize};
+use sha1::{Digest, Sha1};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -23,6 +24,63 @@ pub struct AddonMetadata {
     pub description: Option<String>,
     pub authors: Option<Vec<String>>,
     pub icon: Option<Arc<String>>, // Base64
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ModSource {
+    Local,
+    Modrinth {
+        project_id: String,
+        version_id: String,
+        slug: Option<String>,
+    },
+    CurseForge {
+        project_id: String,
+        file_id: String,
+    },
+}
+
+impl ModSource {
+    pub fn source_str(&self) -> &str {
+        match self {
+            ModSource::Local => "local",
+            ModSource::Modrinth { .. } => "modrinth",
+            ModSource::CurseForge { .. } => "curseforge",
+        }
+    }
+
+    pub fn project_id(&self) -> Option<&str> {
+        match self {
+            ModSource::Local => None,
+            ModSource::Modrinth { project_id, .. } => Some(project_id),
+            ModSource::CurseForge { project_id, .. } => Some(project_id),
+        }
+    }
+
+    pub fn slug(&self) -> Option<&str> {
+        match self {
+            ModSource::Modrinth { slug, .. } => slug.as_deref(),
+            _ => None,
+        }
+    }
+}
+
+/// Compute SHA1 of a file synchronously (for use in spawn_blocking)
+pub fn compute_file_sha1(path: &Path) -> Result<String, String> {
+    let mut file = File::open(path).map_err(|e| format!("Failed to open {:?}: {}", path, e))?;
+    let mut hasher = Sha1::new();
+    let mut buf = [0u8; 8192];
+    loop {
+        let n = file
+            .read(&mut buf)
+            .map_err(|e| format!("Failed to read {:?}: {}", path, e))?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    let hash = hasher.finalize();
+    Ok(hash.iter().map(|b| format!("{:02x}", b)).collect())
 }
 
 type ParserFn = fn(&mut ZipArchive<File>) -> Result<AddonMetadata, ()>;
