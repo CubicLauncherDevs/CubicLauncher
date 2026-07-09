@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onMount, onDestroy } from "svelte";
 	import type { Component } from "svelte";
 	import "../styles/App.css";
 	import { launcherStore } from "$lib/state/state.svelte";
@@ -7,6 +7,7 @@
 		getVersions,
 		syncSettings,
 		initEventListeners,
+		destroyEventListeners,
 	} from "$lib/api/launcherService";
 	import type { InstanceDto } from "$lib/types/types";
 	import Sidebar from "$lib/components/layout/Sidebar/Sidebar.svelte";
@@ -91,6 +92,10 @@
 		});
 
 		setupDragDrop();
+	});
+
+	onDestroy(() => {
+		destroyEventListeners();
 	});
 
 	async function setupDragDrop() {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from "svelte";
 	import { t } from "$lib/i18n";
 	import type { InstanceDto } from "$lib/types/types";
 	import { createMarketState } from "$lib/state/marketState.svelte";
@@ -16,7 +17,12 @@
 
 	let { instance, contentType = "mods" }: Props = $props();
 
-	const state = $derived(createMarketState(instance, contentType));
+	// svelte-ignore state_referenced_locally
+	const state = createMarketState(instance, contentType);
+
+	onDestroy(() => {
+		state.destroy();
+	});
 
 	const emptyState = $derived.by(() => {
 		if (state.filters.source === "local") {

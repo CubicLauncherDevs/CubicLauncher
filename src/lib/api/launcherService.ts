@@ -23,7 +23,7 @@ export function registerModsRefreshCallback(
 		if (callbacks.size === 0) _refreshCallbacks.delete(instanceId);
 	};
 }
-import { listen } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
 	AppEvent,
 	InstanceDto,
@@ -39,7 +39,10 @@ import {
 	launchInstance,
 } from "./cubicApi";
 import { applyTheme } from "./themeManager";
-import { initDownloadState } from "$lib/state/downloadState.svelte";
+import {
+	initDownloadState,
+	destroyDownloadState,
+} from "$lib/state/downloadState.svelte";
 import { t } from "$lib/i18n";
 
 import { invoke } from "@tauri-apps/api/core";
@@ -54,6 +57,7 @@ export function getActiveUser(): MinecraftUser | null {
 }
 
 let _listenerInitialized = false;
+let _unlistenAppEvent: Promise<UnlistenFn> | null = null;
 let _instanceTimer: ReturnType<typeof setTimeout>;
 let _settingsTimer: ReturnType<typeof setTimeout>;
 let _localSettingsChange = false;
@@ -68,7 +72,7 @@ export function initEventListeners(): void {
 
 	initDownloadState();
 
-	listen<AppEvent>("app-event", (event) => {
+	_unlistenAppEvent = listen<AppEvent>("app-event", (event) => {
 		const payload = event.payload;
 
 		switch (payload.type) {
@@ -126,6 +130,18 @@ export function initEventListeners(): void {
 			}
 		}
 	});
+}
+
+/** Libera event listeners y timers — llamar en onDestroy */
+export function destroyEventListeners(): void {
+	clearTimeout(_instanceTimer);
+	clearTimeout(_settingsTimer);
+	if (_unlistenAppEvent) {
+		_unlistenAppEvent.then((u) => u()).catch(() => {});
+		_unlistenAppEvent = null;
+	}
+	destroyDownloadState();
+	_listenerInitialized = false;
 }
 
 async function handleJreInstalled(version: number, instance: InstanceDto) {

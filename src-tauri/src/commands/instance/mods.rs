@@ -1,6 +1,6 @@
 use crate::core::errors::InstanceError;
 use crate::core::event_bus;
-use crate::services::{AddonManager, AddonMetadata, InstanceManager};
+use crate::services::{AddonManager, AddonMetaNoIcon, InstanceManager};
 use crate::services::{ModSource, compute_file_sha1};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -27,10 +27,11 @@ pub struct ModDto {
 }
 
 /// Per-file entry in ablage, keyed by filename
+/// NOTA: Sin icon — se busca aparte via AddonManager::get_mod_icon()
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerFileCacheEntry {
     pub sha1: String,
-    pub metadata: Option<AddonMetadata>,
+    pub metadata: Option<AddonMetaNoIcon>,
     pub source: ModSource,
 }
 
@@ -143,88 +144,52 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
 
     let mods_dir2 = entries[0].path.parent().unwrap().to_path_buf();
     let repo_path = repo_path(&mods_dir2);
-    let repo = ablage::Repo::open(&repo_path);
 
-    // --- Phase 2: Fast-path via global fingerprint ---
+    // --- Phase 2: Fast-path via global fingerprint (sin cargar el HashMap completo) ---
     let global_fp: u64 = entries.iter().fold(0, |acc, e| acc ^ e.fingerprint);
 
-    let cache_hit = repo
-        .get("__global")
-        .and_then(|entry| {
-            if entry.data.len() != 8 {
-                return None;
-            }
-            let mut buf = [0u8; 8];
-            buf.copy_from_slice(&entry.data);
-            Some(u64::from_le_bytes(buf))
-        })
-        .map(|stored| stored == global_fp)
-        .unwrap_or(false);
-
-    if cache_hit {
+    if ablage::Repo::check_global_fingerprint(&repo_path, global_fp) {
+        // Cache hit: abrimos el repo solo para deserializar entries
+        let repo = ablage::Repo::open(&repo_path);
         let mods: Vec<ModDto> = entries
             .into_iter()
             .map(|e| {
                 let entry: Option<PerFileCacheEntry> = repo
                     .get(&e.filename)
                     .and_then(|entry| postcard::from_bytes(&entry.data).ok());
-                let (
-                    sha1,
-                    md_name,
-                    md_version,
-                    md_desc,
-                    md_authors,
-                    md_icon,
-                    source,
-                    project_id,
-                    slug,
-                ) = match entry {
-                    Some(cached) => (
-                        cached.sha1,
-                        cached
-                            .metadata
-                            .as_ref()
-                            .map(|m| m.name.clone())
-                            .unwrap_or(e.display_name),
-                        cached.metadata.as_ref().and_then(|m| m.version.clone()),
-                        cached.metadata.as_ref().and_then(|m| m.description.clone()),
-                        cached
-                            .metadata
-                            .as_ref()
-                            .map(|m| m.authors.clone().unwrap_or_default()),
-                        cached
-                            .metadata
-                            .as_ref()
-                            .and_then(|m| m.icon.clone().map(|s| (*s).clone())),
-                        cached.source.source_str().to_string(),
-                        cached.source.project_id().map(|s| s.to_string()),
-                        cached.source.slug().map(|s| s.to_string()),
-                    ),
-                    None => (
-                        String::new(),
-                        e.display_name,
-                        None,
-                        None,
-                        None,
-                        None,
-                        "local".to_string(),
-                        None,
-                        None,
-                    ),
-                };
-                ModDto {
-                    name: md_name,
-                    filename: e.filename,
-                    version: md_version,
-                    description: md_desc,
-                    authors: md_authors,
-                    icon: md_icon,
-                    enabled: e.enabled,
-                    sha1,
-                    file_size: e.size,
-                    source,
-                    project_id,
-                    slug,
+                match entry {
+                    Some(cached) => {
+                        let icon = AddonManager::get_mod_icon(&e.path).map(|s| (*s).clone());
+                        let md = cached.metadata.as_ref();
+                        ModDto {
+                            name: md.map(|m| m.name.clone()).unwrap_or(e.display_name),
+                            filename: e.filename,
+                            version: md.and_then(|m| m.version.clone()),
+                            description: md.and_then(|m| m.description.clone()),
+                            authors: md.map(|m| m.authors.clone().unwrap_or_default()),
+                            icon,
+                            enabled: e.enabled,
+                            sha1: cached.sha1,
+                            file_size: e.size,
+                            source: cached.source.source_str().to_string(),
+                            project_id: cached.source.project_id().map(|s| s.to_string()),
+                            slug: cached.source.slug().map(|s| s.to_string()),
+                        }
+                    }
+                    None => ModDto {
+                        name: e.display_name,
+                        filename: e.filename,
+                        version: None,
+                        description: None,
+                        authors: None,
+                        icon: None,
+                        enabled: e.enabled,
+                        sha1: String::new(),
+                        file_size: e.size,
+                        source: "local".to_string(),
+                        project_id: None,
+                        slug: None,
+                    },
                 }
             })
             .collect();
@@ -264,12 +229,11 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
     let repo_path2 = repo_path.clone();
     let id2 = id.clone();
     tokio::spawn(async move {
-        drop(repo);
         let mut repo = ablage::Repo::open(&repo_path2);
 
         struct RawResult {
             sha1: String,
-            metadata: Option<AddonMetadata>,
+            metadata: Option<AddonMetaNoIcon>,
         }
 
         let mut to_resolve: Vec<String> = Vec::new();
@@ -542,10 +506,11 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
         let sha1 = sha1.unwrap_or(Ok(String::new())).unwrap_or_default();
         let metadata = metadata.unwrap_or(None);
 
-        let (md_name, md_desc, md_icon) = match metadata {
-            Some(m) => (m.name, m.description, m.icon),
-            None => (filename.clone(), None, None),
+        let (md_name, md_desc) = match metadata {
+            Some(m) => (m.name, m.description),
+            None => (filename.clone(), None),
         };
+        let icon = AddonManager::get_mod_icon(&path).map(|s| (*s).clone());
 
         resourcepacks.push(ModDto {
             name: md_name,
@@ -553,7 +518,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
             version: None,
             description: md_desc,
             authors: None,
-            icon: md_icon.map(|s| (*s).clone()),
+            icon,
             enabled: true,
             sha1,
             file_size: size,
@@ -616,10 +581,11 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
         let sha1 = sha1.unwrap_or(Ok(String::new())).unwrap_or_default();
         let metadata = metadata.unwrap_or(None);
 
-        let (md_name, md_desc, md_icon) = match metadata {
-            Some(m) => (m.name, m.description, m.icon),
-            None => (filename.clone(), None, None),
+        let (md_name, md_desc) = match metadata {
+            Some(m) => (m.name, m.description),
+            None => (filename.clone(), None),
         };
+        let icon = AddonManager::get_mod_icon(&path).map(|s| (*s).clone());
 
         shaderpacks.push(ModDto {
             name: md_name,
@@ -627,7 +593,7 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
             version: None,
             description: md_desc,
             authors: None,
-            icon: md_icon.map(|s| (*s).clone()),
+            icon,
             enabled: true,
             sha1,
             file_size: size,

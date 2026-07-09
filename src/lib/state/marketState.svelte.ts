@@ -821,6 +821,24 @@ export function createMarketState(
 		},
 	);
 
+	function destroy() {
+		abortPending();
+		localAbortController?.abort();
+		localAbortController = null;
+		clearTimeout(searchTimer);
+		searchTimer = undefined;
+		_unregisterRefresh();
+
+		items.length = 0;
+		total = 0;
+		selectedId = null;
+		overrideVersionId = null;
+		detail.fullProject = undefined;
+		detail.versions = [];
+		detail.loading = false;
+		detail.error = null;
+	}
+
 	return {
 		get filters() {
 			return filters;
@@ -866,6 +884,6 @@ export function createMarketState(
 		uninstall,
 		toggleEnabled,
 		refresh: () => performSearch(true),
-		destroy: () => _unregisterRefresh(),
+		destroy,
 	};
 }
