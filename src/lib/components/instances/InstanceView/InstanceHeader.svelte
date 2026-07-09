@@ -102,7 +102,10 @@
 <header class="instance-header" class:compact={activeSection !== "detalles"}>
 	<div class="header-bg"></div>
 	<div class="header-body">
-	<div class="header-content" class:visible={activeSection === "detalles"}>
+		<div
+			class="header-content"
+			class:visible={activeSection === "detalles"}
+		>
 			<div class="title-row">
 				<div class="title-left">
 					<img
@@ -394,7 +397,10 @@
 				</div>
 			</div>
 		</div>
-	<div class="compact-content" class:visible={activeSection !== "detalles"}>
+		<div
+			class="compact-content"
+			class:visible={activeSection !== "detalles"}
+		>
 			<button
 				type="button"
 				class="back-btn"
@@ -492,7 +498,9 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
-		transition: transform 0.22s ease, opacity 0.18s ease;
+		transition:
+			transform 0.22s ease,
+			opacity 0.18s ease;
 		opacity: 1;
 		transform: translateX(0);
 	}
@@ -797,7 +805,9 @@
 		align-items: center;
 		gap: 10px;
 		padding: 12px 24px;
-		transition: transform 0.22s ease, opacity 0.18s ease;
+		transition:
+			transform 0.22s ease,
+			opacity 0.18s ease;
 		opacity: 1;
 		transform: translateX(0);
 	}

@@ -1,7 +1,4 @@
-import {
-	getModrinthLatestVersions,
-	getInstanceMods,
-} from "$lib/api/cubicApi";
+import { getModrinthLatestVersions, getInstanceMods } from "$lib/api/cubicApi";
 import type { ModUpdateInfo, ModFileSource } from "$lib/types/types";
 
 export interface ModUpdateState {
@@ -24,7 +21,10 @@ export function useModUpdates() {
 
 			// Collect SHA1s from mods that have a modrinth source
 			const sha1s: string[] = [];
-			const sha1ToMod: Record<string, { mod: typeof mods[0]; source: ModFileSource }> = {};
+			const sha1ToMod: Record<
+				string,
+				{ mod: (typeof mods)[0]; source: ModFileSource }
+			> = {};
 			for (const mod of mods) {
 				if (mod.source === "modrinth" && mod.project_id && mod.sha1) {
 					sha1s.push(mod.sha1);

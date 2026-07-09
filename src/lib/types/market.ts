@@ -121,9 +121,7 @@ export function curseforgeVersionToMarket(
 	};
 }
 
-export function localModToMarket(
-	mod: ModDto,
-): MarketProject {
+export function localModToMarket(mod: ModDto): MarketProject {
 	const isNumericId = mod.project_id ? /^\d+$/.test(mod.project_id) : false;
 	const source: MarketSource = (mod.source as MarketSource) ?? "local";
 
@@ -136,14 +134,22 @@ export function localModToMarket(
 		source,
 		downloadCount: 0,
 		installed: mod,
-		modrinthProjectId: source === "modrinth" ? mod.project_id ?? undefined : undefined,
+		modrinthProjectId:
+			source === "modrinth" ? (mod.project_id ?? undefined) : undefined,
 		modrinthVersionId: undefined,
-		curseforgeProjectId: source === "curseforge" ? mod.project_id ?? undefined : undefined,
+		curseforgeProjectId:
+			source === "curseforge" ? (mod.project_id ?? undefined) : undefined,
 		curseforgeVersionId: undefined,
 		disabled: !mod.enabled,
 		hasRemoteData: source !== "local",
-		curseforge: mod.slug && isNumericId ? { slug: mod.slug } as unknown as CurseForgeProject : undefined,
-		modrinth: mod.slug && !isNumericId ? { slug: mod.slug } as unknown as ModrinthProject : undefined,
+		curseforge:
+			mod.slug && isNumericId
+				? ({ slug: mod.slug } as unknown as CurseForgeProject)
+				: undefined,
+		modrinth:
+			mod.slug && !isNumericId
+				? ({ slug: mod.slug } as unknown as ModrinthProject)
+				: undefined,
 	};
 }
 
