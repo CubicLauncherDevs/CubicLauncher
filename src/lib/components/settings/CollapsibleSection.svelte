@@ -28,9 +28,11 @@
 		return fallback;
 	}
 
-	const initialKey = storageKey;
-	const initialDefault = defaultOpen;
-	let open = $state(loadSaved(initialKey, initialDefault));
+	let open = $state(false);
+
+	$effect.pre(() => {
+		open = loadSaved(storageKey, defaultOpen);
+	});
 
 	$effect(() => {
 		if (storageKey) {
