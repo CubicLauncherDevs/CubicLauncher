@@ -42,6 +42,13 @@
 		if (project.hasUpdate) return t("market.item.updateAvailable");
 		return null;
 	});
+
+	const remoteLabel = $derived.by(() => {
+		if (project.hasRemoteData) {
+			return project.modrinthProjectId ? "Modrinth" : "CF";
+		}
+		return null;
+	});
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -70,6 +77,11 @@
 				{#if statusLabel}
 					<span class="market-item-badge update">
 						{statusLabel}
+					</span>
+				{/if}
+				{#if remoteLabel}
+					<span class="market-item-badge remote">
+						{remoteLabel}
 					</span>
 				{/if}
 				{#if incompatible}
@@ -234,6 +246,13 @@
 		color: #f87171;
 		background: rgba(248, 113, 113, 0.08);
 		border: 1px solid rgba(248, 113, 113, 0.2);
+	}
+
+	.market-item-badge.remote {
+		color: var(--text-primary);
+		background: rgba(255, 255, 255, 0.06);
+		border: 1px solid var(--border);
+		font-size: 0.55rem;
 	}
 
 	.market-item-author {

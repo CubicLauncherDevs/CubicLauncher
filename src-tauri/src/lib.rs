@@ -33,8 +33,7 @@ pub fn run() {
             commands::instance::delete_instance_file,
             commands::instance::add_instance_file,
             commands::instance::reinstall_version,
-            commands::instance::get_instance_mods_metadata,
-            commands::instance::save_instance_mods_metadata,
+
             commands::download::add_to_queue,
             commands::download::get_available_versions,
             commands::download::get_fabric_versions,

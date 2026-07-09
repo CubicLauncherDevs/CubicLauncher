@@ -35,6 +35,11 @@ export interface ModDto {
 	authors: string[] | null;
 	icon: string | null;
 	enabled: boolean;
+	sha1: string;
+	file_size: number;
+	source: string;
+	project_id: string | null;
+	slug: string | null;
 }
 export interface InstancesPollingPayload {
 	running: string[];

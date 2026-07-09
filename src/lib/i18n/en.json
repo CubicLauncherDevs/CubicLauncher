@@ -544,7 +544,8 @@
 			"disable": "Disable",
 			"openOnModrinth": "Open on Modrinth",
 			"openOnCurseForge": "Open on CurseForge",
-			"noSelection": "Select a mod to view its details"
+			"noSelection": "Select a mod to view its details",
+			"by": "by"
 		}
 	}
 }

@@ -759,31 +759,6 @@ export async function installMrpackWithUpstream(
 	}
 }
 
-export async function getInstanceModsMetadata(
-	instanceId: string,
-): Promise<Record<string, { project_id: string; version_id: string }> | null> {
-	try {
-		return await invoke<Record<
-			string,
-			{ project_id: string; version_id: string }
-		> | null>("get_instance_mods_metadata", { instanceId });
-	} catch (err) {
-		showErrorParsed(err);
-		return null;
-	}
-}
-
-export async function saveInstanceModsMetadata(
-	instanceId: string,
-	metadata: Record<string, { project_id: string; version_id: string }>,
-): Promise<void> {
-	try {
-		await invoke("save_instance_mods_metadata", { instanceId, metadata });
-	} catch (err) {
-		showErrorParsed(err);
-	}
-}
-
 export async function getInstanceScreenshotDir(
 	instanceId: string,
 ): Promise<string> {
@@ -1092,4 +1067,11 @@ export async function installMrpack(
 
 export async function reinstallVersion(versionId: string) {
 	invoke("reinstall_version", { version: versionId });
+}
+
+export async function openInstanceDir(
+	id: string,
+	subDir?: string,
+): Promise<void> {
+	await invoke("open_instance_dir", { id, subDir: subDir ?? null });
 }
