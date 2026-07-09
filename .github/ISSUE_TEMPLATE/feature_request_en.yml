@@ -1,0 +1,43 @@
+name: Feature Request (English)
+description: Suggest an idea for the project
+title: "[Feature] "
+labels: ["type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggest an idea to improve CubicLauncher.
+
+  - type: textarea
+    attributes:
+      label: Related problem
+      description: Describe the problem that motivates this request
+      placeholder: "e.g. I'm always frustrated when [...]"
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Proposed solution
+      description: Describe the solution you'd like
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Alternatives considered
+      description: Describe any alternatives you've considered
+
+  - type: checkboxes
+    attributes:
+      label: Request type
+      options:
+        - label: New feature
+        - label: Enhancement to existing feature
+        - label: UI/UX change
+        - label: Performance
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Screenshots, sketches, or any extra info

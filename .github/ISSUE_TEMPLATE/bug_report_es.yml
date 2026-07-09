@@ -1,4 +1,4 @@
-name: Bug Report
+name: Bug Report (Español)
 description: Reportar un bug para ayudarnos a mejorar
 title: "[Bug] "
 labels: ["type:unconfirmed-bug"]
@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-      Gracias por reportar un bug. Completa el formulario para ayudarnos a diagnosticarlo.
+        Gracias por reportar un bug. Completa el formulario para ayudarnos a diagnosticarlo.
 
   - type: textarea
     attributes:
@@ -20,10 +20,10 @@ body:
       label: Pasos para reproducir
       description: Pasos para reproducir el comportamiento
       placeholder: |
-      1. Ir a '...'
-      2. Click en '...'
-      3. Scroll a '...'
-      4. Ver error
+        1. Ir a '...'
+        2. Click en '...'
+        3. Scroll a '...'
+        4. Ver error
     validations:
       required: true
 
@@ -52,7 +52,7 @@ body:
   - type: input
     attributes:
       label: Version del launcher
-      description: Ej. v31.0.0
+      description: "Ej: v31.0.0"
 
   - type: checkboxes
     attributes:

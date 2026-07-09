@@ -1,4 +1,4 @@
-name: Feature Request
+name: Feature Request (Español)
 description: Sugerir una idea para el proyecto
 title: "[Feature] "
 labels: ["type:feature"]
@@ -6,13 +6,13 @@ body:
   - type: markdown
     attributes:
       value: |
-      Sugiere una idea para mejorar CubicLauncher.
+        Sugiere una idea para mejorar CubicLauncher.
 
   - type: textarea
     attributes:
       label: Problema relacionado
       description: Describe el problema que motiva esta solicitud
-      placeholder: Ej. Siempre me frustra cuando [...]
+      placeholder: "Ej: Siempre me frustra cuando [...]"
     validations:
       required: true
 
