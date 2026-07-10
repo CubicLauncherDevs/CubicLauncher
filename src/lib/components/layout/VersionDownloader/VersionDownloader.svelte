@@ -24,11 +24,10 @@
 		FabricGameVersion,
 		ForgeGameVersion,
 		NeoForgeGameVersion,
-		AppEvent,
 	} from "$lib/types/types";
-	import { listen } from "@tauri-apps/api/event";
 
 	import VirtualList from "../VirtualList.svelte";
+	import { onAppEvent } from "$lib/api/launcherService";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
 	import { SvelteSet } from "svelte/reactivity";
@@ -224,29 +223,31 @@
 				console.warn("[VersionDownloader] getDownloadQueue failed:", e),
 			);
 
-		const unlisten = listen<AppEvent>("app-event", (event) => {
-			const p = event.payload;
-			if (p.type === "DEnqueue") {
-				markDownloading(p.data.version);
-			} else if (p.type === "DFinish") {
-				unmarkDownloading(p.data.version);
-				getInstalledVersions().then((raw) => {
-					const { vanilla, fabric, forge, neoforge, quilt } =
-						getInstalledMcVersions(raw);
-					installedVanilla = vanilla;
-					installedFabric = fabric;
-					installedForge = forge;
-					installedNeoForge = neoforge;
-					installedQuilt = quilt;
-				});
-			} else if (p.type === "DError") {
-				unmarkDownloading(p.data.version);
-			}
+		const unsubEnqueue = onAppEvent("DEnqueue", (payload) => {
+			markDownloading((payload.data as { version: string }).version);
+		});
+		const unsubFinish = onAppEvent("DFinish", (payload) => {
+			unmarkDownloading((payload.data as { version: string }).version);
+			getInstalledVersions().then((raw) => {
+				const { vanilla, fabric, forge, neoforge, quilt } =
+					getInstalledMcVersions(raw);
+				installedVanilla = vanilla;
+				installedFabric = fabric;
+				installedForge = forge;
+				installedNeoForge = neoforge;
+				installedQuilt = quilt;
+			});
+		});
+		const unsubError = onAppEvent("DError", (payload) => {
+			unmarkDownloading((payload.data as { version: string }).version);
 		});
 
 		return () => {
 			clearTimeout(safety);
-			unlisten.then((u) => u());
+			downloadingVersions.clear();
+			unsubEnqueue();
+			unsubFinish();
+			unsubError();
 		};
 	});
 

@@ -2,7 +2,7 @@
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import { t } from "$lib/i18n";
 	import type { InstanceDto } from "$lib/types/types";
-	import { onMount } from "svelte";
+	import { onMount, onDestroy } from "svelte";
 	import { updateInst } from "$lib/api/launcherService";
 	import { getInstalledVersions, reinstallVersion } from "$lib/api/cubicApi";
 	import GeneralSection from "./GeneralSection.svelte";
@@ -20,6 +20,12 @@
 	let instanceName = $state("");
 	let selectedIcon = $state<string | null>(null);
 	let saving = $state(false);
+	let savingTimer: ReturnType<typeof setTimeout> | undefined;
+
+	onDestroy(() => {
+		clearTimeout(savingTimer);
+	});
+
 	let selectedJavaVersion = $state("");
 	let instGameVersion = $state("");
 	let useOverrides = $state(false);
@@ -57,7 +63,7 @@
 			selectedIcon,
 			newOverrides,
 		);
-		setTimeout(() => {
+		savingTimer = setTimeout(() => {
 			saving = false;
 		}, 1000);
 	}

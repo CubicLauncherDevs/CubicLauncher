@@ -1,9 +1,12 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onMount, onDestroy } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
-	import { listen } from "@tauri-apps/api/event";
 	import { launcherStore } from "$lib/state/state.svelte";
-	import { killInst, saveSettings } from "$lib/api/launcherService";
+	import {
+		killInst,
+		saveSettings,
+		onAppEvent,
+	} from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
 	import Select from "$lib/components/layout/Select.svelte";
@@ -18,7 +21,7 @@
 		installJre,
 		uninstallJre,
 	} from "$lib/api/cubicApi";
-	import type { AppEvent, JreStatus, ThemeEntry } from "$lib/types/types";
+	import type { JreStatus, ThemeEntry } from "$lib/types/types";
 	import UpdateSection from "./UpdateSection.svelte";
 	import CollapsibleSection from "./CollapsibleSection.svelte";
 	import JreCard from "./JreCard.svelte";
@@ -31,6 +34,11 @@
 	let { onclose }: Props = $props();
 
 	let saving = $state(false);
+	let savingTimer: ReturnType<typeof setTimeout> | undefined;
+
+	onDestroy(() => {
+		clearTimeout(savingTimer);
+	});
 	let currentTab = $state("launcher");
 	let checking = $state(false);
 	let downloading = $state(false);
@@ -73,7 +81,7 @@
 	async function handleSave() {
 		saving = true;
 		await saveSettings();
-		setTimeout(() => {
+		savingTimer = setTimeout(() => {
 			saving = false;
 		}, 1000);
 	}
@@ -146,27 +154,29 @@
 		loadThemes();
 		refreshJreStatus();
 
-		const unlisten = listen<AppEvent>("app-event", (event) => {
-			if (event.payload.type === "DEnqueue") {
-				const v = event.payload.data.version;
-				const match = v.match(/^jre-(\d+)$/);
-				if (match) {
-					jreActionStates[Number(match[1])] = "downloading";
-				}
-			} else if (event.payload.type === "DFinish") {
-				const v = event.payload.data.version;
-				const match = v.match(/^jre-(\d+)$/);
-				if (match) {
-					jreActionStates[Number(match[1])] = undefined;
-					refreshJreStatus();
-				}
-			} else if (event.payload.type === "JREChanged") {
+		const unsubEnqueue = onAppEvent("DEnqueue", (payload) => {
+			const v = (payload.data as { version: string }).version;
+			const match = v.match(/^jre-(\d+)$/);
+			if (match) {
+				jreActionStates[Number(match[1])] = "downloading";
+			}
+		});
+		const unsubFinish = onAppEvent("DFinish", (payload) => {
+			const v = (payload.data as { version: string }).version;
+			const match = v.match(/^jre-(\d+)$/);
+			if (match) {
+				jreActionStates[Number(match[1])] = undefined;
 				refreshJreStatus();
 			}
 		});
+		const unsubJRE = onAppEvent("JREChanged", () => {
+			refreshJreStatus();
+		});
 
 		return () => {
-			unlisten.then((fn) => fn());
+			unsubEnqueue();
+			unsubFinish();
+			unsubJRE();
 		};
 	});
 	let runningInstances = $derived(

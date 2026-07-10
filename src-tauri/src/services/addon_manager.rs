@@ -21,7 +21,9 @@ static ADDON_CACHE: LazyLock<Mutex<HashMap<PathBuf, CacheEntry>>> =
 // Cache separado de iconos, max 50 entradas — cada icono base64 ~15 KB
 const MAX_ICON_CACHE: usize = 50;
 
-static ICON_CACHE: LazyLock<Mutex<HashMap<PathBuf, (SystemTime, Option<Arc<String>>)>>> =
+type IconCache = HashMap<PathBuf, (SystemTime, Option<Arc<String>>)>;
+
+static ICON_CACHE: LazyLock<Mutex<IconCache>> =
     LazyLock::new(|| Mutex::new(HashMap::with_capacity(32)));
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

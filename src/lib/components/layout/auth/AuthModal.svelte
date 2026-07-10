@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from "svelte";
 	import { t } from "$lib/i18n";
 	import { startWebviewAuth } from "$lib/api/cubicApi";
 	import { saveSettings } from "$lib/api/launcherService";
@@ -13,6 +14,11 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let success = $state(false);
+	let closeTimer: ReturnType<typeof setTimeout> | undefined;
+
+	onDestroy(() => {
+		clearTimeout(closeTimer);
+	});
 
 	async function startAuth() {
 		try {
@@ -35,7 +41,7 @@
 			await saveSettings();
 			success = true;
 
-			setTimeout(() => {
+			closeTimer = setTimeout(() => {
 				open = false;
 			}, 2000);
 		} catch (e: unknown) {

@@ -26,6 +26,7 @@
 	let unseenCount = $state(0);
 	let uploading = $state(false);
 	let logContainer: HTMLDivElement | undefined = $state();
+	let destroyed = false;
 	let unlistenFn: (() => void) | undefined;
 	let scrollTicking = false;
 
@@ -99,6 +100,7 @@
 		container.appendChild(frag);
 
 		requestAnimationFrame(() => {
+			if (destroyed) return;
 			container.querySelectorAll(".log-line.new").forEach((el) => {
 				el.classList.remove("new");
 			});
@@ -110,7 +112,7 @@
 	}
 
 	onMount(() => {
-		let destroyed = false;
+		destroyed = false;
 
 		(async () => {
 			const raw: LogLine[] = await invoke("get_log_history_cmd", {

@@ -372,7 +372,7 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
             "__global",
             ablage::Entry {
                 version: 1,
-                fingerprint: 0,
+                fingerprint: global_fp,
                 data: global_fp.to_le_bytes().to_vec(),
             },
         );

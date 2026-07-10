@@ -31,6 +31,7 @@
 	let translatePct = $state(getClosedTranslate());
 	let transitionStyle = $state("");
 	let dismissed = $state(true);
+	let openRAF: number | undefined;
 
 	function getClosedTranslate(): number {
 		return direction === "bottom" || direction === "right" ? 100 : -100;
@@ -43,11 +44,12 @@
 			translatePct = getClosedTranslate();
 			// Wait for next frame so browser paints the closed position first,
 			// then CSS transitions animate it open
-			requestAnimationFrame(() => {
+			openRAF = requestAnimationFrame(() => {
 				transitionStyle =
 					"transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)";
 				translatePct = 0;
 			});
+			return () => cancelAnimationFrame(openRAF!);
 		} else {
 			transitionStyle = "transform 0.25s cubic-bezier(0.32, 0.72, 0, 1)";
 			translatePct = getClosedTranslate();

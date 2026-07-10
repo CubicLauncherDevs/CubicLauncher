@@ -65,9 +65,14 @@
 	let measuredH = $state(0);
 	let hasMeasured = $state(false);
 
+	let closeTimer: ReturnType<typeof setTimeout> | undefined;
+	let stepTimer: ReturnType<typeof setTimeout> | undefined;
+	let rAFId: number | undefined;
+	let measureTimer: ReturnType<typeof setTimeout> | undefined;
+
 	function close() {
 		active = false;
-		setTimeout(() => {
+		closeTimer = setTimeout(() => {
 			open = false;
 			onclose?.();
 		}, 150);
@@ -76,7 +81,7 @@
 	function goToStep(i: number) {
 		if (i === currentStep) return;
 		positioning = true;
-		setTimeout(() => {
+		stepTimer = setTimeout(() => {
 			currentStep = i;
 		}, 150);
 	}
@@ -168,7 +173,7 @@
 		if (!open || active) return;
 		expandTools();
 		positioning = true;
-		requestAnimationFrame(() => {
+		rAFId = requestAnimationFrame(() => {
 			active = true;
 		});
 	});
@@ -178,7 +183,9 @@
 		const step = steps[currentStep];
 		if (step.onEnter) step.onEnter();
 		const resume = step.measureDelay
-			? new Promise((r) => setTimeout(r, step.measureDelay))
+			? new Promise((r) => {
+					measureTimer = setTimeout(r, step.measureDelay);
+				})
 			: Promise.resolve();
 		tick()
 			.then(() => resume)
@@ -193,7 +200,13 @@
 	}
 
 	onMount(() => window.addEventListener("resize", onResize));
-	onDestroy(() => window.removeEventListener("resize", onResize));
+	onDestroy(() => {
+		window.removeEventListener("resize", onResize);
+		clearTimeout(closeTimer);
+		clearTimeout(stepTimer);
+		cancelAnimationFrame(rAFId!);
+		clearTimeout(measureTimer);
+	});
 </script>
 
 {#if open}

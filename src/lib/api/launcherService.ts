@@ -23,6 +23,29 @@ export function registerModsRefreshCallback(
 		if (callbacks.size === 0) _refreshCallbacks.delete(instanceId);
 	};
 }
+
+/** Pub/sub para que componentes escuchen eventos Tauri sin registrar su propio listener */
+const _eventSubs = new Map<
+	string,
+	Set<(payload: Record<string, unknown>) => void>
+>();
+
+export function onAppEvent(
+	type: string,
+	handler: (payload: Record<string, unknown>) => void,
+): () => void {
+	let handlers = _eventSubs.get(type);
+	if (!handlers) {
+		handlers = new Set();
+		_eventSubs.set(type, handlers);
+	}
+	handlers.add(handler);
+	return () => {
+		handlers.delete(handler);
+		if (handlers.size === 0) _eventSubs.delete(type);
+	};
+}
+
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
 	AppEvent,
@@ -90,6 +113,7 @@ export function initEventListeners(): void {
 					);
 					if (idx !== -1)
 						launcherStore.loadedInstances.splice(idx, 1);
+					_refreshCallbacks.delete(payload.data.id);
 				}
 				break;
 			case "DFinish": {
@@ -129,6 +153,11 @@ export function initEventListeners(): void {
 				break;
 			}
 		}
+
+		const subs = _eventSubs.get(payload.type);
+		if (subs) {
+			for (const handler of subs) handler(payload);
+		}
 	});
 }
 
@@ -141,6 +170,7 @@ export function destroyEventListeners(): void {
 		_unlistenAppEvent = null;
 	}
 	destroyDownloadState();
+	_refreshCallbacks.clear();
 	_listenerInitialized = false;
 }
 

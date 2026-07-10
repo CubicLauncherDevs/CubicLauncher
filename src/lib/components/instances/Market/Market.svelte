@@ -17,11 +17,15 @@
 
 	let { instance, contentType = "mods" }: Props = $props();
 
-	// svelte-ignore state_referenced_locally
-	const state = createMarketState(instance, contentType);
+	function init() { return createMarketState(instance, contentType); }
+	const state = init();
 
 	onDestroy(() => {
-		state.destroy();
+		try {
+			state.destroy();
+		} catch (e) {
+			console.error("[Market] destroy error:", e);
+		}
 	});
 
 	const emptyState = $derived.by(() => {

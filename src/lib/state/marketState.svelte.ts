@@ -29,7 +29,6 @@ import {
 } from "$lib/types/market";
 import type {
 	InstanceDto,
-	ModDto,
 	ModrinthProjectFull,
 	CurseForgeProject,
 } from "$lib/types/types";
@@ -238,74 +237,9 @@ export function createMarketState(
 
 			if (!result) return;
 
-			// Load local mods to mark installed items
-			const localItems = await localLoader(instance.uuid);
-			const localByProjectId: Record<string, ModDto> = {};
-			for (const mod of localItems ?? []) {
-				if (mod.project_id) {
-					localByProjectId[mod.project_id] = mod;
-				}
-			}
-			const localByFilename: Record<string, ModDto> = {};
-			for (const mod of localItems ?? []) {
-				localByFilename[mod.filename.toLowerCase()] = mod;
-			}
-
-			function modNameFromFilename(filename: string): string {
-				return filename
-					.replace(/\.(jar|zip)$/i, "")
-					.replace(/-mc\d[\w.-]*/gi, "")
-					.replace(/-\d+[\w.-]+/g, "")
-					.replace(/-(fabric|forge|neoforge|quilt|universal)/gi, "")
-					.replace(/[-_]+/g, " ")
-					.trim()
-					.toLowerCase();
-			}
-
-			function nameMatchesSearch(
-				name: string,
-				hitTitle: string,
-				hitSlug: string,
-			): boolean {
-				const norm = name.toLowerCase();
-				const title = hitTitle.toLowerCase();
-				const slug = hitSlug.toLowerCase();
-				return (
-					title.includes(norm) ||
-					slug.includes(norm) ||
-					norm.includes(title) ||
-					norm.includes(slug)
-				);
-			}
-
-			const mapped = result.hits.map((hit) => {
-				const market = modrinthProjectToMarket(hit);
-				const local = localByProjectId[hit.project_id];
-				if (local) {
-					market.installed = local;
-					market.installedVersion =
-						local.source === "modrinth"
-							? (local.version ?? undefined)
-							: undefined;
-					market.modrinthProjectId = hit.project_id;
-					market.modrinthVersionId = local.version ?? undefined;
-					return market;
-				}
-				for (const [filename, installedMod] of Object.entries(
-					localByFilename,
-				)) {
-					const modName = modNameFromFilename(filename);
-					if (
-						modName &&
-						nameMatchesSearch(modName, hit.title, hit.slug)
-					) {
-						market.installed = installedMod;
-						market.modrinthProjectId = hit.project_id;
-						break;
-					}
-				}
-				return market;
-			});
+			const mapped = result.hits.map((hit) =>
+				modrinthProjectToMarket(hit),
+			);
 
 			if (reset) {
 				items.length = 0;
@@ -362,72 +296,9 @@ export function createMarketState(
 
 			if (!result) return;
 
-			// Load local mods to mark installed items
-			const localItems = await localLoader(instance.uuid);
-			const localByProjectId: Record<string, ModDto> = {};
-			for (const mod of localItems ?? []) {
-				if (mod.project_id) {
-					localByProjectId[mod.project_id] = mod;
-				}
-			}
-			const localByFilename: Record<string, ModDto> = {};
-			for (const mod of localItems ?? []) {
-				localByFilename[mod.filename.toLowerCase()] = mod;
-			}
-
-			function modNameFromFilename(filename: string): string {
-				return filename
-					.replace(/\.jar$/i, "")
-					.replace(/-mc\d[\w.-]*/gi, "")
-					.replace(/-\d+[\w.-]+/g, "")
-					.replace(/-(fabric|forge|neoforge|quilt|universal)/gi, "")
-					.replace(/[-_]+/g, " ")
-					.trim()
-					.toLowerCase();
-			}
-
-			function nameMatchesSearch(
-				name: string,
-				hitTitle: string,
-				hitSlug: string,
-			): boolean {
-				const norm = name.toLowerCase();
-				const title = hitTitle.toLowerCase();
-				const slug = hitSlug.toLowerCase();
-				return (
-					title.includes(norm) ||
-					slug.includes(norm) ||
-					norm.includes(title) ||
-					norm.includes(slug)
-				);
-			}
-
-			const mapped = result.data.map((hit) => {
-				const market = curseforgeProjectToMarket(hit);
-				const cfId = String(hit.id);
-				const local = localByProjectId[cfId];
-				if (local) {
-					market.installed = local;
-					market.installedVersion = local.version ?? undefined;
-					market.curseforgeProjectId = cfId;
-					market.curseforgeVersionId = local.version ?? undefined;
-					return market;
-				}
-				for (const [filename, installedMod] of Object.entries(
-					localByFilename,
-				)) {
-					const modName = modNameFromFilename(filename);
-					if (
-						modName &&
-						nameMatchesSearch(modName, hit.name, hit.slug)
-					) {
-						market.installed = installedMod;
-						market.curseforgeProjectId = cfId;
-						break;
-					}
-				}
-				return market;
-			});
+			const mapped = result.data.map((hit) =>
+				curseforgeProjectToMarket(hit),
+			);
 
 			if (reset) {
 				items.length = 0;

@@ -5,6 +5,7 @@
 	} from "$lib/api/cubicApi";
 	import { saveSettings } from "$lib/api/launcherService";
 	import type { YggdrasilServerInfo } from "$lib/types/types";
+	import { onDestroy } from "svelte";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import ModalBase from "../ModalBase.svelte";
 	import AuthLoading from "../auth/AuthLoading.svelte";
@@ -23,6 +24,11 @@
 	let password = $state("");
 	let serverInfo = $state<YggdrasilServerInfo | null>(null);
 	let error = $state<string | null>(null);
+	let closeTimer: ReturnType<typeof setTimeout> | undefined;
+
+	onDestroy(() => {
+		clearTimeout(closeTimer);
+	});
 
 	$effect(() => {
 		if (open) {
@@ -74,7 +80,7 @@
 			}
 			await saveSettings();
 			step = "success";
-			setTimeout(() => {
+			closeTimer = setTimeout(() => {
 				open = false;
 			}, 2000);
 		} catch (e: unknown) {

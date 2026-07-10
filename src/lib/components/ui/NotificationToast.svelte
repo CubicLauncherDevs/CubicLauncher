@@ -1,6 +1,15 @@
 <script lang="ts">
+	import { onDestroy } from "svelte";
 	import type { Notification } from "$lib/types/types";
 	import { removeNotification } from "$lib/state/state.svelte";
+
+	let dismissTimer: ReturnType<typeof setTimeout> | undefined;
+	let completeTimer: ReturnType<typeof setTimeout> | undefined;
+
+	onDestroy(() => {
+		clearTimeout(dismissTimer);
+		clearTimeout(completeTimer);
+	});
 
 	let { notification }: { notification: Notification } = $props();
 
@@ -26,14 +35,17 @@
 	function dismiss() {
 		if (removing) return;
 		removing = true;
-		setTimeout(() => removeNotification(notification.id), 340);
+		dismissTimer = setTimeout(
+			() => removeNotification(notification.id),
+			340,
+		);
 	}
 
 	function handleComplete() {
 		if (isDone) return;
 		isDone = true;
 		iconColor = "#1a7a3c";
-		setTimeout(() => dismiss(), 1400);
+		completeTimer = setTimeout(() => dismiss(), 1400);
 	}
 
 	$effect(() => {

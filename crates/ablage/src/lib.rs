@@ -168,31 +168,55 @@ impl Repo {
     /// Lee solo el fingerprint de la entry "__global" sin cargar el HashMap completo.
     /// Útil para fast-path checks sin gastar memoria en entries grandes.
     pub fn check_global_fingerprint(path: &Path, expected: u64) -> bool {
-        let Ok(mut file) = File::open(path) else { return false };
+        let Ok(mut file) = File::open(path) else {
+            return false;
+        };
         let mut small = [0u8; 14];
-        if file.read_exact(&mut small).is_err() { return false; }
+        if file.read_exact(&mut small).is_err() {
+            return false;
+        }
 
         // magic + version check
-        if &small[..4] != MAGIC { return false; }
+        if &small[..4] != MAGIC {
+            return false;
+        }
 
         let (count, hdr_end) = match small[4] {
             1 => {
-                if small.len() < 13 { return false };
+                if small.len() < 13 {
+                    return false;
+                };
                 let hdr_crc = u32::from_le_bytes(small[9..13].try_into().unwrap());
-                if crc32fast::hash(&small[..9]) != hdr_crc { return false };
-                (u32::from_le_bytes(small[5..9].try_into().unwrap()) as usize, 13usize)
+                if crc32fast::hash(&small[..9]) != hdr_crc {
+                    return false;
+                };
+                (
+                    u32::from_le_bytes(small[5..9].try_into().unwrap()) as usize,
+                    13usize,
+                )
             }
             2 => {
-                if small.len() < 14 { return false };
+                if small.len() < 14 {
+                    return false;
+                };
                 let hdr_crc = u32::from_le_bytes(small[10..14].try_into().unwrap());
-                if crc32fast::hash(&small[..10]) != hdr_crc { return false };
-                (u32::from_le_bytes(small[6..10].try_into().unwrap()) as usize, 14usize)
+                if crc32fast::hash(&small[..10]) != hdr_crc {
+                    return false;
+                };
+                (
+                    u32::from_le_bytes(small[6..10].try_into().unwrap()) as usize,
+                    14usize,
+                )
             }
             _ => return false,
         };
 
-        if count == 0 { return false; }
-        if hdr_end == 14 { return Self::scan_v2_global(&mut file, count, expected); }
+        if count == 0 {
+            return false;
+        }
+        if hdr_end == 14 {
+            return Self::scan_v2_global(&mut file, count, expected);
+        }
         Self::scan_v1_global(&mut file, count, expected)
     }
 
@@ -200,27 +224,42 @@ impl Repo {
         use std::io::Seek;
         for _ in 0..count {
             let mut buf = [0u8; 2];
-            if file.read_exact(&mut buf).is_err() { return false };
+            if file.read_exact(&mut buf).is_err() {
+                return false;
+            };
             let key_len = u16::from_le_bytes(buf) as usize;
             let mut key_buf = vec![0u8; key_len];
-            if file.read_exact(&mut key_buf).is_err() { return false };
+            if file.read_exact(&mut key_buf).is_err() {
+                return false;
+            };
 
             let mut meta = [0u8; 8];
-            if file.read_exact(&mut meta).is_err() { return false };
+            if file.read_exact(&mut meta).is_err() {
+                return false;
+            };
             let fingerprint = u64::from_le_bytes(meta);
 
             let mut data_len_buf = [0u8; 4];
-            if file.read_exact(&mut data_len_buf).is_err() { return false };
+            if file.read_exact(&mut data_len_buf).is_err() {
+                return false;
+            };
             let data_len = u32::from_le_bytes(data_len_buf) as usize;
 
             let mut crc_buf = [0u8; 4];
-            if file.read_exact(&mut crc_buf).is_err() { return false };
+            if file.read_exact(&mut crc_buf).is_err() {
+                return false;
+            };
 
             let key = String::from_utf8(key_buf).unwrap_or_default();
             if key == "__global" {
                 return fingerprint == expected;
             }
-            if file.seek(std::io::SeekFrom::Current(data_len as i64)).is_err() { return false };
+            if file
+                .seek(std::io::SeekFrom::Current(data_len as i64))
+                .is_err()
+            {
+                return false;
+            };
         }
         false
     }
@@ -229,27 +268,42 @@ impl Repo {
         use std::io::Seek;
         for _ in 0..count {
             let mut buf = [0u8; 2];
-            if file.read_exact(&mut buf).is_err() { return false };
+            if file.read_exact(&mut buf).is_err() {
+                return false;
+            };
             let key_len = u16::from_le_bytes(buf) as usize;
             let mut key_buf = vec![0u8; key_len];
-            if file.read_exact(&mut key_buf).is_err() { return false };
+            if file.read_exact(&mut key_buf).is_err() {
+                return false;
+            };
 
             let mut meta = [0u8; 9]; // entry_version(1) + fingerprint(8)
-            if file.read_exact(&mut meta).is_err() { return false };
+            if file.read_exact(&mut meta).is_err() {
+                return false;
+            };
             let fingerprint = u64::from_le_bytes(meta[1..9].try_into().unwrap());
 
             let mut data_len_buf = [0u8; 4];
-            if file.read_exact(&mut data_len_buf).is_err() { return false };
+            if file.read_exact(&mut data_len_buf).is_err() {
+                return false;
+            };
             let data_len = u32::from_le_bytes(data_len_buf) as usize;
 
             let mut crc_buf = [0u8; 4];
-            if file.read_exact(&mut crc_buf).is_err() { return false };
+            if file.read_exact(&mut crc_buf).is_err() {
+                return false;
+            };
 
             let key = String::from_utf8(key_buf).unwrap_or_default();
             if key == "__global" {
                 return fingerprint == expected;
             }
-            if file.seek(std::io::SeekFrom::Current(data_len as i64)).is_err() { return false };
+            if file
+                .seek(std::io::SeekFrom::Current(data_len as i64))
+                .is_err()
+            {
+                return false;
+            };
         }
         false
     }
@@ -264,7 +318,7 @@ impl Drop for Repo {
 }
 
 // ---------------------------------------------------------------------------
-// Lector con soporte v1 (legacy) y v2 (con índice + version por entry) 
+// Lector con soporte v1 (legacy) y v2 (con índice + version por entry)
 // ---------------------------------------------------------------------------
 fn read_all(path: &Path) -> Result<HashMap<String, Entry>, String> {
     let mut file = File::open(path).map_err(|e| format!("Failed to open repo file: {}", e))?;
