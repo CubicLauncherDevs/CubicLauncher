@@ -13,7 +13,7 @@
 		ModrinthProject,
 		ModrinthVersion,
 	} from "$lib/types/types";
-	import { onMount } from "svelte";
+	import { onMount, onDestroy } from "svelte";
 	import { SvelteMap, type SvelteSet } from "svelte/reactivity";
 	type ContentType = "resourcepacks" | "shaders";
 
@@ -291,6 +291,11 @@
 		basket.clear();
 		versionSelection.clear();
 		performSearch();
+	});
+
+	onDestroy(() => {
+		clearTimeout(debounceTimer);
+		abortController?.abort();
 	});
 </script>
 

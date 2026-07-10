@@ -58,6 +58,10 @@
 		onclose?: () => void;
 	}> | null>(null);
 
+	let unlistenDragDrop: (() => void) | undefined;
+	let checkUpdatesTimer: ReturnType<typeof setTimeout> | undefined;
+	let editingTimer: ReturnType<typeof setTimeout> | undefined;
+
 	onMount(async () => {
 		initEventListeners();
 
@@ -79,7 +83,7 @@
 		}
 
 		if (launcherStore.settings.auto_updates) {
-			setTimeout(() => checkForUpdates(true), 2000);
+			checkUpdatesTimer = setTimeout(() => checkForUpdates(true), 2000);
 		}
 
 		// Lazy load non-critical components after first paint
@@ -96,6 +100,9 @@
 
 	onDestroy(() => {
 		destroyEventListeners();
+		unlistenDragDrop?.();
+		clearTimeout(checkUpdatesTimer);
+		clearTimeout(editingTimer);
 	});
 
 	async function setupDragDrop() {
@@ -103,7 +110,7 @@
 			const { getCurrentWebview } =
 				await import("@tauri-apps/api/webview");
 			const webview = getCurrentWebview();
-			await webview.onDragDropEvent((event) => {
+			unlistenDragDrop = await webview.onDragDropEvent((event) => {
 				if (event.payload.type === "enter") {
 					const payload = event.payload as { paths: string[] };
 					dragPaths = payload.paths ?? [];
@@ -286,7 +293,11 @@
 			<InstanceDrawer
 				onclose={() => {
 					instanceEditorOpen = false;
-					setTimeout(() => (editingInstance = null), 350);
+					clearTimeout(editingTimer);
+					editingTimer = setTimeout(
+						() => (editingInstance = null),
+						350,
+					);
 				}}
 				instance={editingInstance}
 			/>

@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { slide } from "svelte/transition";
-	import { SvelteMap } from "svelte/reactivity";
-	import { listen } from "@tauri-apps/api/event";
+	import { SvelteMap, SvelteSet } from "svelte/reactivity";
 	import { getDownloadQueue } from "$lib/api/cubicApi";
-	import type { AppEvent } from "$lib/types/types";
 	import { t } from "$lib/i18n";
+	import { onAppEvent } from "$lib/api/launcherService";
 	import DownloadQueueHeader from "./DownloadQueueHeader.svelte";
 	import DownloadQueueItem from "./DownloadQueueItem.svelte";
 
@@ -72,6 +71,7 @@
 		return map[stage.toLowerCase()] ?? "Generic";
 	}
 
+	const removalTimers = new SvelteSet<ReturnType<typeof setTimeout>>();
 	let open = $state(false);
 	let counts = $derived.by(() => {
 		let active = 0,
@@ -139,106 +139,118 @@
 			}
 		});
 
-		const unlisten = listen<AppEvent>("app-event", (event) => {
-			const p = event.payload;
-			switch (p.type) {
-				case "DEnqueue": {
-					const { version } = p.data;
-					if (!downloads.has(version)) {
-						downloads.set(version, {
-							version,
-							activeType: null,
-							segs: emptySegs(),
-							done: false,
-							error: null,
-						});
-						open = true;
-					}
-					break;
-				}
-				case "DProgress": {
-					const {
-						version,
-						stage,
-						item_current,
-						item_total,
-						bytes_current,
-						bytes_total,
-					} = p.data;
-					const existing = downloads.get(version) ?? {
-						version,
-						activeType: null,
-						segs: emptySegs(),
-						done: false,
-						error: null,
-					};
-					const key = normalizeStage(stage);
-					const useBytes = bytes_total > 0;
-					const current = useBytes ? bytes_current : item_current;
-					const total = useBytes ? bytes_total : item_total;
-					downloads.set(version, {
-						...existing,
-						segs: { ...existing.segs, [key]: { current, total } },
-						activeType: key,
-						done: false,
-					});
-					break;
-				}
-				case "DStage": {
-					const { version, stage } = p.data;
-					const existing = downloads.get(version);
-					if (existing) {
-						downloads.set(version, {
-							...existing,
-							activeType: normalizeStage(stage),
-						});
-					}
-					break;
-				}
-				case "DFinish": {
-					const { version } = p.data;
-					const item = downloads.get(version);
-					if (item) {
-						downloads.set(version, {
-							...item,
-							done: true,
-							activeType: null,
-						});
-					}
-					setTimeout(() => {
-						downloads.delete(version);
-					}, 4000);
-					break;
-				}
-				case "DError": {
-					const { version, message } = p.data;
-					const item = downloads.get(version);
-					if (item) {
-						downloads.set(version, {
-							...item,
-							done: true,
-							activeType: null,
-							error: message,
-						});
-					} else {
-						downloads.set(version, {
-							version,
-							activeType: null,
-							segs: emptySegs(),
-							done: true,
-							error: message,
-						});
-					}
-					setTimeout(() => {
-						downloads.delete(version);
-					}, 8000);
-					break;
-				}
+		const unsubEnqueue = onAppEvent("DEnqueue", (payload) => {
+			const { version } = payload.data as { version: string };
+			if (!downloads.has(version)) {
+				downloads.set(version, {
+					version,
+					activeType: null,
+					segs: emptySegs(),
+					done: false,
+					error: null,
+				});
+				open = true;
 			}
+		});
+		const unsubProgress = onAppEvent("DProgress", (payload) => {
+			const {
+				version,
+				stage,
+				item_current,
+				item_total,
+				bytes_current,
+				bytes_total,
+			} = payload.data as {
+				version: string;
+				stage: string;
+				item_current: number;
+				item_total: number;
+				bytes_current: number;
+				bytes_total: number;
+			};
+			const existing = downloads.get(version) ?? {
+				version,
+				activeType: null,
+				segs: emptySegs(),
+				done: false,
+				error: null,
+			};
+			const key = normalizeStage(stage);
+			const useBytes = bytes_total > 0;
+			const current = useBytes ? bytes_current : item_current;
+			const total = useBytes ? bytes_total : item_total;
+			downloads.set(version, {
+				...existing,
+				segs: { ...existing.segs, [key]: { current, total } },
+				activeType: key,
+				done: false,
+			});
+		});
+		const unsubStage = onAppEvent("DStage", (payload) => {
+			const { version, stage } = payload.data as {
+				version: string;
+				stage: string;
+			};
+			const existing = downloads.get(version);
+			if (existing) {
+				downloads.set(version, {
+					...existing,
+					activeType: normalizeStage(stage),
+				});
+			}
+		});
+		const unsubFinish = onAppEvent("DFinish", (payload) => {
+			const { version } = payload.data as { version: string };
+			const item = downloads.get(version);
+			if (item) {
+				downloads.set(version, {
+					...item,
+					done: true,
+					activeType: null,
+				});
+			}
+			const t = setTimeout(() => {
+				removalTimers.delete(t);
+				downloads.delete(version);
+			}, 4000);
+			removalTimers.add(t);
+		});
+		const unsubError = onAppEvent("DError", (payload) => {
+			const { version, message } = payload.data as {
+				version: string;
+				message?: string;
+			};
+			const item = downloads.get(version);
+			if (item) {
+				downloads.set(version, {
+					...item,
+					done: true,
+					activeType: null,
+					error: message ?? null,
+				});
+			} else {
+				downloads.set(version, {
+					version,
+					activeType: null,
+					segs: emptySegs(),
+					done: true,
+					error: message ?? null,
+				});
+			}
+			const t = setTimeout(() => {
+				removalTimers.delete(t);
+				downloads.delete(version);
+			}, 8000);
+			removalTimers.add(t);
 		});
 
 		return () => {
-			unlisten.then((u) => u());
+			unsubEnqueue();
+			unsubProgress();
+			unsubStage();
+			unsubFinish();
+			unsubError();
+			for (const t of removalTimers) clearTimeout(t);
 		};
 	});
 </script>

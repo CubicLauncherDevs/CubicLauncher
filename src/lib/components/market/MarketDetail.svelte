@@ -38,6 +38,18 @@
 	let installing = $state(false);
 	let actionError = $state<string | null>(null);
 
+	function cleanupImage(node: HTMLImageElement, realSrc: string) {
+		node.src = realSrc;
+		return {
+			update(newSrc: string) {
+				node.src = newSrc;
+			},
+			destroy() {
+				node.src = "";
+			},
+		};
+	}
+
 	const readmeHtml = $derived(
 		project.source !== "curseforge" &&
 			(detail.fullProject as ModrinthProjectFull | undefined)?.body
@@ -124,7 +136,12 @@
 	<div class="market-detail-scroll">
 		<div class="market-detail-icon">
 			{#if project.icon}
-				<img src={project.icon} alt={project.title} />
+				<img
+					src="/images/cubic.svg"
+					alt={project.title}
+					loading="lazy"
+					use:cleanupImage={project.icon}
+				/>
 			{:else}
 				<span>📦</span>
 			{/if}
@@ -263,7 +280,7 @@
 				<h4 class="market-detail-section-title">
 					{t("market.detail.readme")}
 				</h4>
-				<div
+				<!-- <div
 					class="markdown-body"
 					role="presentation"
 					onclick={(e) => {
@@ -275,7 +292,7 @@
 					}}
 				>
 					{@html readmeHtml}
-				</div>
+				</div> -->
 			</div>
 		{/if}
 
@@ -287,9 +304,10 @@
 				<div class="gallery-grid">
 					{#each (detail.fullProject as ModrinthProjectFull).gallery as image, i (i)}
 						<img
-							src={image.url}
+							src="/images/cubic.svg"
 							alt={image.title ?? `Gallery ${i + 1}`}
 							loading="lazy"
+							use:cleanupImage={image.url}
 						/>
 					{/each}
 				</div>
@@ -564,73 +582,73 @@
 		gap: 8px;
 	}
 
-	.markdown-body {
+	:global(.markdown-body) {
 		font-size: 0.82rem;
 		line-height: 1.6;
 		color: var(--text-secondary);
 		word-break: break-word;
 	}
 
-	.markdown-body :global(h1),
-	.markdown-body :global(h2),
-	.markdown-body :global(h3),
-	.markdown-body :global(h4) {
+	:global(.markdown-body h1),
+	:global(.markdown-body h2),
+	:global(.markdown-body h3),
+	:global(.markdown-body h4) {
 		color: var(--text-primary);
 		margin: 1.2em 0 0.6em;
 	}
 
-	.markdown-body :global(p) {
+	:global(.markdown-body p) {
 		margin: 0.6em 0;
 	}
 
-	.markdown-body :global(a) {
+	:global(.markdown-body a) {
 		color: var(--accent);
 		text-decoration: none;
 	}
 
-	.markdown-body :global(a:hover) {
+	:global(.markdown-body a:hover) {
 		text-decoration: underline;
 	}
 
-	.markdown-body :global(img) {
+	:global(.markdown-body img) {
 		max-width: 100%;
 		height: auto;
 		border-radius: var(--border-radius-sm);
 	}
 
-	.markdown-body :global(code) {
+	:global(.markdown-body code) {
 		background: rgba(255, 255, 255, 0.06);
 		padding: 2px 5px;
 		border-radius: 4px;
 		font-size: 0.78rem;
 	}
 
-	.markdown-body :global(pre) {
+	:global(.markdown-body pre) {
 		background: rgba(255, 255, 255, 0.04);
 		padding: 10px;
 		border-radius: var(--border-radius-sm);
 		overflow-x: auto;
 	}
 
-	.markdown-body :global(ul),
-	.markdown-body :global(ol) {
+	:global(.markdown-body ul),
+	:global(.markdown-body ol) {
 		padding-left: 20px;
 	}
 
-	.markdown-body :global(table) {
+	:global(.markdown-body table) {
 		width: 100%;
 		border-collapse: collapse;
 		font-size: 0.75rem;
 	}
 
-	.markdown-body :global(th),
-	.markdown-body :global(td) {
+	:global(.markdown-body th),
+	:global(.markdown-body td) {
 		border: 1px solid var(--border);
 		padding: 6px 8px;
 		text-align: left;
 	}
 
-	.markdown-body :global(th) {
+	:global(.markdown-body th) {
 		background: rgba(255, 255, 255, 0.04);
 	}
 

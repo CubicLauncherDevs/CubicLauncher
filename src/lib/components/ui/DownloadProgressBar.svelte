@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { listen } from "@tauri-apps/api/event";
 	import { onMount } from "svelte";
-	import type { AppEvent } from "$lib/types/types";
 	import { getDownloadQueue } from "$lib/api/cubicApi";
-	import { SvelteMap } from "svelte/reactivity";
+	import { SvelteMap, SvelteSet } from "svelte/reactivity";
 	import { t } from "$lib/i18n";
+	import { onAppEvent } from "$lib/api/launcherService";
 	import CheckIcon from "$lib/icons/CheckIcon.svelte";
 	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
@@ -116,6 +115,7 @@
 		return map[stage.toLowerCase()] ?? "Generic";
 	}
 
+	const removalTimers = new SvelteSet<ReturnType<typeof setTimeout>>();
 	let downloads = new SvelteMap<string, DownloadItem>();
 	let expanded = $state(false);
 	let activeCount = $derived(
@@ -142,65 +142,72 @@
 			}
 		});
 
-		const unlisten = listen<AppEvent>("app-event", (event) => {
-			const payload = event.payload;
-			switch (payload.type) {
-				case "DProgress": {
-					const {
-						version,
-						stage,
-						item_current,
-						item_total,
-						bytes_current,
-						bytes_total,
-					} = payload.data;
-					const isNew = !downloads.has(version);
-					const existing = downloads.get(version) ?? {
-						version,
-						activeType: null,
-						segments: emptySegments(),
-						done: false,
-					};
-					const key = normalizeStage(stage);
-					const useBytes = bytes_total > 0;
-					const current = useBytes ? bytes_current : item_current;
-					const total = useBytes ? bytes_total : item_total;
-					existing.segments[key] = { current, total };
-					existing.activeType = key;
-					existing.done = false;
-					downloads.set(version, { ...existing });
-					if (isNew) expanded = true;
-					break;
-				}
-				case "DStage": {
-					const { version, stage } = payload.data;
-					const existing = downloads.get(version);
-					if (existing) {
-						existing.activeType = normalizeStage(stage);
-						downloads.set(version, { ...existing });
-					}
-					break;
-				}
-				case "DFinish": {
-					const { version } = payload.data;
-					const item = downloads.get(version);
-					if (item) {
-						downloads.set(version, {
-							...item,
-							done: true,
-							activeType: null,
-						});
-					}
-					setTimeout(() => {
-						downloads.delete(version);
-					}, 4000);
-					break;
-				}
+		const unsubProgress = onAppEvent("DProgress", (payload) => {
+			const {
+				version,
+				stage,
+				item_current,
+				item_total,
+				bytes_current,
+				bytes_total,
+			} = payload.data as {
+				version: string;
+				stage: string;
+				item_current: number;
+				item_total: number;
+				bytes_current: number;
+				bytes_total: number;
+			};
+			const isNew = !downloads.has(version);
+			const existing = downloads.get(version) ?? {
+				version,
+				activeType: null,
+				segments: emptySegments(),
+				done: false,
+			};
+			const key = normalizeStage(stage);
+			const useBytes = bytes_total > 0;
+			const current = useBytes ? bytes_current : item_current;
+			const total = useBytes ? bytes_total : item_total;
+			existing.segments[key] = { current, total };
+			existing.activeType = key;
+			existing.done = false;
+			downloads.set(version, { ...existing });
+			if (isNew) expanded = true;
+		});
+		const unsubStage = onAppEvent("DStage", (payload) => {
+			const { version, stage } = payload.data as {
+				version: string;
+				stage: string;
+			};
+			const existing = downloads.get(version);
+			if (existing) {
+				existing.activeType = normalizeStage(stage);
+				downloads.set(version, { ...existing });
 			}
+		});
+		const unsubFinish = onAppEvent("DFinish", (payload) => {
+			const { version } = payload.data as { version: string };
+			const item = downloads.get(version);
+			if (item) {
+				downloads.set(version, {
+					...item,
+					done: true,
+					activeType: null,
+				});
+			}
+			const t = setTimeout(() => {
+				removalTimers.delete(t);
+				downloads.delete(version);
+			}, 4000);
+			removalTimers.add(t);
 		});
 
 		return () => {
-			unlisten.then((u) => u());
+			unsubProgress();
+			unsubStage();
+			unsubFinish();
+			for (const t of removalTimers) clearTimeout(t);
 		};
 	});
 

@@ -18,9 +18,15 @@
 		InstanceDto,
 		ModSource,
 	} from "$lib/types/types";
+	import { onDestroy } from "svelte";
 	import { SvelteMap } from "svelte/reactivity";
 	import Review from "./Review.svelte";
 	import Browse from "./Browse.svelte";
+
+	onDestroy(() => {
+		clearTimeout(debounceTimer);
+		abortController?.abort();
+	});
 
 	let { instance } = $props<{ instance: InstanceDto }>();
 
