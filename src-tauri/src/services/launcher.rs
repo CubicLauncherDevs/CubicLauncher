@@ -18,8 +18,9 @@ use launchwerk::models::VersionManifest;
 use launchwerk::{LaunchConfig, Launchwerk};
 use std::collections::VecDeque;
 use std::mem;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tokio::fs;
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, trace, warn};
@@ -28,6 +29,12 @@ use zellkern::Loader;
 use dashmap::DashMap;
 
 const LOG_RING_CAPACITY: usize = 5000;
+
+pub(crate) static KEEP_ALIVE: AtomicBool = AtomicBool::new(false);
+
+pub(crate) fn should_keep_alive() -> bool {
+	KEEP_ALIVE.load(Ordering::Relaxed)
+}
 
 // ── Log Ring Buffer ─────────────────────────────────────────────────────────
 
@@ -402,8 +409,11 @@ impl Launcher {
                     let stderr_rx = lw_handle.subscribe_stderr();
                     spawn_io_forwarding(app.clone(), id.clone(), stdout_rx, "stdout");
                     spawn_io_forwarding(app.clone(), id, stderr_rx, "stderr");
-                    if hide_on_launch && let Some(w) = app.get_webview_window("main") {
-                        let _ = w.hide();
+                    if hide_on_launch {
+                        KEEP_ALIVE.store(true, Ordering::Relaxed);
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.close();
+                        }
                     }
                 } else {
                     warn!("AppHandle no disponible, no se reenviará stdout/stderr");
@@ -433,13 +443,23 @@ impl Launcher {
                     discord_presence::on_instance_stop(&inst_name).await;
                     remove_log_ring(&uuid);
                     h.set_status(InstanceStatus::Off);
-                    // Volver a mostrar la ventana principal cuando el juego cierra
-                    if hide_on_launch
-                        && let Some(app) = app_for_show
-                        && let Some(w) = app.get_webview_window("main")
-                    {
-                        let _ = w.show();
-                        let _ = w.set_focus();
+                    // Si se cerró la ventana al lanzar el juego, la recreamos
+                    if hide_on_launch {
+                        KEEP_ALIVE.store(false, Ordering::Relaxed);
+                        if let Some(app) = app_for_show {
+                            let _ = WebviewWindowBuilder::new(
+                                &app,
+                                "main",
+                                WebviewUrl::App("index.html".into()),
+                            )
+                            .title("CubicLauncher @31 (Alpha 4)")
+                            .inner_size(800.0, 600.0)
+                            .min_inner_size(800.0, 600.0)
+                            .build();
+                            if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.set_focus();
+                            }
+                        }
                     }
                 });
             }
