@@ -534,10 +534,8 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
             source: pack_meta
                 .map(|m| m.source.source_str().to_string())
                 .unwrap_or_else(|| "local".to_string()),
-            project_id: pack_meta
-                .and_then(|m| m.source.project_id().map(|s| s.to_string())),
-            slug: pack_meta
-                .and_then(|m| m.source.slug().map(|s| s.to_string())),
+            project_id: pack_meta.and_then(|m| m.source.project_id().map(|s| s.to_string())),
+            slug: pack_meta.and_then(|m| m.source.slug().map(|s| s.to_string())),
         });
     }
     resourcepacks.sort_by_key(|a| a.name.to_lowercase());
@@ -622,10 +620,8 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
             source: pack_meta
                 .map(|m| m.source.source_str().to_string())
                 .unwrap_or_else(|| "local".to_string()),
-            project_id: pack_meta
-                .and_then(|m| m.source.project_id().map(|s| s.to_string())),
-            slug: pack_meta
-                .and_then(|m| m.source.slug().map(|s| s.to_string())),
+            project_id: pack_meta.and_then(|m| m.source.project_id().map(|s| s.to_string())),
+            slug: pack_meta.and_then(|m| m.source.slug().map(|s| s.to_string())),
         });
     }
     shaderpacks.sort_by_key(|a| a.name.to_lowercase());
