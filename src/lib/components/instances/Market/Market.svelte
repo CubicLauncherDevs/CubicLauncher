@@ -101,6 +101,7 @@
 				{@const project = state.selectedProject}
 				<MarketDetail
 					{project}
+					{contentType}
 					detail={state.detail}
 					selectedVersion={state.selectedVersion()}
 					isVersionCompatible={state.isVersionCompatible}

@@ -21,18 +21,6 @@
 
 	let installing = $state(false);
 
-	function cleanupImage(node: HTMLImageElement, realSrc: string) {
-		node.src = realSrc;
-		return {
-			update(newSrc: string) {
-				node.src = newSrc;
-			},
-			destroy() {
-				node.src = "";
-			},
-		};
-	}
-
 	function formatNumber(num: number): string {
 		if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
 		if (num >= 1_000) return (num / 1_000).toFixed(1) + "K";
@@ -74,12 +62,7 @@
 >
 	<div class="market-item-icon">
 		{#if project.icon}
-			<img
-				src="/images/cubic.svg"
-				alt={project.title}
-				loading="lazy"
-				use:cleanupImage={project.icon}
-			/>
+			<img src={project.icon} alt={project.title} loading="lazy" />
 		{:else}
 			<span class="market-item-icon-fallback">📦</span>
 		{/if}
