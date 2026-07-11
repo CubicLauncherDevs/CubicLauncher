@@ -79,9 +79,9 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
         let mut invalid = false;
 
         for i in 0..archive.len() {
-            let entry = archive.by_index(i).map_err(|e| {
-                CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string()
-            })?;
+            let entry = archive
+                .by_index(i)
+                .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
             let name = entry.name().to_string();
 
             if name == target {
@@ -120,9 +120,9 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
         let mut entry = archive.by_name(&entry_name).map_err(|e| {
             CoreError::Other(format!("Error leyendo {}: {}", target, e)).to_string()
         })?;
-        entry
-            .read_to_string(&mut buf)
-            .map_err(|e| CoreError::Other(format!("Error leyendo {}: {}", target, e)).to_string())?;
+        entry.read_to_string(&mut buf).map_err(|e| {
+            CoreError::Other(format!("Error leyendo {}: {}", target, e)).to_string()
+        })?;
         buf
     };
 
@@ -169,16 +169,13 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
     let prefix = if entry_name == target {
         String::new()
     } else {
-        entry_name
-            .strip_suffix(target)
-            .unwrap_or("")
-            .to_string()
+        entry_name.strip_suffix(target).unwrap_or("").to_string()
     };
 
     for i in 0..archive.len() {
-        let mut entry = archive.by_index(i).map_err(|e| {
-            CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string()
-        })?;
+        let mut entry = archive
+            .by_index(i)
+            .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
 
         let entry_name = entry.name().to_string();
 
@@ -305,17 +302,15 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
     if exists_meta_toml {
         // Si existe Meta.toml entonces tomamos que el theme es v2
         info!("EL theme {id} tiene Meta.toml, se cargara como V2");
-        let meta_bytes =
-            std::fs::read(&meta_path).map_err(|e| FsError::ReadFile {
-                path: meta_path.to_string_lossy().into(),
-                source: e,
-            })?;
+        let meta_bytes = std::fs::read(&meta_path).map_err(|e| FsError::ReadFile {
+            path: meta_path.to_string_lossy().into(),
+            source: e,
+        })?;
         let def_path = theme_base.join("Definition.toml");
-        let definition_bytes =
-            std::fs::read(&def_path).map_err(|e| FsError::ReadFile {
-                path: def_path.to_string_lossy().into(),
-                source: e,
-            })?;
+        let definition_bytes = std::fs::read(&def_path).map_err(|e| FsError::ReadFile {
+            path: def_path.to_string_lossy().into(),
+            source: e,
+        })?;
         //serializar archivos a toml
         let metadata: ThemeMeta =
             toml::from_slice(&meta_bytes).map_err(|e| CoreError::Serialize(e.to_string()))?;
@@ -369,12 +364,11 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
 
         let inject_css_path = theme_base.join("Inject.css");
         let inject = if inject_css_path.exists() {
-            let content = std::fs::read_to_string(&inject_css_path).map_err(|e| {
-                FsError::ReadFile {
+            let content =
+                std::fs::read_to_string(&inject_css_path).map_err(|e| FsError::ReadFile {
                     path: inject_css_path.to_string_lossy().into_owned(),
                     source: e,
-                }
-            })?;
+                })?;
             info!("Inject.css leido, {} bytes", content.len());
             Some(content)
         } else {
