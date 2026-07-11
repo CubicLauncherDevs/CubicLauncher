@@ -1,24 +1,13 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
 	import { INSTANCE_LOGOS } from "$lib/icons/logos";
-	import Select from "$lib/components/layout/Select.svelte";
 
 	let {
 		selectedIcon = $bindable<string | null>(null),
 		instanceName = $bindable(""),
-		instGameVersion = $bindable(""),
-		versionOptions = [] as { value: string; label: string }[],
-		saving = false,
-		onVersionChange,
-		onReinstall,
 	}: {
 		selectedIcon: string | null;
 		instanceName: string;
-		instGameVersion: string;
-		versionOptions: { value: string; label: string }[];
-		saving: boolean;
-		onVersionChange: (version: string) => void;
-		onReinstall: () => void;
 	} = $props();
 </script>
 
@@ -50,32 +39,9 @@
 		bind:value={instanceName}
 	/>
 </div>
-<div class="version-section">
-	<Select
-		value={instGameVersion}
-		options={versionOptions}
-		label={t("createInstance.versionLabel")}
-		onchange={onVersionChange}
-	/>
-</div>
-
-<div class="reinstall">
-	<button
-		type="button"
-		class="qm-save-btn"
-		onclick={onReinstall}
-		disabled={saving}
-	>
-		{t("instanceEditor.reinstall")}
-	</button>
-</div>
 
 <style>
 	.name-section {
-		margin-top: 1vb;
-	}
-
-	.version-section {
 		margin-top: 1vb;
 	}
 
@@ -128,33 +94,4 @@
 		border-color: var(--text-muted);
 	}
 
-	.qm-save-btn {
-		width: 100%;
-		background: var(--bg-card);
-		color: var(--text-primary);
-		border: 1px solid var(--border-color);
-		padding: 10px 12px;
-		border-radius: var(--border-radius-sm);
-		font-family: var(--font-family);
-		font-weight: 600;
-		cursor: pointer;
-		transition:
-			background 0.15s,
-			border-color 0.15s;
-		box-shadow: var(--shadow-sm);
-	}
-
-	.qm-save-btn:hover:not(:disabled) {
-		background: var(--bg-item-active);
-		border-color: var(--border-color);
-	}
-
-	.qm-save-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.reinstall {
-		padding: 2ch 0px 0px 0px;
-	}
 </style>

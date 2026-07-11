@@ -4,9 +4,10 @@
 	import type { InstanceDto } from "$lib/types/types";
 	import { onMount, onDestroy } from "svelte";
 	import { updateInst } from "$lib/api/launcherService";
-	import { getInstalledVersions, reinstallVersion } from "$lib/api/cubicApi";
+	import { reinstallVersion } from "$lib/api/cubicApi";
 	import GeneralSection from "./GeneralSection.svelte";
 	import AdvancedSection from "./AdvancedSection.svelte";
+	import InstallationSection from "./InstallationSection.svelte";
 
 	interface Props {
 		onclose?: () => void;
@@ -27,10 +28,15 @@
 	});
 
 	let selectedJavaVersion = $state("");
-	let instGameVersion = $state("");
 	let useOverrides = $state(false);
 
-	let JavaOptions = [
+	let selectedLoader = $state("vanilla");
+	let selectedMcVersion = $state("");
+	let selectedLoaderVersion = $state("");
+
+	let repairing = $state(false);
+
+	const JavaOptions = [
 		{
 			value: "default",
 			label: "Default",
@@ -42,9 +48,62 @@
 		{ value: "25", label: "Java 25" },
 	];
 
+	const finalVersionId = $derived.by(() => {
+		if (selectedLoader === "vanilla") return selectedMcVersion;
+		if (selectedLoader === "fabric" && selectedLoaderVersion)
+			return `fabric-loader-${selectedLoaderVersion}-${selectedMcVersion}`;
+		if (selectedLoader === "quilt" && selectedLoaderVersion)
+			return `quilt-loader-${selectedLoaderVersion}-${selectedMcVersion}`;
+		if (selectedLoader === "forge" && selectedLoaderVersion)
+			return `${selectedMcVersion}-forge-${selectedLoaderVersion}`;
+		if (selectedLoader === "neoforge" && selectedLoaderVersion)
+			return `${selectedMcVersion}-neoforge-${selectedLoaderVersion}`;
+		return "";
+	});
+
+	function parseInstanceVersion(version: string) {
+		const fabricMatch = version.match(/^fabric-loader-([\d.]+)-(.+)$/);
+		if (fabricMatch)
+			return {
+				loader: "fabric" as const,
+				mcVersion: fabricMatch[2],
+				loaderVersion: fabricMatch[1],
+			};
+
+		const quiltMatch = version.match(/^quilt-loader-([\d.]+)-(.+)$/);
+		if (quiltMatch)
+			return {
+				loader: "quilt" as const,
+				mcVersion: quiltMatch[2],
+				loaderVersion: quiltMatch[1],
+			};
+
+		const neoforgeIdx = version.indexOf("-neoforge-");
+		if (neoforgeIdx >= 0)
+			return {
+				loader: "neoforge" as const,
+				mcVersion: version.substring(0, neoforgeIdx),
+				loaderVersion: version.substring(neoforgeIdx + 10),
+			};
+
+		const forgeIdx = version.indexOf("-forge-");
+		if (forgeIdx >= 0)
+			return {
+				loader: "forge" as const,
+				mcVersion: version.substring(0, forgeIdx),
+				loaderVersion: version.substring(forgeIdx + 7),
+			};
+
+		return {
+			loader: "vanilla" as const,
+			mcVersion: version,
+			loaderVersion: "",
+		};
+	}
+
 	async function handleSave() {
 		saving = true;
-		let newOverrides = useOverrides
+		const newOverrides = useOverrides
 			? {
 					javaVersion:
 						selectedJavaVersion && selectedJavaVersion !== "default"
@@ -59,7 +118,7 @@
 		await updateInst(
 			instance.uuid,
 			instanceName,
-			instGameVersion,
+			finalVersionId,
 			selectedIcon,
 			newOverrides,
 		);
@@ -68,17 +127,24 @@
 		}, 1000);
 	}
 
-	let installedVersions = $state<string[]>([]);
+	async function handleRepair() {
+		repairing = true;
+		await reinstallVersion(finalVersionId);
+		repairing = false;
+		onclose?.();
+	}
 
-	let versionOptions = $derived(
-		installedVersions.map((v) => ({ value: v, label: v })),
-	);
+	function handleJavaChange() {
+		handleSave();
+	}
 
 	onMount(async () => {
 		selectedIcon = instance.icon;
 		instanceName = instance.name;
-		instGameVersion = instance.version;
-		installedVersions = await getInstalledVersions();
+		const parsed = parseInstanceVersion(instance.version);
+		selectedLoader = parsed.loader;
+		selectedMcVersion = parsed.mcVersion;
+		selectedLoaderVersion = parsed.loaderVersion;
 		if (instance.overrides) {
 			useOverrides = true;
 			selectedJavaVersion =
@@ -89,20 +155,6 @@
 			maxMem = (instance.overrides.memory?.maxMem ?? 2048) / 1024;
 		}
 	});
-
-	function handleVersionChange(version: string) {
-		instGameVersion = version;
-		handleSave();
-	}
-
-	function handleJavaChange() {
-		handleSave();
-	}
-
-	async function handleReinstall() {
-		await reinstallVersion(instance.version);
-		onclose?.();
-	}
 </script>
 
 <div class="qm-root">
@@ -118,20 +170,25 @@
 				iconSrc="/images/icons/settings.svg"
 				storageKey="instance_general"
 			>
-				<GeneralSection
-					bind:selectedIcon
-					bind:instanceName
-					bind:instGameVersion
-					{versionOptions}
-					{saving}
-					onVersionChange={handleVersionChange}
-					onReinstall={handleReinstall}
+				<GeneralSection bind:selectedIcon bind:instanceName />
+			</CollapsibleSection>
+			<CollapsibleSection
+				title="Installation"
+				iconSrc="/images/icons/download.svg"
+				storageKey="instance_installation"
+			>
+				<InstallationSection
+					bind:selectedLoader
+					bind:selectedMcVersion
+					bind:selectedLoaderVersion
+					onRepair={handleRepair}
+					{repairing}
 				/>
 			</CollapsibleSection>
 			<CollapsibleSection
 				title={t("settings.advanced")}
 				iconSrc="/images/icons/terminal.svg"
-				storageKey="instance_general"
+				storageKey="instance_advanced"
 			>
 				<AdvancedSection
 					bind:useOverrides
