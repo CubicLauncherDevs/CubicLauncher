@@ -1,5 +1,5 @@
 use super::FontFace;
-use super::Theme;
+use super::{Theme, ZipImportable};
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 
@@ -63,6 +63,26 @@ impl Theme for ThemeFile {
             fonts: self.fonts.clone(),
             inject_css: None, // Not implemented
         }
+    }
+}
+
+impl ZipImportable for ThemeFile {
+    const ZIP_TARGET_FILE: &'static str = "theme.json";
+
+    fn parse_import(content: &str) -> Result<Self, String> {
+        serde_json::from_str(content).map_err(|e| format!("theme.json inválido: {}", e))
+    }
+
+    fn import_name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    fn import_author(&self) -> &str {
+        self.author.as_str()
+    }
+
+    fn import_version(&self) -> &str {
+        self.version.as_str()
     }
 }
 

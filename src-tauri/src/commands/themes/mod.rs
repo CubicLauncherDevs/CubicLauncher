@@ -47,12 +47,192 @@ trait Theme {
     fn to_theme_res(&self) -> ThemeResponse;
 }
 
+pub(crate) trait ZipImportable: Sized {
+    const ZIP_TARGET_FILE: &'static str;
+    fn parse_import(content: &str) -> Result<Self, String>;
+    fn import_name(&self) -> &str;
+    fn import_author(&self) -> &str;
+    fn import_version(&self) -> &str;
+}
+
+fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntry>, String> {
+    let source = std::path::Path::new(zip_path);
+    if !source.exists() {
+        return Err(FsError::NotFound(zip_path.to_string()).to_string());
+    }
+
+    let file = std::fs::File::open(source).map_err(|e| {
+        FsError::ReadFile {
+            path: zip_path.to_string(),
+            source: e,
+        }
+        .to_string()
+    })?;
+
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| CoreError::Other(format!("Archivo ZIP inválido: {}", e)).to_string())?;
+
+    let target = T::ZIP_TARGET_FILE;
+    let entry_name = {
+        let mut found_root = false;
+        let mut found_subdir: Option<String> = None;
+        let mut invalid = false;
+
+        for i in 0..archive.len() {
+            let entry = archive.by_index(i).map_err(|e| {
+                CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string()
+            })?;
+            let name = entry.name().to_string();
+
+            if name == target {
+                found_root = true;
+            } else if name.ends_with(&format!("/{}", target)) {
+                if found_subdir.is_some() || found_root {
+                    invalid = true;
+                    break;
+                }
+                found_subdir = Some(name);
+            }
+        }
+
+        if invalid || (found_root && found_subdir.is_some()) {
+            return Err(CoreError::Other(format!(
+                "ZIP inválido: múltiples {} encontrados",
+                target
+            ))
+            .to_string());
+        }
+
+        match (found_root, found_subdir) {
+            (true, _) => Some(target.to_string()),
+            (_, Some(sub)) => Some(sub),
+            _ => None,
+        }
+    };
+
+    let entry_name = match entry_name {
+        Some(name) => name,
+        None => return Ok(None),
+    };
+
+    let content = {
+        let mut buf = String::new();
+        let mut entry = archive.by_name(&entry_name).map_err(|e| {
+            CoreError::Other(format!("Error leyendo {}: {}", target, e)).to_string()
+        })?;
+        entry
+            .read_to_string(&mut buf)
+            .map_err(|e| CoreError::Other(format!("Error leyendo {}: {}", target, e)).to_string())?;
+        buf
+    };
+
+    let theme_file: T = T::parse_import(&content)?;
+
+    let (name_str, author_str, version_str) = {
+        let n = theme_file.import_name();
+        let a = theme_file.import_author();
+        let v = theme_file.import_version();
+        (n.to_owned(), a.to_owned(), v.to_owned())
+    };
+
+    let theme_id = if author_str.is_empty() {
+        name_str.to_lowercase().replace(' ', "_")
+    } else {
+        format!(
+            "{}_{}",
+            name_str.to_lowercase().replace(' ', "_"),
+            author_str.to_lowercase().replace(' ', "_")
+        )
+    };
+
+    let theme_dir = PathManager::get().get_themes_dir().join(&theme_id);
+
+    if theme_dir.exists() {
+        info!("Sobreescribiendo theme existente '{}'", theme_id);
+        if let Err(e) = std::fs::remove_dir_all(&theme_dir) {
+            return Err(FsError::Remove {
+                path: theme_dir.to_string_lossy().to_string(),
+                source: e,
+            }
+            .to_string());
+        }
+    }
+
+    std::fs::create_dir_all(&theme_dir).map_err(|e| {
+        FsError::CreateDir {
+            path: theme_dir.to_string_lossy().to_string(),
+            source: e,
+        }
+        .to_string()
+    })?;
+
+    let prefix = if entry_name == target {
+        String::new()
+    } else {
+        entry_name
+            .strip_suffix(target)
+            .unwrap_or("")
+            .to_string()
+    };
+
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).map_err(|e| {
+            CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string()
+        })?;
+
+        let entry_name = entry.name().to_string();
+
+        let relative = match entry_name.strip_prefix(&prefix) {
+            Some(r) => r.to_string(),
+            None => continue,
+        };
+
+        if relative.is_empty() || relative.ends_with('/') {
+            continue;
+        }
+
+        let out_path = theme_dir.join(&relative);
+
+        if let Some(parent) = out_path.parent()
+            && let Err(e) = std::fs::create_dir_all(parent)
+        {
+            warn!("Error creando directorio {:?}: {}", parent, e);
+            continue;
+        }
+
+        let mut out_file = std::fs::File::create(&out_path).map_err(|e| {
+            FsError::WriteFile {
+                path: out_path.to_string_lossy().to_string(),
+                source: e,
+            }
+            .to_string()
+        })?;
+
+        std::io::copy(&mut entry, &mut out_file).map_err(|e| {
+            FsError::WriteFile {
+                path: out_path.to_string_lossy().to_string(),
+                source: e,
+            }
+            .to_string()
+        })?;
+    }
+
+    info!("Theme importado: id='{}'", theme_id);
+    Ok(Some(ThemeEntry {
+        id: theme_id.into(),
+        name: name_str.into(),
+        author: author_str.into(),
+        version: version_str.into(),
+        r#type: "user".into(),
+    }))
+}
+
 #[command]
 pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
-    let themes_dir = PathManager::get().get_themes_dir().to_path_buf();
+    let themes_dir = PathManager::get().get_themes_dir();
     let mut themes = Vec::new();
 
-    let entries = match std::fs::read_dir(&themes_dir) {
+    let entries = match std::fs::read_dir(themes_dir) {
         Ok(e) => e,
         Err(_) => {
             info!("Directorio de themes no encontrado: {:?}", themes_dir);
@@ -115,8 +295,9 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
 #[command]
 pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
     info!("Leyendo theme '{}'", id);
-    let theme_path = PathManager::get().get_themes_dir().join(&id);
-    let exists_meta_toml = match exists(theme_path.join("Meta.toml")) {
+    let theme_base = PathManager::get().get_themes_dir().join(&id);
+    let meta_path = theme_base.join("Meta.toml");
+    let exists_meta_toml = match exists(&meta_path) {
         Ok(e) => e,
         Err(e) => return Err(e.to_string()),
     };
@@ -125,13 +306,14 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
         // Si existe Meta.toml entonces tomamos que el theme es v2
         info!("EL theme {id} tiene Meta.toml, se cargara como V2");
         let meta_bytes =
-            std::fs::read(theme_path.join("Meta.toml")).map_err(|e| FsError::ReadFile {
-                path: theme_path.join("Meta.toml").to_string_lossy().into(),
+            std::fs::read(&meta_path).map_err(|e| FsError::ReadFile {
+                path: meta_path.to_string_lossy().into(),
                 source: e,
             })?;
+        let def_path = theme_base.join("Definition.toml");
         let definition_bytes =
-            std::fs::read(theme_path.join("Definition.toml")).map_err(|e| FsError::ReadFile {
-                path: theme_path.join("Meta.toml").to_string_lossy().into(),
+            std::fs::read(&def_path).map_err(|e| FsError::ReadFile {
+                path: def_path.to_string_lossy().into(),
                 source: e,
             })?;
         //serializar archivos a toml
@@ -145,7 +327,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
             && !bg.starts_with('/')
             && !bg.starts_with(':')
         {
-            let abs_path = theme_path.join(bg);
+            let abs_path = theme_base.join(bg);
             definitions.background.reference_path = Some(abs_path.to_string_lossy().to_string());
         }
 
@@ -180,28 +362,23 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
         }
         for font in &mut definitions.fonts {
             if !font.src.starts_with('/') && !font.src.starts_with("file:") {
-                let abs_path = PathManager::get()
-                    .get_themes_dir()
-                    .join(&id)
-                    .join(&font.src);
+                let abs_path = theme_base.join(&font.src);
                 font.src = abs_path.to_string_lossy().to_string().into();
             }
         }
 
-        let inject = if theme_path.join("Inject.css").exists() {
-            let content = std::fs::read_to_string(theme_path.join("Inject.css")).map_err(|e| {
+        let inject_css_path = theme_base.join("Inject.css");
+        let inject = if inject_css_path.exists() {
+            let content = std::fs::read_to_string(&inject_css_path).map_err(|e| {
                 FsError::ReadFile {
-                    path: theme_path.join("Inject.css").to_string_lossy().into_owned(),
+                    path: inject_css_path.to_string_lossy().into_owned(),
                     source: e,
                 }
             })?;
             info!("Inject.css leido, {} bytes", content.len());
             Some(content)
         } else {
-            info!(
-                "Inject.css no encontrado en {:?}",
-                theme_path.join("Inject.css")
-            );
+            info!("Inject.css no encontrado en {:?}", inject_css_path);
             None
         };
 
@@ -215,14 +392,11 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
         Ok(intermediate)
     } else {
         // v1
-        let theme_path = PathManager::get()
-            .get_themes_dir()
-            .join(&id)
-            .join("theme.json");
+        let theme_json_path = theme_base.join("theme.json");
 
-        let content = std::fs::read_to_string(&theme_path).map_err(|e| {
+        let content = std::fs::read_to_string(&theme_json_path).map_err(|e| {
             FsError::ReadFile {
-                path: theme_path.to_string_lossy().to_string(),
+                path: theme_json_path.to_string_lossy().to_string(),
                 source: e,
             }
             .to_string()
@@ -236,7 +410,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
             && !bg.starts_with('/')
             && !bg.starts_with("file:")
         {
-            let abs_path = PathManager::get().get_themes_dir().join(&id).join(bg);
+            let abs_path = theme_base.join(bg);
             theme.bg_image = Some(abs_path.to_string_lossy().to_string());
         }
 
@@ -275,10 +449,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
         // Resolver rutas de fuentes relativas al directorio del theme
         for font in &mut theme.fonts {
             if !font.src.starts_with('/') && !font.src.starts_with("file:") {
-                let abs_path = PathManager::get()
-                    .get_themes_dir()
-                    .join(&id)
-                    .join(&font.src);
+                let abs_path = theme_base.join(&font.src);
                 font.src = abs_path.to_string_lossy().to_string().into();
             }
         }
@@ -303,16 +474,14 @@ pub async fn set_theme(id: String) -> Result<(), String> {
         ThemeWatcher::watch(None);
     }
 
-    emit(AppEvent::ThemeChanged {
-        id: id.clone().into(),
-    });
     info!("Tema cambiado a '{}'", id);
+    emit(AppEvent::ThemeChanged { id: id.into() });
     Ok(())
 }
 
 #[command]
 pub fn get_current_theme() -> Result<String, String> {
-    let theme = SettingsManager::read().theme.clone().to_string();
+    let theme = SettingsManager::read().theme.to_string();
     info!("Tema actual: '{}'", theme);
     Ok(theme)
 }
@@ -418,365 +587,20 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
 #[command]
 pub fn import_theme_cbth(cbth_path: String) -> Result<ThemeEntry, String> {
     info!("Importando theme CBTH desde '{}'", cbth_path);
-    let source = std::path::Path::new(&cbth_path);
-    if !source.exists() {
-        error!("Archivo ZIP no existe: {}", cbth_path);
-        return Err(FsError::NotFound(cbth_path.clone()).to_string());
+    match import_zip_inner::<ThemeMeta>(&cbth_path)? {
+        Some(entry) => Ok(entry),
+        None => Err(CoreError::Other("ZIP inválido: no se encontró Meta.toml".into()).to_string()),
     }
-
-    let file = std::fs::File::open(source).map_err(|e| {
-        FsError::ReadFile {
-            path: cbth_path.clone(),
-            source: e,
-        }
-        .to_string()
-    })?;
-
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| CoreError::Other(format!("Archivo ZIP inválido: {}", e)).to_string())?;
-
-    // Buscar theme.json en la raíz o en un único subdirectorio
-    let meta_toml_name = {
-        let mut found_root = false;
-        let mut found_subdir: Option<String> = None;
-        let mut invalid = false;
-
-        for i in 0..archive.len() {
-            let entry = archive
-                .by_index(i)
-                .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
-            let name = entry.name().to_string();
-
-            if name == "Meta.toml" {
-                found_root = true;
-            } else if name.ends_with("/Meta.toml") {
-                if found_subdir.is_some() || found_root {
-                    invalid = true;
-                    break;
-                }
-                found_subdir = Some(name);
-            }
-        }
-
-        if invalid || (found_root && found_subdir.is_some()) {
-            return Err(CoreError::Other(
-                "CBTH inválido: múltiples Meta.toml/Definitions.toml encontrados".into(),
-            )
-            .to_string());
-        }
-
-        match (found_root, found_subdir) {
-            (true, _) => Some("Meta.toml".to_string()),
-            (_, Some(sub)) => Some(sub),
-            _ => None,
-        }
-    };
-
-    let meta_toml_name = match meta_toml_name {
-        Some(name) => name,
-        None => {
-            return Err(
-                CoreError::Other("ZIP inválido: no se encontró Meta.toml".into()).to_string(),
-            );
-        }
-    };
-
-    // Leer y validar theme.json
-    let meta_toml_content = {
-        let mut buf = String::new();
-        let mut entry = archive
-            .by_name(&meta_toml_name)
-            .map_err(|e| CoreError::Other(format!("Error leyendo Meta.toml: {}", e)).to_string())?;
-        entry
-            .read_to_string(&mut buf)
-            .map_err(|e| CoreError::Other(format!("Error leyendo Meta.toml: {}", e)).to_string())?;
-        buf
-    };
-
-    // let theme_file: ThemeFile = serde_json::from_str(&theme_json_content)
-    //     .map_err(|e| CoreError::Other(format!("Meta.toml inválido: {}", e)).to_string())?;
-
-    let theme_file: ThemeMeta = toml::from_str(&meta_toml_content)
-        .map_err(|e| CoreError::Serialize(format!("Meta.toml invalido: {}", e)).to_string())?;
-
-    let theme_id = if theme_file.author.is_empty() {
-        theme_file.name.to_lowercase().replace(' ', "_")
-    } else {
-        format!(
-            "{}_{}",
-            theme_file.name.to_lowercase().replace(' ', "_"),
-            theme_file.author.to_lowercase().replace(' ', "_")
-        )
-    };
-    let theme_dir = PathManager::get().get_themes_dir().join(&theme_id);
-
-    // Sobreescribir si ya existe
-    if theme_dir.exists() {
-        info!("Sobreescribiendo theme existente '{}'", theme_id);
-        if let Err(e) = std::fs::remove_dir_all(&theme_dir) {
-            error!("Error eliminando theme existente '{}': {}", theme_id, e);
-            return Err(FsError::Remove {
-                path: theme_dir.to_string_lossy().to_string(),
-                source: e,
-            }
-            .to_string());
-        }
-    }
-
-    std::fs::create_dir_all(&theme_dir).map_err(|e| {
-        FsError::CreateDir {
-            path: theme_dir.to_string_lossy().to_string(),
-            source: e,
-        }
-        .to_string()
-    })?;
-
-    // Determinar el prefijo del directorio dentro del ZIP (si lo hay)
-    let prefix = if meta_toml_name == "Meta.toml" {
-        String::new()
-    } else {
-        // "some_dir/Meta.toml" → "some_dir/"
-        meta_toml_name
-            .strip_suffix("Meta.toml")
-            .unwrap_or("")
-            .to_string()
-    };
-
-    // Extraer todos los archivos del ZIP
-    for i in 0..archive.len() {
-        let mut entry = archive
-            .by_index(i)
-            .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
-
-        let entry_name = entry.name().to_string();
-
-        // Saltar directorios y el prefijo
-        let relative = match entry_name.strip_prefix(&prefix) {
-            Some(r) => r.to_string(),
-            None => continue,
-        };
-
-        if relative.is_empty() || relative.ends_with('/') {
-            continue;
-        }
-
-        let out_path = theme_dir.join(&relative);
-
-        // Crear directorio padre si necesario
-        if let Some(parent) = out_path.parent()
-            && let Err(e) = std::fs::create_dir_all(parent)
-        {
-            warn!("Error creando directorio {:?}: {}", parent, e);
-            continue;
-        }
-
-        let mut out_file = std::fs::File::create(&out_path).map_err(|e| {
-            FsError::WriteFile {
-                path: out_path.to_string_lossy().to_string(),
-                source: e,
-            }
-            .to_string()
-        })?;
-
-        std::io::copy(&mut entry, &mut out_file).map_err(|e| {
-            FsError::WriteFile {
-                path: out_path.to_string_lossy().to_string(),
-                source: e,
-            }
-            .to_string()
-        })?;
-    }
-
-    info!(
-        "Theme CBTH importado: id='{}', name='{}'",
-        theme_id, theme_file.name
-    );
-    Ok(ThemeEntry {
-        id: theme_id.into(),
-        name: theme_file.name,
-        author: theme_file.author,
-        version: theme_file.version,
-        r#type: "user".into(),
-    })
 }
 
 #[tauri::command]
 pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
     info!("Importando theme ZIP desde '{}'", zip_path);
-    let source = std::path::Path::new(&zip_path);
-    if !source.exists() {
-        error!("Archivo ZIP no existe: {}", zip_path);
-        return Err(FsError::NotFound(zip_path.clone()).to_string());
-    }
-
-    let file = std::fs::File::open(source).map_err(|e| {
-        FsError::ReadFile {
-            path: zip_path.clone(),
-            source: e,
-        }
-        .to_string()
-    })?;
-
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| CoreError::Other(format!("Archivo ZIP inválido: {}", e)).to_string())?;
-
-    // Buscar theme.json en la raíz o en un único subdirectorio
-    let theme_json_name = {
-        let mut found_root = false;
-        let mut found_subdir: Option<String> = None;
-        let mut invalid = false;
-
-        for i in 0..archive.len() {
-            let entry = archive
-                .by_index(i)
-                .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
-            let name = entry.name().to_string();
-
-            if name == "theme.json" {
-                found_root = true;
-            } else if name.ends_with("/theme.json") {
-                if found_subdir.is_some() || found_root {
-                    invalid = true;
-                    break;
-                }
-                found_subdir = Some(name);
-            }
-        }
-
-        if invalid || (found_root && found_subdir.is_some()) {
-            return Err(
-                CoreError::Other("ZIP inválido: múltiples theme.json encontrados".into())
-                    .to_string(),
-            );
-        }
-
-        match (found_root, found_subdir) {
-            (true, _) => Some("theme.json".to_string()),
-            (_, Some(sub)) => Some(sub),
-            _ => None,
-        }
-    };
-
-    let theme_json_name = match theme_json_name {
-        Some(name) => name,
+    match import_zip_inner::<ThemeFile>(&zip_path)? {
+        Some(entry) => Ok(entry),
         None => {
             info!("No se encontró theme.json, intentando como tema V2");
-            return import_theme_cbth(zip_path);
-        }
-    };
-
-    // Leer y validar theme.json
-    let theme_json_content = {
-        let mut buf = String::new();
-        let mut entry = archive.by_name(&theme_json_name).map_err(|e| {
-            CoreError::Other(format!("Error leyendo theme.json: {}", e)).to_string()
-        })?;
-        entry.read_to_string(&mut buf).map_err(|e| {
-            CoreError::Other(format!("Error leyendo theme.json: {}", e)).to_string()
-        })?;
-        buf
-    };
-
-    let theme_file: ThemeFile = serde_json::from_str(&theme_json_content)
-        .map_err(|e| CoreError::Other(format!("theme.json inválido: {}", e)).to_string())?;
-
-    let theme_id = if theme_file.author.is_empty() {
-        theme_file.name.to_lowercase().replace(' ', "_")
-    } else {
-        format!(
-            "{}_{}",
-            theme_file.name.to_lowercase().replace(' ', "_"),
-            theme_file.author.to_lowercase().replace(' ', "_")
-        )
-    };
-    let theme_dir = PathManager::get().get_themes_dir().join(&theme_id);
-
-    // Sobreescribir si ya existe
-    if theme_dir.exists() {
-        info!("Sobreescribiendo theme existente '{}'", theme_id);
-        if let Err(e) = std::fs::remove_dir_all(&theme_dir) {
-            error!("Error eliminando theme existente '{}': {}", theme_id, e);
-            return Err(FsError::Remove {
-                path: theme_dir.to_string_lossy().to_string(),
-                source: e,
-            }
-            .to_string());
+            import_theme_cbth(zip_path)
         }
     }
-
-    std::fs::create_dir_all(&theme_dir).map_err(|e| {
-        FsError::CreateDir {
-            path: theme_dir.to_string_lossy().to_string(),
-            source: e,
-        }
-        .to_string()
-    })?;
-
-    // Determinar el prefijo del directorio dentro del ZIP (si lo hay)
-    let prefix = if theme_json_name == "theme.json" {
-        String::new()
-    } else {
-        // "some_dir/theme.json" → "some_dir/"
-        theme_json_name
-            .strip_suffix("theme.json")
-            .unwrap_or("")
-            .to_string()
-    };
-
-    // Extraer todos los archivos del ZIP
-    for i in 0..archive.len() {
-        let mut entry = archive
-            .by_index(i)
-            .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
-
-        let entry_name = entry.name().to_string();
-
-        // Saltar directorios y el prefijo
-        let relative = match entry_name.strip_prefix(&prefix) {
-            Some(r) => r.to_string(),
-            None => continue,
-        };
-
-        if relative.is_empty() || relative.ends_with('/') {
-            continue;
-        }
-
-        let out_path = theme_dir.join(&relative);
-
-        // Crear directorio padre si necesario
-        if let Some(parent) = out_path.parent()
-            && let Err(e) = std::fs::create_dir_all(parent)
-        {
-            warn!("Error creando directorio {:?}: {}", parent, e);
-            continue;
-        }
-
-        let mut out_file = std::fs::File::create(&out_path).map_err(|e| {
-            FsError::WriteFile {
-                path: out_path.to_string_lossy().to_string(),
-                source: e,
-            }
-            .to_string()
-        })?;
-
-        std::io::copy(&mut entry, &mut out_file).map_err(|e| {
-            FsError::WriteFile {
-                path: out_path.to_string_lossy().to_string(),
-                source: e,
-            }
-            .to_string()
-        })?;
-    }
-
-    info!(
-        "Theme ZIP importado: id='{}', name='{}'",
-        theme_id, theme_file.name
-    );
-    Ok(ThemeEntry {
-        id: theme_id.into(),
-        name: theme_file.name,
-        author: theme_file.author,
-        version: theme_file.version,
-        r#type: "user".into(),
-    })
 }

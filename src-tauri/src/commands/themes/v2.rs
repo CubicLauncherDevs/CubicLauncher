@@ -1,5 +1,5 @@
 use super::FontFace;
-use super::Theme;
+use super::{Theme, ZipImportable};
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -64,6 +64,26 @@ pub struct Background {
     pub image_blur: Option<f64>,
     #[serde(default)]
     pub image_opacity: Option<f64>,
+}
+
+impl ZipImportable for ThemeMeta {
+    const ZIP_TARGET_FILE: &'static str = "Meta.toml";
+
+    fn parse_import(content: &str) -> Result<Self, String> {
+        toml::from_str(content).map_err(|e| format!("Meta.toml inválido: {}", e))
+    }
+
+    fn import_name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    fn import_author(&self) -> &str {
+        self.author.as_str()
+    }
+
+    fn import_version(&self) -> &str {
+        self.version.as_str()
+    }
 }
 
 impl Theme for V2Theme {
