@@ -33,7 +33,7 @@ const LOG_RING_CAPACITY: usize = 5000;
 pub(crate) static KEEP_ALIVE: AtomicBool = AtomicBool::new(false);
 
 pub(crate) fn should_keep_alive() -> bool {
-	KEEP_ALIVE.load(Ordering::Relaxed)
+    KEEP_ALIVE.load(Ordering::Relaxed)
 }
 
 // ── Log Ring Buffer ─────────────────────────────────────────────────────────
