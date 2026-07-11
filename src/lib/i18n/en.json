@@ -309,7 +309,8 @@
 		"reinstall": "Reinstall instance",
 		"javaVersion": "Java Version",
 		"javaHint": "Cubic will select the recommended Java version for this Minecraft version. Some mods may be incompatible and require a different one.",
-		"recommended": "Recommended"
+		"recommended": "Recommended",
+		"repairHint": "This reinstalls the mod loader and game version."
 	},
 	"createInstance": {
 		"title": "Create New Instance",
@@ -349,8 +350,8 @@
 		"noLoader": "No loader",
 		"noLoaderNeeded": "No loader needed",
 		"noLoaderVersionsErr": "No loader versions for this version",
-		"selectMcVersion": "Select a version",
-		"selectLoaderVersion": "Select a loader version",
+		"selectMcVersion": "Minecraft version",
+		"selectLoaderVersion": "Loader version",
 		"loading": "Loading...",
 		"modpackSearchPlaceholder": "Search Modrinth modpacks...",
 		"searchBtn": "Search",

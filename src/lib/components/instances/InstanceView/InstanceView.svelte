@@ -2,7 +2,7 @@
 	import { InstState, type InstanceDto } from "$lib/types/types";
 	import { launchInstance } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
-	import { fly } from "svelte/transition";
+	import { fade } from "svelte/transition";
 	import { killInst } from "$lib/api/launcherService";
 	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 	import InstanceHeader from "./InstanceHeader.svelte";
@@ -86,8 +86,7 @@
 		{#if activeSection === "detalles"}
 			<div
 				class="details-section"
-				in:fly={{ x: -200, duration: 450 }}
-				out:fly={{ x: -200, duration: 400 }}
+				in:fade={{ duration: 400 }}
 			>
 				<div class="nav-card">
 					<span class="nav-card-header">
@@ -164,8 +163,7 @@
 		{:else}
 			<div
 				class="subview-section"
-				in:fly={{ x: 200, duration: 450 }}
-				out:fly={{ x: 200, duration: 400 }}
+				in:fade={{ duration: 400 }}
 			>
 				{#if activeSection === "market"}
 					{#key selectedInstance.uuid}
