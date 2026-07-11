@@ -17,7 +17,9 @@
 
 	let { instance, contentType = "mods" }: Props = $props();
 
-	function init() { return createMarketState(instance, contentType); }
+	function init() {
+		return createMarketState(instance, contentType);
+	}
 	const state = init();
 
 	onDestroy(() => {
