@@ -21,10 +21,12 @@
 		selectedLoader = $bindable<string>("vanilla"),
 		selectedMcVersion = $bindable<string>(""),
 		selectedLoaderVersion = $bindable<string>(""),
+		compact = false,
 	}: {
 		selectedLoader: string;
 		selectedMcVersion: string;
 		selectedLoaderVersion: string;
+		compact?: boolean;
 	} = $props();
 
 	const LOADERS = [
@@ -191,7 +193,7 @@
 	);
 </script>
 
-<div class="version-selector">
+<div class="version-selector" class:compact>
 	<div class="loader-unified">
 		{#each LOADERS as loader (loader.value)}
 			<button
@@ -333,5 +335,27 @@
 		> :global(.custom-select-container:last-child .select-trigger) {
 		border-top-left-radius: 0;
 		border-bottom-left-radius: 0;
+	}
+
+	.version-selector.compact {
+		gap: 8px;
+	}
+
+	.version-selector.compact .loader-btn {
+		padding: 6px 4px;
+		font-size: 0.7rem;
+		gap: 4px;
+	}
+
+	.version-selector.compact .loader-btn img {
+		width: 16px;
+		height: 16px;
+	}
+
+	.version-selector.compact
+		:global(.custom-select-container .select-trigger) {
+		padding: 4px 8px;
+		font-size: 0.75rem;
+		min-height: 0;
 	}
 </style>
