@@ -5,7 +5,7 @@
 	import Dropdown from "$lib/components/layout/Dropdown.svelte";
 	import { renderMarkdown } from "$lib/util/markdown";
 	import type { MarketDetailState } from "$lib/state/marketState.svelte";
-	import type { MarketProject, MarketVersion } from "$lib/types/market";
+	import type { MarketProject, MarketVersion, ContentType } from "$lib/types/market";
 	import type {
 		ModrinthProjectFull,
 		CurseForgeProject,
@@ -13,6 +13,7 @@
 
 	interface Props {
 		project: MarketProject;
+		contentType: ContentType;
 		detail: MarketDetailState;
 		selectedVersion: MarketVersion | null;
 		isVersionCompatible: (version: MarketVersion) => boolean;
@@ -25,6 +26,7 @@
 
 	let {
 		project,
+		contentType = "mods",
 		detail,
 		selectedVersion,
 		isVersionCompatible,
@@ -37,18 +39,6 @@
 
 	let installing = $state(false);
 	let actionError = $state<string | null>(null);
-
-	function cleanupImage(node: HTMLImageElement, realSrc: string) {
-		node.src = realSrc;
-		return {
-			update(newSrc: string) {
-				node.src = newSrc;
-			},
-			destroy() {
-				node.src = "";
-			},
-		};
-	}
 
 	const readmeHtml = $derived(
 		project.source !== "curseforge" &&
@@ -95,6 +85,14 @@
 		}
 	}
 
+	const modrinthTypePath = $derived(
+		contentType === "resourcepacks"
+			? "resourcepack"
+			: contentType === "shaderpacks"
+				? "shader"
+				: "mod",
+	);
+
 	function openProjectUrl() {
 		if (project.source === "curseforge") {
 			const slug =
@@ -107,7 +105,7 @@
 		}
 		const slug = detail.fullProject?.slug ?? project.modrinth?.slug;
 		if (slug) {
-			openUrl(`https://modrinth.com/mod/${slug}`);
+			openUrl(`https://modrinth.com/${modrinthTypePath}/${slug}`);
 		}
 	}
 </script>
@@ -136,12 +134,7 @@
 	<div class="market-detail-scroll">
 		<div class="market-detail-icon">
 			{#if project.icon}
-				<img
-					src="/images/cubic.svg"
-					alt={project.title}
-					loading="lazy"
-					use:cleanupImage={project.icon}
-				/>
+				<img src={project.icon} alt={project.title} loading="lazy" />
 			{:else}
 				<span>📦</span>
 			{/if}
@@ -303,12 +296,7 @@
 				</h4>
 				<div class="gallery-grid">
 					{#each (detail.fullProject as ModrinthProjectFull).gallery as image, i (i)}
-						<img
-							src="/images/cubic.svg"
-							alt={image.title ?? `Gallery ${i + 1}`}
-							loading="lazy"
-							use:cleanupImage={image.url}
-						/>
+				<img src={image.url} alt="Gallery" loading="lazy" />
 					{/each}
 				</div>
 			</div>

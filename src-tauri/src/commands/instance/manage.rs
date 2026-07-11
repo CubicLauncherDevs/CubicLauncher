@@ -195,6 +195,18 @@ pub async fn delete_instance_file(
     } else {
         warn!("Archivo {:?} no existe, nada que eliminar", file_path);
     }
+
+    // Clean up ablage cache if deleting from resourcepacks or shaderpacks
+    let pack_dirs = ["resourcepacks", "shaderpacks"];
+    if pack_dirs.contains(&sub_dir.as_str()) {
+        let sub_path2 = sub_path.clone();
+        let filename2 = filename.clone();
+        let _ = tokio::task::spawn_blocking(move || {
+            crate::services::remove_pack_cache(&sub_path2, &filename2);
+        })
+        .await;
+    }
+
     Ok(())
 }
 

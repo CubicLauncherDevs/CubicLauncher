@@ -8,7 +8,7 @@ use crate::core::errors::{DownloadError, FsError, InstanceError};
 use crate::services::InstanceManager;
 use crate::services::compute_file_sha1;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModDownloadInfo {
     pub url: String,
     pub filename: String,
@@ -165,14 +165,14 @@ pub async fn download_resourcepacks(
 
     let count = packs.len();
     let items: Vec<DownloadItemSpec> = packs
-        .into_iter()
+        .iter()
         .map(|m| {
             info!(
                 "Encolando resourcepack: {} -> {:?}",
                 m.filename,
                 rp_dir.join(&m.filename)
             );
-            DownloadItemSpec::new(m.url, rp_dir.join(m.filename), "resourcepack")
+            DownloadItemSpec::new(m.url.clone(), rp_dir.join(&m.filename), "resourcepack")
         })
         .collect();
 
@@ -189,6 +189,23 @@ pub async fn download_resourcepacks(
         .download_all(None)
         .await
         .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    // Cache metadata via ablage
+    for m in &packs {
+        if let (Some(project_id), Some(version_id)) = (&m.project_id, &m.version_id) {
+            crate::services::save_pack_cache(
+                &rp_dir,
+                &m.filename,
+                &crate::services::PackCacheEntry {
+                    source: crate::services::ModSource::Modrinth {
+                        project_id: project_id.clone(),
+                        version_id: version_id.clone(),
+                        slug: None,
+                    },
+                },
+            );
+        }
+    }
 
     info!(
         "{} resourcepacks descargados correctamente en {:?}",
@@ -219,14 +236,14 @@ pub async fn download_shaderpacks(
 
     let count = packs.len();
     let items: Vec<DownloadItemSpec> = packs
-        .into_iter()
+        .iter()
         .map(|m| {
             info!(
                 "Encolando shaderpack: {} -> {:?}",
                 m.filename,
                 sp_dir.join(&m.filename)
             );
-            DownloadItemSpec::new(m.url, sp_dir.join(m.filename), "shaderpack")
+            DownloadItemSpec::new(m.url.clone(), sp_dir.join(&m.filename), "shaderpack")
         })
         .collect();
 
@@ -243,6 +260,23 @@ pub async fn download_shaderpacks(
         .download_all(None)
         .await
         .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    // Cache metadata via ablage
+    for m in &packs {
+        if let (Some(project_id), Some(version_id)) = (&m.project_id, &m.version_id) {
+            crate::services::save_pack_cache(
+                &sp_dir,
+                &m.filename,
+                &crate::services::PackCacheEntry {
+                    source: crate::services::ModSource::Modrinth {
+                        project_id: project_id.clone(),
+                        version_id: version_id.clone(),
+                        slug: None,
+                    },
+                },
+            );
+        }
+    }
 
     info!(
         "{} shaderpacks descargados correctamente en {:?}",

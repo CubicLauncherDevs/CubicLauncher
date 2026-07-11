@@ -475,6 +475,13 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
 
     let resourcepacks_dir = handle.get_instance_dir().await.join("resourcepacks");
 
+    let meta = tokio::task::spawn_blocking({
+        let d = resourcepacks_dir.clone();
+        move || crate::services::read_all_pack_cache(&d)
+    })
+    .await
+    .unwrap_or_default();
+
     let rp_paths = tokio::task::spawn_blocking(move || -> Vec<PathBuf> {
         match std::fs::read_dir(&resourcepacks_dir) {
             Ok(entries) => entries
@@ -512,6 +519,8 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
         };
         let icon = AddonManager::get_mod_icon(&path).map(|s| (*s).clone());
 
+        let pack_meta = meta.get(&filename);
+
         resourcepacks.push(ModDto {
             name: md_name,
             filename,
@@ -522,9 +531,13 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
             enabled: true,
             sha1,
             file_size: size,
-            source: "local".to_string(),
-            project_id: None,
-            slug: None,
+            source: pack_meta
+                .map(|m| m.source.source_str().to_string())
+                .unwrap_or_else(|| "local".to_string()),
+            project_id: pack_meta
+                .and_then(|m| m.source.project_id().map(|s| s.to_string())),
+            slug: pack_meta
+                .and_then(|m| m.source.slug().map(|s| s.to_string())),
         });
     }
     resourcepacks.sort_by_key(|a| a.name.to_lowercase());
@@ -549,6 +562,13 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
     };
 
     let shaderpacks_dir = handle.get_instance_dir().await.join("shaderpacks");
+
+    let meta = tokio::task::spawn_blocking({
+        let d = shaderpacks_dir.clone();
+        move || crate::services::read_all_pack_cache(&d)
+    })
+    .await
+    .unwrap_or_default();
 
     let sp_paths = tokio::task::spawn_blocking(move || -> Vec<PathBuf> {
         match std::fs::read_dir(&shaderpacks_dir) {
@@ -587,6 +607,8 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
         };
         let icon = AddonManager::get_mod_icon(&path).map(|s| (*s).clone());
 
+        let pack_meta = meta.get(&filename);
+
         shaderpacks.push(ModDto {
             name: md_name,
             filename,
@@ -597,9 +619,13 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
             enabled: true,
             sha1,
             file_size: size,
-            source: "local".to_string(),
-            project_id: None,
-            slug: None,
+            source: pack_meta
+                .map(|m| m.source.source_str().to_string())
+                .unwrap_or_else(|| "local".to_string()),
+            project_id: pack_meta
+                .and_then(|m| m.source.project_id().map(|s| s.to_string())),
+            slug: pack_meta
+                .and_then(|m| m.source.slug().map(|s| s.to_string())),
         });
     }
     shaderpacks.sort_by_key(|a| a.name.to_lowercase());

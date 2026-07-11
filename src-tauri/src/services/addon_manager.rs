@@ -91,6 +91,61 @@ pub fn compute_file_sha1(path: &Path) -> Result<String, String> {
     Ok(hash.iter().map(|b| format!("{:02x}", b)).collect())
 }
 
+// ── Pack cache (resourcepacks / shaderpacks) via ablage ──────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackCacheEntry {
+    pub source: ModSource,
+}
+
+fn pack_cache_path(dir: &Path) -> PathBuf {
+    dir.join(".pack_cache.crep")
+}
+
+/// Read all pack cache entries keyed by filename
+pub fn read_all_pack_cache(dir: &Path) -> HashMap<String, PackCacheEntry> {
+    let path = pack_cache_path(dir);
+    if !path.exists() {
+        return HashMap::new();
+    }
+    let repo = ablage::Repo::open(&path);
+    let mut map = HashMap::new();
+    for key in repo.keys() {
+        if let Some(entry) = repo
+            .get(key)
+            .and_then(|e| postcard::from_bytes::<PackCacheEntry>(&e.data).ok())
+        {
+            map.insert(key.clone(), entry);
+        }
+    }
+    map
+}
+
+pub fn save_pack_cache(dir: &Path, filename: &str, entry: &PackCacheEntry) {
+    let mut repo = ablage::Repo::open(&pack_cache_path(dir));
+    if let Ok(data) = postcard::to_stdvec(entry) {
+        repo.put(
+            filename.to_string(),
+            ablage::Entry {
+                version: 1,
+                fingerprint: 0,
+                data,
+            },
+        );
+        let _ = repo.flush();
+    }
+}
+
+pub fn remove_pack_cache(dir: &Path, filename: &str) {
+    let path = pack_cache_path(dir);
+    if !path.exists() {
+        return;
+    }
+    let mut repo = ablage::Repo::open(&path);
+    repo.remove(filename);
+    let _ = repo.flush();
+}
+
 type ParserFn = fn(&mut ZipArchive<File>) -> Result<AddonMetaNoIcon, ()>;
 const MOD_PARSERS: &[ParserFn] = &[
     AddonManager::try_parse_fabric,

@@ -127,7 +127,7 @@ export function createMarketState(
 
 	function resetState() {
 		const fresh = parseInstanceVersion(instance);
-		filters.source = isModContent ? "modrinth" : "local";
+		filters.source = "modrinth";
 		filters.query = "";
 		filters.loader = fresh.loader.toLowerCase();
 		filters.gameVersion = fresh.gameVersion;
@@ -385,11 +385,12 @@ export function createMarketState(
 		}
 
 		try {
+			const versionLoader = isModContent ? filters.loader : "";
 			const [full, versions] = await Promise.all([
 				getModrinthProject(projectId),
 				getModrinthProjectVersions(
 					projectId,
-					filters.loader,
+					versionLoader,
 					filters.gameVersion,
 				),
 			]);
@@ -515,6 +516,7 @@ export function createMarketState(
 				await loadDetail(current);
 			} catch (e) {
 				console.error(e);
+				throw e;
 			}
 			return;
 		}
@@ -568,6 +570,7 @@ export function createMarketState(
 			await loadDetail(current);
 		} catch (e) {
 			console.error(e);
+			throw e;
 		}
 	}
 
