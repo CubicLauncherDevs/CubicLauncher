@@ -29,7 +29,7 @@
 	<Select
 		bind:value={selectedJavaVersion}
 		options={javaOptions}
-		label={t("instanceEditor.javaVersion")}
+		placeholder={t("instanceEditor.javaVersion")}
 		onchange={onJavaChange}
 	/>
 	<span class="qm-themes-hint">{t("instanceEditor.javaHint")}</span>

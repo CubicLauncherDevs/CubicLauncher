@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import VersionSelectorStep from "../CreateInstanceModal/VersionSelectorStep.svelte";
 
 	let {
@@ -34,7 +35,7 @@
 			Repair
 		</button>
 		<span class="repair-hint">
-			Esto reinstala el cargador de mods y la versión del juego.
+			{t("instanceEditor.repairHint")}
 		</span>
 	</div>
 </div>

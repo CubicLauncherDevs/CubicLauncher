@@ -280,7 +280,7 @@
 				<h4 class="market-detail-section-title">
 					{t("market.detail.readme")}
 				</h4>
-				<!-- <div
+				<div
 					class="markdown-body"
 					role="presentation"
 					onclick={(e) => {
@@ -292,7 +292,7 @@
 					}}
 				>
 					{@html readmeHtml}
-				</div> -->
+				</div>
 			</div>
 		{/if}
 
