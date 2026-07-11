@@ -122,7 +122,7 @@ pub fn read_all_pack_cache(dir: &Path) -> HashMap<String, PackCacheEntry> {
 }
 
 pub fn save_pack_cache(dir: &Path, filename: &str, entry: &PackCacheEntry) {
-    let mut repo = ablage::Repo::open(&pack_cache_path(dir));
+    let mut repo = ablage::Repo::open(pack_cache_path(dir));
     if let Ok(data) = postcard::to_stdvec(entry) {
         repo.put(
             filename.to_string(),
