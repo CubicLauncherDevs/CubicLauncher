@@ -28,7 +28,9 @@
 		return fallback;
 	}
 
-	function getSaved() { return loadSaved(storageKey, defaultOpen); }
+	function getSaved() {
+		return loadSaved(storageKey, defaultOpen);
+	}
 	let open = $state(getSaved());
 
 	$effect(() => {
