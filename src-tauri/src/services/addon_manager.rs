@@ -194,7 +194,7 @@ impl AddonManager {
         if cache.len() >= MAX_CACHE_ENTRIES {
             // Evicción parcial: mantener la mitad más reciente
             let mut entries: Vec<_> = cache.drain().collect();
-            entries.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+            entries.sort_by_key(|b| std::cmp::Reverse(b.1.0));
             cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
         }
         cache.insert(path.to_path_buf(), (mtime, meta.clone(), icon));
@@ -285,7 +285,7 @@ impl AddonManager {
         let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
         if cache.len() >= MAX_CACHE_ENTRIES {
             let mut entries: Vec<_> = cache.drain().collect();
-            entries.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+            entries.sort_by_key(|b| std::cmp::Reverse(b.1.0));
             cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
         }
         cache.insert(path.to_path_buf(), (mtime, None, result.clone()));
@@ -389,7 +389,7 @@ impl AddonManager {
         let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
         if cache.len() >= MAX_CACHE_ENTRIES {
             let mut entries: Vec<_> = cache.drain().collect();
-            entries.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+            entries.sort_by_key(|b| std::cmp::Reverse(b.1.0));
             cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
         }
         cache.insert(path.to_path_buf(), (mtime, meta.clone(), icon.clone()));
@@ -417,7 +417,7 @@ impl AddonManager {
         let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
         if cache.len() >= MAX_CACHE_ENTRIES {
             let mut entries: Vec<_> = cache.drain().collect();
-            entries.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+            entries.sort_by_key(|b| std::cmp::Reverse(b.1.0));
             cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
         }
         cache.insert(path.to_path_buf(), (mtime, meta.clone(), icon.clone()));
