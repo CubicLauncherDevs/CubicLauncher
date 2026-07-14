@@ -490,7 +490,12 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
                     let mtime = meta.modified().ok()?;
                     let size = meta.len();
                     let fingerprint = file_fingerprint(&filename, &mtime, size);
-                    Some(FileEntry { path, filename, size, fingerprint })
+                    Some(FileEntry {
+                        path,
+                        filename,
+                        size,
+                        fingerprint,
+                    })
                 })
                 .collect()
         }
@@ -684,7 +689,12 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
                     let mtime = meta.modified().ok()?;
                     let size = meta.len();
                     let fingerprint = file_fingerprint(&filename, &mtime, size);
-                    Some(FileEntry { path, filename, size, fingerprint })
+                    Some(FileEntry {
+                        path,
+                        filename,
+                        size,
+                        fingerprint,
+                    })
                 })
                 .collect()
         }
