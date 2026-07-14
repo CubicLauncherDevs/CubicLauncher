@@ -7,7 +7,7 @@
 		getNeoForgeVersions,
 		getQuiltLoaderVersions,
 		getInstalledVersions,
-		parseInstalledVersion,
+		getInstalledMcVersions,
 	} from "$lib/api/cubicApi";
 	import Select from "$lib/components/layout/Select.svelte";
 	import { t } from "$lib/i18n";
@@ -71,34 +71,37 @@
 		return b.localeCompare(a, undefined, { numeric: true });
 	}
 
-	function getInstalledBaseVersions(raw: string[]): SvelteSet<string> {
-		const bases = new SvelteSet<string>();
-		for (const v of raw) {
-			const parsed = parseInstalledVersion(v);
-			if (!parsed) continue;
-			if (parsed.loader === "forge" || parsed.loader === "neoforge") {
-				const sep =
-					parsed.loader === "neoforge" ? "-neoforge-" : "-forge-";
-				const idx = v.indexOf(sep);
-				if (idx >= 0) bases.add(v.substring(0, idx));
-			} else {
-				bases.add(parsed.version);
-			}
-		}
-		return bases;
-	}
-
 	async function loadMcVersions(loader: string) {
 		selectedLoader = loader;
 		const currentLoadId = ++mcLoadId;
-		++loaderLoadId; // invalida cualquier carga de loader anterior que aún esté en vuelo
+		++loaderLoadId;
 		loadingMinecraft = true;
 		loadingLoader = true;
 
 		try {
 			const raw = await getInstalledVersions();
-			const installedBases = getInstalledBaseVersions(raw);
-			const list = Array.from(installedBases).sort(compareVersions);
+			const parsed = getInstalledMcVersions(raw);
+
+			let baseVersions: string[] = [];
+			if (loader === "vanilla") {
+				baseVersions = Array.from(parsed.vanilla);
+			} else if (loader === "fabric") {
+				baseVersions = Array.from(parsed.fabric);
+			} else if (loader === "quilt") {
+				baseVersions = Array.from(parsed.quilt);
+			} else if (loader === "forge") {
+				baseVersions = Array.from(parsed.forge).map((v) => {
+					const idx = v.indexOf("-forge-");
+					return idx >= 0 ? v.substring(0, idx) : v;
+				});
+			} else if (loader === "neoforge") {
+				baseVersions = Array.from(parsed.neoforge).map((v) => {
+					const idx = v.indexOf("-neoforge-");
+					return idx >= 0 ? v.substring(0, idx) : v;
+				});
+			}
+
+			const deduped = Array.from(new SvelteSet(baseVersions)).sort(compareVersions);
 
 			if (loader === "forge" && forgeVersions.length === 0) {
 				forgeVersions = await getForgeVersions();
@@ -109,9 +112,9 @@
 			}
 
 			if (currentLoadId !== mcLoadId) return;
-			mcVersions = list;
-			if (!selectedMcVersion || !list.includes(selectedMcVersion)) {
-				selectedMcVersion = list[0] ?? "";
+			mcVersions = deduped;
+			if (!selectedMcVersion || !deduped.includes(selectedMcVersion)) {
+				selectedMcVersion = deduped[0] ?? "";
 			}
 			await loadLoaderVersions(selectedMcVersion, loader);
 		} catch {

@@ -55,7 +55,7 @@
 		null,
 	);
 	let VersionDownloaderComponent = $state<Component<{
-		onclose?: () => void;
+		open: boolean;
 	}> | null>(null);
 
 	let unlistenDragDrop: (() => void) | undefined;
@@ -304,11 +304,7 @@
 		</Drawer>
 	{/if}
 
-	<Drawer bind:open={versionDownloaderOpen} direction="right">
-		<VersionDownloaderComponent
-			onclose={() => (versionDownloaderOpen = false)}
-		/>
-	</Drawer>
+	<VersionDownloaderComponent bind:open={versionDownloaderOpen} />
 
 	<CreateInstanceModal
 		bind:open={openCreateModal}

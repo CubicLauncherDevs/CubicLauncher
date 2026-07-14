@@ -1,80 +1,102 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-
 	let {
-		filter = $bindable("release"),
-		showSnapshots = false,
-		showAlpha = false,
+		loaderTab = $bindable("vanilla"),
+		LOADERS = [],
+		onswitch,
 	}: {
-		filter?: string;
-		showSnapshots?: boolean;
-		showAlpha?: boolean;
+		loaderTab: string;
+		LOADERS: Array<{ value: string; label: string; icon: string }>;
+		onswitch: (tab: string) => void;
 	} = $props();
+
+	function handleClick(value: string) {
+		loaderTab = value;
+		onswitch(value);
+	}
 </script>
 
-<div class="qm-tabs">
-	<button
-		type="button"
-		class="qm-tab-btn"
-		class:active={filter === "release"}
-		onclick={() => (filter = "release")}
-	>
-		<span class="qm-tab-label">{t("versionDownloader.tabs.releases")}</span>
-	</button>
-	{#if showSnapshots}
+<div class="loader-unified">
+	{#each LOADERS as loader (loader.value)}
 		<button
 			type="button"
-			class="qm-tab-btn"
-			class:active={filter === "snapshot"}
-			onclick={() => (filter = "snapshot")}
+			class="loader-btn"
+			class:active={loaderTab === loader.value}
+			onclick={() => handleClick(loader.value)}
 		>
-			<span class="qm-tab-label"
-				>{t("versionDownloader.tabs.snapshots")}</span
-			>
+			<img src={loader.icon} alt={loader.label} />
+			<span>{loader.label}</span>
 		</button>
-	{/if}
-	{#if showAlpha}
-		<button
-			type="button"
-			class="qm-tab-btn"
-			class:active={filter === "alpha"}
-			onclick={() => (filter = "alpha")}
-		>
-			<span class="qm-tab-label"
-				>{t("versionDownloader.tabs.alphas")}</span
-			>
-		</button>
-	{/if}
-	<button
-		type="button"
-		class="qm-tab-btn"
-		class:active={filter === "fabric"}
-		onclick={() => (filter = "fabric")}
-	>
-		<span class="qm-tab-label">{t("versionDownloader.tabs.fabric")}</span>
-	</button>
-	<button
-		type="button"
-		class="qm-tab-btn"
-		class:active={filter === "forge"}
-		onclick={() => (filter = "forge")}
-	>
-		<span class="qm-tab-label">{t("versionDownloader.tabs.forge")}</span>
-	</button>
-	<button
-		type="button"
-		class="qm-tab-btn"
-		class:active={filter === "neoforge"}
-		onclick={() => (filter = "neoforge")}
-	>
-		<span class="qm-tab-label">{t("versionDownloader.tabs.neoforge")}</span>
-	</button>
-	<button
-		type="button"
-		class="qm-tab-btn"
-		class:active={filter === "quilt"}
-		onclick={() => (filter = "quilt")}
-	>
-		<span class="qm-tab-label">{t("versionDownloader.tabs.quilt")}</span>
-	</button>
+	{/each}
 </div>
+
+<style>
+	.loader-unified {
+		display: flex;
+		width: 100%;
+	}
+
+	.loader-btn {
+		--btn-bg: rgba(var(--accent-rgb, 255, 255, 255), 0.03);
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		padding: 12px 8px;
+		background: var(--btn-bg);
+		border: 1px solid var(--border);
+		color: var(--text-secondary);
+		font-family: inherit;
+		font-size: 0.8rem;
+		font-weight: 600;
+		cursor: pointer;
+		position: relative;
+		margin-left: -1px;
+		z-index: 0;
+		transition:
+			background-color 0.15s,
+			color 0.15s,
+			border-color 0.15s,
+			box-shadow 0.15s;
+	}
+
+	.loader-btn:first-child {
+		margin-left: 0;
+		border-radius: var(--border-radius-sm) 0 0 var(--border-radius-sm);
+	}
+
+	.loader-btn:last-child {
+		border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+	}
+
+	.loader-btn:hover {
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.06);
+		color: var(--text-primary);
+		z-index: 1;
+	}
+
+	.loader-btn.active {
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.1);
+		border-color: var(--accent);
+		color: var(--text-primary);
+		z-index: 2;
+	}
+
+	.loader-btn img {
+		width: 20px;
+		height: 20px;
+		object-fit: contain;
+	}
+
+	.loader-btn span {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	@media (max-width: 500px) {
+		.loader-btn span {
+			display: none;
+		}
+	}
+</style>
