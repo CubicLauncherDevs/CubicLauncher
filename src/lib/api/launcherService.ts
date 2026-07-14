@@ -145,7 +145,9 @@ export function initEventListeners(): void {
 					applyTheme(payload.data.id);
 				}
 				break;
-			case "ModsEnriched": {
+			case "ModsEnriched":
+			case "ResourcepacksEnriched":
+			case "ShaderpacksEnriched": {
 				const callbacks = _refreshCallbacks.get(payload.data.id);
 				if (callbacks) {
 					for (const cb of callbacks) cb();

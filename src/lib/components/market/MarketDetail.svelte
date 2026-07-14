@@ -57,15 +57,6 @@
 		})),
 	);
 
-	function formatDate(dateStr: string): string {
-		if (!dateStr) return "—";
-		try {
-			return new Date(dateStr).toLocaleDateString();
-		} catch {
-			return dateStr;
-		}
-	}
-
 	function formatNumber(num: number | undefined | null): string {
 		if (num == null) return "—";
 		if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
@@ -156,36 +147,7 @@
 						>{formatNumber(project.downloadCount)}</span
 					>
 				</div>
-				{#if detail.fullProject}
-					{#if project.source !== "curseforge"}
-						<div class="market-detail-stat">
-							<span class="market-detail-stat-label"
-								>{t("market.detail.followers")}</span
-							>
-							<span class="market-detail-stat-value"
-								>{formatNumber(
-									(detail.fullProject as ModrinthProjectFull)
-										.follows,
-								)}</span
-							>
-						</div>
-					{/if}
-					<div class="market-detail-stat">
-						<span class="market-detail-stat-label"
-							>{t("market.detail.updated")}</span
-						>
-						<span class="market-detail-stat-value"
-							>{formatDate(
-								project.source === "curseforge"
-									? (detail.fullProject as CurseForgeProject)
-											.dateModified
-									: (
-											detail.fullProject as ModrinthProjectFull
-										).date_modified,
-							)}</span
-						>
-					</div>
-				{/if}
+
 			</div>
 		{/if}
 

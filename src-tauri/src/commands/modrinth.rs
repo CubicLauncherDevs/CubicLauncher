@@ -75,26 +75,32 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
         .await
         .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
 
-    // Post-download: compute SHA1 and cache metadata in ablage
+    // Post-download: compute SHA1 in parallel and cache metadata in ablage
     let cache_path = repo_path(&mods_dir);
     let mut repo = ablage::Repo::open(&cache_path);
-    let mut dirty = false;
 
-    for m in &mods {
-        let file_path = mods_dir.join(&m.filename);
-        if !file_path.exists() {
-            continue;
-        }
-        let sha1 = tokio::task::spawn_blocking({
-            let p = file_path.clone();
-            move || compute_file_sha1(&p)
+    let sha1_futs: Vec<_> = mods
+        .iter()
+        .map(|m| {
+            let file_path = mods_dir.join(&m.filename);
+            tokio::task::spawn_blocking(move || {
+                let sha1 = compute_file_sha1(&file_path).unwrap_or_default();
+                (file_path, sha1)
+            })
         })
-        .await
-        .unwrap_or(Ok(String::new()))
-        .unwrap_or_default();
+        .collect();
 
-        if sha1.is_empty() {
-            warn!("No se pudo computar SHA1 para {}", m.filename);
+    let sha1_results: Vec<_> = futures::future::join_all(sha1_futs)
+        .await
+        .into_iter()
+        .filter_map(|r| r.ok())
+        .collect();
+
+    for (m, (file_path, sha1)) in mods.iter().zip(sha1_results.iter()) {
+        if !file_path.exists() || sha1.is_empty() {
+            if sha1.is_empty() {
+                warn!("No se pudo computar SHA1 para {}", m.filename);
+            }
             continue;
         }
 
@@ -105,7 +111,6 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
                 slug: None,
             }
         } else if let Some(project_id) = &m.project_id {
-            // Numeric project_id → CurseForge
             crate::services::ModSource::CurseForge {
                 project_id: project_id.clone(),
                 file_id: m.version_id.clone().unwrap_or_default(),
@@ -121,7 +126,7 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
         };
 
         if let Ok(data) = postcard::to_stdvec(&entry)
-            && repo.get(&sha1).is_none()
+            && repo.get(sha1).is_none()
         {
             repo.put(
                 sha1.clone(),
@@ -131,13 +136,10 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
                     data,
                 },
             );
-            dirty = true;
         }
     }
 
-    if dirty {
-        let _ = repo.flush();
-    }
+    let _ = repo.flush();
 
     info!("{} mods descargados y cacheados en {:?}", count, mods_dir);
     Ok(())

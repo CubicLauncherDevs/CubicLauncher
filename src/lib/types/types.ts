@@ -239,6 +239,18 @@ export type AppEvent =
 			data: {
 				id: string;
 			};
+	  }
+	| {
+			type: "ResourcepacksEnriched";
+			data: {
+				id: string;
+			};
+	  }
+	| {
+			type: "ShaderpacksEnriched";
+			data: {
+				id: string;
+			};
 	  };
 
 export interface ConsoleOutputPayload {
