@@ -275,7 +275,7 @@ impl Launcher {
             handle.set_status(InstanceStatus::Error(
                 InstanceError::JreNotFound(java_version.to_string()).to_string(),
             ));
-            return Err(AppError::Instance(InstanceError::JreNotFound(
+            Err(AppError::Instance(InstanceError::JreNotFound(
                 java_version.to_string(),
             )))?;
         }
