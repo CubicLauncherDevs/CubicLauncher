@@ -141,10 +141,7 @@ impl<'a> ClasspathResolver<'a> {
     }
 
     fn find_forge_universal(&self) -> Option<PathBuf> {
-        let libs = match &self.manifest.libraries {
-            Some(libs) => libs,
-            None => return None,
-        };
+        let libs = self.manifest.libraries.as_ref()?;
         for lib in libs {
             let name = &lib.name;
             if name.contains("net.minecraftforge:forge:")
