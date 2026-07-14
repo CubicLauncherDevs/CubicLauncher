@@ -469,20 +469,10 @@
 		"installedTag": "Installée",
 		"downloadBtn": "Télécharger",
 		"refreshBtn": "Recharger le cache",
-		"filters": {
-			"all": "Tous",
-			"installedOnly": "Installés Uniquement",
-			"notInstalledOnly": "Non Installés",
-			"stableOnly": "Stables Uniquement",
-			"unstableOnly": "Instables Uniquement",
-			"installStatus": "Statut",
-			"majorVersion": "Version Majeure",
-			"fabricStability": "Stabilité"
-		},
+		"showAll": "Afficher toutes les versions",
+		"browseAll": "Parcourir toutes les versions MC",
 		"tabs": {
-			"releases": "Releases",
-			"snapshots": "Snapshots",
-			"alphas": "Alphas",
+			"vanilla": "Vanilla",
 			"fabric": "Fabric",
 			"forge": "Forge",
 			"neoforge": "NeoForge",
