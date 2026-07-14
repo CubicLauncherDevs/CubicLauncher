@@ -57,6 +57,9 @@
 	let forgeVersions = $state<ForgeGameVersion[]>([]);
 	let neoForgeVersions = $state<NeoForgeGameVersion[]>([]);
 
+	let cachedInstalledVersions: string[] | null = null;
+	let cachedParsedVersions: ReturnType<typeof getInstalledMcVersions> | null = null;
+
 	let mcLoadId = $state(0);
 	let loaderLoadId = $state(0);
 
@@ -79,8 +82,11 @@
 		loadingLoader = true;
 
 		try {
-			const raw = await getInstalledVersions();
-			const parsed = getInstalledMcVersions(raw);
+			if (cachedInstalledVersions === null) {
+				cachedInstalledVersions = await getInstalledVersions();
+				cachedParsedVersions = getInstalledMcVersions(cachedInstalledVersions);
+			}
+			const parsed = cachedParsedVersions!;
 
 			let baseVersions: string[] = [];
 			if (loader === "vanilla") {
