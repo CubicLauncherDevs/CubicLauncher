@@ -37,7 +37,7 @@ const PAGE_SIZE = 20;
 
 export type MarketSource = "local" | "modrinth" | "curseforge";
 
-export type MarketSort = "relevance" | "downloads" | "newest" | "updated";
+export type MarketSort = "relevance" | "downloads" | "newest";
 export type LocalSort = "name-asc" | "name-desc";
 
 export interface MarketFilters {

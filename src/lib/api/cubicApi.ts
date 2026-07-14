@@ -23,6 +23,7 @@ import {
 } from "../types/types";
 import { invoke } from "@tauri-apps/api/core";
 import { showErrorParsed, showJreInstallPrompt } from "../state/state.svelte";
+import { apiCache } from "../util/apiCache";
 
 export async function killInstance(
 	uuid: string,
@@ -619,11 +620,19 @@ export async function searchModrinth(
 		url.searchParams.append("limit", limit.toString());
 		url.searchParams.append("offset", offset.toString());
 
+		const cacheKey = url.toString();
+		if (!signal) {
+			const cached = apiCache.get<ModrinthSearchResult>(cacheKey);
+			if (cached) return cached;
+		}
+
 		const res = await fetch(url.toString(), { signal });
 		if (!res.ok) {
 			throw new Error(`Modrinth API error: ${res.status}`);
 		}
-		return (await res.json()) as ModrinthSearchResult;
+		const data = (await res.json()) as ModrinthSearchResult;
+		apiCache.set(cacheKey, data);
+		return data;
 	} catch (err) {
 		if (err instanceof DOMException && err.name === "AbortError")
 			return null;
@@ -654,11 +663,17 @@ export async function getModrinthProjectVersions(
 			);
 		}
 
+		const cacheKey = url.toString();
+		const cached = apiCache.get<ModrinthVersion[]>(cacheKey);
+		if (cached) return cached;
+
 		const res = await fetch(url.toString());
 		if (!res.ok) {
 			throw new Error(`Modrinth API error: ${res.status}`);
 		}
-		return (await res.json()) as ModrinthVersion[];
+		const data = (await res.json()) as ModrinthVersion[];
+		apiCache.set(cacheKey, data);
+		return data;
 	} catch (err) {
 		showErrorParsed(err);
 		return [];
@@ -669,11 +684,15 @@ export async function getModrinthProject(
 	projectId: string,
 ): Promise<ModrinthProjectFull | null> {
 	try {
-		const res = await fetch(
-			`https://api.modrinth.com/v2/project/${projectId}`,
-		);
+		const url = `https://api.modrinth.com/v2/project/${projectId}`;
+		const cached = apiCache.get<ModrinthProjectFull>(url);
+		if (cached) return cached;
+
+		const res = await fetch(url);
 		if (!res.ok) throw new Error(`Modrinth API error: ${res.status}`);
-		return (await res.json()) as ModrinthProjectFull;
+		const data = (await res.json()) as ModrinthProjectFull;
+		apiCache.set(url, data);
+		return data;
 	} catch (err) {
 		showErrorParsed(err);
 		return null;
@@ -807,11 +826,14 @@ export async function searchCurseForge(
 		} else if (index === "newest") {
 			url.searchParams.append("sortField", "2");
 			url.searchParams.append("sortOrder", "desc");
-		} else if (index === "updated") {
-			url.searchParams.append("sortField", "3");
-			url.searchParams.append("sortOrder", "desc");
 		} else {
 			url.searchParams.append("sortOrder", "desc");
+		}
+
+		const cacheKey = url.toString();
+		if (!signal) {
+			const cached = apiCache.get<CurseForgeSearchResult>(cacheKey);
+			if (cached) return cached;
 		}
 
 		const res = await fetch(url.toString(), {
@@ -824,7 +846,9 @@ export async function searchCurseForge(
 		if (!res.ok) {
 			throw new Error(`CurseForge API error: ${res.status}`);
 		}
-		return (await res.json()) as CurseForgeSearchResult;
+		const data = (await res.json()) as CurseForgeSearchResult;
+		apiCache.set(cacheKey, data);
+		return data;
 	} catch (err) {
 		if (err instanceof DOMException && err.name === "AbortError")
 			return null;
@@ -853,7 +877,11 @@ export async function getCurseForgeProject(
 ): Promise<CurseForgeProject | null> {
 	try {
 		const apiKey = CURSEFORGE_API_KEY;
-		const res = await fetch(`${CURSEFORGE_API_BASE}/mods/${modId}`, {
+		const url = `${CURSEFORGE_API_BASE}/mods/${modId}`;
+		const cached = apiCache.get<CurseForgeProject>(url);
+		if (cached) return cached;
+
+		const res = await fetch(url, {
 			headers: {
 				"x-api-key": apiKey,
 				Accept: "application/json",
@@ -863,7 +891,9 @@ export async function getCurseForgeProject(
 			throw new Error(`CurseForge API error: ${res.status}`);
 		}
 		const body = await res.json();
-		return body.data as CurseForgeProject;
+		const data = body.data as CurseForgeProject;
+		apiCache.set(url, data);
+		return data;
 	} catch (err) {
 		showErrorParsed(err);
 		return null;
@@ -890,6 +920,10 @@ export async function getCurseForgeProjectFiles(
 			);
 		}
 
+		const cacheKey = url.toString();
+		const cached = apiCache.get<CurseForgeFile[]>(cacheKey);
+		if (cached) return cached;
+
 		const res = await fetch(url.toString(), {
 			headers: {
 				"x-api-key": apiKey,
@@ -900,7 +934,9 @@ export async function getCurseForgeProjectFiles(
 			throw new Error(`CurseForge API error: ${res.status}`);
 		}
 		const body = (await res.json()) as CurseForgeFilesResult;
-		return body.data || [];
+		const data = body.data || [];
+		apiCache.set(cacheKey, data);
+		return data;
 	} catch (err) {
 		showErrorParsed(err);
 		return [];

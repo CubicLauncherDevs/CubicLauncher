@@ -1,10 +1,11 @@
 use crate::core::errors::InstanceError;
 use crate::core::event_bus;
-use crate::services::{AddonManager, AddonMetaNoIcon, InstanceManager};
-use crate::services::{ModSource, compute_file_sha1};
+use crate::services::{
+    AddonManager, AddonMetaNoIcon, InstanceManager, ModSource, PackFullCacheEntry,
+    compute_file_sha1, file_fingerprint, read_all_full_pack_cache,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
 
@@ -45,17 +46,6 @@ const MODRINTH_API: &str = "https://api.modrinth.com/v2";
 
 pub(crate) fn repo_path(mods_dir: &Path) -> PathBuf {
     mods_dir.join(".mod_cache.crep")
-}
-
-fn file_fingerprint(filename: &str, mtime: &std::time::SystemTime, size: u64) -> u64 {
-    let nanos = mtime
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as u64;
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    filename.hash(&mut h);
-    let name_hash = h.finish();
-    name_hash ^ nanos ^ size
 }
 
 #[tauri::command]
@@ -475,76 +465,184 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
 
     let resourcepacks_dir = handle.get_instance_dir().await.join("resourcepacks");
 
-    let meta = tokio::task::spawn_blocking({
-        let d = resourcepacks_dir.clone();
-        move || crate::services::read_all_pack_cache(&d)
-    })
-    .await
-    .unwrap_or_default();
+    struct FileEntry {
+        path: PathBuf,
+        filename: String,
+        size: u64,
+        fingerprint: u64,
+    }
 
-    let rp_paths = tokio::task::spawn_blocking(move || -> Vec<PathBuf> {
-        match std::fs::read_dir(&resourcepacks_dir) {
-            Ok(entries) => entries
-                .flatten()
-                .filter(|e| e.path().is_file())
-                .map(|e| e.path())
-                .collect(),
-            Err(_) => Vec::new(),
+    let entries = tokio::task::spawn_blocking({
+        let d = resourcepacks_dir.clone();
+        move || -> Vec<FileEntry> {
+            let dir = match std::fs::read_dir(&d) {
+                Ok(d) => d,
+                Err(_) => return Vec::new(),
+            };
+            dir.flatten()
+                .filter_map(|e| {
+                    let path = e.path();
+                    if !path.is_file() {
+                        return None;
+                    }
+                    let filename = path.file_name()?.to_string_lossy().to_string();
+                    let meta = std::fs::metadata(&path).ok()?;
+                    let mtime = meta.modified().ok()?;
+                    let size = meta.len();
+                    let fingerprint = file_fingerprint(&filename, &mtime, size);
+                    Some(FileEntry { path, filename, size, fingerprint })
+                })
+                .collect()
         }
     })
     .await
     .unwrap_or_default();
 
-    let mut resourcepacks = Vec::new();
-    for path in rp_paths {
-        let Some(file_name) = path.file_name() else {
-            continue;
-        };
-        let filename = file_name.to_string_lossy().to_string();
-        let path_clone = path.clone();
-        let sha1_fut = tokio::task::spawn_blocking(move || compute_file_sha1(&path_clone));
-        let size = std::fs::metadata(&path).ok().map(|m| m.len()).unwrap_or(0);
-        let metadata_fut = tokio::task::spawn_blocking({
-            let p = path.clone();
-            move || AddonManager::get_resourcepack_info(&p)
-        });
-
-        let (sha1, metadata) = tokio::join!(sha1_fut, metadata_fut);
-        let sha1 = sha1.unwrap_or(Ok(String::new())).unwrap_or_default();
-        let metadata = metadata.unwrap_or(None);
-
-        let (md_name, md_desc) = match metadata {
-            Some(m) => (m.name, m.description),
-            None => (filename.clone(), None),
-        };
-        let icon = AddonManager::get_mod_icon(&path).map(|s| (*s).clone());
-
-        let pack_meta = meta.get(&filename);
-
-        resourcepacks.push(ModDto {
-            name: md_name,
-            filename,
-            version: None,
-            description: md_desc,
-            authors: None,
-            icon,
-            enabled: true,
-            sha1,
-            file_size: size,
-            source: pack_meta
-                .map(|m| m.source.source_str().to_string())
-                .unwrap_or_else(|| "local".to_string()),
-            project_id: pack_meta.and_then(|m| m.source.project_id().map(|s| s.to_string())),
-            slug: pack_meta.and_then(|m| m.source.slug().map(|s| s.to_string())),
-        });
+    if entries.is_empty() {
+        return Vec::new();
     }
-    resourcepacks.sort_by_key(|a| a.name.to_lowercase());
+
+    let dir_clone = entries[0].path.parent().unwrap().to_path_buf();
+    let cache_path = crate::services::pack_cache_path_custom(&dir_clone);
+
+    let global_fp: u64 = entries.iter().fold(0, |acc, e| acc ^ e.fingerprint);
+
+    if ablage::Repo::check_global_fingerprint(&cache_path, global_fp) {
+        let cache = read_all_full_pack_cache(&dir_clone);
+        let mut resourcepacks: Vec<ModDto> = entries
+            .into_iter()
+            .map(|e| {
+                let cached = cache.get(&e.filename);
+                match cached {
+                    Some(entry) => {
+                        let (md_name, md_desc) = entry
+                            .metadata
+                            .as_ref()
+                            .map(|m| (m.name.clone(), m.description.clone()))
+                            .unwrap_or_else(|| (e.filename.clone(), None));
+                        ModDto {
+                            name: md_name,
+                            filename: e.filename,
+                            version: entry.metadata.as_ref().and_then(|m| m.version.clone()),
+                            description: md_desc,
+                            authors: entry.metadata.as_ref().and_then(|m| m.authors.clone()),
+                            icon: entry.icon.clone(),
+                            enabled: true,
+                            sha1: entry.sha1.clone(),
+                            file_size: e.size,
+                            source: entry.source.source_str().to_string(),
+                            project_id: entry.source.project_id().map(|s| s.to_string()),
+                            slug: entry.source.slug().map(|s| s.to_string()),
+                        }
+                    }
+                    None => ModDto {
+                        name: e.filename.clone(),
+                        filename: e.filename,
+                        version: None,
+                        description: None,
+                        authors: None,
+                        icon: None,
+                        enabled: true,
+                        sha1: String::new(),
+                        file_size: e.size,
+                        source: "local".to_string(),
+                        project_id: None,
+                        slug: None,
+                    },
+                }
+            })
+            .collect();
+        resourcepacks.sort_by_key(|a| a.name.to_lowercase());
+        info!(
+            "{} resourcepacks cargados desde cache en instancia {}",
+            resourcepacks.len(),
+            id
+        );
+        return resourcepacks;
+    }
+
+    // Cache miss: return minimal, enrich in background
+    let minimal: Vec<ModDto> = entries
+        .iter()
+        .map(|e| ModDto {
+            name: e.filename.clone(),
+            filename: e.filename.clone(),
+            version: None,
+            description: None,
+            authors: None,
+            icon: None,
+            enabled: true,
+            sha1: String::new(),
+            file_size: e.size,
+            source: "local".to_string(),
+            project_id: None,
+            slug: None,
+        })
+        .collect();
+
     info!(
-        "{} resourcepacks encontrados en instancia {}",
-        resourcepacks.len(),
+        "{} resourcepacks listados (minimal) en instancia {} — enriqueciendo en background",
+        minimal.len(),
         id
     );
-    resourcepacks
+
+    let id2 = id.clone();
+    let cache_path2 = cache_path.clone();
+    tokio::spawn(async move {
+        let handles: Vec<_> = entries
+            .into_iter()
+            .map(|e| {
+                let path = e.path.clone();
+                let filename = e.filename.clone();
+                let fingerprint = e.fingerprint;
+                tokio::task::spawn_blocking(move || -> (String, u64, PackFullCacheEntry) {
+                    let sha1 = compute_file_sha1(&path).unwrap_or_default();
+                    let (meta, icon) = AddonManager::get_resourcepack_info_full(&path);
+                    let icon_str = icon.map(|s| (*s).clone());
+                    let entry = PackFullCacheEntry {
+                        sha1: sha1.clone(),
+                        metadata: meta,
+                        icon: icon_str,
+                        source: ModSource::Local,
+                    };
+                    (filename, fingerprint, entry)
+                })
+            })
+            .collect();
+
+        let results: Vec<_> = futures::future::join_all(handles)
+            .await
+            .into_iter()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        let mut repo = ablage::Repo::open(&cache_path2);
+        for (filename, fingerprint, entry) in &results {
+            if let Ok(data) = postcard::to_stdvec(entry) {
+                repo.put(
+                    filename.clone(),
+                    ablage::Entry {
+                        version: 1,
+                        fingerprint: *fingerprint,
+                        data,
+                    },
+                );
+            }
+        }
+        repo.put(
+            "__global",
+            ablage::Entry {
+                version: 1,
+                fingerprint: global_fp,
+                data: global_fp.to_le_bytes().to_vec(),
+            },
+        );
+        let _ = repo.flush();
+
+        event_bus::emit(event_bus::AppEvent::ResourcepacksEnriched { id: id2.into() });
+    });
+
+    minimal
 }
 
 #[tauri::command]
@@ -561,74 +659,182 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
 
     let shaderpacks_dir = handle.get_instance_dir().await.join("shaderpacks");
 
-    let meta = tokio::task::spawn_blocking({
-        let d = shaderpacks_dir.clone();
-        move || crate::services::read_all_pack_cache(&d)
-    })
-    .await
-    .unwrap_or_default();
+    struct FileEntry {
+        path: PathBuf,
+        filename: String,
+        size: u64,
+        fingerprint: u64,
+    }
 
-    let sp_paths = tokio::task::spawn_blocking(move || -> Vec<PathBuf> {
-        match std::fs::read_dir(&shaderpacks_dir) {
-            Ok(entries) => entries
-                .flatten()
-                .filter(|e| e.path().is_file())
-                .map(|e| e.path())
-                .collect(),
-            Err(_) => Vec::new(),
+    let entries = tokio::task::spawn_blocking({
+        let d = shaderpacks_dir.clone();
+        move || -> Vec<FileEntry> {
+            let dir = match std::fs::read_dir(&d) {
+                Ok(d) => d,
+                Err(_) => return Vec::new(),
+            };
+            dir.flatten()
+                .filter_map(|e| {
+                    let path = e.path();
+                    if !path.is_file() {
+                        return None;
+                    }
+                    let filename = path.file_name()?.to_string_lossy().to_string();
+                    let meta = std::fs::metadata(&path).ok()?;
+                    let mtime = meta.modified().ok()?;
+                    let size = meta.len();
+                    let fingerprint = file_fingerprint(&filename, &mtime, size);
+                    Some(FileEntry { path, filename, size, fingerprint })
+                })
+                .collect()
         }
     })
     .await
     .unwrap_or_default();
 
-    let mut shaderpacks = Vec::new();
-    for path in sp_paths {
-        let Some(file_name) = path.file_name() else {
-            continue;
-        };
-        let filename = file_name.to_string_lossy().to_string();
-        let path_clone = path.clone();
-        let sha1_fut = tokio::task::spawn_blocking(move || compute_file_sha1(&path_clone));
-        let size = std::fs::metadata(&path).ok().map(|m| m.len()).unwrap_or(0);
-        let metadata_fut = tokio::task::spawn_blocking({
-            let p = path.clone();
-            move || AddonManager::get_shaderpack_info(&p)
-        });
-
-        let (sha1, metadata) = tokio::join!(sha1_fut, metadata_fut);
-        let sha1 = sha1.unwrap_or(Ok(String::new())).unwrap_or_default();
-        let metadata = metadata.unwrap_or(None);
-
-        let (md_name, md_desc) = match metadata {
-            Some(m) => (m.name, m.description),
-            None => (filename.clone(), None),
-        };
-        let icon = AddonManager::get_mod_icon(&path).map(|s| (*s).clone());
-
-        let pack_meta = meta.get(&filename);
-
-        shaderpacks.push(ModDto {
-            name: md_name,
-            filename,
-            version: None,
-            description: md_desc,
-            authors: None,
-            icon,
-            enabled: true,
-            sha1,
-            file_size: size,
-            source: pack_meta
-                .map(|m| m.source.source_str().to_string())
-                .unwrap_or_else(|| "local".to_string()),
-            project_id: pack_meta.and_then(|m| m.source.project_id().map(|s| s.to_string())),
-            slug: pack_meta.and_then(|m| m.source.slug().map(|s| s.to_string())),
-        });
+    if entries.is_empty() {
+        return Vec::new();
     }
-    shaderpacks.sort_by_key(|a| a.name.to_lowercase());
+
+    let dir_clone = entries[0].path.parent().unwrap().to_path_buf();
+    let cache_path = crate::services::pack_cache_path_custom(&dir_clone);
+
+    let global_fp: u64 = entries.iter().fold(0, |acc, e| acc ^ e.fingerprint);
+
+    if ablage::Repo::check_global_fingerprint(&cache_path, global_fp) {
+        let cache = read_all_full_pack_cache(&dir_clone);
+        let mut shaderpacks: Vec<ModDto> = entries
+            .into_iter()
+            .map(|e| {
+                let cached = cache.get(&e.filename);
+                match cached {
+                    Some(entry) => {
+                        let (md_name, md_desc) = entry
+                            .metadata
+                            .as_ref()
+                            .map(|m| (m.name.clone(), m.description.clone()))
+                            .unwrap_or_else(|| (e.filename.clone(), None));
+                        ModDto {
+                            name: md_name,
+                            filename: e.filename,
+                            version: entry.metadata.as_ref().and_then(|m| m.version.clone()),
+                            description: md_desc,
+                            authors: entry.metadata.as_ref().and_then(|m| m.authors.clone()),
+                            icon: entry.icon.clone(),
+                            enabled: true,
+                            sha1: entry.sha1.clone(),
+                            file_size: e.size,
+                            source: entry.source.source_str().to_string(),
+                            project_id: entry.source.project_id().map(|s| s.to_string()),
+                            slug: entry.source.slug().map(|s| s.to_string()),
+                        }
+                    }
+                    None => ModDto {
+                        name: e.filename.clone(),
+                        filename: e.filename,
+                        version: None,
+                        description: None,
+                        authors: None,
+                        icon: None,
+                        enabled: true,
+                        sha1: String::new(),
+                        file_size: e.size,
+                        source: "local".to_string(),
+                        project_id: None,
+                        slug: None,
+                    },
+                }
+            })
+            .collect();
+        shaderpacks.sort_by_key(|a| a.name.to_lowercase());
+        info!(
+            "{} shaderpacks cargados desde cache en instancia {}",
+            shaderpacks.len(),
+            id
+        );
+        return shaderpacks;
+    }
+
+    // Cache miss: return minimal, enrich in background
+    let minimal: Vec<ModDto> = entries
+        .iter()
+        .map(|e| ModDto {
+            name: e.filename.clone(),
+            filename: e.filename.clone(),
+            version: None,
+            description: None,
+            authors: None,
+            icon: None,
+            enabled: true,
+            sha1: String::new(),
+            file_size: e.size,
+            source: "local".to_string(),
+            project_id: None,
+            slug: None,
+        })
+        .collect();
+
     info!(
-        "{} shaderpacks encontrados en instancia {}",
-        shaderpacks.len(),
+        "{} shaderpacks listados (minimal) en instancia {} — enriqueciendo en background",
+        minimal.len(),
         id
     );
-    shaderpacks
+
+    let id2 = id.clone();
+    let cache_path2 = cache_path.clone();
+    tokio::spawn(async move {
+        let handles: Vec<_> = entries
+            .into_iter()
+            .map(|e| {
+                let path = e.path.clone();
+                let filename = e.filename.clone();
+                let fingerprint = e.fingerprint;
+                tokio::task::spawn_blocking(move || -> (String, u64, PackFullCacheEntry) {
+                    let sha1 = compute_file_sha1(&path).unwrap_or_default();
+                    let (meta, icon) = AddonManager::get_shaderpack_info_full(&path);
+                    let icon_str = icon.map(|s| (*s).clone());
+                    let entry = PackFullCacheEntry {
+                        sha1: sha1.clone(),
+                        metadata: meta,
+                        icon: icon_str,
+                        source: ModSource::Local,
+                    };
+                    (filename, fingerprint, entry)
+                })
+            })
+            .collect();
+
+        let results: Vec<_> = futures::future::join_all(handles)
+            .await
+            .into_iter()
+            .filter_map(|r| r.ok())
+            .collect();
+
+        let mut repo = ablage::Repo::open(&cache_path2);
+        for (filename, fingerprint, entry) in &results {
+            if let Ok(data) = postcard::to_stdvec(entry) {
+                repo.put(
+                    filename.clone(),
+                    ablage::Entry {
+                        version: 1,
+                        fingerprint: *fingerprint,
+                        data,
+                    },
+                );
+            }
+        }
+        repo.put(
+            "__global",
+            ablage::Entry {
+                version: 1,
+                fingerprint: global_fp,
+                data: global_fp.to_le_bytes().to_vec(),
+            },
+        );
+        let _ = repo.flush();
+
+        event_bus::emit(event_bus::AppEvent::ShaderpacksEnriched { id: id2.into() });
+    });
+
+    minimal
 }

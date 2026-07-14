@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use std::collections::HashMap;
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
@@ -10,21 +11,13 @@ use std::time::SystemTime;
 use tracing::{debug, warn};
 use zip::ZipArchive;
 
-// Cache de metadata SIN iconos (ahorra ~15 MB con 500 mods)
+// Cache unificado de metadata + icono (se extraen en una sola pasada del ZIP)
 const MAX_CACHE_ENTRIES: usize = 200;
 
-type CacheEntry = (SystemTime, Option<AddonMetaNoIcon>);
+type CachedModInfo = (SystemTime, Option<AddonMetaNoIcon>, Option<Arc<String>>);
 
-static ADDON_CACHE: LazyLock<Mutex<HashMap<PathBuf, CacheEntry>>> =
+static ADDON_CACHE: LazyLock<Mutex<HashMap<PathBuf, CachedModInfo>>> =
     LazyLock::new(|| Mutex::new(HashMap::with_capacity(128)));
-
-// Cache separado de iconos, max 50 entradas — cada icono base64 ~15 KB
-const MAX_ICON_CACHE: usize = 50;
-
-type IconCache = HashMap<PathBuf, (SystemTime, Option<Arc<String>>)>;
-
-static ICON_CACHE: LazyLock<Mutex<IconCache>> =
-    LazyLock::new(|| Mutex::new(HashMap::with_capacity(32)));
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AddonMetaNoIcon {
@@ -98,12 +91,25 @@ pub struct PackCacheEntry {
     pub source: ModSource,
 }
 
+/// Richer entry: stores metadata + icon + sha1 + source in one cache hit
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackFullCacheEntry {
+    pub sha1: String,
+    pub metadata: Option<AddonMetaNoIcon>,
+    pub icon: Option<String>,
+    pub source: ModSource,
+}
+
 fn pack_cache_path(dir: &Path) -> PathBuf {
     dir.join(".pack_cache.crep")
 }
 
-/// Read all pack cache entries keyed by filename
-pub fn read_all_pack_cache(dir: &Path) -> HashMap<String, PackCacheEntry> {
+pub fn pack_cache_path_custom(dir: &Path) -> PathBuf {
+    dir.join(".pack_cache.crep")
+}
+
+/// Read all full pack cache entries keyed by filename (includes metadata + icon)
+pub fn read_all_full_pack_cache(dir: &Path) -> HashMap<String, PackFullCacheEntry> {
     let path = pack_cache_path(dir);
     if !path.exists() {
         return HashMap::new();
@@ -113,7 +119,7 @@ pub fn read_all_pack_cache(dir: &Path) -> HashMap<String, PackCacheEntry> {
     for key in repo.keys() {
         if let Some(entry) = repo
             .get(key)
-            .and_then(|e| postcard::from_bytes::<PackCacheEntry>(&e.data).ok())
+            .and_then(|e| postcard::from_bytes::<PackFullCacheEntry>(&e.data).ok())
         {
             map.insert(key.clone(), entry);
         }
@@ -146,6 +152,17 @@ pub fn remove_pack_cache(dir: &Path, filename: &str) {
     let _ = repo.flush();
 }
 
+pub fn file_fingerprint(filename: &str, mtime: &std::time::SystemTime, size: u64) -> u64 {
+    let nanos = mtime
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64;
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    filename.hash(&mut h);
+    let name_hash = h.finish();
+    name_hash ^ nanos ^ size
+}
+
 type ParserFn = fn(&mut ZipArchive<File>) -> Result<AddonMetaNoIcon, ()>;
 const MOD_PARSERS: &[ParserFn] = &[
     AddonManager::try_parse_fabric,
@@ -164,75 +181,52 @@ impl AddonManager {
 
         {
             let cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some((cached_mtime, cached_result)) = cache.get(path)
+            if let Some((cached_mtime, cached_result, _)) = cache.get(path)
                 && *cached_mtime == mtime
             {
                 return cached_result.clone();
             }
         }
 
+        let (meta, icon) = Self::parse_meta_and_icon(path, parse_fn);
+
+        let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        if cache.len() >= MAX_CACHE_ENTRIES {
+            // Evicción parcial: mantener la mitad más reciente
+            let mut entries: Vec<_> = cache.drain().collect();
+            entries.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+            cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
+        }
+        cache.insert(path.to_path_buf(), (mtime, meta.clone(), icon));
+
+        meta
+    }
+
+    fn parse_meta_and_icon(
+        path: &Path,
+        parse_fn: impl FnOnce(&mut ZipArchive<File>) -> Option<AddonMetaNoIcon>,
+    ) -> (Option<AddonMetaNoIcon>, Option<Arc<String>>) {
         let file = match File::open(path) {
             Ok(f) => f,
             Err(e) => {
                 debug!("No se pudo abrir {:?}: {}", path, e);
-                return None;
+                return (None, None);
             }
         };
         let mut archive = match ZipArchive::new(file) {
             Ok(a) => a,
             Err(e) => {
                 debug!("No se pudo leer ZIP {:?}: {}", path, e);
-                return None;
+                return (None, None);
             }
         };
-        let result = parse_fn(&mut archive);
-
-        let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-        if cache.len() >= MAX_CACHE_ENTRIES {
-            cache.clear();
-        }
-        cache.insert(path.to_path_buf(), (mtime, result.clone()));
-
-        result
+        let meta = parse_fn(&mut archive);
+        let icon = Self::extract_icon_from_archive(&mut archive);
+        (meta, icon)
     }
 
-    // Cache separado para iconos — max 50, evita tener todos los base64 en RAM
-    fn get_cached_icon(path: &Path) -> Option<Option<Arc<String>>> {
-        let mtime = std::fs::metadata(path).ok()?.modified().ok()?;
-        let cache = ICON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some((cached_mtime, cached_icon)) = cache.get(path)
-            && *cached_mtime == mtime
-        {
-            return Some(cached_icon.clone());
-        }
-        None
-    }
-
-    fn set_cached_icon(path: &Path, icon: Option<Arc<String>>) {
-        let Ok(mtime) = std::fs::metadata(path).and_then(|m| m.modified()) else {
-            return;
-        };
-        let mut cache = ICON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-        if cache.len() >= MAX_ICON_CACHE {
-            cache.clear();
-        }
-        cache.insert(path.to_path_buf(), (mtime, icon));
-    }
-
-    // Extrae solo el icono, sin parsear el resto del mod — usa su propio cache
-    pub fn get_mod_icon(path: &Path) -> Option<Arc<String>> {
-        if let Some(cached) = Self::get_cached_icon(path) {
-            return cached;
-        }
-        let result = Self::extract_icon_from_zip(path);
-        Self::set_cached_icon(path, result.clone());
-        result
-    }
-
-    fn extract_icon_from_zip(path: &Path) -> Option<Arc<String>> {
-        let file = File::open(path).ok()?;
-        let mut archive = ZipArchive::new(file).ok()?;
-
+    /// Extrae icono desde un archive ya abierto (evita re-abrir el ZIP)
+    fn extract_icon_from_archive(archive: &mut ZipArchive<File>) -> Option<Arc<String>> {
         for icon_path in &[
             "pack.png",
             "fabric.mod.json",
@@ -242,10 +236,10 @@ impl AddonManager {
         ] {
             let icon_name: Option<String> = match *icon_path {
                 "pack.png" => Some("pack.png".to_string()),
-                "fabric.mod.json" => Self::icon_from_fabric_json(&mut archive),
-                "quilt.mod.json" => Self::icon_from_quilt_json(&mut archive),
-                "META-INF/mods.toml" => Self::icon_from_forge_toml(&mut archive),
-                "mcmod.info" => Self::icon_from_mcmod_info(&mut archive),
+                "fabric.mod.json" => Self::icon_from_fabric_json(archive),
+                "quilt.mod.json" => Self::icon_from_quilt_json(archive),
+                "META-INF/mods.toml" => Self::icon_from_forge_toml(archive),
+                "mcmod.info" => Self::icon_from_mcmod_info(archive),
                 _ => None,
             };
             if let Some(ref name) = icon_name {
@@ -272,6 +266,30 @@ impl AddonManager {
             }
         }
         None
+    }
+
+    /// Extrae solo el icono, reutilizando el cache combinado
+    pub fn get_mod_icon(path: &Path) -> Option<Arc<String>> {
+        let mtime = std::fs::metadata(path).ok()?.modified().ok()?;
+        {
+            let cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some((cached_mtime, _, cached_icon)) = cache.get(path)
+                && *cached_mtime == mtime
+            {
+                return cached_icon.clone();
+            }
+        }
+        let file = File::open(path).ok()?;
+        let mut archive = ZipArchive::new(file).ok()?;
+        let result = Self::extract_icon_from_archive(&mut archive);
+        let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        if cache.len() >= MAX_CACHE_ENTRIES {
+            let mut entries: Vec<_> = cache.drain().collect();
+            entries.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+            cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
+        }
+        cache.insert(path.to_path_buf(), (mtime, None, result.clone()));
+        result
     }
 
     fn icon_from_json(
@@ -349,54 +367,110 @@ impl AddonManager {
         })
     }
 
-    pub fn get_resourcepack_info(path: &Path) -> Option<AddonMetaNoIcon> {
-        Self::cached_or_parse(path, |archive| {
-            let json: serde_json::Value = {
-                let mut file = archive.by_name("pack.mcmeta").ok()?;
-                let mut content = String::new();
-                file.read_to_string(&mut content).ok()?;
-                serde_json::from_str(&content).ok()?
-            };
+    /// Parse both metadata and icon from a ZIP in one pass (resourcepacks)
+    pub fn get_resourcepack_info_full(
+        path: &Path,
+    ) -> (Option<AddonMetaNoIcon>, Option<Arc<String>>) {
+        let mtime = match std::fs::metadata(path).and_then(|m| m.modified()) {
+            Ok(m) => m,
+            Err(_) => return (None, None),
+        };
+        {
+            let cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some((cached_mtime, meta, icon)) = cache.get(path)
+                && *cached_mtime == mtime
+            {
+                return (meta.clone(), icon.clone());
+            }
+        }
 
-            let description = json["pack"]["description"]
-                .as_str()
-                .or_else(|| json["pack"]["description"]["text"].as_str())
-                .map(|s| s.to_string());
+        let (meta, icon) = Self::parse_pack_mcmeta_and_icon(path);
 
-            let name = path.file_stem()?.to_string_lossy().to_string();
+        let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        if cache.len() >= MAX_CACHE_ENTRIES {
+            let mut entries: Vec<_> = cache.drain().collect();
+            entries.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+            cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
+        }
+        cache.insert(path.to_path_buf(), (mtime, meta.clone(), icon.clone()));
 
-            debug!("Resourcepack '{}' cargado: {:?}", name, description);
-            Some(AddonMetaNoIcon {
-                name,
-                version: None,
-                description,
-                authors: None,
-            })
-        })
+        (meta, icon)
     }
-    pub fn get_shaderpack_info(path: &Path) -> Option<AddonMetaNoIcon> {
-        Self::cached_or_parse(path, |archive| {
-            let json: serde_json::Value = {
-                let mut file = archive.by_name("pack.mcmeta").ok()?;
-                let mut content = String::new();
-                file.read_to_string(&mut content).ok()?;
-                serde_json::from_str(&content).ok()?
-            };
 
-            let description = json["pack"]["description"]
-                .as_str()
-                .or_else(|| json["pack"]["description"]["text"].as_str())
-                .map(|s| s.to_string());
+    /// Parse both metadata and icon from a ZIP in one pass (shaderpacks)
+    pub fn get_shaderpack_info_full(
+        path: &Path,
+    ) -> (Option<AddonMetaNoIcon>, Option<Arc<String>>) {
+        let mtime = match std::fs::metadata(path).and_then(|m| m.modified()) {
+            Ok(m) => m,
+            Err(_) => return (None, None),
+        };
+        {
+            let cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some((cached_mtime, meta, icon)) = cache.get(path)
+                && *cached_mtime == mtime
+            {
+                return (meta.clone(), icon.clone());
+            }
+        }
 
-            let name = path.file_stem()?.to_string_lossy().to_string();
+        let (meta, icon) = Self::parse_pack_mcmeta_and_icon(path);
 
-            debug!("Shaderpack '{}' cargado: {:?}", name, description);
-            Some(AddonMetaNoIcon {
-                name,
-                version: None,
-                description,
-                authors: None,
-            })
+        let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+        if cache.len() >= MAX_CACHE_ENTRIES {
+            let mut entries: Vec<_> = cache.drain().collect();
+            entries.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+            cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
+        }
+        cache.insert(path.to_path_buf(), (mtime, meta.clone(), icon.clone()));
+
+        (meta, icon)
+    }
+
+    fn parse_pack_mcmeta_and_icon(path: &Path) -> (Option<AddonMetaNoIcon>, Option<Arc<String>>) {
+        let file = match File::open(path) {
+            Ok(f) => f,
+            Err(e) => {
+                debug!("No se pudo abrir {:?}: {}", path, e);
+                return (None, None);
+            }
+        };
+        let mut archive = match ZipArchive::new(file) {
+            Ok(a) => a,
+            Err(e) => {
+                debug!("No se pudo leer ZIP {:?}: {}", path, e);
+                return (None, None);
+            }
+        };
+
+        let meta = Self::parse_pack_mcmeta_inner(&mut archive, path);
+        let icon = Self::extract_icon_from_archive(&mut archive);
+        (meta, icon)
+    }
+
+    fn parse_pack_mcmeta_inner(
+        archive: &mut ZipArchive<File>,
+        path: &Path,
+    ) -> Option<AddonMetaNoIcon> {
+        let json: serde_json::Value = {
+            let mut file = archive.by_name("pack.mcmeta").ok()?;
+            let mut content = String::new();
+            file.read_to_string(&mut content).ok()?;
+            serde_json::from_str(&content).ok()?
+        };
+
+        let description = json["pack"]["description"]
+            .as_str()
+            .or_else(|| json["pack"]["description"]["text"].as_str())
+            .map(|s| s.to_string());
+
+        let name = path.file_stem()?.to_string_lossy().to_string();
+
+        Some(AddonMetaNoIcon {
+            name,
+            version: None,
+            description,
+            authors: None,
         })
     }
 

@@ -47,7 +47,6 @@
 			icon: "◎",
 		},
 		{ value: "newest", label: t("market.filter.sortNewest"), icon: "★" },
-		{ value: "updated", label: t("market.filter.sortUpdated"), icon: "↻" },
 	];
 
 	const localSorts: { value: LocalSort; label: string; icon: string }[] = [

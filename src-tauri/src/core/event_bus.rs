@@ -49,6 +49,12 @@ pub enum AppEvent {
     ModsEnriched {
         id: CompactString,
     },
+    ResourcepacksEnriched {
+        id: CompactString,
+    },
+    ShaderpacksEnriched {
+        id: CompactString,
+    },
 }
 
 pub fn init(app: AppHandle) {
