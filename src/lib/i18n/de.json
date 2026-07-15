@@ -361,8 +361,7 @@
 		"statusProcessing": "Verarbeiten",
 		"statusJre": "Java herunterladen"
 	},
-	"welcome": {
-	},
+	"welcome": {},
 	"tutorial": {
 		"skip": "Überspringen",
 		"next": "Weiter",

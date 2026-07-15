@@ -64,11 +64,7 @@
 	async function handleBulkDelete() {
 		const count = selected.size;
 		if (count === 0) return;
-		if (
-			confirm(
-				t("instanceView.deleteSelectedConfirm", { count }),
-			)
-		) {
+		if (confirm(t("instanceView.deleteSelectedConfirm", { count }))) {
 			for (const filename of selected) {
 				await deleteInstanceFile(instanceId, subDir, filename);
 			}

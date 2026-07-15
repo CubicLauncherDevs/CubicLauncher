@@ -389,7 +389,9 @@
 						/>
 					</svg>
 					<span
-						>{t("instanceView.lastPlayed", { date: lastPlayedLabel })}</span
+						>{t("instanceView.lastPlayed", {
+							date: lastPlayedLabel,
+						})}</span
 					>
 				</div>
 			</div>

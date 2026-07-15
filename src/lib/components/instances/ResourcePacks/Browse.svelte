@@ -407,7 +407,13 @@
 										{/if}
 										{#if cleanGameVersion && !isPackCompatible(project)}
 											<span class="rp-incompat-badge">
-												{t("instanceView.downloadMods.noVersionCompat", { version: cleanGameVersion })}
+												{t(
+													"instanceView.downloadMods.noVersionCompat",
+													{
+														version:
+															cleanGameVersion,
+													},
+												)}
 											</span>
 										{/if}
 									</div>
@@ -454,7 +460,9 @@
 				{:else if allHits.length >= totalHits && totalHits > 0}
 					<div class="rp-vlist-end">
 						<span class="rp-end-label">
-							— {t(i18nPrefix + ".endOfResults", { count: allHits.length })} —
+							— {t(i18nPrefix + ".endOfResults", {
+								count: allHits.length,
+							})} —
 						</span>
 					</div>
 				{/if}
@@ -542,7 +550,10 @@
 						>
 					{:else if selectedModVersions.length === 0}
 						<span class="rp-no-versions-msg">
-							{t("instanceView.downloadMods.noCompatibleVersions", { version: cleanGameVersion || "" })}
+							{t(
+								"instanceView.downloadMods.noCompatibleVersions",
+								{ version: cleanGameVersion || "" },
+							)}
 						</span>
 					{:else}
 						<Dropdown

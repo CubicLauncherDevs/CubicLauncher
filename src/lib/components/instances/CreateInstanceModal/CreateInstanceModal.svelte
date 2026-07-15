@@ -369,7 +369,6 @@
 								<span class="input-error">{t(nameMsg)}</span>
 							{/if}
 						</div>
-
 					</div>
 				</div>
 

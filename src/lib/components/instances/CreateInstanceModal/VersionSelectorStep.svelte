@@ -58,7 +58,8 @@
 	let neoForgeVersions = $state<NeoForgeGameVersion[]>([]);
 
 	let cachedInstalledVersions: string[] | null = null;
-	let cachedParsedVersions: ReturnType<typeof getInstalledMcVersions> | null = null;
+	let cachedParsedVersions: ReturnType<typeof getInstalledMcVersions> | null =
+		null;
 
 	let mcLoadId = $state(0);
 	let loaderLoadId = $state(0);
@@ -84,7 +85,9 @@
 		try {
 			if (cachedInstalledVersions === null) {
 				cachedInstalledVersions = await getInstalledVersions();
-				cachedParsedVersions = getInstalledMcVersions(cachedInstalledVersions);
+				cachedParsedVersions = getInstalledMcVersions(
+					cachedInstalledVersions,
+				);
 			}
 			const parsed = cachedParsedVersions!;
 
@@ -107,7 +110,9 @@
 				});
 			}
 
-			const deduped = Array.from(new SvelteSet(baseVersions)).sort(compareVersions);
+			const deduped = Array.from(new SvelteSet(baseVersions)).sort(
+				compareVersions,
+			);
 
 			if (loader === "forge" && forgeVersions.length === 0) {
 				forgeVersions = await getForgeVersions();

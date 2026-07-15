@@ -59,7 +59,10 @@ export function t(
 	key: TranslationKey,
 	params?: Record<string, string | number>,
 ): string;
-export function t(key: string, params?: Record<string, string | number>): string;
+export function t(
+	key: string,
+	params?: Record<string, string | number>,
+): string;
 export function t(
 	key: string,
 	params?: Record<string, string | number>,

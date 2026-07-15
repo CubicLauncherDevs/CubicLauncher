@@ -361,8 +361,7 @@
 		"statusProcessing": "Traitement",
 		"statusJre": "Téléchargement de Java"
 	},
-	"welcome": {
-	},
+	"welcome": {},
 	"tutorial": {
 		"skip": "Passer",
 		"next": "Suivant",

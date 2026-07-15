@@ -263,7 +263,8 @@
 		{#if downloads.size === 0}
 			<div class="dl-tray-empty">
 				<DownloadIcon size={26} />
-				<span class="dl-tray-empty-title">{t("sidebar.noDownloadsActive")}</span
+				<span class="dl-tray-empty-title"
+					>{t("sidebar.noDownloadsActive")}</span
 				>
 				<span class="dl-tray-empty-sub"
 					>{t("sidebar.noDownloadsActiveDesc")}</span

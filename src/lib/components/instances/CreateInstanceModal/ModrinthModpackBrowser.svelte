@@ -8,7 +8,11 @@
 		installMrpackWithUpstream,
 		openUrl,
 	} from "$lib/api/cubicApi";
-	import type { ModrinthProject, ModrinthProjectFull, ModrinthVersion } from "$lib/types/types";
+	import type {
+		ModrinthProject,
+		ModrinthProjectFull,
+		ModrinthVersion,
+	} from "$lib/types/types";
 	import { renderMarkdown } from "$lib/util/markdown";
 	import Select from "$lib/components/layout/Select.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
@@ -43,9 +47,10 @@
 	const versionOptions = $derived(
 		versions.map((v) => ({
 			value: v.id,
-			label: v.game_versions.length > 0
-				? `${v.version_number} (${v.game_versions[0]})`
-				: v.version_number,
+			label:
+				v.game_versions.length > 0
+					? `${v.version_number} (${v.game_versions[0]})`
+					: v.version_number,
 		})),
 	);
 
@@ -241,7 +246,16 @@
 	{#if selectedPack}
 		<div class="detail-view">
 			<button type="button" class="back-btn" onclick={goBack}>
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+				<svg
+					width="16"
+					height="16"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
 					<line x1="19" y1="12" x2="5" y2="12"></line>
 					<polyline points="12 19 5 12 12 5"></polyline>
 				</svg>
@@ -250,7 +264,11 @@
 
 			<div class="detail-header">
 				{#if selectedPack.icon_url}
-					<img src={selectedPack.icon_url} alt="" class="detail-icon" />
+					<img
+						src={selectedPack.icon_url}
+						alt=""
+						class="detail-icon"
+					/>
 				{/if}
 				<div class="detail-title-group">
 					<h3>{selectedPack.title}</h3>
@@ -339,7 +357,8 @@
 							</div>
 							<div class="pack-info">
 								<span class="pack-title">{pack.title}</span>
-								<span class="pack-desc">{pack.description}</span>
+								<span class="pack-desc">{pack.description}</span
+								>
 								<span class="pack-meta">
 									{formatDownloads(pack.downloads)}
 									{t("createInstance.downloads")}
@@ -667,9 +686,15 @@
 		line-height: 1.3;
 	}
 
-	:global(.markdown-body h1) { font-size: 1.05rem; }
-	:global(.markdown-body h2) { font-size: 0.95rem; }
-	:global(.markdown-body h3) { font-size: 0.85rem; }
+	:global(.markdown-body h1) {
+		font-size: 1.05rem;
+	}
+	:global(.markdown-body h2) {
+		font-size: 0.95rem;
+	}
+	:global(.markdown-body h3) {
+		font-size: 0.85rem;
+	}
 
 	:global(.markdown-body p) {
 		margin: 8px 0;

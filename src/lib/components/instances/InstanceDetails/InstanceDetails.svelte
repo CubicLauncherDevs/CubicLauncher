@@ -92,9 +92,7 @@
 				points="12 6 12 12 16 14"
 			/>
 		</svg>
-		<span
-			>{t("instanceView.lastPlayed", { date: lastPlayedLabel })}</span
-		>
+		<span>{t("instanceView.lastPlayed", { date: lastPlayedLabel })}</span>
 	</div>
 
 	<ActionChips onOpenDir={openDir} onOpenLogs={openLogs} />
