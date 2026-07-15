@@ -20,7 +20,6 @@
 		refreshAvailableVersions,
 		refreshForgeVersions,
 		refreshNeoForgeVersions,
-
 	} from "$lib/api/cubicApi";
 	import type {
 		MinecraftVersion,
@@ -39,10 +38,22 @@
 	let { open = $bindable(false) }: { open: boolean } = $props();
 
 	const LOADERS = [
-		{ value: "vanilla", label: "Vanilla", icon: "/images/instances/vanilla.png" },
-		{ value: "fabric", label: "Fabric", icon: "/images/instances/fabric.png" },
+		{
+			value: "vanilla",
+			label: "Vanilla",
+			icon: "/images/instances/vanilla.png",
+		},
+		{
+			value: "fabric",
+			label: "Fabric",
+			icon: "/images/instances/fabric.png",
+		},
 		{ value: "forge", label: "Forge", icon: "/images/instances/forge.png" },
-		{ value: "neoforge", label: "NeoForge", icon: "/images/instances/neoforged.png" },
+		{
+			value: "neoforge",
+			label: "NeoForge",
+			icon: "/images/instances/neoforged.png",
+		},
 		{ value: "quilt", label: "Quilt", icon: "/images/instances/quilt.png" },
 	];
 
@@ -131,7 +142,8 @@
 			let mcList: string[] = [];
 
 			if (tab === "forge") {
-				if (forgeCache.length === 0) forgeCache = await getForgeVersions();
+				if (forgeCache.length === 0)
+					forgeCache = await getForgeVersions();
 				const seen = new SvelteSet<string>();
 				for (const v of forgeCache) {
 					if (v.game_version && !seen.has(v.game_version)) {
@@ -140,7 +152,8 @@
 					}
 				}
 			} else if (tab === "neoforge") {
-				if (neoForgeCache.length === 0) neoForgeCache = await getNeoForgeVersions();
+				if (neoForgeCache.length === 0)
+					neoForgeCache = await getNeoForgeVersions();
 				const seen = new SvelteSet<string>();
 				for (const v of neoForgeCache) {
 					if (v.game_version && !seen.has(v.game_version)) {
@@ -149,7 +162,8 @@
 					}
 				}
 			} else {
-				const installedSet = tab === "fabric" ? installed.fabric : installed.quilt;
+				const installedSet =
+					tab === "fabric" ? installed.fabric : installed.quilt;
 				const baseVersions = new SvelteSet<string>();
 				for (const v of installedSet) {
 					const parsed = parseMcFromLoaderVersion(v, tab);
@@ -179,7 +193,10 @@
 		}
 	}
 
-	function parseMcFromLoaderVersion(versionId: string, loader: string): string | null {
+	function parseMcFromLoaderVersion(
+		versionId: string,
+		loader: string,
+	): string | null {
 		if (loader === "fabric") {
 			const m = versionId.match(/^fabric-loader-[\d.]+-(.+)$/);
 			return m ? m[1] : null;
@@ -199,9 +216,16 @@
 		try {
 			let items: LoaderDisplayItem[] = [];
 
-			if (loader === "fabric" && fabricQuiltCache.length > 0 && fabricQuiltShowAll) {
+			if (
+				loader === "fabric" &&
+				fabricQuiltCache.length > 0 &&
+				fabricQuiltShowAll
+			) {
 				const filtered = fabricQuiltCache.filter((v) => {
-					const parsed = parseMcFromLoaderVersion(v.version, "fabric");
+					const parsed = parseMcFromLoaderVersion(
+						v.version,
+						"fabric",
+					);
 					return parsed === mcVersion;
 				});
 				items = filtered.map((v) => {
@@ -228,7 +252,11 @@
 						isDownloading: isVersionDownloading(vid),
 					});
 				}
-			} else if (loader === "quilt" && fabricQuiltCache.length > 0 && fabricQuiltShowAll) {
+			} else if (
+				loader === "quilt" &&
+				fabricQuiltCache.length > 0 &&
+				fabricQuiltShowAll
+			) {
 				const filtered = fabricQuiltCache.filter((v) => {
 					const parsed = parseMcFromLoaderVersion(v.version, "quilt");
 					return parsed === mcVersion;
@@ -304,12 +332,18 @@
 		if (loadingFabricQuiltAll || fabricQuiltCache.length > 0) return;
 		loadingFabricQuiltAll = true;
 		try {
-			const list = loaderTab === "fabric" ? await getFabricVersions() : await getQuiltVersions();
+			const list =
+				loaderTab === "fabric"
+					? await getFabricVersions()
+					: await getQuiltVersions();
 			fabricQuiltCache = list;
 
 			const baseVersions = new SvelteSet<string>();
 			for (const v of list) {
-				const parsed = parseMcFromLoaderVersion(v.version, loaderTab === "fabric" ? "fabric" : "quilt");
+				const parsed = parseMcFromLoaderVersion(
+					v.version,
+					loaderTab === "fabric" ? "fabric" : "quilt",
+				);
 				if (parsed) baseVersions.add(parsed);
 			}
 			const merged = new SvelteSet([...mcVersions, ...baseVersions]);
@@ -359,23 +393,40 @@
 	const vanillaDisplayList = $derived.by(() => {
 		if (vanillaShowAll && vanillaAllCache) {
 			return vanillaAllCache.filter((v) => {
-				if (vanillaSearch && !v.id.toLowerCase().includes(vanillaSearch.toLowerCase())) return false;
-				if (!launcherStore.settings.show_snapshots && v.type === "snapshot") return false;
-				if (!launcherStore.settings.show_alpha && (v.type === "old_alpha" || v.type === "old_beta")) return false;
+				if (
+					vanillaSearch &&
+					!v.id.toLowerCase().includes(vanillaSearch.toLowerCase())
+				)
+					return false;
+				if (
+					!launcherStore.settings.show_snapshots &&
+					v.type === "snapshot"
+				)
+					return false;
+				if (
+					!launcherStore.settings.show_alpha &&
+					(v.type === "old_alpha" || v.type === "old_beta")
+				)
+					return false;
 				return true;
 			});
 		}
 		const list = Array.from(installed.vanilla);
 		const filtered = vanillaSearch
-			? list.filter((v) => v.toLowerCase().includes(vanillaSearch.toLowerCase()))
+			? list.filter((v) =>
+					v.toLowerCase().includes(vanillaSearch.toLowerCase()),
+				)
 			: list;
-		return filtered.sort(compareVersions).map((id) => ({
-			id,
-			type: "release",
-			url: "",
-			time: "",
-			releaseTime: "",
-		} as MinecraftVersion));
+		return filtered.sort(compareVersions).map(
+			(id) =>
+				({
+					id,
+					type: "release",
+					url: "",
+					time: "",
+					releaseTime: "",
+				}) as MinecraftVersion,
+		);
 	});
 
 	// --- Downloads ---
@@ -526,37 +577,58 @@
 						onclick={showAllVanilla}
 						disabled={loadingMojang}
 					>
-						{loadingMojang ? t("versionDownloader.loading") : t("versionDownloader.showAll")}
+						{loadingMojang
+							? t("versionDownloader.loading")
+							: t("versionDownloader.showAll")}
 					</button>
 				{/if}
 
 				{#if loadingVanillaInstalled}
-					<div class="qm-empty-state">{t("versionDownloader.loading")}</div>
+					<div class="qm-empty-state">
+						{t("versionDownloader.loading")}
+					</div>
 				{:else if vanillaDisplayList.length === 0}
-					<div class="qm-empty-state">{t("versionDownloader.notFound")}</div>
+					<div class="qm-empty-state">
+						{t("versionDownloader.notFound")}
+					</div>
 				{:else}
-					<div style="display: flex; flex-direction: column; gap: 6px;">
+					<div
+						style="display: flex; flex-direction: column; gap: 6px;"
+					>
 						{#each vanillaDisplayList as vitem (vitem.id)}
 							{@const vid = vitem.id}
 							{@const isVanInstalled = installed.vanilla.has(vid)}
-							{@const isVanDownloading = isVersionDownloading(vid)}
+							{@const isVanDownloading =
+								isVersionDownloading(vid)}
 							<div class="version-card">
 								<div class="version-card-info">
 									<div class="version-card-name">{vid}</div>
 									{#if !vanillaShowAll}
-										<div class="version-card-badge installed-badge">
-											{t("versionDownloader.installedTag")}
+										<div
+											class="version-card-badge installed-badge"
+										>
+											{t(
+												"versionDownloader.installedTag",
+											)}
 										</div>
 									{:else}
 										<div class="version-card-type">
-											{(vitem as MinecraftVersion).type ?? "release"} • {new Date((vitem as MinecraftVersion).releaseTime ?? "").toLocaleDateString()}
+											{(vitem as MinecraftVersion).type ??
+												"release"} • {new Date(
+												(vitem as MinecraftVersion)
+													.releaseTime ?? "",
+											).toLocaleDateString()}
 										</div>
 									{/if}
 								</div>
 								{#if isVanInstalled}
 									<div class="inst-icon">✓</div>
 								{:else if isVanDownloading}
-									<button type="button" class="download-btn" disabled>
+									<button
+										type="button"
+										class="download-btn"
+										disabled
+									>
 										<span class="dl-spinner"></span>
 										{t("versionDownloader.downloading")}
 									</button>
@@ -564,7 +636,8 @@
 									<button
 										type="button"
 										class="download-btn"
-										onclick={() => handleDownloadVanilla(vid)}
+										onclick={() =>
+											handleDownloadVanilla(vid)}
 									>
 										{t("versionDownloader.downloadBtn")}
 									</button>
@@ -583,8 +656,10 @@
 						placeholder={mcPlaceholder}
 						loading={loadingMinecraft}
 						loadingPlaceholder={t("createInstance.loading")}
-						disabled={loadingMinecraft || mcVersionOptions.length === 0}
-						onchange={(value) => loadLoaderVersions(value, loaderTab)}
+						disabled={loadingMinecraft ||
+							mcVersionOptions.length === 0}
+						onchange={(value) =>
+							loadLoaderVersions(value, loaderTab)}
 					/>
 				</div>
 
@@ -602,7 +677,9 @@
 				{/if}
 
 				{#if loaderTab === "forge" || loaderTab === "neoforge"}
-					<div style="font-size: 0.75rem; color: var(--text-muted); padding: 0 4px;">
+					<div
+						style="font-size: 0.75rem; color: var(--text-muted); padding: 0 4px;"
+					>
 						{t(
 							loaderTab === "neoforge"
 								? "versionDownloader.neoForgeJavaHint"
@@ -612,17 +689,26 @@
 				{/if}
 
 				{#if loadingLoader}
-					<div class="qm-empty-state">{t("versionDownloader.loading")}</div>
+					<div class="qm-empty-state">
+						{t("versionDownloader.loading")}
+					</div>
 				{:else if loaderItems.length === 0}
-					<div class="qm-empty-state">{t("versionDownloader.notFound")}</div>
+					<div class="qm-empty-state">
+						{t("versionDownloader.notFound")}
+					</div>
 				{:else}
-					<div style="display: flex; flex-direction: column; gap: 6px;">
+					<div
+						style="display: flex; flex-direction: column; gap: 6px;"
+					>
 						{#each loaderItems as item (item.version_id)}
 							<div class="version-card">
 								<div class="version-card-info">
-									<div class="version-card-name">{item.display_version}</div>
+									<div class="version-card-name">
+										{item.display_version}
+									</div>
 									<div class="version-card-type">
-										{loaderTab === "fabric" || loaderTab === "quilt"
+										{loaderTab === "fabric" ||
+										loaderTab === "quilt"
 											? `${item.stable ? "STABLE" : "UNSTABLE"}`
 											: `${loaderTab === "forge" ? "Forge" : "NeoForge"} • MC ${item.game_version}`}
 									</div>
@@ -630,7 +716,11 @@
 								{#if item.isInstalled}
 									<div class="inst-icon">✓</div>
 								{:else if item.isDownloading}
-									<button type="button" class="download-btn" disabled>
+									<button
+										type="button"
+										class="download-btn"
+										disabled
+									>
 										<span class="dl-spinner"></span>
 										{t("versionDownloader.downloading")}
 									</button>
@@ -638,7 +728,8 @@
 									<button
 										type="button"
 										class="download-btn"
-										onclick={() => handleDownloadLoader(item)}
+										onclick={() =>
+											handleDownloadLoader(item)}
 									>
 										{t("versionDownloader.downloadBtn")}
 									</button>

@@ -5,7 +5,11 @@
 	import Dropdown from "$lib/components/layout/Dropdown.svelte";
 	import { renderMarkdown } from "$lib/util/markdown";
 	import type { MarketDetailState } from "$lib/state/marketState.svelte";
-	import type { MarketProject, MarketVersion, ContentType } from "$lib/types/market";
+	import type {
+		MarketProject,
+		MarketVersion,
+		ContentType,
+	} from "$lib/types/market";
 	import type {
 		ModrinthProjectFull,
 		CurseForgeProject,
@@ -147,7 +151,6 @@
 						>{formatNumber(project.downloadCount)}</span
 					>
 				</div>
-
 			</div>
 		{/if}
 
@@ -258,7 +261,7 @@
 				</h4>
 				<div class="gallery-grid">
 					{#each (detail.fullProject as ModrinthProjectFull).gallery as image, i (i)}
-				<img src={image.url} alt="Gallery" loading="lazy" />
+						<img src={image.url} alt="Gallery" loading="lazy" />
 					{/each}
 				</div>
 			</div>

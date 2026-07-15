@@ -84,10 +84,7 @@
 
 	<div class="tab-content" bind:this={tabContentEl}>
 		{#if activeSection === "detalles"}
-			<div
-				class="details-section"
-				in:fade={{ duration: 400 }}
-			>
+			<div class="details-section" in:fade={{ duration: 400 }}>
 				<div class="nav-card">
 					<span class="nav-card-header">
 						<span class="nav-card-title"
@@ -161,10 +158,7 @@
 				</div>
 			</div>
 		{:else}
-			<div
-				class="subview-section"
-				in:fade={{ duration: 400 }}
-			>
+			<div class="subview-section" in:fade={{ duration: 400 }}>
 				{#if activeSection === "market"}
 					{#key selectedInstance.uuid}
 						{#if Market}

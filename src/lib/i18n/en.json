@@ -361,8 +361,7 @@
 		"statusProcessing": "Processing",
 		"statusJre": "Downloading Java"
 	},
-	"welcome": {
-	},
+	"welcome": {},
 	"tutorial": {
 		"skip": "Skip",
 		"next": "Next",

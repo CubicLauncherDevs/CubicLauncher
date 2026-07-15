@@ -239,7 +239,9 @@
 		{#if totalHits > 0 && !searching}
 			<div class="dm-results-meta">
 				<span
-					>{t("instanceView.downloadMods.resultsFound", { count: totalHits.toLocaleString() })}</span
+					>{t("instanceView.downloadMods.resultsFound", {
+						count: totalHits.toLocaleString(),
+					})}</span
 				>
 			</div>
 		{/if}
@@ -300,8 +302,20 @@
 											{#if !isModCompatible(project)}
 												<span
 													class="dm-incompat-badge"
-													title={t("instanceView.downloadMods.noCompatibleVersions", { version: gameVersion })}
-													>{t("instanceView.downloadMods.noVersionCompat", { version: gameVersion })}</span
+													title={t(
+														"instanceView.downloadMods.noCompatibleVersions",
+														{
+															version:
+																gameVersion,
+														},
+													)}
+													>{t(
+														"instanceView.downloadMods.noVersionCompat",
+														{
+															version:
+																gameVersion,
+														},
+													)}</span
 												>
 											{/if}
 										</div>
@@ -356,7 +370,10 @@
 					{:else if allHits.length >= totalHits && totalHits > 0}
 						<div class="dm-vlist-end">
 							<span class="dm-end-label"
-								>— {t("instanceView.downloadMods.endOfResults", { count: allHits.length })} —</span
+								>— {t(
+									"instanceView.downloadMods.endOfResults",
+									{ count: allHits.length },
+								)} —</span
 							>
 						</div>
 					{/if}
@@ -448,7 +465,10 @@
 						>
 					{:else if selectedModVersions.length === 0}
 						<span class="dm-no-versions-msg"
-							>{t("instanceView.downloadMods.noCompatibleVersions", { version: gameVersion })}</span
+							>{t(
+								"instanceView.downloadMods.noCompatibleVersions",
+								{ version: gameVersion },
+							)}</span
 						>
 						<span class="dm-loading-versions"
 							>{t(
