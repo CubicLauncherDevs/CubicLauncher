@@ -2,6 +2,7 @@
 	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { getAvatar, setAvatar } from "$lib/state/avatarCache";
+	import { getHeadSvg } from "$lib/util/skinRenderer";
 	import type { InstanceDto } from "$lib/types/types";
 	import UserMenu from "../UserMenu/UserMenu.svelte";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
@@ -50,23 +51,19 @@
 
 	$effect(() => {
 		if (!username) return;
-		const url = isYggdrasil
-			? `https://skins.cubiclauncher.org/api/elyby/head/${username}`
-			: `https://skins.cubiclauncher.org/api/mojang/head/${username}`;
+		const endpoint = isYggdrasil ? "elyby" : "mojang";
+		const cacheKey = `${endpoint}:${username}`;
 
-		const cached = getAvatar(url);
+		const cached = getAvatar(cacheKey);
 		if (cached !== undefined) {
 			avatarSvg = cached;
 			return;
 		}
 
-		fetch(url)
-			.then((r) => r.text())
-			.then((svg) => {
-				setAvatar(url, svg);
-				avatarSvg = svg;
-			})
-			.catch(() => {});
+		getHeadSvg(username, endpoint).then((svg) => {
+			setAvatar(cacheKey, svg);
+			avatarSvg = svg;
+		});
 	});
 
 	function openDeleteModal(instance: InstanceDto) {

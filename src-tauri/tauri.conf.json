@@ -23,7 +23,7 @@
 		"security": {
 		"csp": {
 			"default-src": ["'self'", "tauri:", "http://localhost:*", "https://tauri.localhost"],
-			"img-src": ["'self'", "asset:", "https:", "http://textures.minecraft.net", "blob:", "data:", "http://localhost:*"],
+			"img-src": ["'self'", "asset:", "https:", "http://textures.minecraft.net", "https://textures.minecraft.net", "blob:", "data:", "http://localhost:*"],
 			"style-src": ["'self'", "'unsafe-inline'", "blob:", "http://localhost:*", "https://tauri.localhost"],
 			"font-src": ["'self'", "asset:", "https://asset.localhost", "http://asset.localhost", "http://localhost:*"],
 			"script-src": ["'self'", "'unsafe-inline'", "http://localhost:*"],
@@ -36,7 +36,7 @@
 		},
 		"devCsp": {
 			"default-src": ["'self'", "tauri:", "http://localhost:*", "https://tauri.localhost"],
-			"img-src": ["'self'", "asset:", "https:", "http://textures.minecraft.net", "blob:", "data:", "http://localhost:*"],
+			"img-src": ["'self'", "asset:", "https:", "http://textures.minecraft.net", "https://textures.minecraft.net", "blob:", "data:", "http://localhost:*"],
 			"style-src": ["'self'", "'unsafe-inline'", "blob:", "http://localhost:*", "https://tauri.localhost"],
 			"font-src": ["'self'", "asset:", "https://asset.localhost", "http://asset.localhost", "http://localhost:*"],
 			"script-src": ["'self'", "'unsafe-inline'", "http://localhost:*"],
