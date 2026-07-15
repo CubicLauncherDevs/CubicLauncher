@@ -56,7 +56,7 @@ jobs:
             - name: Install frontend dependencies
               run: bun install
             - name: Build y publicar prerelease
-              uses: tauri-apps/tauri-action@v0
+              uses: tauri-apps/tauri-action@v1
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
