@@ -139,7 +139,10 @@ pub async fn install_mrpack(
     install_result.map_err(|e| format!("Failed to install mrpack: {}", e))?;
 
     match &game_version.loader {
-        zellkern::Loader::Fabric(_) | zellkern::Loader::Quilt(_) => {
+        zellkern::Loader::Fabric(_)
+        | zellkern::Loader::Quilt(_)
+        | zellkern::Loader::Forge(_)
+        | zellkern::Loader::NeoForge(_) => {
             DownloadQueue::get().enqueue(version_id.clone()).await;
         }
         _ => {

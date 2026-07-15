@@ -14,7 +14,7 @@
 	import InstanceView from "$lib/components/instances/InstanceView/InstanceView.svelte";
 	import Drawer from "$lib/components/layout/Drawer.svelte";
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
-	import JreInstallPrompt from "$lib/components/ui/JreInstallPrompt.svelte";
+
 	import Tutorial from "$lib/components/layout/welcome/welcome.svelte";
 	import { initDiscordPresence } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
@@ -318,7 +318,6 @@
 	/>
 
 	<NotificationContainer />
-	<JreInstallPrompt />
 {/if}
 
 <style>
