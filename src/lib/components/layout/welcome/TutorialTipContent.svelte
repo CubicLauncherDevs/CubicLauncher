@@ -26,7 +26,7 @@
 	</p>
 	{#if isFirstStep}
 		<div class="tut-lang">
-			{#each locales.filter((l) => l.code === "en" || l.code === "es") as lang}
+			{#each locales.filter((l) => l.code === "en" || l.code === "es") as lang (lang)}
 				<button
 					type="button"
 					class="tut-lang-btn"
