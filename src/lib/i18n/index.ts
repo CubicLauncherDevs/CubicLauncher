@@ -3,6 +3,7 @@ import es from "./es.json";
 import en from "./en.json";
 import fr from "./fr.json";
 import de from "./de.json";
+import uk from "./uk.json";
 
 type NestedKeys<T, Prefix extends string = ""> = {
 	[K in keyof T & string]: T[K] extends string
@@ -17,7 +18,7 @@ export type TranslationKey = Exclude<NestedKeys<typeof es>, "id">;
 type DictValue = string | { [key: string]: DictValue };
 type LocaleDict = Record<string, DictValue>;
 
-const dicts: Record<string, LocaleDict> = { es, en, fr, de };
+const dicts: Record<string, LocaleDict> = { es, en, fr, de, uk };
 
 const flatCache = new Map<string, Record<string, string>>();
 let enFlat: Record<string, string> | null = null;
@@ -97,4 +98,5 @@ export const locales = [
 	{ code: "en", label: "English" },
 	{ code: "fr", label: "Français" },
 	{ code: "de", label: "Deutsch" },
+	{ code: "uk", label: "Українська" },
 ] as const;
