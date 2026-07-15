@@ -3,10 +3,14 @@
 	import {
 		searchModrinth,
 		getModrinthProjectVersions,
+		getModrinthProject,
 		downloadMrpack,
 		installMrpackWithUpstream,
+		openUrl,
 	} from "$lib/api/cubicApi";
-	import type { ModrinthProject, ModrinthVersion } from "$lib/types/types";
+	import type { ModrinthProject, ModrinthProjectFull, ModrinthVersion } from "$lib/types/types";
+	import { renderMarkdown } from "$lib/util/markdown";
+	import Select from "$lib/components/layout/Select.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
 
 	let {
@@ -29,13 +33,38 @@
 	let installError = $state<string | null>(null);
 	let installStep = $state<string>("");
 
+	let fullProject = $state<ModrinthProjectFull | null>(null);
+	let loadingFullProject = $state(false);
+
+	const readmeHtml = $derived(
+		fullProject?.body ? renderMarkdown(fullProject.body) : "",
+	);
+
+	const versionOptions = $derived(
+		versions.map((v) => ({
+			value: v.id,
+			label: v.game_versions.length > 0
+				? `${v.version_number} (${v.game_versions[0]})`
+				: v.version_number,
+		})),
+	);
+
+	let sentinelEl: HTMLDivElement | undefined = $state();
+	let initialized = $state(false);
+
 	async function doSearch(reset?: boolean) {
-		if (!query.trim()) return;
-		searching = true;
+		if (!reset && (searching || loadingMore)) return;
+
+		if (reset) {
+			searching = true;
+		} else {
+			loadingMore = true;
+		}
 		installError = null;
 		if (reset) {
 			offset = 0;
 			results = [];
+			fullProject = null;
 		}
 		try {
 			const result = await searchModrinth(
@@ -44,7 +73,7 @@
 				undefined,
 				null,
 				"downloads",
-				24,
+				10,
 				reset ? 0 : offset,
 				undefined,
 				"modpack",
@@ -60,6 +89,7 @@
 			}
 		} finally {
 			searching = false;
+			loadingMore = false;
 		}
 	}
 
@@ -74,15 +104,30 @@
 		selectedPack = pack;
 		selectedVersion = "";
 		loadingVersions = true;
+		loadingFullProject = true;
 		versions = [];
+		fullProject = null;
 		try {
-			versions = await getModrinthProjectVersions(pack.project_id);
+			const [fetchedVersions, projectFull] = await Promise.all([
+				getModrinthProjectVersions(pack.project_id),
+				getModrinthProject(pack.project_id),
+			]);
+			versions = fetchedVersions;
 			if (versions.length > 0) {
 				selectedVersion = versions[0].id;
 			}
+			fullProject = projectFull;
 		} finally {
 			loadingVersions = false;
+			loadingFullProject = false;
 		}
+	}
+
+	function goBack() {
+		selectedPack = null;
+		versions = [];
+		selectedVersion = "";
+		fullProject = null;
 	}
 
 	async function install() {
@@ -133,6 +178,30 @@
 		if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
 		return String(n);
 	}
+
+	$effect(() => {
+		if (!initialized) {
+			initialized = true;
+			doSearch(true);
+		}
+	});
+
+	$effect(() => {
+		const el = sentinelEl;
+		if (!el) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0].isIntersecting) {
+					doSearch(false);
+				}
+			},
+			{ rootMargin: "300px" },
+		);
+
+		observer.observe(el);
+		return () => observer.disconnect();
+	});
 </script>
 
 <div class="modpack-browser">
@@ -169,7 +238,78 @@
 		</div>
 	{/if}
 
-	<div class="browser-layout">
+	{#if selectedPack}
+		<div class="detail-view">
+			<button type="button" class="back-btn" onclick={goBack}>
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+					<line x1="19" y1="12" x2="5" y2="12"></line>
+					<polyline points="12 19 5 12 12 5"></polyline>
+				</svg>
+				Volver
+			</button>
+
+			<div class="detail-header">
+				{#if selectedPack.icon_url}
+					<img src={selectedPack.icon_url} alt="" class="detail-icon" />
+				{/if}
+				<div class="detail-title-group">
+					<h3>{selectedPack.title}</h3>
+					<span class="detail-author">{selectedPack.author}</span>
+				</div>
+			</div>
+
+			<p class="detail-desc">{selectedPack.description}</p>
+
+			<div class="detail-actions">
+				<div class="version-select">
+					<span class="version-label"
+						>{t("createInstance.versionLabel")}</span
+					>
+					<Select
+						bind:value={selectedVersion}
+						options={versionOptions}
+						placeholder={t("createInstance.selectLoaderVersion")}
+						loading={loadingVersions}
+						disabled={versions.length === 0}
+					/>
+				</div>
+
+				<button
+					type="button"
+					class="btn-primary install-btn"
+					onclick={install}
+					disabled={installing || !selectedVersion}
+				>
+					{installing
+						? t("createInstance.installingModpack")
+						: t("createInstance.installBtn")}
+				</button>
+			</div>
+
+			{#if loadingFullProject}
+				<div class="readme-loading">
+					<Loading />
+				</div>
+			{:else if readmeHtml}
+				<div class="detail-readme">
+					<span class="readme-label">README</span>
+					<div
+						class="readme-content markdown-body"
+						role="presentation"
+						onclick={(e) => {
+							const a = (e.target as HTMLElement).closest("a");
+							if (a?.href && !a.href.startsWith("#")) {
+								e.preventDefault();
+								openUrl(a.href);
+							}
+						}}
+					>
+						{@html readmeHtml}
+					</div>
+				</div>
+			{/if}
+		</div>
+	{:else}
 		<div class="results-panel">
 			{#if searching && results.length === 0}
 				<div class="empty-state">
@@ -186,8 +326,6 @@
 						<button
 							type="button"
 							class="pack-card"
-							class:selected={selectedPack?.project_id ===
-								pack.project_id}
 							onclick={() => selectPack(pack)}
 						>
 							<div class="pack-icon-wrap">
@@ -201,8 +339,7 @@
 							</div>
 							<div class="pack-info">
 								<span class="pack-title">{pack.title}</span>
-								<span class="pack-desc">{pack.description}</span
-								>
+								<span class="pack-desc">{pack.description}</span>
 								<span class="pack-meta">
 									{formatDownloads(pack.downloads)}
 									{t("createInstance.downloads")}
@@ -212,67 +349,17 @@
 					{/each}
 				</div>
 				{#if results.length < totalHits}
-					<button
-						type="button"
-						class="btn-secondary load-more"
-						onclick={() => doSearch()}
-						disabled={loadingMore}
-					>
-						{t("createInstance.loadMore")}
-					</button>
+					<div bind:this={sentinelEl} class="load-sentinel">
+						{#if loadingMore}
+							<Loading />
+						{:else}
+							<span class="sentinel-hint">Scroll for more</span>
+						{/if}
+					</div>
 				{/if}
 			{/if}
 		</div>
-
-		{#if selectedPack}
-			<div class="detail-panel">
-				<div class="detail-header">
-					{#if selectedPack.icon_url}
-						<img
-							src={selectedPack.icon_url}
-							alt=""
-							class="detail-icon"
-						/>
-					{/if}
-					<div class="detail-title-group">
-						<h3>{selectedPack.title}</h3>
-						<span class="detail-author">{selectedPack.author}</span>
-					</div>
-				</div>
-				<p class="detail-desc">{selectedPack.description}</p>
-
-				<div class="version-select">
-					<span class="version-label"
-						>{t("createInstance.versionLabel")}</span
-					>
-					<select
-						bind:value={selectedVersion}
-						disabled={loadingVersions || versions.length === 0}
-					>
-						{#each versions as v (v)}
-							<option value={v.id}>
-								{v.version_number}
-								{#if v.game_versions.length > 0}
-									({v.game_versions[0]})
-								{/if}
-							</option>
-						{/each}
-					</select>
-				</div>
-
-				<button
-					type="button"
-					class="btn-primary install-btn"
-					onclick={install}
-					disabled={installing || !selectedVersion}
-				>
-					{installing
-						? t("createInstance.installingModpack")
-						: t("createInstance.installBtn")}
-				</button>
-			</div>
-		{/if}
-	</div>
+	{/if}
 </div>
 
 <style>
@@ -330,17 +417,12 @@
 		font-size: 0.85rem;
 	}
 
-	.browser-layout {
-		display: flex;
-		gap: 16px;
-		flex: 1;
-		min-height: 0;
-	}
-
+	/* ── Results list ───────────────────────────── */
 	.results-panel {
 		flex: 1;
 		overflow-y: auto;
-		min-width: 0;
+		min-height: 0;
+		max-height: 440px;
 	}
 
 	.empty-state {
@@ -378,11 +460,6 @@
 
 	.pack-card:hover {
 		background: var(--bg-item-active);
-	}
-
-	.pack-card.selected {
-		border-color: var(--accent);
-		background: rgba(var(--accent-rgb), 0.08);
 	}
 
 	.pack-icon-wrap {
@@ -431,58 +508,105 @@
 		color: var(--text-tertiary);
 	}
 
-	.detail-panel {
-		width: 280px;
-		flex-shrink: 0;
+	.load-sentinel {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 12px;
+	}
+
+	.sentinel-hint {
+		font-size: 0.7rem;
+		color: var(--text-tertiary);
+	}
+
+	/* ── Detail view ────────────────────────────── */
+	.detail-view {
+		flex: 1;
+		overflow-y: auto;
+		max-height: 440px;
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
-		padding: 14px;
+		gap: 14px;
+		animation: slideIn 0.2s ease-out;
+	}
+
+	@keyframes slideIn {
+		from {
+			opacity: 0.5;
+			transform: translateX(24px);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(0);
+		}
+	}
+
+	.back-btn {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 10px;
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
-		background: var(--bg-card);
+		background: transparent;
+		color: var(--text-secondary);
+		font-size: 0.75rem;
+		font-family: inherit;
+		cursor: pointer;
+		align-self: flex-start;
+		transition:
+			color 0.15s,
+			border-color 0.15s;
+	}
+
+	.back-btn:hover {
+		color: var(--text-primary);
+		border-color: var(--text-secondary);
 	}
 
 	.detail-header {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 12px;
 	}
 
 	.detail-icon {
-		width: 40px;
-		height: 40px;
+		width: 48px;
+		height: 48px;
 		border-radius: var(--border-radius-sm);
 		object-fit: cover;
 	}
 
 	.detail-title-group h3 {
 		margin: 0;
-		font-size: 0.9rem;
+		font-size: 1rem;
 		font-weight: 700;
 	}
 
 	.detail-author {
-		font-size: 0.72rem;
+		font-size: 0.75rem;
 		color: var(--text-secondary);
 	}
 
 	.detail-desc {
-		font-size: 0.75rem;
+		font-size: 0.78rem;
 		color: var(--text-secondary);
 		line-height: 1.4;
 		margin: 0;
-		display: -webkit-box;
-		-webkit-line-clamp: 4;
-		-webkit-box-orient: vertical;
-		line-clamp: 4;
-		overflow: hidden;
+	}
+
+	.detail-actions {
+		display: flex;
+		gap: 12px;
+		align-items: flex-end;
 	}
 
 	.version-select {
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
+		flex: 1;
 	}
 
 	.version-label {
@@ -493,24 +617,116 @@
 		letter-spacing: 0.5px;
 	}
 
-	.version-select select {
-		padding: 6px 8px;
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		background: var(--bg-input);
-		color: var(--text-primary);
-		font-size: 0.78rem;
-	}
-
 	.install-btn {
-		margin-top: auto;
-		width: 100%;
+		flex-shrink: 0;
+		height: fit-content;
+		padding: 8px 20px;
 		justify-content: center;
 	}
 
-	.load-more {
-		width: 100%;
+	.detail-actions :global(.select-trigger) {
+		padding: 8px 14px;
+		font-size: 0.8rem;
+	}
+
+	.readme-loading {
+		display: flex;
+		align-items: center;
 		justify-content: center;
-		margin-top: 8px;
+		padding: 30px;
+	}
+
+	.detail-readme {
+		border-top: 1px solid var(--border);
+		padding-top: 12px;
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.readme-label {
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+
+	.readme-content {
+		font-size: 0.78rem;
+		line-height: 1.5;
+		color: var(--text-primary);
+	}
+
+	:global(.markdown-body h1),
+	:global(.markdown-body h2),
+	:global(.markdown-body h3),
+	:global(.markdown-body h4) {
+		margin: 14px 0 6px;
+		font-weight: 700;
+		line-height: 1.3;
+	}
+
+	:global(.markdown-body h1) { font-size: 1.05rem; }
+	:global(.markdown-body h2) { font-size: 0.95rem; }
+	:global(.markdown-body h3) { font-size: 0.85rem; }
+
+	:global(.markdown-body p) {
+		margin: 8px 0;
+	}
+
+	:global(.markdown-body a) {
+		color: var(--accent);
+		text-decoration: none;
+	}
+
+	:global(.markdown-body a:hover) {
+		text-decoration: underline;
+	}
+
+	:global(.markdown-body code) {
+		font-size: 0.72rem;
+		padding: 1px 4px;
+		border-radius: 3px;
+		background: rgba(var(--accent-rgb), 0.08);
+		font-family: monospace;
+	}
+
+	:global(.markdown-body pre) {
+		padding: 10px;
+		border-radius: var(--border-radius-sm);
+		background: rgba(var(--accent-rgb), 0.04);
+		border: 1px solid var(--border);
+		overflow-x: auto;
+		font-size: 0.72rem;
+	}
+
+	:global(.markdown-body pre code) {
+		background: none;
+		padding: 0;
+	}
+
+	:global(.markdown-body ul),
+	:global(.markdown-body ol) {
+		padding-left: 20px;
+		margin: 8px 0;
+	}
+
+	:global(.markdown-body img) {
+		max-width: 100%;
+		border-radius: var(--border-radius-sm);
+	}
+
+	:global(.markdown-body blockquote) {
+		border-left: 3px solid var(--accent);
+		padding-left: 10px;
+		margin: 8px 0;
+		color: var(--text-secondary);
+	}
+
+	:global(.markdown-body hr) {
+		border: none;
+		border-top: 1px solid var(--border);
+		margin: 14px 0;
 	}
 </style>

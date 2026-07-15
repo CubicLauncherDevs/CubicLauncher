@@ -369,14 +369,7 @@
 								<span class="input-error">{t(nameMsg)}</span>
 							{/if}
 						</div>
-						<button
-							type="button"
-							class="btn-secondary import-pack-btn"
-							onclick={selectMrpackFile}
-							disabled={loading}
-						>
-							{t("createInstance.importModpackBtn")}
-						</button>
+
 					</div>
 				</div>
 
