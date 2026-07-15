@@ -8,7 +8,7 @@
 		onAppEvent,
 	} from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
-	import { t } from "$lib/i18n";
+	import { t, locales } from "$lib/i18n";
 	import Select from "$lib/components/layout/Select.svelte";
 	import {
 		checkForUpdates,
@@ -129,12 +129,10 @@
 		{ id: "java", label: t("settings.tabs.java") },
 	]);
 
-	const languageOptions = [
-		{ value: "es", label: "Español" },
-		{ value: "en", label: "English" },
-		{ value: "fr", label: "Français" },
-		{ value: "de", label: "Deutsch" },
-	];
+	const languageOptions = locales.map((l) => ({
+		value: l.code,
+		label: l.label,
+	}));
 	let availableThemes = $state<ThemeEntry[]>([]);
 	let themeOptions = $derived(
 		availableThemes.map((t: ThemeEntry) => ({

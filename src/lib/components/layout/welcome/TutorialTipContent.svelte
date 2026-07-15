@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t, locales } from "$lib/i18n";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { saveSettings } from "$lib/api/launcherService";
 
@@ -26,18 +26,14 @@
 	</p>
 	{#if isFirstStep}
 		<div class="tut-lang">
-			<button
-				type="button"
-				class="tut-lang-btn"
-				class:active={launcherStore.settings.language === "en"}
-				onclick={() => setLanguage("en")}>English</button
-			>
-			<button
-				type="button"
-				class="tut-lang-btn"
-				class:active={launcherStore.settings.language === "es"}
-				onclick={() => setLanguage("es")}>Español</button
-			>
+			{#each locales.filter((l) => l.code === "en" || l.code === "es") as lang}
+				<button
+					type="button"
+					class="tut-lang-btn"
+					class:active={launcherStore.settings.language === lang.code}
+					onclick={() => setLanguage(lang.code)}>{lang.label}</button
+				>
+			{/each}
 		</div>
 	{/if}
 </div>

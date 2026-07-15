@@ -66,10 +66,7 @@
 		if (count === 0) return;
 		if (
 			confirm(
-				t("instanceView.deleteSelectedConfirm").replace(
-					"{count}",
-					String(count),
-				),
+				t("instanceView.deleteSelectedConfirm", { count }),
 			)
 		) {
 			for (const filename of selected) {

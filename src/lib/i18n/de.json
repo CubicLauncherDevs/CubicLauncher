@@ -2,7 +2,8 @@
 	"id": "de-DE",
 	"common": {
 		"cancel": "Abbrechen",
-		"save": "Speichern"
+		"save": "Speichern",
+		"retry": "Wiederholen"
 	},
 	"settings": {
 		"title": "Einstellungen",
@@ -31,12 +32,9 @@
 			"javaSpan": "Du weißt nicht, was Java ist? Schau in unsere Dokumentation unter https://cubiclauncher.org/docs/java",
 			"themes": "Themen",
 			"themesActive": "Aktives Thema",
-			"checking": "Überprüfung...",
 			"checkingBtn": "Auf Updates prüfen",
 			"searchBtn": "Updates suchen",
-			"downloading": "Herunterladen...",
 			"downloadingBtn": "Update wird heruntergeladen",
-			"downloadOnly": "Nur herunterladen",
 			"downloadInstallBtn": "Herunterladen und installieren",
 			"installing": "Installation...",
 			"installingBtn": "Update installieren",
@@ -97,17 +95,19 @@
 		"createInstance": "Instanz erstellen",
 		"refreshInstances": "Instanzen aktualisieren",
 		"settings": "Einstellungen",
-		"tools": "Herramientas",
+		"tools": "Werkzeuge",
 		"downloading": "wird heruntergeladen",
 		"completed": "abgeschlossen",
 		"failed": "fehlgeschlagen",
 		"noDownloads": "Keine Downloads",
 		"noDownloadDesc": "Heruntergeladene Versionen erscheinen hier",
+		"noDownloadsActive": "Keine aktiven Downloads",
+		"noDownloadsActiveDesc": "Versionen, die du herunterlädst, erscheinen hier",
 		"downloadingMods": "Mods werden heruntergeladen...",
 		"modals": {
 			"editTitle": "Instanz bearbeiten",
 			"nameLabel": "Name",
-			"versionLabel": "Versión",
+			"versionLabel": "Version",
 			"iconLabel": "Instanz-Icon",
 			"cancel": "Abbrechen",
 			"save": "Speichern",
@@ -175,13 +175,11 @@
 			"resources": "Ressourcen",
 			"screenshots": "Screenshots",
 			"logs": "Logs",
-			"options": "Optionen",
-			"downloadMods": "Mods herunterladen",
 			"shaderpacks": "Shader Packs"
 		},
 		"details": {
 			"title": "Details",
-			"version": "Versión",
+			"version": "Version",
 			"loader": "Loader",
 			"location": "Speicherort"
 		},
@@ -304,12 +302,11 @@
 	},
 	"instanceEditor": {
 		"generalTitle": "Allgemein",
-		"language": "Sprache",
-		"reinstall": "Instanz neu installieren",
 		"javaVersion": "Java-Version",
 		"javaHint": "Cubic wählt die empfohlene Java-Version für diese Minecraft-Version aus. Manche Mods können inkompatibel sein und eine andere Version benötigen.",
 		"recommended": "Empfohlen",
-		"repairHint": "Dies installiert den Mod-Loader und die Spielversion neu."
+		"repairHint": "Dies installiert den Mod-Loader und die Spielversion neu.",
+		"useCustomConfig": "Benutzerdefinierte Konfiguration verwenden"
 	},
 	"createInstance": {
 		"title": "Neue Instanz erstellen",
@@ -327,27 +324,13 @@
 		"creatingBtn": "Wird erstellt...",
 		"manualTab": "Manual",
 		"importTab": "Aus Modpack",
-		"stepName": "Nombre",
-		"stepIcon": "Icono",
-		"stepSource": "Quelle",
-		"stepDetails": "Details",
-		"back": "Zurück",
-		"next": "Weiter",
 		"importBtn": "Modpack importieren",
 		"importingBtn": "Wird importiert...",
 		"selectFile": "Datei auswählen",
-		"dragOrDrop": "Arrastra un archivo .mrpack o .zip hier",
-		"or": "o",
-		"orDownloadFrom": "o download von",
 		"parsingPack": "Modpack wird analysiert...",
-		"packInfo": "Pack-Informationen",
-		"instanceName": "Instanzname",
 		"importModpackBtn": "Modpack importieren",
-		"loaderLabel": "Loader",
 		"mcVersionLabel": "Minecraft-Version",
-		"loaderVersionLabel": "Loader-Version",
 		"noLoader": "Kein Loader",
-		"noLoaderNeeded": "Kein Loader erforderlich",
 		"noLoaderVersionsErr": "Keine Loader-Versionen für diese Version",
 		"selectMcVersion": "Minecraft-Version",
 		"selectLoaderVersion": "Loader-Version",
@@ -364,19 +347,11 @@
 		"selectMrpackBtn": ".mrpack-Datei auswählen"
 	},
 	"themes": {
-		"warning": {
-			"title": "Theme-Hintergrund",
-			"largeFile": "Der Hintergrund überschreitet 25MB — wird nicht geladen",
-			"notAnImage": "Der Hintergrund ist kein gültiges Bild — wird nicht geladen"
-		},
 		"importSuccess": "Theme importiert",
 		"importSuccessMessage": "Das Theme wurde erfolgreich importiert und angewendet.",
-		"importError": "Fehler beim Importieren des Themes",
-		"dropHere": "Theme-ZIP hier ablegen",
-		"invalidZip": "Ungültiges Theme: theme.json nicht im ZIP gefunden"
+		"importError": "Fehler beim Importieren des Themes"
 	},
 	"downloadProgress": {
-		"items": "Elemente",
 		"statusLibs": "Bibliotheken herunterladen",
 		"statusAssets": "Assets herunterladen",
 		"statusNatives": "Natives herunterladen",
@@ -387,8 +362,6 @@
 		"statusJre": "Java herunterladen"
 	},
 	"welcome": {
-		"language": "Wähle deine Sprache",
-		"continue": "Weiter"
 	},
 	"tutorial": {
 		"skip": "Überspringen",
@@ -471,13 +444,6 @@
 		"refreshBtn": "Cache aktualisieren",
 		"showAll": "Alle Versionen anzeigen",
 		"browseAll": "Alle MC-Versionen durchsuchen",
-		"tabs": {
-			"vanilla": "Vanilla",
-			"fabric": "Fabric",
-			"forge": "Forge",
-			"neoforge": "NeoForge",
-			"quilt": "Quilt"
-		},
 		"downloading": "Wird heruntergeladen...",
 		"forgeJavaHint": "Forge erfordert Java 21, das unter Einstellungen > Java konfiguriert werden muss.",
 		"neoForgeJavaHint": "NeoForge erfordert Java 17/21, das unter Einstellungen > Java konfiguriert werden muss."
@@ -531,7 +497,8 @@
 			"disable": "Disable",
 			"openOnModrinth": "Open on Modrinth",
 			"openOnCurseForge": "Open on CurseForge",
-			"noSelection": "Select a mod to view its details"
+			"noSelection": "Select a mod to view its details",
+			"by": "von"
 		}
 	}
 }

@@ -23,7 +23,7 @@
 
 <div class="qm-field-checkbox">
 	<input type="checkbox" id="use-overrides" bind:checked={useOverrides} />
-	<label for="use-overrides">Usar configuración personalizada</label>
+	<label for="use-overrides">{t("instanceEditor.useCustomConfig")}</label>
 </div>
 <fieldset disabled={!useOverrides || saving}>
 	<Select

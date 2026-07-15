@@ -250,10 +250,10 @@
 				<span>{t("sidebar.downloading")}</span>
 			{:else if doneCount > 0}
 				<CheckIcon size={13} />
-				<span>{doneCount} completadas</span>
+				<span>{doneCount} {t("sidebar.completed")}</span>
 			{:else}
 				<DownloadIcon size={13} />
-				<span>Sin descargas</span>
+				<span>{t("sidebar.noDownloads")}</span>
 			{/if}
 		</div>
 		<ChevronDownIcon size={11} class="dl-tray-chevron" />
@@ -263,10 +263,10 @@
 		{#if downloads.size === 0}
 			<div class="dl-tray-empty">
 				<DownloadIcon size={26} />
-				<span class="dl-tray-empty-title">No hay descargas activas</span
+				<span class="dl-tray-empty-title">{t("sidebar.noDownloadsActive")}</span
 				>
 				<span class="dl-tray-empty-sub"
-					>Las versiones que descargues aparecerán aquí</span
+					>{t("sidebar.noDownloadsActiveDesc")}</span
 				>
 			</div>
 		{:else}

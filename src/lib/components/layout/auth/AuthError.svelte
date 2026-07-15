@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
+
 	let {
-		title = "Error",
+		title,
 		message,
 		onRetry,
 	}: {
@@ -26,7 +28,7 @@
 	<h3 class="state-title">{title}</h3>
 	<p class="state-subtitle error-text">{message}</p>
 	<button type="button" class="action-btn retry" onclick={onRetry}>
-		Reintentar
+		{t("common.retry")}
 	</button>
 </div>
 
