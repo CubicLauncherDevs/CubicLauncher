@@ -1,6 +1,6 @@
 {
 	"name": "cubiclauncher",
-	"version": "31.0.0-alpha.4",
+	"version": "31.0.0-rc.1",
 	"description": "",
 	"type": "module",
 	"scripts": {
