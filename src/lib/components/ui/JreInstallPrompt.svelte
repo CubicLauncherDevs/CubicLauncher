@@ -1,7 +1,6 @@
 <script lang="ts">
 	import {
 		dismissJreInstallPrompt,
-		showInfo,
 		setPendingJreLaunch,
 		clearPendingJreLaunch,
 	} from "$lib/state/state.svelte";
@@ -24,11 +23,6 @@
 
 		setPendingJreLaunch(jreVersion, targetInstance);
 		dismissJreInstallPrompt();
-
-		showInfo(
-			t("settings.java.installing"),
-			t("settings.java.installVersion", { version: String(jreVersion) }),
-		);
 
 		try {
 			await installJre(jreVersion);
