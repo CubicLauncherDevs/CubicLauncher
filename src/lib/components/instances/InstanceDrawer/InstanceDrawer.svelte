@@ -30,9 +30,10 @@
 	let selectedJavaVersion = $state("");
 	let useOverrides = $state(false);
 
-	let selectedLoader = $state("vanilla");
-	let selectedMcVersion = $state("");
-	let selectedLoaderVersion = $state("");
+	const parsedVersion = parseInstanceVersion(instance.version);
+	let selectedLoader = $state(parsedVersion.loader);
+	let selectedMcVersion = $state(parsedVersion.mcVersion);
+	let selectedLoaderVersion = $state(parsedVersion.loaderVersion);
 
 	let repairing = $state(false);
 
@@ -141,10 +142,6 @@
 	onMount(async () => {
 		selectedIcon = instance.icon;
 		instanceName = instance.name;
-		const parsed = parseInstanceVersion(instance.version);
-		selectedLoader = parsed.loader;
-		selectedMcVersion = parsed.mcVersion;
-		selectedLoaderVersion = parsed.loaderVersion;
 		if (instance.overrides) {
 			useOverrides = true;
 			selectedJavaVersion =

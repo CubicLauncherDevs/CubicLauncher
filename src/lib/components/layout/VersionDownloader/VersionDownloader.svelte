@@ -561,6 +561,7 @@
 
 		<VersionDownloaderTabs bind:loaderTab {LOADERS} onswitch={switchTab} />
 
+		<div class="vd-scrollable">
 		{#if loaderTab === "vanilla"}
 			<div style="display: flex; flex-direction: column; gap: 12px;">
 				<input
@@ -740,6 +741,7 @@
 				{/if}
 			</div>
 		{/if}
+		</div>
 	</div>
 </ModalBase>
 
@@ -748,6 +750,15 @@
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
+		height: 100%;
+		min-height: 0;
+	}
+
+	.vd-scrollable {
+		flex: 1;
+		overflow-y: auto;
+		min-height: 0;
+		max-height: 440px;
 	}
 
 	.qm-empty-state {
