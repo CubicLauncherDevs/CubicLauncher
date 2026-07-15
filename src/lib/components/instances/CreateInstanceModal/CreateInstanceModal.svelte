@@ -517,10 +517,6 @@
 		display: block;
 	}
 
-	.import-pack-btn {
-		align-self: flex-start;
-	}
-
 	.footer-actions {
 		display: flex;
 		align-items: center;
