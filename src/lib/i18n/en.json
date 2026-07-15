@@ -2,7 +2,8 @@
 	"id": "en-US",
 	"common": {
 		"cancel": "Cancel",
-		"save": "Save"
+		"save": "Save",
+		"retry": "Retry"
 	},
 	"settings": {
 		"title": "Settings",
@@ -31,12 +32,9 @@
 			"javaSpan": "You don't know what Java is? Check out our documentation at https://cubiclauncher.org/docs/java",
 			"themes": "Themes",
 			"themesActive": "Active theme",
-			"checking": "Checking...",
 			"checkingBtn": "Checking for updates",
 			"searchBtn": "Check for Updates",
-			"downloading": "Downloading...",
 			"downloadingBtn": "Downloading update",
-			"downloadOnly": "Download Only",
 			"downloadInstallBtn": "Download and Install",
 			"installing": "Installing...",
 			"installingBtn": "Installing update",
@@ -103,6 +101,8 @@
 		"failed": "failed",
 		"noDownloads": "No downloads",
 		"noDownloadDesc": "Downloaded versions will appear here",
+		"noDownloadsActive": "No active downloads",
+		"noDownloadsActiveDesc": "Versions you download will appear here",
 		"downloadingMods": "Downloading mods...",
 		"modals": {
 			"editTitle": "Edit Instance",
@@ -175,8 +175,6 @@
 			"resources": "Resources",
 			"screenshots": "Screenshots",
 			"logs": "Logs",
-			"options": "Options",
-			"downloadMods": "Get Mods",
 			"shaderpacks": "Shader Packs"
 		},
 		"details": {
@@ -304,12 +302,11 @@
 	},
 	"instanceEditor": {
 		"generalTitle": "General",
-		"language": "Language",
-		"reinstall": "Reinstall instance",
 		"javaVersion": "Java Version",
 		"javaHint": "Cubic will select the recommended Java version for this Minecraft version. Some mods may be incompatible and require a different one.",
 		"recommended": "Recommended",
-		"repairHint": "This reinstalls the mod loader and game version."
+		"repairHint": "This reinstalls the mod loader and game version.",
+		"useCustomConfig": "Use custom configuration"
 	},
 	"createInstance": {
 		"title": "Create New Instance",
@@ -327,27 +324,13 @@
 		"creatingBtn": "Creating...",
 		"manualTab": "Manual",
 		"importTab": "From Modpack",
-		"stepName": "Name",
-		"stepIcon": "Icon",
-		"stepSource": "Source",
-		"stepDetails": "Details",
-		"back": "Back",
-		"next": "Next",
 		"importBtn": "Import Modpack",
 		"importingBtn": "Importing...",
 		"selectFile": "Select file",
-		"dragOrDrop": "Drag a .mrpack or .zip file here",
-		"or": "or",
-		"orDownloadFrom": "or download from",
 		"parsingPack": "Analyzing modpack...",
-		"packInfo": "Pack Info",
-		"instanceName": "Instance name",
 		"importModpackBtn": "Import modpack",
-		"loaderLabel": "Loader",
 		"mcVersionLabel": "Minecraft version",
-		"loaderVersionLabel": "Loader version",
 		"noLoader": "No loader",
-		"noLoaderNeeded": "No loader needed",
 		"noLoaderVersionsErr": "No loader versions for this version",
 		"selectMcVersion": "Minecraft version",
 		"selectLoaderVersion": "Loader version",
@@ -364,19 +347,11 @@
 		"selectMrpackBtn": "Select .mrpack file"
 	},
 	"themes": {
-		"warning": {
-			"title": "Theme Background",
-			"largeFile": "Background exceeds 25MB — will not be loaded",
-			"notAnImage": "Background is not a valid image — will not be loaded"
-		},
 		"importSuccess": "Theme imported",
 		"importSuccessMessage": "The theme has been imported and applied successfully.",
-		"importError": "Error importing theme",
-		"dropHere": "Drop theme ZIP here",
-		"invalidZip": "Invalid theme: no theme.json found in ZIP"
+		"importError": "Error importing theme"
 	},
 	"downloadProgress": {
-		"items": "items",
 		"statusLibs": "Downloading libraries",
 		"statusAssets": "Downloading assets",
 		"statusNatives": "Downloading natives",
@@ -387,8 +362,6 @@
 		"statusJre": "Downloading Java"
 	},
 	"welcome": {
-		"language": "Select your language",
-		"continue": "Continue"
 	},
 	"tutorial": {
 		"skip": "Skip",
@@ -471,13 +444,6 @@
 		"refreshBtn": "Refresh cache",
 		"showAll": "Show all versions",
 		"browseAll": "Browse all MC versions",
-		"tabs": {
-			"vanilla": "Vanilla",
-			"fabric": "Fabric",
-			"forge": "Forge",
-			"neoforge": "NeoForge",
-			"quilt": "Quilt"
-		},
 		"downloading": "Downloading...",
 		"forgeJavaHint": "Forge requires Java 21 to be configured in Settings > Java.",
 		"neoForgeJavaHint": "NeoForge requires Java 17/21 to be configured in Settings > Java."

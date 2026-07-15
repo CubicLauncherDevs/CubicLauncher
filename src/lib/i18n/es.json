@@ -2,7 +2,8 @@
 	"id": "es-ES",
 	"common": {
 		"cancel": "Cancelar",
-		"save": "Guardar"
+		"save": "Guardar",
+		"retry": "Reintentar"
 	},
 	"settings": {
 		"title": "Ajustes",
@@ -31,12 +32,9 @@
 			"javaSpan": "No sabes que es Java? Revisa nuestra documentacion en https://cubiclauncher.org/docs/java",
 			"themes": "Temas",
 			"themesActive": "Tema activo",
-			"checking": "Comprobando...",
 			"checkingBtn": "Comprobando actualizaciones",
 			"searchBtn": "Buscar Actualizaciones",
-			"downloading": "Descargando...",
 			"downloadingBtn": "Descargando actualización",
-			"downloadOnly": "Solo Descargar",
 			"downloadInstallBtn": "Descargar e Instalar",
 			"installing": "Instalando...",
 			"installingBtn": "Instalando actualización",
@@ -103,6 +101,8 @@
 		"failed": "error",
 		"noDownloads": "Sin descargas",
 		"noDownloadDesc": "Las versiones descargadas aparecerán aquí",
+		"noDownloadsActive": "No hay descargas activas",
+		"noDownloadsActiveDesc": "Las versiones que descargues aparecerán aquí",
 		"downloadingMods": "Descargando mods...",
 		"modals": {
 			"editTitle": "Editar Instancia",
@@ -175,8 +175,6 @@
 			"resources": "Recursos",
 			"screenshots": "Capturas",
 			"logs": "Logs",
-			"options": "Opciones",
-			"downloadMods": "Obtener Mods",
 			"shaderpacks": "Shader Packs"
 		},
 		"details": {
@@ -304,12 +302,11 @@
 	},
 	"instanceEditor": {
 		"generalTitle": "General",
-		"language": "Idioma",
-		"reinstall": "Reinstalar instancia",
 		"javaVersion": "Versión de Java",
 		"javaHint": "Cubic elegirá la versión de Java recomendada para esta versión de Minecraft. Puede haber casos donde algunos mods sean incompatibles y requieran otra.",
 		"recommended": "Recomendado",
-		"repairHint": "Esto reinstala el cargador de mods y la versión del juego."
+		"repairHint": "Esto reinstala el cargador de mods y la versión del juego.",
+		"useCustomConfig": "Usar configuración personalizada"
 	},
 	"createInstance": {
 		"title": "Crear Nueva Instancia",
@@ -327,27 +324,13 @@
 		"creatingBtn": "Creando...",
 		"manualTab": "Manual",
 		"importTab": "Desde Modpack",
-		"stepName": "Nombre",
-		"stepIcon": "Icono",
-		"stepSource": "Fuente",
-		"stepDetails": "Detalles",
-		"back": "Atrás",
-		"next": "Siguiente",
 		"importBtn": "Importar Modpack",
 		"importingBtn": "Importando...",
 		"selectFile": "Seleccionar archivo",
-		"dragOrDrop": "Arrastra un archivo .mrpack o .zip aquí",
-		"or": "o",
-		"orDownloadFrom": "o descarga desde",
 		"parsingPack": "Analizando modpack...",
-		"packInfo": "Información del Pack",
-		"instanceName": "Nombre de la instancia",
 		"importModpackBtn": "Importar modpack",
-		"loaderLabel": "Loader",
 		"mcVersionLabel": "Versión de Minecraft",
-		"loaderVersionLabel": "Versión del loader",
 		"noLoader": "Sin loader",
-		"noLoaderNeeded": "No se necesita loader",
 		"noLoaderVersionsErr": "No hay versiones del loader para esta versión",
 		"selectMcVersion": "Versión de Minecraft",
 		"selectLoaderVersion": "Versión del cargador",
@@ -364,19 +347,11 @@
 		"selectMrpackBtn": "Seleccionar archivo .mrpack"
 	},
 	"themes": {
-		"warning": {
-			"title": "Fondo del Theme",
-			"largeFile": "El fondo supera los 25MB — no se cargará",
-			"notAnImage": "El fondo no es una imagen válida — no se cargará"
-		},
 		"importSuccess": "Theme importado",
 		"importSuccessMessage": "El theme se ha importado y aplicado correctamente.",
-		"importError": "Error al importar theme",
-		"dropHere": "Suelta el ZIP del theme aquí",
-		"invalidZip": "Theme inválido: no se encontró theme.json en el ZIP"
+		"importError": "Error al importar theme"
 	},
 	"downloadProgress": {
-		"items": "objetos",
 		"statusLibs": "Descargando librerías",
 		"statusAssets": "Descargando assets",
 		"statusNatives": "Descargando nativos",
@@ -387,8 +362,6 @@
 		"statusJre": "Descargando Java"
 	},
 	"welcome": {
-		"language": "Selecciona tu idioma",
-		"continue": "Continuar"
 	},
 	"tutorial": {
 		"skip": "Saltar",
@@ -471,13 +444,6 @@
 		"refreshBtn": "Actualizar caché",
 		"showAll": "Mostrar todas las versiones",
 		"browseAll": "Explorar todas las versiones MC",
-		"tabs": {
-			"vanilla": "Vanilla",
-			"fabric": "Fabric",
-			"forge": "Forge",
-			"neoforge": "NeoForge",
-			"quilt": "Quilt"
-		},
 		"downloading": "Descargando...",
 		"forgeJavaHint": "Forge requiere Java 21 configurado en Ajustes > Java.",
 		"neoForgeJavaHint": "NeoForge requiere Java 17/21 configurado en Ajustes > Java."
@@ -531,7 +497,8 @@
 			"disable": "Deshabilitar",
 			"openOnModrinth": "Abrir en Modrinth",
 			"openOnCurseForge": "Abrir en CurseForge",
-			"noSelection": "Selecciona un mod para ver sus detalles"
+			"noSelection": "Selecciona un mod para ver sus detalles",
+			"by": "por"
 		}
 	}
 }
