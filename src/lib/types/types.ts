@@ -259,12 +259,19 @@ export interface ConsoleOutputPayload {
 	stream: "stdout" | "stderr";
 }
 
+export interface ThemePreview {
+	bg: string;
+	accent: string;
+	text: string;
+}
+
 export interface ThemeEntry {
 	id: string;
 	name: string;
 	author: string;
 	version: string;
 	type: string;
+	preview?: ThemePreview | null;
 }
 
 export interface ModrinthFile {

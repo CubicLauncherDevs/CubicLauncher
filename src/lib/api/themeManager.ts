@@ -8,6 +8,7 @@ const builtinThemes: ThemeEntry[] = [
 		author: "CubicLauncher",
 		version: "1.0",
 		type: "builtin",
+		preview: { bg: "#0c0c0c", accent: "#ffffff", text: "#d8d8d8" },
 	},
 	{
 		id: "lima",
@@ -15,6 +16,7 @@ const builtinThemes: ThemeEntry[] = [
 		author: "CubicLauncher",
 		version: "1.0",
 		type: "builtin",
+		preview: { bg: "#0a0f0a", accent: "#97C459", text: "#c8ddb0" },
 	},
 	{
 		id: "light",
@@ -22,6 +24,7 @@ const builtinThemes: ThemeEntry[] = [
 		author: "CubicLauncher",
 		version: "1.0",
 		type: "builtin",
+		preview: { bg: "#f5f5f5", accent: "#2563eb", text: "#1a1a1a" },
 	},
 ];
 
@@ -121,6 +124,14 @@ export async function importThemeZip(zipPath: string): Promise<ThemeEntry> {
 
 export async function import_theme_cbth(cbthPath: string): Promise<ThemeEntry> {
 	return invoke<ThemeEntry>("import_theme_cbth", { cbthPath });
+}
+
+export async function removeTheme(id: string): Promise<void> {
+	return invoke("remove_theme", { id });
+}
+
+export async function exportTheme(id: string, dest: string): Promise<string> {
+	return invoke<string>("export_theme", { id, dest });
 }
 
 function releaseImage(img: HTMLImageElement | null) {

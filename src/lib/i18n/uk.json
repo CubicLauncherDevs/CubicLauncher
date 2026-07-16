@@ -32,6 +32,11 @@
 			"javaSpan": "Не знаєте що таке Java? Ознайомтеся з нашою документацією на https://cubiclauncher.org/docs/java",
 			"themes": "Теми",
 			"themesActive": "Активна тема",
+			"themesImport": "Імпортувати тему",
+			"themesImporting": "Імпортування...",
+			"themesExport": "Експортувати",
+			"themesDelete": "Видалити",
+			"themesUnknownAuthor": "Користувацькі теми",
 			"checkingBtn": "Перевірка оновлень",
 			"searchBtn": "Перевірити оновлення",
 			"downloadingBtn": "Завантаження оновлення",
@@ -353,7 +358,8 @@
 	"themes": {
 		"importSuccess": "Тему імпортовано",
 		"importSuccessMessage": "Тему успішно імпортовано та застосовано.",
-		"importError": "Помилка імпорту теми"
+		"importError": "Помилка імпорту теми",
+		"deleteConfirm": "Ви впевнені, що хочете видалити {name}?"
 	},
 	"downloadProgress": {
 		"statusLibs": "Завантаження бібліотек",

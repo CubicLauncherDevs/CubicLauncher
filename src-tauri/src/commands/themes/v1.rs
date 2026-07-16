@@ -31,12 +31,21 @@ pub struct ThemeFile {
 }
 
 #[derive(Debug, Serialize, Clone)]
+pub struct ThemePreview {
+    pub bg: String,
+    pub accent: String,
+    pub text: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
 pub struct ThemeEntry {
     pub id: CompactString,
     pub name: CompactString,
     pub author: CompactString,
     pub version: CompactString,
     pub r#type: CompactString,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview: Option<ThemePreview>,
 }
 
 impl Theme for ThemeFile {

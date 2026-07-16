@@ -16,6 +16,7 @@
 		installUpdate,
 	} from "$lib/api/updaterServices";
 	import { listThemes } from "$lib/api/themeManager";
+	import ThemeSelector from "./ThemeSelector.svelte";
 	import {
 		getJreVersions,
 		installJre,
@@ -134,15 +135,6 @@
 		label: l.label,
 	}));
 	let availableThemes = $state<ThemeEntry[]>([]);
-	let themeOptions = $derived(
-		availableThemes.map((t: ThemeEntry) => ({
-			value: t.id,
-			label: t.name,
-			badge: [t.author, t.version ? `v${t.version}` : ""]
-				.filter(Boolean)
-				.join(" "),
-		})),
-	);
 
 	async function loadThemes() {
 		availableThemes = await listThemes();
@@ -291,32 +283,18 @@
 					iconSrc="/images/icons/pencil.svg"
 					storageKey="section_themes"
 				>
-					<Select
-						id="theme"
-						label={t("settings.launcher.themesActive")}
-						options={themeOptions}
+					<ThemeSelector
+						themes={availableThemes}
 						bind:value={launcherStore.settings.theme}
-						onchange={async () => {
+						onchange={async (id: string) => {
 							try {
-								await invoke("set_theme", {
-									id: launcherStore.settings.theme,
-								});
+								await invoke("set_theme", { id });
 							} catch (e) {
 								console.error("Error setting theme:", e);
 							}
 						}}
+						onrefresh={loadThemes}
 					/>
-					<span
-						class="qm-themes-hint"
-						onclick={() =>
-							openUrl("https://www.cubiclauncher.org/themes")}
-						role="link"
-						tabindex="0"
-						onkeydown={(e) => {
-							if (e.key === "Enter")
-								openUrl("https://www.cubiclauncher.org/themes");
-						}}>{t("settings.launcher.themesSpan")}</span
-					>
 				</CollapsibleSection>
 
 				<CollapsibleSection

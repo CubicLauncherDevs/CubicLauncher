@@ -32,6 +32,11 @@
 			"javaSpan": "Vous ne savez pas ce qu'est Java? Consultez notre documentation sur https://cubiclauncher.org/docs/java",
 			"themes": "Thèmes",
 			"themesActive": "Thème actif",
+			"themesImport": "Importer un thème",
+			"themesImporting": "Importation...",
+			"themesExport": "Exporter",
+			"themesDelete": "Supprimer",
+			"themesUnknownAuthor": "Thèmes utilisateur",
 			"checkingBtn": "Vérification des mises à jour",
 			"searchBtn": "Rechercher des Mises à jour",
 			"downloadingBtn": "Téléchargement de la mise à jour",
@@ -353,7 +358,8 @@
 	"themes": {
 		"importSuccess": "Thème importé",
 		"importSuccessMessage": "Le thème a été importé et appliqué avec succès.",
-		"importError": "Erreur lors de l'importation du thème"
+		"importError": "Erreur lors de l'importation du thème",
+		"deleteConfirm": "Êtes-vous sûr de vouloir supprimer {name}?"
 	},
 	"downloadProgress": {
 		"statusLibs": "Téléchargement des bibliothèques",
