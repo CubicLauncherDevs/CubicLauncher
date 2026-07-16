@@ -5,6 +5,13 @@
 		"save": "Speichern",
 		"retry": "Wiederholen"
 	},
+	"languages": {
+		"es": "Spanisch",
+		"en": "Englisch",
+		"fr": "Französisch",
+		"de": "Deutsch",
+		"uk": "Ukrainisch"
+	},
 	"settings": {
 		"title": "Einstellungen",
 		"advanced": "Erweitert",

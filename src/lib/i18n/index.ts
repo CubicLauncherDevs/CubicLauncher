@@ -94,9 +94,9 @@ export function t(
 }
 
 export const locales = [
-	{ code: "es", label: "Español" },
-	{ code: "en", label: "English" },
-	{ code: "fr", label: "Français" },
-	{ code: "de", label: "Deutsch" },
-	{ code: "uk", label: "Українська" },
+	{ code: "es", label: "Español", flag: "🇪🇸" },
+	{ code: "en", label: "English", flag: "🇬🇧" },
+	{ code: "fr", label: "Français", flag: "🇫🇷" },
+	{ code: "de", label: "Deutsch", flag: "🇩🇪" },
+	{ code: "uk", label: "Українська", flag: "🇺🇦" },
 ] as const;

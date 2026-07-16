@@ -8,6 +8,7 @@
 		value: string;
 		label: string;
 		badge?: string;
+		icon?: string;
 	}
 
 	let {
@@ -110,6 +111,10 @@
 	const selectedLabel = $derived(
 		options.find((o: Option) => o.value === value)?.label || placeholder,
 	);
+
+	const selectedIcon = $derived(
+		options.find((o: Option) => o.value === value)?.icon,
+	);
 </script>
 
 <div class="custom-select-container" bind:this={container} {id}>
@@ -132,6 +137,9 @@
 			<span class="select-spinner" aria-hidden="true"></span>
 		{/if}
 		<span class="selected-value">
+			{#if !loading && selectedIcon}
+				<span class="option-icon">{selectedIcon}</span>
+			{/if}
 			{loading ? loadingPlaceholder : selectedLabel}
 		</span>
 		{#if !loading}
@@ -158,6 +166,9 @@
 					aria-selected={option.value === value}
 					tabindex="0"
 				>
+					{#if option.icon}
+						<span class="option-icon">{option.icon}</span>
+					{/if}
 					<span class="select-option-label">{option.label}</span>
 					{#if option.badge}
 						<span class="select-option-badge">{option.badge}</span>
@@ -186,5 +197,16 @@
 		to {
 			transform: rotate(360deg);
 		}
+	}
+
+	.option-icon {
+		font-size: 1.2em;
+		line-height: 1;
+		margin-right: 6px;
+		flex-shrink: 0;
+	}
+
+	.selected-value .option-icon {
+		margin-right: 4px;
 	}
 </style>

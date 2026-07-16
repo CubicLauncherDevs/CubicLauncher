@@ -130,10 +130,13 @@
 		{ id: "java", label: t("settings.tabs.java") },
 	]);
 
-	const languageOptions = locales.map((l) => ({
-		value: l.code,
-		label: l.label,
-	}));
+	const languageOptions = $derived(
+		locales.map((l) => ({
+			value: l.code,
+			label: `${t(`languages.${l.code}`)} (${l.label})`,
+			icon: l.flag,
+		})),
+	);
 	let availableThemes = $state<ThemeEntry[]>([]);
 
 	async function loadThemes() {

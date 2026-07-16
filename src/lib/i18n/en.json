@@ -5,6 +5,13 @@
 		"save": "Save",
 		"retry": "Retry"
 	},
+	"languages": {
+		"es": "Spanish",
+		"en": "English",
+		"fr": "French",
+		"de": "German",
+		"uk": "Ukrainian"
+	},
 	"settings": {
 		"title": "Settings",
 		"advanced": "Advanced",
