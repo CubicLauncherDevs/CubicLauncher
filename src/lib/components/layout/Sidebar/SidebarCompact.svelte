@@ -283,7 +283,7 @@
 	}
 
 	.sc-instance-item:hover {
-		background: rgba(255, 255, 255, 0.03);
+		background: var(--surface-selected);
 	}
 
 	.sc-instance-item.active {
@@ -294,7 +294,7 @@
 	.sc-instance-icon {
 		width: 28px;
 		height: 28px;
-		background: rgba(255, 255, 255, 0.04);
+		background: rgba(var(--surface-rgb), 0.04);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		display: flex;

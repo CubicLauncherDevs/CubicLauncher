@@ -157,7 +157,7 @@
 	.screenshot-card {
 		position: relative;
 		aspect-ratio: 16/9;
-		background: rgba(255, 255, 255, 0.05);
+		background: rgba(var(--surface-rgb), 0.05);
 		border-radius: var(--border-radius-sm);
 		overflow: hidden;
 		cursor: pointer;
@@ -213,9 +213,9 @@
 		text-align: center;
 		padding: 3rem;
 		color: var(--text-secondary);
-		background: rgba(255, 255, 255, 0.02);
+		background: rgba(var(--surface-rgb), 0.02);
 		border-radius: var(--border-radius-sm);
-		border: 1px dashed rgba(255, 255, 255, 0.1);
+		border: 1px dashed rgba(var(--surface-rgb), 0.1);
 	}
 
 	.image-viewer-overlay {

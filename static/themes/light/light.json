@@ -1,0 +1,77 @@
+{
+	"name": "Claro",
+	"author": "CubicLauncher",
+	"version": "1.0",
+	"type": "builtin",
+	"bg_image": "/themes/light/light.webp",
+	"bg_image_blur": 10.0,
+	"bg_image_opacity": 0.4,
+	"variables": {
+		"--bg-main": "#f5f5f5",
+		"--bg-sidebar": "#ffffff",
+		"--bg-card": "#ffffff",
+		"--bg-item-active": "#eaeaea",
+		"--bg-overlay": "rgba(0,0,0,0.4)",
+		"--bg-input": "#eaeaea",
+
+		"--bg-sidebar-gradient": "linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%)",
+		"--bg-card-gradient": "linear-gradient(135deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0) 100%)",
+
+		"--text-primary": "#1a1a1a",
+		"--text-secondary": "#666666",
+		"--text-muted": "#999999",
+		"--text-tertiary": "#aaaaaa",
+
+		"--border": "#d4d4d4",
+		"--border-color": "#d4d4d4",
+		"--border-width": "1px",
+		"--border-radius": "8px",
+		"--border-radius-sm": "4px",
+		"--border-radius-lg": "12px",
+
+		"--accent": "#2563eb",
+		"--accent-rgb": "37, 99, 235",
+		"--accent-hover": "#1d4ed8",
+		"--accent-text": "#ffffff",
+		"--accent-primary": "#2563eb",
+
+		"--shadow-sm": "0 1px 3px rgba(0,0,0,0.08)",
+		"--shadow-md": "0 4px 12px rgba(0,0,0,0.1)",
+		"--shadow-lg": "0 8px 28px rgba(0,0,0,0.12)",
+		"--glow-accent": "0 0 12px rgba(37,99,235,0.2)",
+		"--glow-error": "0 0 12px rgba(248,81,73,0.2)",
+		"--glow-success": "0 0 12px rgba(63,185,80,0.2)",
+
+		"--color-success": "#3fb950",
+		"--color-success-rgb": "63,185,80",
+		"--color-error": "#f85149",
+		"--color-error-rgb": "248,81,73",
+		"--color-warning": "#d29922",
+		"--color-warning-rgb": "210,153,34",
+		"--color-status-starting": "#5e81ac",
+		"--color-status-started": "#3fb950",
+
+		"--icon-filter": "none",
+		"--icon-filter-error": "none",
+
+		"--clr-loader-vanilla": "#78909c",
+		"--clr-loader-fabric": "#66bb6a",
+		"--clr-loader-forge": "#ffa726",
+		"--clr-loader-quilt": "#ab47bc",
+
+		"--sidebar-width": "260px",
+
+		"--scrollbar-track": "#f5f5f5",
+		"--scrollbar-thumb": "#d4d4d4",
+
+		"--bg-surface": "#ffffff",
+		"--surface-rgb": "0, 0, 0",
+		"--surface-dropdown": "#ffffff",
+		"--toast-bg": "rgba(255, 255, 255, 0.92)",
+
+		"--font-family": "Cantarell, sans-serif",
+		"--font-size-base": "14px",
+		"--font-size-sm": "12px",
+		"--font-size-lg": "16px"
+	}
+}

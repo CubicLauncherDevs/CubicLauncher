@@ -57,6 +57,11 @@
 
 		"--scrollbar-track": "#0a0f0a",
 		"--scrollbar-thumb": "#1a2e1a",
+
+		"--bg-surface": "#1e2a1e",
+		"--surface-rgb": "255, 255, 255",
+		"--toast-bg": "rgba(18, 26, 18, 0.84)",
+		"--text-tertiary": "#6a8a6a",
 		"--font-family": "Cantarell, sans-serif",
 		"--font-size-base": "14px",
 		"--font-size-sm": "12px",

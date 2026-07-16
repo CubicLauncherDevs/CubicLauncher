@@ -16,6 +16,13 @@ const builtinThemes: ThemeEntry[] = [
 		version: "1.0",
 		type: "builtin",
 	},
+	{
+		id: "light",
+		name: "Claro",
+		author: "CubicLauncher",
+		version: "1.0",
+		type: "builtin",
+	},
 ];
 
 export interface ThemeFontFace {

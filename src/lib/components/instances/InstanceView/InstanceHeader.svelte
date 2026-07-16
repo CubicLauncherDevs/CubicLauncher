@@ -659,8 +659,8 @@
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
-		background: white;
-		color: black;
+		background: var(--accent);
+		color: var(--accent-text);
 		border: none;
 		min-width: 145px;
 		padding: 10px 28px;
@@ -679,7 +679,7 @@
 	}
 
 	.launch-btn:hover:not(:disabled) {
-		background: #f0f0f0;
+		background: var(--accent-hover);
 		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 	}
 
@@ -688,11 +688,11 @@
 	}
 
 	.launch-btn:disabled {
-		background: rgba(255, 255, 255, 0.15);
-		color: rgba(255, 255, 255, 0.35);
+		background: var(--surface-hover);
+		color: var(--text-muted);
 		cursor: not-allowed;
 		box-shadow: none;
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		border: 1px solid var(--border);
 	}
 
 	.details-row {

@@ -104,7 +104,7 @@
 	}
 
 	.ctx-item:hover {
-		background: var(--bg-item-active, rgba(255, 255, 255, 0.06));
+		background: var(--surface-active);
 	}
 
 	.ctx-item:not(:last-child) {

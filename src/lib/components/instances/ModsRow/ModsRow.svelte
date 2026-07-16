@@ -180,7 +180,7 @@
 		font-size: 0.75rem;
 		font-weight: 700;
 		color: var(--accent);
-		background: rgba(255, 255, 255, 0.05);
+		background: rgba(var(--surface-rgb), 0.05);
 		border: 1px solid var(--border);
 		padding: 1px 8px;
 		border-radius: var(--border-radius-sm);
@@ -202,9 +202,9 @@
 	}
 
 	.delete-selected-btn:disabled {
-		background: rgba(255, 255, 255, 0.05);
-		border-color: rgba(255, 255, 255, 0.1);
-		color: rgba(255, 255, 255, 0.35);
+		background: rgba(var(--surface-rgb), 0.05);
+		border-color: rgba(var(--surface-rgb), 0.1);
+		color: rgba(var(--surface-rgb), 0.35);
 		cursor: not-allowed;
 		opacity: 0.6;
 	}
@@ -250,7 +250,7 @@
 		padding: 40px;
 		color: var(--text-secondary);
 		font-size: 0.85rem;
-		background: rgba(255, 255, 255, 0.02);
+		background: rgba(var(--surface-rgb), 0.02);
 		border: 1px dashed var(--border);
 		border-radius: var(--border-radius-sm);
 		text-transform: uppercase;
@@ -275,7 +275,7 @@
 	.search-bar input {
 		width: 100%;
 		padding: 8px 12px 8px 36px;
-		background: rgba(255, 255, 255, 0.05);
+		background: rgba(var(--surface-rgb), 0.05);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		color: var(--text-primary);
@@ -286,7 +286,7 @@
 
 	.search-bar input:focus {
 		border-color: var(--accent);
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--surface-hover);
 	}
 
 	.search-bar input::placeholder {

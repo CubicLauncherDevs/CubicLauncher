@@ -83,7 +83,7 @@
 }
 .tut-close:hover {
 	color: var(--text-primary);
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--surface-hover);
 }
 
 .tut-body {
@@ -167,7 +167,7 @@
 }
 .lang-close:hover {
 	color: var(--text-primary);
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--surface-hover);
 }
 .lang-body {
 	padding: 16px 20px;

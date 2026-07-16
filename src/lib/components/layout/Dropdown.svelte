@@ -131,7 +131,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		background: rgba(255, 255, 255, 0.03);
+		background: var(--surface-selected);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		padding: 10px 14px;
@@ -146,14 +146,14 @@
 	}
 
 	.dd-trigger:hover:not(.dd-disabled) {
-		background: rgba(255, 255, 255, 0.06);
-		border-color: rgba(255, 255, 255, 0.2);
+		background: var(--surface-active);
+		border-color: rgba(var(--surface-rgb), 0.2);
 	}
 
 	.dd-trigger.dd-open {
-		border-color: rgba(255, 255, 255, 0.3);
-		background: rgba(255, 255, 255, 0.06);
-		box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.02);
+		border-color: rgba(var(--surface-rgb), 0.3);
+		background: var(--surface-active);
+		box-shadow: 0 0 0 2px rgba(var(--surface-rgb), 0.02);
 	}
 
 	.dd-trigger.dd-disabled {
@@ -172,7 +172,7 @@
 		top: calc(100% + 8px);
 		left: 0;
 		right: 0;
-		background: #121212;
+		background: var(--surface-dropdown);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -201,15 +201,15 @@
 	}
 
 	.dd-option:hover {
-		background: rgba(255, 255, 255, 0.05);
+		background: rgba(var(--surface-rgb), 0.05);
 		color: var(--text-primary);
 	}
 
 	.dd-option.dd-selected {
-		background: rgba(255, 255, 255, 0.03);
+		background: var(--surface-selected);
 		color: var(--text-primary);
 		font-weight: 600;
-		border: 1px solid rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(var(--surface-rgb), 0.05);
 	}
 
 	.dd-option-content {
