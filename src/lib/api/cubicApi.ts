@@ -763,6 +763,7 @@ export async function installMrpackWithUpstream(
 	instanceName: string,
 	projectId?: string,
 	versionId?: string,
+	iconUrl?: string,
 	callback?: () => void,
 	onError?: (err: unknown) => void,
 ): Promise<MrpackInfo | null> {
@@ -772,6 +773,7 @@ export async function installMrpackWithUpstream(
 			instanceName,
 			projectId: projectId ?? null,
 			modrinthVersionId: versionId ?? null,
+			iconUrl: iconUrl ?? null,
 		});
 		callback?.();
 		return result;
@@ -1088,6 +1090,7 @@ export async function parseMrpack(path: string): Promise<MrpackInfo | null> {
 export async function installMrpack(
 	path: string,
 	instanceName: string,
+	iconUrl?: string,
 	callback?: () => void,
 	onError?: (err: unknown) => void,
 ): Promise<MrpackInfo | null> {
@@ -1095,6 +1098,7 @@ export async function installMrpack(
 		const result = await invoke<MrpackInfo>("install_mrpack", {
 			path,
 			instanceName,
+			iconUrl: iconUrl ?? null,
 		});
 		callback?.();
 		return result;

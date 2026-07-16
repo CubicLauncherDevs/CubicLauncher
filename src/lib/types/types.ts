@@ -475,6 +475,7 @@ export interface MrpackInfo {
 	loader_version: string | null;
 	file_count: number;
 	version_id_for_instance?: string | null;
+	icon: string | null;
 }
 
 export interface CurseForgeGameVersion {

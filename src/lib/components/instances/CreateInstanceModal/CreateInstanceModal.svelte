@@ -5,6 +5,7 @@
 		fetchAll,
 		parseMrpack,
 		installMrpack,
+		searchModrinth,
 		addToQueue,
 		downloadFabric,
 		downloadForge,
@@ -243,9 +244,28 @@
 		loading = true;
 		error = null;
 		try {
+			let iconUrl: string | undefined;
+			try {
+				const searchResult = await searchModrinth(
+					name.trim(),
+					"",
+					undefined,
+					null,
+					"downloads",
+					1,
+					0,
+					undefined,
+					"modpack",
+				);
+				if (searchResult && searchResult.hits.length > 0) {
+					iconUrl = searchResult.hits[0].icon_url ?? undefined;
+				}
+			} catch { /* ignore search errors */ }
+
 			const result = await installMrpack(
 				mrpackPath,
 				name.trim(),
+				iconUrl,
 				() => {
 					open = false;
 					mrpackPath = null;

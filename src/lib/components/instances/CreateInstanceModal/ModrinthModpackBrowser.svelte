@@ -160,6 +160,7 @@
 				name,
 				selectedPack.project_id,
 				selectedVersion,
+				selectedPack.icon_url ?? undefined,
 				() => {
 					onInstalled?.();
 				},
