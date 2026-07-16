@@ -1120,9 +1120,7 @@ export async function uploadCustomIcon(
 	}
 }
 
-export async function resetInstanceIcon(
-	instanceId: string,
-): Promise<void> {
+export async function resetInstanceIcon(instanceId: string): Promise<void> {
 	try {
 		await invoke("reset_instance_icon", { instanceId });
 	} catch (err) {

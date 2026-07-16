@@ -43,7 +43,7 @@
 	});
 
 	let selectedInstance = $state<InstanceDto | null>(null);
-	let sidebarMode = $state<'normal' | 'compact'>('normal');
+	let sidebarMode = $state<"normal" | "compact">("normal");
 	let transitioning = $state(false);
 	let quickMenuOpen = $state(false);
 	let instanceEditorOpen = $state(false);
@@ -66,9 +66,9 @@
 	let editingTimer: ReturnType<typeof setTimeout> | undefined;
 
 	onMount(async () => {
-		const stored = localStorage.getItem('sidebarMode');
-		if (stored === 'compact') {
-			sidebarMode = 'compact';
+		const stored = localStorage.getItem("sidebarMode");
+		if (stored === "compact") {
+			sidebarMode = "compact";
 		}
 		initEventListeners();
 
@@ -118,7 +118,7 @@
 	});
 
 	$effect(() => {
-		localStorage.setItem('sidebarMode', sidebarMode);
+		localStorage.setItem("sidebarMode", sidebarMode);
 	});
 
 	async function setupDragDrop() {
@@ -217,7 +217,7 @@
 	function toggleSidebar() {
 		if (transitioning) return;
 		transitioning = true;
-		sidebarMode = sidebarMode === 'normal' ? 'compact' : 'normal';
+		sidebarMode = sidebarMode === "normal" ? "compact" : "normal";
 		setTimeout(() => {
 			transitioning = false;
 		}, 350);
@@ -281,13 +281,14 @@
 
 		<div
 			class="sidebar-container"
-			class:compact={sidebarMode === 'compact'}
+			class:compact={sidebarMode === "compact"}
 		>
-			{#if sidebarMode === 'normal'}
+			{#if sidebarMode === "normal"}
 				<Sidebar
 					bind:selectedInstance
 					onopenquickmenu={() => (quickMenuOpen = true)}
-					onopenversiondownloader={() => (versionDownloaderOpen = true)}
+					onopenversiondownloader={() =>
+						(versionDownloaderOpen = true)}
 					onopencreateinstance={() => (openCreateModal = true)}
 					onopeneditinstance={(inst) => {
 						instanceEditorOpen = true;
@@ -299,7 +300,8 @@
 				<SidebarCompact
 					bind:selectedInstance
 					onopenquickmenu={() => (quickMenuOpen = true)}
-					onopenversiondownloader={() => (versionDownloaderOpen = true)}
+					onopenversiondownloader={() =>
+						(versionDownloaderOpen = true)}
 					onopencreateinstance={() => (openCreateModal = true)}
 					onopeneditinstance={(inst) => {
 						instanceEditorOpen = true;

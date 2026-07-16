@@ -78,12 +78,7 @@
 			</svg>
 		{/if}
 	</div>
-	<button
-		type="button"
-		class="upload-btn"
-		onclick={handleUpload}
-		{disabled}
-	>
+	<button type="button" class="upload-btn" onclick={handleUpload} {disabled}>
 		<svg
 			width="12"
 			height="12"

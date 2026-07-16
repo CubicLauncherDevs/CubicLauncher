@@ -562,185 +562,188 @@
 		<VersionDownloaderTabs bind:loaderTab {LOADERS} onswitch={switchTab} />
 
 		<div class="vd-scrollable">
-		{#if loaderTab === "vanilla"}
-			<div style="display: flex; flex-direction: column; gap: 12px;">
-				<input
-					type="text"
-					placeholder={t("versionDownloader.searchPlaceholder")}
-					bind:value={vanillaSearch}
-					style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box;"
-				/>
+			{#if loaderTab === "vanilla"}
+				<div style="display: flex; flex-direction: column; gap: 12px;">
+					<input
+						type="text"
+						placeholder={t("versionDownloader.searchPlaceholder")}
+						bind:value={vanillaSearch}
+						style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box;"
+					/>
 
-				{#if !vanillaShowAll}
-					<button
-						type="button"
-						class="browse-all-btn"
-						onclick={showAllVanilla}
-						disabled={loadingMojang}
-					>
-						{loadingMojang
-							? t("versionDownloader.loading")
-							: t("versionDownloader.showAll")}
-					</button>
-				{/if}
+					{#if !vanillaShowAll}
+						<button
+							type="button"
+							class="browse-all-btn"
+							onclick={showAllVanilla}
+							disabled={loadingMojang}
+						>
+							{loadingMojang
+								? t("versionDownloader.loading")
+								: t("versionDownloader.showAll")}
+						</button>
+					{/if}
 
-				{#if loadingVanillaInstalled}
-					<div class="qm-empty-state">
-						{t("versionDownloader.loading")}
-					</div>
-				{:else if vanillaDisplayList.length === 0}
-					<div class="qm-empty-state">
-						{t("versionDownloader.notFound")}
-					</div>
-				{:else}
-					<div
-						style="display: flex; flex-direction: column; gap: 6px;"
-					>
-						{#each vanillaDisplayList as vitem (vitem.id)}
-							{@const vid = vitem.id}
-							{@const isVanInstalled = installed.vanilla.has(vid)}
-							{@const isVanDownloading =
-								isVersionDownloading(vid)}
-							<div class="version-card">
-								<div class="version-card-info">
-									<div class="version-card-name">{vid}</div>
-									{#if !vanillaShowAll}
-										<div
-											class="version-card-badge installed-badge"
+					{#if loadingVanillaInstalled}
+						<div class="qm-empty-state">
+							{t("versionDownloader.loading")}
+						</div>
+					{:else if vanillaDisplayList.length === 0}
+						<div class="qm-empty-state">
+							{t("versionDownloader.notFound")}
+						</div>
+					{:else}
+						<div
+							style="display: flex; flex-direction: column; gap: 6px;"
+						>
+							{#each vanillaDisplayList as vitem (vitem.id)}
+								{@const vid = vitem.id}
+								{@const isVanInstalled =
+									installed.vanilla.has(vid)}
+								{@const isVanDownloading =
+									isVersionDownloading(vid)}
+								<div class="version-card">
+									<div class="version-card-info">
+										<div class="version-card-name">
+											{vid}
+										</div>
+										{#if !vanillaShowAll}
+											<div
+												class="version-card-badge installed-badge"
+											>
+												{t(
+													"versionDownloader.installedTag",
+												)}
+											</div>
+										{:else}
+											<div class="version-card-type">
+												{(vitem as MinecraftVersion)
+													.type ?? "release"} • {new Date(
+													(vitem as MinecraftVersion)
+														.releaseTime ?? "",
+												).toLocaleDateString()}
+											</div>
+										{/if}
+									</div>
+									{#if isVanInstalled}
+										<div class="inst-icon">✓</div>
+									{:else if isVanDownloading}
+										<button
+											type="button"
+											class="download-btn"
+											disabled
 										>
-											{t(
-												"versionDownloader.installedTag",
-											)}
-										</div>
+											<span class="dl-spinner"></span>
+											{t("versionDownloader.downloading")}
+										</button>
 									{:else}
-										<div class="version-card-type">
-											{(vitem as MinecraftVersion).type ??
-												"release"} • {new Date(
-												(vitem as MinecraftVersion)
-													.releaseTime ?? "",
-											).toLocaleDateString()}
-										</div>
+										<button
+											type="button"
+											class="download-btn"
+											onclick={() =>
+												handleDownloadVanilla(vid)}
+										>
+											{t("versionDownloader.downloadBtn")}
+										</button>
 									{/if}
 								</div>
-								{#if isVanInstalled}
-									<div class="inst-icon">✓</div>
-								{:else if isVanDownloading}
-									<button
-										type="button"
-										class="download-btn"
-										disabled
-									>
-										<span class="dl-spinner"></span>
-										{t("versionDownloader.downloading")}
-									</button>
-								{:else}
-									<button
-										type="button"
-										class="download-btn"
-										onclick={() =>
-											handleDownloadVanilla(vid)}
-									>
-										{t("versionDownloader.downloadBtn")}
-									</button>
-								{/if}
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</div>
-		{:else}
-			<div style="display: flex; flex-direction: column; gap: 16px;">
-				<div class="linked-selects">
-					<Select
-						bind:value={selectedMcVersion}
-						options={mcVersionOptions}
-						placeholder={mcPlaceholder}
-						loading={loadingMinecraft}
-						loadingPlaceholder={t("createInstance.loading")}
-						disabled={loadingMinecraft ||
-							mcVersionOptions.length === 0}
-						onchange={(value) =>
-							loadLoaderVersions(value, loaderTab)}
-					/>
+							{/each}
+						</div>
+					{/if}
 				</div>
-
-				{#if (loaderTab === "fabric" || loaderTab === "quilt") && !fabricQuiltShowAll}
-					<button
-						type="button"
-						class="browse-all-btn"
-						onclick={loadFabricQuiltAll}
-						disabled={loadingFabricQuiltAll}
-					>
-						{loadingFabricQuiltAll
-							? t("versionDownloader.loading")
-							: t("versionDownloader.browseAll")}
-					</button>
-				{/if}
-
-				{#if loaderTab === "forge" || loaderTab === "neoforge"}
-					<div
-						style="font-size: 0.75rem; color: var(--text-muted); padding: 0 4px;"
-					>
-						{t(
-							loaderTab === "neoforge"
-								? "versionDownloader.neoForgeJavaHint"
-								: "versionDownloader.forgeJavaHint",
-						)}
+			{:else}
+				<div style="display: flex; flex-direction: column; gap: 16px;">
+					<div class="linked-selects">
+						<Select
+							bind:value={selectedMcVersion}
+							options={mcVersionOptions}
+							placeholder={mcPlaceholder}
+							loading={loadingMinecraft}
+							loadingPlaceholder={t("createInstance.loading")}
+							disabled={loadingMinecraft ||
+								mcVersionOptions.length === 0}
+							onchange={(value) =>
+								loadLoaderVersions(value, loaderTab)}
+						/>
 					</div>
-				{/if}
 
-				{#if loadingLoader}
-					<div class="qm-empty-state">
-						{t("versionDownloader.loading")}
-					</div>
-				{:else if loaderItems.length === 0}
-					<div class="qm-empty-state">
-						{t("versionDownloader.notFound")}
-					</div>
-				{:else}
-					<div
-						style="display: flex; flex-direction: column; gap: 6px;"
-					>
-						{#each loaderItems as item (item.version_id)}
-							<div class="version-card">
-								<div class="version-card-info">
-									<div class="version-card-name">
-										{item.display_version}
+					{#if (loaderTab === "fabric" || loaderTab === "quilt") && !fabricQuiltShowAll}
+						<button
+							type="button"
+							class="browse-all-btn"
+							onclick={loadFabricQuiltAll}
+							disabled={loadingFabricQuiltAll}
+						>
+							{loadingFabricQuiltAll
+								? t("versionDownloader.loading")
+								: t("versionDownloader.browseAll")}
+						</button>
+					{/if}
+
+					{#if loaderTab === "forge" || loaderTab === "neoforge"}
+						<div
+							style="font-size: 0.75rem; color: var(--text-muted); padding: 0 4px;"
+						>
+							{t(
+								loaderTab === "neoforge"
+									? "versionDownloader.neoForgeJavaHint"
+									: "versionDownloader.forgeJavaHint",
+							)}
+						</div>
+					{/if}
+
+					{#if loadingLoader}
+						<div class="qm-empty-state">
+							{t("versionDownloader.loading")}
+						</div>
+					{:else if loaderItems.length === 0}
+						<div class="qm-empty-state">
+							{t("versionDownloader.notFound")}
+						</div>
+					{:else}
+						<div
+							style="display: flex; flex-direction: column; gap: 6px;"
+						>
+							{#each loaderItems as item (item.version_id)}
+								<div class="version-card">
+									<div class="version-card-info">
+										<div class="version-card-name">
+											{item.display_version}
+										</div>
+										<div class="version-card-type">
+											{loaderTab === "fabric" ||
+											loaderTab === "quilt"
+												? `${item.stable ? "STABLE" : "UNSTABLE"}`
+												: `${loaderTab === "forge" ? "Forge" : "NeoForge"} • MC ${item.game_version}`}
+										</div>
 									</div>
-									<div class="version-card-type">
-										{loaderTab === "fabric" ||
-										loaderTab === "quilt"
-											? `${item.stable ? "STABLE" : "UNSTABLE"}`
-											: `${loaderTab === "forge" ? "Forge" : "NeoForge"} • MC ${item.game_version}`}
-									</div>
+									{#if item.isInstalled}
+										<div class="inst-icon">✓</div>
+									{:else if item.isDownloading}
+										<button
+											type="button"
+											class="download-btn"
+											disabled
+										>
+											<span class="dl-spinner"></span>
+											{t("versionDownloader.downloading")}
+										</button>
+									{:else}
+										<button
+											type="button"
+											class="download-btn"
+											onclick={() =>
+												handleDownloadLoader(item)}
+										>
+											{t("versionDownloader.downloadBtn")}
+										</button>
+									{/if}
 								</div>
-								{#if item.isInstalled}
-									<div class="inst-icon">✓</div>
-								{:else if item.isDownloading}
-									<button
-										type="button"
-										class="download-btn"
-										disabled
-									>
-										<span class="dl-spinner"></span>
-										{t("versionDownloader.downloading")}
-									</button>
-								{:else}
-									<button
-										type="button"
-										class="download-btn"
-										onclick={() =>
-											handleDownloadLoader(item)}
-									>
-										{t("versionDownloader.downloadBtn")}
-									</button>
-								{/if}
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</div>
-		{/if}
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	</div>
 </ModalBase>

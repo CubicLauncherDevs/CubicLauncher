@@ -24,7 +24,8 @@
 	const groups = $derived.by(() => {
 		const map = new Map<string, ThemeEntry[]>();
 		for (const theme of themes) {
-			const author = theme.author || t("settings.launcher.themesUnknownAuthor");
+			const author =
+				theme.author || t("settings.launcher.themesUnknownAuthor");
 			let list = map.get(author);
 			if (!list) {
 				list = [];
@@ -71,7 +72,9 @@
 	}
 
 	async function handleExport(theme: ThemeEntry) {
-		const rawId = theme.id.startsWith("user:") ? theme.id.slice(5) : theme.id;
+		const rawId = theme.id.startsWith("user:")
+			? theme.id.slice(5)
+			: theme.id;
 		const savePath = await save({
 			defaultPath: `${rawId}.cbth`,
 			filters: [{ name: "CBTH Theme", extensions: ["cbth"] }],
@@ -85,8 +88,12 @@
 	}
 
 	async function handleDelete(theme: ThemeEntry) {
-		const rawId = theme.id.startsWith("user:") ? theme.id.slice(5) : theme.id;
-		const confirmed = confirm(t("themes.deleteConfirm").replace("{name}", theme.name));
+		const rawId = theme.id.startsWith("user:")
+			? theme.id.slice(5)
+			: theme.id;
+		const confirmed = confirm(
+			t("themes.deleteConfirm").replace("{name}", theme.name),
+		);
 		if (!confirmed) return;
 		try {
 			await invoke("remove_theme", { id: rawId });
@@ -108,7 +115,9 @@
 
 <div class="theme-selector">
 	<button class="import-btn" onclick={handleImport} disabled={importing}>
-		{importing ? t("settings.launcher.themesImporting") : t("settings.launcher.themesImport")}
+		{importing
+			? t("settings.launcher.themesImporting")
+			: t("settings.launcher.themesImport")}
 	</button>
 
 	{#each [...groups.entries()] as [author, themes] (author)}
@@ -122,26 +131,48 @@
 				>
 					{#if theme.preview}
 						<div class="swatch">
-							<div class="swatch-bar" style="background: {theme.preview.bg}"></div>
-							<div class="swatch-bar" style="background: {theme.preview.accent}"></div>
-							<div class="swatch-bar" style="background: {theme.preview.text}"></div>
+							<div
+								class="swatch-bar"
+								style="background: {theme.preview.bg}"
+							></div>
+							<div
+								class="swatch-bar"
+								style="background: {theme.preview.accent}"
+							></div>
+							<div
+								class="swatch-bar"
+								style="background: {theme.preview.text}"
+							></div>
 						</div>
 					{:else}
 						<div class="swatch swatch-missing">
-							<div class="swatch-bar" style="background: var(--bg-card)"></div>
-							<div class="swatch-bar" style="background: var(--accent)"></div>
-							<div class="swatch-bar" style="background: var(--text-primary)"></div>
+							<div
+								class="swatch-bar"
+								style="background: var(--bg-card)"
+							></div>
+							<div
+								class="swatch-bar"
+								style="background: var(--accent)"
+							></div>
+							<div
+								class="swatch-bar"
+								style="background: var(--text-primary)"
+							></div>
 						</div>
 					{/if}
 					<div class="theme-info">
 						<span class="theme-name">{theme.name}</span>
 						<span class="theme-meta">
-							{theme.author}{#if theme.version} v{theme.version}{/if}
+							{theme.author}{#if theme.version}
+								v{theme.version}{/if}
 						</span>
 					</div>
 					<div class="theme-actions">
 						{#if value === theme.id}
-							<div class="active-badge" title={t("settings.launcher.themesActive")}>
+							<div
+								class="active-badge"
+								title={t("settings.launcher.themesActive")}
+							>
 								<CheckIcon size={14} />
 							</div>
 						{/if}
@@ -191,7 +222,9 @@
 		font-family: inherit;
 		font-size: 0.8rem;
 		font-weight: 600;
-		transition: background 0.2s, border-color 0.2s;
+		transition:
+			background 0.2s,
+			border-color 0.2s;
 	}
 
 	.import-btn:hover:not(:disabled) {
@@ -306,7 +339,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: color 0.15s, background 0.15s;
+		transition:
+			color 0.15s,
+			background 0.15s;
 	}
 
 	.icon-btn:hover {

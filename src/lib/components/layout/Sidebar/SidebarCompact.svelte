@@ -89,9 +89,7 @@
 	<div class="sc-content">
 		<div class="sc-instance-list" data-tutorial="instance-list">
 			{#if launcherStore.loadedInstances.length === 0}
-				<div class="sc-empty" title={t("sidebar.noInstances")}>
-					—
-				</div>
+				<div class="sc-empty" title={t("sidebar.noInstances")}>—</div>
 			{:else}
 				{#each launcherStore.loadedInstances as instance (instance.uuid)}
 					<button
@@ -175,7 +173,8 @@
 		tabindex="0"
 		title={username}
 		onclick={() => (showUserMenu = true)}
-		onkeydown={(e) => (e.key === "Enter" || e.key === " ") && (showUserMenu = true)}
+		onkeydown={(e) =>
+			(e.key === "Enter" || e.key === " ") && (showUserMenu = true)}
 	>
 		<div class="sc-avatar-wrapper">
 			{#if avatarSvg}
