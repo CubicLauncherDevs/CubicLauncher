@@ -3,6 +3,7 @@
 	import { invoke } from "@tauri-apps/api/core";
 	import type { ThemeEntry } from "$lib/types/types";
 	import { t } from "$lib/i18n";
+	import { SvelteMap } from "svelte/reactivity";
 	import CheckIcon from "$lib/icons/CheckIcon.svelte";
 	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
 	import Trash from "$lib/icons/Trash.svelte";
@@ -22,7 +23,7 @@
 	let importing = $state(false);
 
 	const groups = $derived.by(() => {
-		const map = new Map<string, ThemeEntry[]>();
+		const map = new SvelteMap<string, ThemeEntry[]>();
 		for (const theme of themes) {
 			const author =
 				theme.author || t("settings.launcher.themesUnknownAuthor");
@@ -114,7 +115,7 @@
 </script>
 
 <div class="theme-selector">
-	<button class="import-btn" onclick={handleImport} disabled={importing}>
+	<button type="button" class="import-btn" onclick={handleImport} disabled={importing}>
 		{importing
 			? t("settings.launcher.themesImporting")
 			: t("settings.launcher.themesImport")}
@@ -124,10 +125,13 @@
 		<div class="group">
 			<span class="group-title">{author}</span>
 			{#each themes as theme (theme.id)}
-				<button
+				<div
 					class="theme-row"
 					class:active={value === theme.id}
+					role="button"
+					tabindex="0"
 					onclick={() => selectTheme(theme.id)}
+					onkeydown={(e) => e.key === "Enter" && selectTheme(theme.id)}
 				>
 					{#if theme.preview}
 						<div class="swatch">
@@ -177,7 +181,7 @@
 							</div>
 						{/if}
 						{#if theme.type !== "builtin"}
-							<button
+							<button type="button"
 								class="icon-btn"
 								title={t("settings.launcher.themesExport")}
 								onclick={(e) => {
@@ -187,7 +191,7 @@
 							>
 								<DownloadIcon size={14} />
 							</button>
-							<button
+							<button type="button"
 								class="icon-btn danger"
 								title={t("settings.launcher.themesDelete")}
 								onclick={(e) => {
@@ -199,7 +203,7 @@
 							</button>
 						{/if}
 					</div>
-				</button>
+				</div>
 			{/each}
 		</div>
 	{/each}

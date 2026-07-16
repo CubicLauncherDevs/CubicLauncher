@@ -58,11 +58,6 @@
 			.catch(() => {});
 	});
 
-	function openDeleteModal(instance: InstanceDto) {
-		instanceToActOn = instance;
-		showDeleteModal = true;
-	}
-
 	async function handleDelete() {
 		if (!instanceToActOn) return;
 		await deleteInst(instanceToActOn.uuid);
