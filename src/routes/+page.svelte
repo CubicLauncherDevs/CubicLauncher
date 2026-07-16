@@ -44,7 +44,7 @@
 
 	let selectedInstance = $state<InstanceDto | null>(null);
 	let sidebarMode = $state<'normal' | 'compact'>('normal');
-	let sidebarAnim = $state<'idle' | 'slide-out' | 'slide-in'>('idle');
+	let transitioning = $state(false);
 	let quickMenuOpen = $state(false);
 	let instanceEditorOpen = $state(false);
 	let versionDownloaderOpen = $state(false);
@@ -215,27 +215,12 @@
 	}
 
 	function toggleSidebar() {
-		if (sidebarAnim !== 'idle') return;
-
-		if (sidebarMode === 'normal') {
-			sidebarAnim = 'slide-out';
-			setTimeout(() => {
-				sidebarMode = 'compact';
-				sidebarAnim = 'slide-in';
-				setTimeout(() => {
-					sidebarAnim = 'idle';
-				}, 300);
-			}, 200);
-		} else {
-			sidebarAnim = 'slide-out';
-			setTimeout(() => {
-				sidebarMode = 'normal';
-				sidebarAnim = 'slide-in';
-				setTimeout(() => {
-					sidebarAnim = 'idle';
-				}, 300);
-			}, 200);
-		}
+		if (transitioning) return;
+		transitioning = true;
+		sidebarMode = sidebarMode === 'normal' ? 'compact' : 'normal';
+		setTimeout(() => {
+			transitioning = false;
+		}, 350);
 	}
 
 	function onTutorialClose() {
@@ -296,9 +281,7 @@
 
 		<div
 			class="sidebar-container"
-			style="width: {sidebarMode === 'compact' ? '70px' : 'var(--sidebar-width)'}"
-			class:slide-out={sidebarAnim === 'slide-out'}
-			class:slide-in={sidebarAnim === 'slide-in'}
+			class:compact={sidebarMode === 'compact'}
 		>
 			{#if sidebarMode === 'normal'}
 				<Sidebar
@@ -420,34 +403,13 @@
 		flex-shrink: 0;
 		overflow: hidden;
 		display: flex;
+		width: var(--sidebar-width);
+		background: var(--bg-sidebar-gradient, var(--bg-sidebar));
+		transition: width 0.35s cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
-	.sidebar-container.slide-out :global(.sidebar),
-	.sidebar-container.slide-out :global(.sidebar-compact) {
-		animation: sidebarSlideOut 0.2s ease forwards;
-	}
-
-	.sidebar-container.slide-in :global(.sidebar),
-	.sidebar-container.slide-in :global(.sidebar-compact) {
-		animation: sidebarSlideIn 0.3s ease forwards;
-	}
-
-	@keyframes sidebarSlideOut {
-		to {
-			transform: translateX(-280px);
-			opacity: 0;
-		}
-	}
-
-	@keyframes sidebarSlideIn {
-		from {
-			transform: translateX(-280px);
-			opacity: 0;
-		}
-		to {
-			transform: translateX(0);
-			opacity: 1;
-		}
+	.sidebar-container.compact {
+		width: 70px;
 	}
 
 	.empty-state {

@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-  CubicLauncher es un launcher de Minecraft multiplataforma construido sobre <a href="https://tauri.app">Tauri v2</a> + <a href="https://kit.svelte.dev/">SvelteKit</a> (frontend) y <a href="https://www.rust-lang.org/">Rust</a> (backend nativo). Gestiona instancias aisladas de Minecraft con soporte para múltiples versiones, loaders de mods (Vanilla, Fabric, Forge, NeoForge), autenticación OAuth 2.0 (Microsoft) y Yggdrasil, y un sistema modular de crates Rust con caché binario.
+  CubicLauncher es un launcher de Minecraft multiplataforma construido sobre <a href="https://tauri.app">Tauri v2</a> + <a href="https://kit.svelte.dev/">SvelteKit</a> (frontend) y <a href="https://www.rust-lang.org/">Rust</a> (backend nativo). Gestiona instancias aisladas de Minecraft con soporte para múltiples versiones, loaders de mods (Vanilla, Fabric, Forge, Quilt, NeoForge), autenticación OAuth 2.0 (Microsoft) y Yggdrasil, y un sistema modular de crates Rust con caché binario.
 </p>
 
 <p align="center">
