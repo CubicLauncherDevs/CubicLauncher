@@ -144,27 +144,25 @@ pub async fn install_mrpack(
     // Download icon from Modrinth if available and set as instance icon
     let icon = if let Some(url) = icon_url {
         match reqwest::get(&url).await {
-            Ok(response) => {
-                match response.bytes().await {
-                    Ok(bytes) => {
-                        let icon_path = instance_dir.join("icon.png");
-                        if let Err(e) = tokio::fs::write(&icon_path, &bytes).await {
-                            tracing::error!("Failed to write icon: {}", e);
-                            None
-                        } else if let Some(icon_str) = icon_path.to_str() {
-                            handle.set_icon(Some(icon_str.to_string())).await;
-                            let _ = handle.save_if_dirty().await;
-                            Some(icon_str.to_string())
-                        } else {
-                            None
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to read icon bytes: {}", e);
+            Ok(response) => match response.bytes().await {
+                Ok(bytes) => {
+                    let icon_path = instance_dir.join("icon.png");
+                    if let Err(e) = tokio::fs::write(&icon_path, &bytes).await {
+                        tracing::error!("Failed to write icon: {}", e);
+                        None
+                    } else if let Some(icon_str) = icon_path.to_str() {
+                        handle.set_icon(Some(icon_str.to_string())).await;
+                        let _ = handle.save_if_dirty().await;
+                        Some(icon_str.to_string())
+                    } else {
                         None
                     }
                 }
-            }
+                Err(e) => {
+                    tracing::error!("Failed to read icon bytes: {}", e);
+                    None
+                }
+            },
             Err(e) => {
                 tracing::error!("Failed to download icon: {}", e);
                 None
