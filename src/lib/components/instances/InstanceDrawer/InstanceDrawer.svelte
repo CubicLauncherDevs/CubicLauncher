@@ -30,7 +30,7 @@
 	let selectedJavaVersion = $state("");
 	let useOverrides = $state(false);
 
-	const parsedVersion = parseInstanceVersion(instance.version);
+	let parsedVersion = $derived(parseInstanceVersion(instance.version));
 	let selectedLoader = $state(parsedVersion.loader);
 	let selectedMcVersion = $state(parsedVersion.mcVersion);
 	let selectedLoaderVersion = $state(parsedVersion.loaderVersion);

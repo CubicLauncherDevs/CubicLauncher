@@ -199,7 +199,7 @@
 									handleDelete(theme);
 								}}
 							>
-								<Trash size={14} />
+								<Trash width={14} height={14} />
 							</button>
 						{/if}
 					</div>
