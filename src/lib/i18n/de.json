@@ -116,7 +116,9 @@
 			"deleteDesc2": "? Diese Aktion kann nicht rückgängig gemacht werden.",
 			"deleteBtn": "Löschen"
 		},
-		"downloadVersions": "Versionen herunterladen"
+		"downloadVersions": "Versionen herunterladen",
+		"collapse": "Seitenleiste einklappen",
+		"expand": "Seitenleiste ausklappen"
 	},
 	"userMenu": {
 		"title": "Benutzerprofil",
@@ -344,7 +346,9 @@
 		"installBtn": "Installieren",
 		"loadMore": "Mehr laden",
 		"downloads": "Downloads",
-		"selectMrpackBtn": ".mrpack-Datei auswählen"
+		"selectMrpackBtn": ".mrpack-Datei auswählen",
+		"uploadIcon": "Logo hochladen",
+		"iconFilter": "Bilder"
 	},
 	"themes": {
 		"importSuccess": "Theme importiert",

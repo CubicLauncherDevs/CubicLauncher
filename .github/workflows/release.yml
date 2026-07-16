@@ -9,32 +9,8 @@ env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-    create-draft:
-        name: Create draft release
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
-        outputs:
-            release_id: ${{ steps.draft.outputs.id }}
-        steps:
-            - uses: actions/checkout@v4
-
-            - name: Create draft release
-              id: draft
-              env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: |
-                  gh release create "${{ github.ref_name }}" \
-                    --draft \
-                    --generate-notes \
-                    --title "CubicLauncher ${{ github.ref_name }}"
-
-                  id=$(gh release view "${{ github.ref_name }}" --json id -q '.id')
-                  echo "id=$id" >> "$GITHUB_OUTPUT"
-
     build:
         name: Build (${{ matrix.platform }}${{ matrix.args }})
-        needs: create-draft
         permissions:
             contents: write
         strategy:
@@ -85,7 +61,8 @@ jobs:
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
                   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
               with:
-                  releaseId: ${{ needs.create-draft.outputs.release_id }}
+                  tagName: ${{ github.ref_name }}
+                  releaseName: "CubicLauncher ${{ github.ref_name }}"
                   releaseDraft: true
                   includeUpdaterJson: true
                   updaterJsonPreferNsis: true

@@ -167,7 +167,11 @@
 				iconSrc="/images/icons/settings.svg"
 				storageKey="instance_general"
 			>
-				<GeneralSection bind:selectedIcon bind:instanceName />
+				<GeneralSection
+					bind:selectedIcon
+					bind:instanceName
+					instanceUuid={instance.uuid}
+				/>
 			</CollapsibleSection>
 			<CollapsibleSection
 				title="Installation"

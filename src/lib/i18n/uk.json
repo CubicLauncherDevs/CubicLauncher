@@ -116,7 +116,9 @@
 			"deleteDesc2": "? Цю дію неможливо скасувати.",
 			"deleteBtn": "Видалити"
 		},
-		"downloadVersions": "Завантажити версії"
+		"downloadVersions": "Завантажити версії",
+		"collapse": "Згорнути бічну панель",
+		"expand": "Розгорнути бічну панель"
 	},
 	"userMenu": {
 		"title": "Профіль користувача",
@@ -344,7 +346,9 @@
 		"installBtn": "Встановити",
 		"loadMore": "Завантажити ще",
 		"downloads": "завантажень",
-		"selectMrpackBtn": "Вибрати .mrpack файл"
+		"selectMrpackBtn": "Вибрати .mrpack файл",
+		"uploadIcon": "Завантажити логотип",
+		"iconFilter": "Зображення"
 	},
 	"themes": {
 		"importSuccess": "Тему імпортовано",

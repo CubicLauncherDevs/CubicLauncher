@@ -116,7 +116,9 @@
 			"deleteDesc2": "? Cette action est irréversible.",
 			"deleteBtn": "Supprimer"
 		},
-		"downloadVersions": "Télécharger les Versions"
+		"downloadVersions": "Télécharger les Versions",
+		"collapse": "Réduire la barre latérale",
+		"expand": "Agrandir la barre latérale"
 	},
 	"userMenu": {
 		"title": "Profil Utilisateur",
@@ -344,7 +346,9 @@
 		"installBtn": "Installer",
 		"loadMore": "Charger plus",
 		"downloads": "téléchargements",
-		"selectMrpackBtn": "Sélectionner un fichier .mrpack"
+		"selectMrpackBtn": "Sélectionner un fichier .mrpack",
+		"uploadIcon": "Télécharger un logo",
+		"iconFilter": "Images"
 	},
 	"themes": {
 		"importSuccess": "Thème importé",

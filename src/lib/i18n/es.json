@@ -116,7 +116,9 @@
 			"deleteDesc2": "? Esta acción no se puede deshacer.",
 			"deleteBtn": "Eliminar"
 		},
-		"downloadVersions": "Descargar Versiones"
+		"downloadVersions": "Descargar Versiones",
+		"collapse": "Colapsar barra lateral",
+		"expand": "Expandir barra lateral"
 	},
 	"userMenu": {
 		"title": "Perfil de Usuario",
@@ -344,7 +346,9 @@
 		"installBtn": "Instalar",
 		"loadMore": "Cargar más",
 		"downloads": "descargas",
-		"selectMrpackBtn": "Seleccionar archivo .mrpack"
+		"selectMrpackBtn": "Seleccionar archivo .mrpack",
+		"uploadIcon": "Subir logo",
+		"iconFilter": "Imágenes"
 	},
 	"themes": {
 		"importSuccess": "Theme importado",
