@@ -273,7 +273,10 @@ async fn remove_custom_icons(icons_dir: &std::path::Path) {
 }
 
 #[tauri::command]
-pub async fn upload_custom_icon(instance_id: String, source_path: String) -> Result<String, String> {
+pub async fn upload_custom_icon(
+    instance_id: String,
+    source_path: String,
+) -> Result<String, String> {
     validate_uuid(&instance_id)?;
     let manager = InstanceManager::get();
     let Some(handle) = manager.get_handle(&instance_id).await else {
@@ -335,7 +338,10 @@ pub async fn reset_instance_icon(instance_id: String) -> Result<(), String> {
     validate_uuid(&instance_id)?;
     let manager = InstanceManager::get();
     let Some(handle) = manager.get_handle(&instance_id).await else {
-        warn!("Instancia {} no encontrada para resetear icono", instance_id);
+        warn!(
+            "Instancia {} no encontrada para resetear icono",
+            instance_id
+        );
         return Err(InstanceError::NotFound.to_string());
     };
 
