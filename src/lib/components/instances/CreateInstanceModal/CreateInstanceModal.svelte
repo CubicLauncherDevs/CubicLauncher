@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		createInstance,
+		uploadCustomIcon,
 		fetchAll,
 		parseMrpack,
 		installMrpack,
@@ -35,6 +36,7 @@
 	// ── Instance fields ─────────────────────────────────────────────────────────
 	let name = $state("");
 	let selectedIcon = $state<string | null>(null);
+	let customIconPath = $state<string | null>(null);
 
 	// ── Version selector ──────────────────────────────────────────────────────
 	let selectedLoader = $state("vanilla");
@@ -185,6 +187,11 @@
 		}
 	}
 
+	function handleIconUpload(filePath: string) {
+		customIconPath = filePath;
+		selectedIcon = filePath;
+	}
+
 	async function handleManualCreate() {
 		if (!validateName()) return;
 		if (!finalVersionId) {
@@ -197,8 +204,11 @@
 			await createInstance(
 				name,
 				finalVersionId,
-				selectedIcon,
-				async () => {
+				customIconPath ? null : selectedIcon,
+				async (uuid: string) => {
+					if (customIconPath) {
+						await uploadCustomIcon(uuid, customIconPath);
+					}
 					await enqueueSelectedVersion();
 					open = false;
 					resetState();
@@ -259,6 +269,7 @@
 		selectedMcVersion = "";
 		selectedLoaderVersion = "";
 		selectedIcon = null;
+		customIconPath = null;
 		error = null;
 		parsing = false;
 		packInfo = null;
@@ -348,7 +359,11 @@
 		{:else}
 			<div class="create-layout">
 				<div class="create-header">
-					<IconPicker bind:selectedIcon disabled={loading} />
+					<IconPicker
+						bind:selectedIcon
+						disabled={loading}
+						onupload={handleIconUpload}
+					/>
 					<div class="fields-column">
 						<div class="input-group">
 							<span class="input-label">

@@ -116,7 +116,9 @@
 			"deleteDesc2": "? This action cannot be undone.",
 			"deleteBtn": "Delete"
 		},
-		"downloadVersions": "Download Versions"
+		"downloadVersions": "Download Versions",
+		"collapse": "Collapse sidebar",
+		"expand": "Expand sidebar"
 	},
 	"userMenu": {
 		"title": "User Profile",
@@ -344,7 +346,9 @@
 		"installBtn": "Install",
 		"loadMore": "Load more",
 		"downloads": "downloads",
-		"selectMrpackBtn": "Select .mrpack file"
+		"selectMrpackBtn": "Select .mrpack file",
+		"uploadIcon": "Upload logo",
+		"iconFilter": "Images"
 	},
 	"themes": {
 		"importSuccess": "Theme imported",

@@ -13,7 +13,7 @@ pub async fn create_instance(
     name: String,
     version: String,
     icon: Option<String>,
-) -> Result<(), String> {
+) -> Result<String, String> {
     info!(
         "Creando instancia: name={}, version={}, icon={:?}",
         name, version, icon
@@ -23,12 +23,13 @@ pub async fn create_instance(
         .await
     {
         Ok(d) => {
-            info!("Instancia creada: uuid={}", d.uuid);
+            let uuid = d.uuid.to_string();
+            info!("Instancia creada: uuid={}", uuid);
             emit(AppEvent::InstanceCreated {
-                id: d.uuid.to_string().into(),
+                id: uuid.clone().into(),
                 dto: d.to_dto().await,
             });
-            Ok(())
+            Ok(uuid)
         }
         Err(e) => {
             error!("Error creando instancia: {}", e);
@@ -255,6 +256,103 @@ pub async fn add_instance_file(
         .to_string()
     })?;
     info!("Archivo copiado a {:?}", dest_path);
+    Ok(())
+}
+
+async fn remove_custom_icons(icons_dir: &std::path::Path) {
+    if !icons_dir.exists() {
+        return;
+    }
+    if let Ok(mut dir) = tokio::fs::read_dir(icons_dir).await {
+        while let Ok(Some(entry)) = dir.next_entry().await {
+            if entry.file_name().to_string_lossy().starts_with("custom_") {
+                let _ = tokio::fs::remove_file(entry.path()).await;
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn upload_custom_icon(instance_id: String, source_path: String) -> Result<String, String> {
+    validate_uuid(&instance_id)?;
+    let manager = InstanceManager::get();
+    let Some(handle) = manager.get_handle(&instance_id).await else {
+        warn!("Instancia {} no encontrada para subir icono", instance_id);
+        return Err(InstanceError::NotFound.to_string());
+    };
+
+    let src = PathBuf::from(&source_path);
+    if !src.exists() {
+        return Err(format!("El archivo '{}' no existe", source_path));
+    }
+
+    let instance_dir = handle.get_instance_dir().await;
+    let icons_dir = instance_dir.join("icons");
+    tokio::fs::create_dir_all(&icons_dir).await.map_err(|e| {
+        error!("Error creando directorio de iconos {:?}: {}", icons_dir, e);
+        FsError::CreateDir {
+            path: icons_dir.to_string_lossy().to_string(),
+            source: e,
+        }
+        .to_string()
+    })?;
+
+    // Remove previous custom icons to avoid cluttering
+    remove_custom_icons(&icons_dir).await;
+
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let dest_path = icons_dir.join(format!("custom_{}.png", timestamp));
+
+    tokio::fs::copy(&src, &dest_path).await.map_err(|e| {
+        error!("Error copiando icono de {:?} a {:?}: {}", src, dest_path, e);
+        FsError::Copy {
+            from: src.to_string_lossy().to_string(),
+            to: dest_path.to_string_lossy().to_string(),
+            source: e,
+        }
+        .to_string()
+    })?;
+
+    let icon_path_str = dest_path.to_string_lossy().to_string();
+    handle.set_icon(Some(icon_path_str.clone())).await;
+    handle.save_if_dirty().await.map_err(|e| {
+        error!("Error guardando instancia tras subir icono: {}", e);
+        e.to_string()
+    })?;
+    emit(AppEvent::InstanceEdited {
+        id: handle.uuid.to_string().into(),
+    });
+    info!("Icono personalizado subido a {:?}", dest_path);
+
+    Ok(icon_path_str)
+}
+
+#[tauri::command]
+pub async fn reset_instance_icon(instance_id: String) -> Result<(), String> {
+    validate_uuid(&instance_id)?;
+    let manager = InstanceManager::get();
+    let Some(handle) = manager.get_handle(&instance_id).await else {
+        warn!("Instancia {} no encontrada para resetear icono", instance_id);
+        return Err(InstanceError::NotFound.to_string());
+    };
+
+    // Remove custom icon files
+    let instance_dir = handle.get_instance_dir().await;
+    let icons_dir = instance_dir.join("icons");
+    remove_custom_icons(&icons_dir).await;
+
+    handle.set_icon(None).await;
+    handle.save_if_dirty().await.map_err(|e| {
+        error!("Error guardando instancia tras resetear icono: {}", e);
+        e.to_string()
+    })?;
+    emit(AppEvent::InstanceEdited {
+        id: handle.uuid.to_string().into(),
+    });
+    info!("Icono reseteado para instancia {}", instance_id);
     Ok(())
 }
 

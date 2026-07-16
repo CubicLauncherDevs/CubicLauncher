@@ -42,12 +42,16 @@ export async function createInstance(
 	name: string,
 	version: string,
 	icon: string | null,
-	callback?: () => void,
+	callback?: (uuid: string) => void,
 	onError?: (err: unknown) => void,
 ): Promise<void> {
 	try {
-		await invoke("create_instance", { name, version, icon });
-		callback?.();
+		const uuid = await invoke<string>("create_instance", {
+			name,
+			version,
+			icon,
+		});
+		callback?.(uuid);
 	} catch (err) {
 		showErrorParsed(err);
 		onError?.(err);
@@ -1098,6 +1102,31 @@ export async function installMrpack(
 		showErrorParsed(err);
 		onError?.(err);
 		return null;
+	}
+}
+
+export async function uploadCustomIcon(
+	instanceId: string,
+	sourcePath: string,
+): Promise<string | null> {
+	try {
+		return await invoke<string>("upload_custom_icon", {
+			instanceId,
+			sourcePath,
+		});
+	} catch (err) {
+		showErrorParsed(err);
+		return null;
+	}
+}
+
+export async function resetInstanceIcon(
+	instanceId: string,
+): Promise<void> {
+	try {
+		await invoke("reset_instance_icon", { instanceId });
+	} catch (err) {
+		showErrorParsed(err);
 	}
 }
 

@@ -11,6 +11,7 @@
 	} from "$lib/api/launcherService";
 	import type { InstanceDto } from "$lib/types/types";
 	import Sidebar from "$lib/components/layout/Sidebar/Sidebar.svelte";
+	import SidebarCompact from "$lib/components/layout/Sidebar/SidebarCompact.svelte";
 	import InstanceView from "$lib/components/instances/InstanceView/InstanceView.svelte";
 	import Drawer from "$lib/components/layout/Drawer.svelte";
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
@@ -42,6 +43,8 @@
 	});
 
 	let selectedInstance = $state<InstanceDto | null>(null);
+	let sidebarMode = $state<'normal' | 'compact'>('normal');
+	let sidebarAnim = $state<'idle' | 'slide-out' | 'slide-in'>('idle');
 	let quickMenuOpen = $state(false);
 	let instanceEditorOpen = $state(false);
 	let versionDownloaderOpen = $state(false);
@@ -63,6 +66,10 @@
 	let editingTimer: ReturnType<typeof setTimeout> | undefined;
 
 	onMount(async () => {
+		const stored = localStorage.getItem('sidebarMode');
+		if (stored === 'compact') {
+			sidebarMode = 'compact';
+		}
 		initEventListeners();
 
 		await Promise.all([syncSettings(), getVersions()]);
@@ -75,8 +82,6 @@
 		if (firstInstance && !selectedInstance) {
 			selectedInstance = firstInstance;
 		}
-
-		applyTheme(launcherStore.settings.theme);
 
 		if (launcherStore.settings.discord_presence) {
 			initDiscordPresence();
@@ -103,6 +108,17 @@
 		unlistenDragDrop?.();
 		clearTimeout(checkUpdatesTimer);
 		clearTimeout(editingTimer);
+	});
+
+	$effect(() => {
+		const theme = launcherStore.settings.theme;
+		if (theme) {
+			applyTheme(theme);
+		}
+	});
+
+	$effect(() => {
+		localStorage.setItem('sidebarMode', sidebarMode);
 	});
 
 	async function setupDragDrop() {
@@ -198,6 +214,30 @@
 		}
 	}
 
+	function toggleSidebar() {
+		if (sidebarAnim !== 'idle') return;
+
+		if (sidebarMode === 'normal') {
+			sidebarAnim = 'slide-out';
+			setTimeout(() => {
+				sidebarMode = 'compact';
+				sidebarAnim = 'slide-in';
+				setTimeout(() => {
+					sidebarAnim = 'idle';
+				}, 300);
+			}, 200);
+		} else {
+			sidebarAnim = 'slide-out';
+			setTimeout(() => {
+				sidebarMode = 'normal';
+				sidebarAnim = 'slide-in';
+				setTimeout(() => {
+					sidebarAnim = 'idle';
+				}, 300);
+			}, 200);
+		}
+	}
+
 	function onTutorialClose() {
 		launcherStore.settings.show_tutorial = false;
 		saveSettings();
@@ -254,16 +294,38 @@
 			</div>
 		{/if}
 
-		<Sidebar
-			bind:selectedInstance
-			onopenquickmenu={() => (quickMenuOpen = true)}
-			onopenversiondownloader={() => (versionDownloaderOpen = true)}
-			onopencreateinstance={() => (openCreateModal = true)}
-			onopeneditinstance={(inst) => {
-				instanceEditorOpen = true;
-				editingInstance = inst;
-			}}
-		/>
+		<div
+			class="sidebar-container"
+			style="width: {sidebarMode === 'compact' ? '70px' : 'var(--sidebar-width)'}"
+			class:slide-out={sidebarAnim === 'slide-out'}
+			class:slide-in={sidebarAnim === 'slide-in'}
+		>
+			{#if sidebarMode === 'normal'}
+				<Sidebar
+					bind:selectedInstance
+					onopenquickmenu={() => (quickMenuOpen = true)}
+					onopenversiondownloader={() => (versionDownloaderOpen = true)}
+					onopencreateinstance={() => (openCreateModal = true)}
+					onopeneditinstance={(inst) => {
+						instanceEditorOpen = true;
+						editingInstance = inst;
+					}}
+					oncollapse={toggleSidebar}
+				/>
+			{:else}
+				<SidebarCompact
+					bind:selectedInstance
+					onopenquickmenu={() => (quickMenuOpen = true)}
+					onopenversiondownloader={() => (versionDownloaderOpen = true)}
+					onopencreateinstance={() => (openCreateModal = true)}
+					onopeneditinstance={(inst) => {
+						instanceEditorOpen = true;
+						editingInstance = inst;
+					}}
+					onexpand={toggleSidebar}
+				/>
+			{/if}
+		</div>
 
 		<main class="main-content">
 			<div class="background-overlay"></div>
@@ -352,5 +414,48 @@
 	.drag-overlay-content p {
 		font-size: 0.9rem;
 		opacity: 0.8;
+	}
+
+	.sidebar-container {
+		flex-shrink: 0;
+		overflow: hidden;
+		display: flex;
+	}
+
+	.sidebar-container.slide-out :global(.sidebar),
+	.sidebar-container.slide-out :global(.sidebar-compact) {
+		animation: sidebarSlideOut 0.2s ease forwards;
+	}
+
+	.sidebar-container.slide-in :global(.sidebar),
+	.sidebar-container.slide-in :global(.sidebar-compact) {
+		animation: sidebarSlideIn 0.3s ease forwards;
+	}
+
+	@keyframes sidebarSlideOut {
+		to {
+			transform: translateX(-280px);
+			opacity: 0;
+		}
+	}
+
+	@keyframes sidebarSlideIn {
+		from {
+			transform: translateX(-280px);
+			opacity: 0;
+		}
+		to {
+			transform: translateX(0);
+			opacity: 1;
+		}
+	}
+
+	.empty-state {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
 	}
 </style>
