@@ -18,6 +18,10 @@
 
 ## Installation
 
+<a href="https://dev.cubiclauncher.org/">
+    <img src="https://dev.cubiclauncher.org/cubiclauncher-apis.svg" alt="Apis Status" align="right">
+</a>
+
 <a href="https://repology.org/project/cubiclauncher/versions">
     <img src="https://repology.org/badge/vertical-allrepos/cubiclauncher.svg" alt="Packaging status" align="right">
 </a>
