@@ -8,7 +8,7 @@
 		onAppEvent,
 	} from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
-	import { t, locales, downloadLocale, isFetched } from "$lib/i18n";
+	import { t, locales, downloadLocale } from "$lib/i18n";
 	import { i18nLoader } from "$lib/i18n/loader.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
 	import {
@@ -137,7 +137,7 @@
 			label: `${t(`languages.${l.code}`)} (${l.label})`,
 			icon: i18nLoader.loading === l.code
 				? "⏳"
-				: isFetched(l.code)
+				: i18nLoader.fetched.has(l.code)
 					? l.flag
 					: "/images/icons/download.svg",
 		})),

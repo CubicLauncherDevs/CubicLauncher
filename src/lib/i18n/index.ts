@@ -27,6 +27,10 @@ const failedLocales = new Set<string>();
 
 let enFlat: Record<string, string> | null = null;
 
+// Init reactive state for bundled locales
+i18nLoader.fetched.add("es");
+i18nLoader.fetched.add("en");
+
 export function isBundled(lang: string): boolean {
 	return lang === "es" || lang === "en";
 }
@@ -86,29 +90,35 @@ function getFlat(lang: string): Record<string, string> {
 getFlat("en");
 
 async function loadCachedLocales(): Promise<void> {
-	for (const loc of locales) {
-		if (isBundled(loc.code)) continue;
-		try {
+	const toLoad = locales.filter((loc) => !isBundled(loc.code));
+
+	const results = await Promise.allSettled(
+		toLoad.map(async (loc) => {
 			const dataStr = await invoke<string | null>("load_locale", {
 				lang: loc.code,
 			});
 			if (dataStr) {
 				const data = JSON.parse(dataStr) as LocaleDict;
 				fetchedDicts.set(loc.code, data);
-				flatCache.delete(loc.code);
+				flatCache.set(loc.code, flatten(data));
+				i18nLoader.fetched.add(loc.code);
 			}
-		} catch {
-			// Not in Tauri context or no cache yet
+		}),
+	);
+
+	for (const result of results) {
+		if (result.status === "rejected") {
+			console.error("[i18n] Failed to load cached locale:", result.reason);
 		}
 	}
+
 	if (fetchedDicts.size > 0) {
 		i18nLoader.version++;
 	}
 }
 
-loadCachedLocales();
-
 export async function downloadLocale(lang: string): Promise<void> {
+	if (isBundled(lang)) return;
 	if (pendingFetches.has(lang)) return pendingFetches.get(lang)!;
 	if (fetchedDicts.has(lang)) return;
 
@@ -121,7 +131,8 @@ export async function downloadLocale(lang: string): Promise<void> {
 		})
 		.then((data) => {
 			fetchedDicts.set(lang, data);
-			flatCache.delete(lang);
+			flatCache.set(lang, flatten(data));
+			i18nLoader.fetched.add(lang);
 			i18nLoader.version++;
 			invoke("save_locale", { lang, data: JSON.stringify(data) })
 				.catch((e) => console.error("[i18n] Failed to persist locale:", e));
@@ -185,3 +196,5 @@ export const locales = [
 	{ code: "de", label: "Deutsch", flag: "🇩🇪" },
 	{ code: "uk", label: "Українська", flag: "🇺🇦" },
 ] as const;
+
+loadCachedLocales();
