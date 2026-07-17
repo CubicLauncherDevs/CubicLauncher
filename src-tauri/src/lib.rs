@@ -55,6 +55,8 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::detect_java_paths,
+            commands::i18n::save_locale,
+            commands::i18n::load_locale,
             commands::auth::get_device_code,
             commands::auth::authenticate_with_device_code,
             commands::auth::start_webview_auth,

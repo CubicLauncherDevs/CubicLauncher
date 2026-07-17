@@ -1,9 +1,8 @@
 import { launcherStore } from "$lib/state/state.svelte";
-import es from "./es.json";
-import en from "./en.json";
-import fr from "./fr.json";
-import de from "./de.json";
-import uk from "./uk.json";
+import es from "./es-ES.json";
+import en from "./en-US.json";
+import { i18nLoader } from "./loader.svelte";
+import { invoke } from "@tauri-apps/api/core";
 
 type NestedKeys<T, Prefix extends string = ""> = {
 	[K in keyof T & string]: T[K] extends string
@@ -18,10 +17,23 @@ export type TranslationKey = Exclude<NestedKeys<typeof es>, "id">;
 type DictValue = string | { [key: string]: DictValue };
 type LocaleDict = Record<string, DictValue>;
 
-const dicts: Record<string, LocaleDict> = { es, en, fr, de, uk };
+const API_BASE = "https://i18n.cubiclauncher.org";
 
+const bundled: Record<string, LocaleDict> = { es, en };
+const fetchedDicts = new Map<string, LocaleDict>();
 const flatCache = new Map<string, Record<string, string>>();
+const pendingFetches = new Map<string, Promise<void>>();
+const failedLocales = new Set<string>();
+
 let enFlat: Record<string, string> | null = null;
+
+export function isBundled(lang: string): boolean {
+	return lang === "es" || lang === "en";
+}
+
+export function isFetched(lang: string): boolean {
+	return isBundled(lang) || fetchedDicts.has(lang);
+}
 
 function flatten(
 	obj: Record<string, DictValue>,
@@ -43,10 +55,27 @@ function flatten(
 function getFlat(lang: string): Record<string, string> {
 	if (lang === "en" && enFlat) return enFlat;
 
+	void i18nLoader.version;
+
 	let cached = flatCache.get(lang);
 	if (!cached) {
-		const dict = dicts[lang];
-		cached = dict && typeof dict === "object" ? flatten(dict) : {};
+		if (isBundled(lang)) {
+			const dict = bundled[lang];
+			cached = dict && typeof dict === "object" ? flatten(dict) : {};
+		} else {
+			const dict = fetchedDicts.get(lang);
+			if (dict) {
+				cached = flatten(dict);
+			} else {
+				cached = {};
+				if (
+					!pendingFetches.has(lang) &&
+					!failedLocales.has(lang)
+				) {
+					downloadLocale(lang);
+				}
+			}
+		}
 		flatCache.set(lang, cached);
 	}
 	if (lang === "en") enFlat = cached;
@@ -55,6 +84,62 @@ function getFlat(lang: string): Record<string, string> {
 
 // Pre-cache English for fallback
 getFlat("en");
+
+async function loadCachedLocales(): Promise<void> {
+	for (const loc of locales) {
+		if (isBundled(loc.code)) continue;
+		try {
+			const dataStr = await invoke<string | null>("load_locale", {
+				lang: loc.code,
+			});
+			if (dataStr) {
+				const data = JSON.parse(dataStr) as LocaleDict;
+				fetchedDicts.set(loc.code, data);
+				flatCache.delete(loc.code);
+			}
+		} catch {
+			// Not in Tauri context or no cache yet
+		}
+	}
+	if (fetchedDicts.size > 0) {
+		i18nLoader.version++;
+	}
+}
+
+loadCachedLocales();
+
+export async function downloadLocale(lang: string): Promise<void> {
+	if (pendingFetches.has(lang)) return pendingFetches.get(lang)!;
+	if (fetchedDicts.has(lang)) return;
+
+	i18nLoader.loading = lang;
+
+	const promise = fetch(`${API_BASE}/${lang}`)
+		.then((res) => {
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			return res.json() as Promise<LocaleDict>;
+		})
+		.then((data) => {
+			fetchedDicts.set(lang, data);
+			flatCache.delete(lang);
+			i18nLoader.version++;
+			invoke("save_locale", { lang, data: JSON.stringify(data) })
+				.catch((e) => console.error("[i18n] Failed to persist locale:", e));
+		})
+		.catch((err) => {
+			failedLocales.add(lang);
+			console.error(`[i18n] Failed to fetch locale "${lang}":`, err);
+		})
+		.finally(() => {
+			pendingFetches.delete(lang);
+			if (i18nLoader.loading === lang) {
+				i18nLoader.loading = null;
+			}
+		});
+
+	pendingFetches.set(lang, promise);
+	return promise;
+}
 
 export function t(
 	key: TranslationKey,

@@ -8,7 +8,8 @@
 		onAppEvent,
 	} from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
-	import { t, locales } from "$lib/i18n";
+	import { t, locales, downloadLocale, isFetched } from "$lib/i18n";
+	import { i18nLoader } from "$lib/i18n/loader.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
 	import {
 		checkForUpdates,
@@ -134,7 +135,11 @@
 		locales.map((l) => ({
 			value: l.code,
 			label: `${t(`languages.${l.code}`)} (${l.label})`,
-			icon: l.flag,
+			icon: i18nLoader.loading === l.code
+				? "⏳"
+				: isFetched(l.code)
+					? l.flag
+					: "/images/icons/download.svg",
 		})),
 	);
 	let availableThemes = $state<ThemeEntry[]>([]);
@@ -310,7 +315,10 @@
 						label={t("settings.launcher.language")}
 						options={languageOptions}
 						bind:value={launcherStore.settings.language}
-						onchange={handleSave}
+						onchange={(val) => {
+							downloadLocale(val);
+							handleSave();
+						}}
 					/>
 					<div class="qm-field-checkbox">
 						<input

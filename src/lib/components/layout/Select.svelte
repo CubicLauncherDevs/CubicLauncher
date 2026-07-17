@@ -138,7 +138,13 @@
 		{/if}
 		<span class="selected-value">
 			{#if !loading && selectedIcon}
-				<span class="option-icon">{selectedIcon}</span>
+				<span class="option-icon">
+					{#if selectedIcon.startsWith("/")}
+						<img src={selectedIcon} alt="" class="option-img" />
+					{:else}
+						{selectedIcon}
+					{/if}
+				</span>
 			{/if}
 			{loading ? loadingPlaceholder : selectedLabel}
 		</span>
@@ -167,7 +173,13 @@
 					tabindex="0"
 				>
 					{#if option.icon}
-						<span class="option-icon">{option.icon}</span>
+						<span class="option-icon">
+							{#if option.icon.startsWith("/")}
+								<img src={option.icon} alt="" class="option-img" />
+							{:else}
+								{option.icon}
+							{/if}
+						</span>
 					{/if}
 					<span class="select-option-label">{option.label}</span>
 					{#if option.badge}
@@ -204,6 +216,14 @@
 		line-height: 1;
 		margin-right: 6px;
 		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+	}
+
+	.option-img {
+		width: 1.2em;
+		height: 1.2em;
+		display: block;
 	}
 
 	.selected-value .option-icon {

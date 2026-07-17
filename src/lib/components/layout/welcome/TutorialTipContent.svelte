@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t, locales } from "$lib/i18n";
+	import { t, locales, downloadLocale } from "$lib/i18n";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { saveSettings } from "$lib/api/launcherService";
 	import Select from "$lib/components/layout/Select.svelte";
@@ -18,6 +18,7 @@
 	}));
 
 	async function onLanguageChange() {
+		downloadLocale(launcherStore.settings.language);
 		await saveSettings();
 	}
 </script>
