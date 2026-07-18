@@ -230,7 +230,7 @@
 		const trimmed = name.trim();
 		if (!trimmed) return false;
 		if (trimmed.length > MAX_NAME_LEN) return false;
-		if (!/^[\x00-\x7F]*$/.test(trimmed)) return false;
+		if (!/^[\0-\x7F]*$/.test(trimmed)) return false;
 		if (trimmed.includes('..')) return false;
 		if (trimmed.split('').some((c) => FORBIDDEN_CHARS.includes(c))) return false;
 		return true;
@@ -241,7 +241,7 @@
 			.normalize('NFD')
 			.replace(/[\u0300-\u036f]/g, '')
 			.replace(/[^\x20-\x7E]/g, '')
-			.replace(/[\/\\<>\:"|?*]/g, '')
+			.replace(/[\\/<>:"|?*]/g, '')
 			.replace(/\.\./g, '')
 			.replace(/\s+/g, ' ')
 			.trim();
