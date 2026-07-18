@@ -3,6 +3,7 @@ use std::sync::LazyLock;
 
 use log::{debug, error, warn};
 use reqwest::Client;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use sha1::{Digest, Sha1};
 use tokio::io::AsyncWriteExt;
 
@@ -27,6 +28,17 @@ pub async fn download_file(
     expected_hash: &str,
     size_hint: Option<u64>,
     reporter: Option<&DownloadReporter>,
+) -> Result<(), AquaError> {
+    download_file_with_headers(url, path, expected_hash, size_hint, reporter, &[]).await
+}
+
+pub async fn download_file_with_headers(
+    url: &str,
+    path: &Path,
+    expected_hash: &str,
+    size_hint: Option<u64>,
+    reporter: Option<&DownloadReporter>,
+    headers: &[(String, String)],
 ) -> Result<(), AquaError> {
     if url.is_empty() {
         return Err(AquaError::Other("Empty download URL".into()));
@@ -68,7 +80,20 @@ pub async fn download_file(
             r.reset_attempt();
         }
 
-        let response = match HTTP_CLIENT.get(url).send().await {
+        let mut request = HTTP_CLIENT.get(url);
+        if !headers.is_empty() {
+            let mut header_map = HeaderMap::new();
+            for (k, v) in headers {
+                if let (Ok(name), Ok(value)) = (
+                    HeaderName::from_bytes(k.as_bytes()),
+                    HeaderValue::from_str(v),
+                ) {
+                    header_map.insert(name, value);
+                }
+            }
+            request = request.headers(header_map);
+        }
+        let response = match request.send().await {
             Ok(r) if r.status().is_success() => r,
             Ok(r) => {
                 warn!(

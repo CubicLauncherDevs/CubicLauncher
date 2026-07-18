@@ -99,6 +99,34 @@ export function curseforgeProjectToMarket(
 	};
 }
 
+function normalizeCurseForgeLoader(value: string): string {
+	const lower = value.toLowerCase().replace(/^modloader[-_]?/, "");
+	if (lower.includes("neoforge")) return "neoforge";
+	if (lower.includes("forge")) return "forge";
+	if (lower.includes("fabric")) return "fabric";
+	if (lower.includes("quilt")) return "quilt";
+	return lower.replace(/[-_]/g, "");
+}
+
+const CURSEFORGE_LOADERS = new Set([
+	"forge",
+	"neoforge",
+	"fabric",
+	"quilt",
+	"liteloader",
+	"cauldron",
+]);
+
+function extractCurseForgeLoaders(file: CurseForgeFile): string[] {
+	const fromField = file.modLoaders ?? [];
+	if (fromField.length > 0) {
+		return fromField.map(normalizeCurseForgeLoader);
+	}
+	return file.gameVersions
+		.filter((gv) => CURSEFORGE_LOADERS.has(gv.toLowerCase()))
+		.map(normalizeCurseForgeLoader);
+}
+
 export function curseforgeVersionToMarket(
 	file: CurseForgeFile,
 	installedFileId?: string | number,
@@ -108,9 +136,7 @@ export function curseforgeVersionToMarket(
 		name: file.fileName,
 		versionNumber: file.fileName,
 		datePublished: file.fileDate,
-		loaders: file.modLoaders.map((l) =>
-			l.toLowerCase().replace("modloader-", "").replace("-", ""),
-		),
+		loaders: extractCurseForgeLoaders(file),
 		gameVersions: file.gameVersions,
 		isInstalled:
 			installedFileId !== undefined &&

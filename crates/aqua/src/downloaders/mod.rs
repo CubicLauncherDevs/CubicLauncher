@@ -27,7 +27,7 @@ use tokio::task::JoinHandle;
 use crate::AquaError;
 use crate::progress::{DownloadReporter, ProgressSender, ProgressState};
 use crate::types::NormalizedVersion;
-use crate::utilities::download_file;
+use crate::utilities::download_file_with_headers;
 
 const DEFAULT_MAX_HANDLES: usize = 2;
 const DEFAULT_DOWNLOADS_PER_HANDLE: usize = 128;
@@ -266,34 +266,37 @@ async fn run_download(
 
             let reporter = state.as_ref().map(|s| DownloadReporter::new(Arc::clone(s)));
 
-            if let Err(e) = download_file(
+            if let Err(e) = download_file_with_headers(
                 &item.url,
                 &item.destination,
                 &item.expected_hash,
                 item.size,
                 reporter.as_ref(),
+                &item.headers,
             )
             .await
             {
                 if let Some(ref fallback) = item.fallback_url {
                     warn!("Main URL failed. Using fallback: {fallback}");
-                    if download_file(
+                    if download_file_with_headers(
                         fallback,
                         &item.destination,
                         &item.expected_hash,
                         item.size,
                         reporter.as_ref(),
+                        &item.headers,
                     )
                     .await
                     .is_err()
                     {
                         warn!("Fallback failed, using fallback with universal.");
-                        if download_file(
+                        if download_file_with_headers(
                             &fallback.replace(".jar", "-universal.jar"),
                             &item.destination,
                             &item.expected_hash,
                             item.size,
                             reporter.as_ref(),
+                            &item.headers,
                         )
                         .await
                         .is_err()

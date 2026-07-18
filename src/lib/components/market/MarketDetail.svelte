@@ -51,15 +51,21 @@
 			: "",
 	);
 
-	const versionOptions = $derived(
-		detail.versions.map((v) => ({
+	const versionOptions = $derived.by(() => {
+		const compatible = detail.versions.filter((v) =>
+			isVersionCompatible(v),
+		);
+		const versionsToShow =
+			compatible.length > 0 ? compatible : detail.versions;
+		return versionsToShow.map((v) => ({
 			value: v.id,
 			label: `${v.versionNumber} — ${v.name}`,
-			subtitle: isVersionCompatible(v)
-				? "✓ Compatible"
-				: v.gameVersions.slice(0, 2).join(", "),
-		})),
-	);
+			subtitle:
+				compatible.length > 0
+					? "✓ Compatible"
+					: v.gameVersions.slice(0, 2).join(", "),
+		}));
+	});
 
 	function formatNumber(num: number | undefined | null): string {
 		if (num == null) return "—";

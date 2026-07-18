@@ -975,6 +975,10 @@ export async function getCurseForgeFileDownloadUrl(
 	}
 }
 
+export const CURSEFORGE_HEADERS = {
+	"x-api-key": CURSEFORGE_API_KEY,
+};
+
 export interface ModDownloadInfo {
 	url: string;
 	filename: string;
@@ -982,6 +986,7 @@ export interface ModDownloadInfo {
 	iconUrl?: string;
 	project_id?: string;
 	version_id?: string;
+	headers?: Record<string, string>;
 }
 
 export async function downloadMods(
