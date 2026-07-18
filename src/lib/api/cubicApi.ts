@@ -649,11 +649,13 @@ export async function getModrinthProjectVersions(
 	projectId: string,
 	loader?: string,
 	gameVersion?: string,
+	signal?: AbortSignal,
 ): Promise<ModrinthVersion[]> {
 	try {
 		const url = new URL(
 			`https://api.modrinth.com/v2/project/${projectId}/version`,
 		);
+		url.searchParams.append("include_changelog", "false");
 		if (loader) {
 			url.searchParams.append(
 				"loaders",
@@ -668,17 +670,24 @@ export async function getModrinthProjectVersions(
 		}
 
 		const cacheKey = url.toString();
-		const cached = apiCache.get<ModrinthVersion[]>(cacheKey);
-		if (cached) return cached;
+		if (!signal) {
+			const cached = apiCache.get<ModrinthVersion[]>(cacheKey);
+			if (cached) return cached;
+		}
 
-		const res = await fetch(url.toString());
+		const res = await fetch(url.toString(), { signal });
 		if (!res.ok) {
 			throw new Error(`Modrinth API error: ${res.status}`);
 		}
 		const data = (await res.json()) as ModrinthVersion[];
-		apiCache.set(cacheKey, data);
+		if (!signal) {
+			apiCache.set(cacheKey, data);
+		}
 		return data;
 	} catch (err) {
+		if (err instanceof DOMException && err.name === "AbortError") {
+			return [];
+		}
 		showErrorParsed(err);
 		return [];
 	}
@@ -910,6 +919,7 @@ export async function getCurseForgeProjectFiles(
 	modId: number,
 	loader?: string,
 	gameVersion?: string,
+	signal?: AbortSignal,
 ): Promise<CurseForgeFile[]> {
 	try {
 		const apiKey = CURSEFORGE_API_KEY;
@@ -927,10 +937,13 @@ export async function getCurseForgeProjectFiles(
 		}
 
 		const cacheKey = url.toString();
-		const cached = apiCache.get<CurseForgeFile[]>(cacheKey);
-		if (cached) return cached;
+		if (!signal) {
+			const cached = apiCache.get<CurseForgeFile[]>(cacheKey);
+			if (cached) return cached;
+		}
 
 		const res = await fetch(url.toString(), {
+			signal,
 			headers: {
 				"x-api-key": apiKey,
 				Accept: "application/json",
@@ -941,9 +954,14 @@ export async function getCurseForgeProjectFiles(
 		}
 		const body = (await res.json()) as CurseForgeFilesResult;
 		const data = body.data || [];
-		apiCache.set(cacheKey, data);
+		if (!signal) {
+			apiCache.set(cacheKey, data);
+		}
 		return data;
 	} catch (err) {
+		if (err instanceof DOMException && err.name === "AbortError") {
+			return [];
+		}
 		showErrorParsed(err);
 		return [];
 	}
