@@ -73,6 +73,33 @@
 	let existingNames = $state<string[]>([]);
 	let nameMsg = $state<string | null>(null);
 
+	const FORBIDDEN_CHARS = ['/', '\\', '<', '>', ':', '"', '|', '?', '*'];
+	const MAX_NAME_LEN = 16;
+
+	function isValidInstanceName(name: string): boolean {
+		const trimmed = name.trim();
+		if (!trimmed) return false;
+		if (trimmed.length > MAX_NAME_LEN) return false;
+		if (!/^[\x00-\x7F]*$/.test(trimmed)) return false;
+		if (trimmed.includes('..')) return false;
+		if (trimmed.split('').some((c) => FORBIDDEN_CHARS.includes(c))) return false;
+		return true;
+	}
+
+	function sanitizeInstanceName(name: string): string {
+		let clean = name
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^\x20-\x7E]/g, '')
+			.replace(/[\/\\<>\:"|?*]/g, '')
+			.replace(/\.\./g, '')
+			.replace(/\s+/g, ' ')
+			.trim();
+		if (!clean) clean = 'modpack';
+		if (clean.length > MAX_NAME_LEN) clean = clean.slice(0, MAX_NAME_LEN);
+		return clean;
+	}
+
 	function validateName(): boolean {
 		const trimmed = name.trim();
 		if (!trimmed) {
@@ -85,6 +112,10 @@
 		}
 		if (existingNames.includes(trimmed)) {
 			nameMsg = "createInstance.nameExists";
+			return false;
+		}
+		if (!isValidInstanceName(trimmed)) {
+			nameMsg = "createInstance.nameInvalidChars";
 			return false;
 		}
 		nameMsg = null;
@@ -133,7 +164,11 @@
 			const info = await parseMrpack(mrpackPath);
 			if (info) {
 				packInfo = info;
-				if (!name.trim()) name = info.name;
+				if (!name.trim()) {
+					name = isValidInstanceName(info.name)
+						? info.name
+						: sanitizeInstanceName(info.name);
+				}
 				const loaderIcon = selectIconForLoader(info.loader);
 				if (loaderIcon) selectedIcon = loaderIcon;
 			} else {
@@ -359,6 +394,27 @@
 							<p>{t("createInstance.parsingPack")}</p>
 						</div>
 					{:else}
+						<div class="import-name-section">
+							<div class="input-group">
+								<span class="input-label">
+									{t("createInstance.nameLabel")}
+								</span>
+								<input
+									type="text"
+									class="text-input"
+									class:error={nameMsg}
+									maxlength={16}
+									bind:value={name}
+									disabled={loading}
+									oninput={() => (nameMsg = null)}
+									onkeydown={(e) =>
+										e.key === "Enter" && handleFinalAction()}
+								/>
+								{#if nameMsg}
+									<span class="input-error">{t(nameMsg)}</span>
+								{/if}
+							</div>
+						</div>
 						<PackInfo {packInfo} onChangeFile={selectMrpackFile} />
 					{/if}
 				</div>
@@ -592,5 +648,31 @@
 		gap: 16px;
 		color: var(--text-secondary);
 		font-size: 0.85rem;
+	}
+
+	.import-name-section {
+		margin-bottom: 8px;
+	}
+
+	.import-name-section :global(.text-input) {
+		width: 100%;
+		padding: 8px 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--bg-input);
+		color: var(--text-primary);
+		font-size: 0.82rem;
+		font-family: inherit;
+		outline: none;
+		box-sizing: border-box;
+	}
+
+	.import-name-section :global(.text-input:focus) {
+		border-color: var(--accent);
+	}
+
+	.import-name-section :global(.text-input.error) {
+		border-color: var(--color-error) !important;
+		box-shadow: 0 0 0 1px var(--color-error) !important;
 	}
 </style>

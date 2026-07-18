@@ -224,6 +224,7 @@
 		width: 1.2em;
 		height: 1.2em;
 		display: block;
+		filter: var(--icon-filter);
 	}
 
 	.selected-value .option-icon {

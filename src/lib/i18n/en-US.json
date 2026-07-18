@@ -360,7 +360,11 @@
 		"downloads": "downloads",
 		"selectMrpackBtn": "Select .mrpack file",
 		"uploadIcon": "Upload logo",
-		"iconFilter": "Images"
+		"iconFilter": "Images",
+		"customNameNeeded": "This modpack name contains unsupported characters. Please enter a custom name:",
+		"customNamePlaceholder": "Instance name",
+		"nameInvalidChars": "The name contains invalid characters. Use only ASCII letters, numbers, and basic punctuation.",
+		"nameInvalidNonAscii": "The name can only contain ASCII characters (a-z, 0-9, -, _)."
 	},
 	"themes": {
 		"importSuccess": "Theme imported",

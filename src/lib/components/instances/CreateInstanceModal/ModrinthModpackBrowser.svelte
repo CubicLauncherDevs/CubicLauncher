@@ -37,6 +37,10 @@
 	let installError = $state<string | null>(null);
 	let installStep = $state<string>("");
 
+	let needsCustomName = $state(false);
+	let customName = $state("");
+	let customNameError = $state<string | null>(null);
+
 	let fullProject = $state<ModrinthProjectFull | null>(null);
 	let loadingFullProject = $state(false);
 
@@ -137,8 +141,24 @@
 
 	async function install() {
 		if (!selectedPack || !selectedVersion) return;
+
+		const rawName = selectedPack.title;
+		if (!isValidInstanceName(rawName)) {
+			customName = sanitizeInstanceName(rawName);
+			customNameError = null;
+			needsCustomName = true;
+			installError = null;
+			return;
+		}
+
+		await doInstall(rawName);
+	}
+
+	async function doInstall(name: string) {
+		if (!selectedPack || !selectedVersion) return;
 		installing = true;
 		installError = null;
+		needsCustomName = false;
 		try {
 			const ver = versions.find((v) => v.id === selectedVersion);
 			if (!ver) throw new Error("Version not found");
@@ -154,7 +174,6 @@
 			if (!mrpackPath) throw new Error("Failed to download modpack");
 
 			installStep = t("createInstance.importingBtn");
-			const name = selectedPack.title;
 			const result = await installMrpackWithUpstream(
 				mrpackPath,
 				name,
@@ -179,10 +198,56 @@
 		}
 	}
 
+	function confirmCustomName() {
+		const trimmed = customName.trim();
+		if (!trimmed) {
+			customNameError = t("createInstance.emptyNameErr");
+			return;
+		}
+		if (!isValidInstanceName(trimmed)) {
+			customNameError = t("createInstance.nameInvalidChars");
+			return;
+		}
+		doInstall(trimmed);
+	}
+
+	function cancelCustomName() {
+		needsCustomName = false;
+		customName = "";
+		customNameError = null;
+	}
+
 	function formatDownloads(n: number): string {
 		if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
 		if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
 		return String(n);
+	}
+
+	const FORBIDDEN_CHARS = ['/', '\\', '<', '>', ':', '"', '|', '?', '*'];
+	const MAX_NAME_LEN = 16;
+
+	function isValidInstanceName(name: string): boolean {
+		const trimmed = name.trim();
+		if (!trimmed) return false;
+		if (trimmed.length > MAX_NAME_LEN) return false;
+		if (!/^[\x00-\x7F]*$/.test(trimmed)) return false;
+		if (trimmed.includes('..')) return false;
+		if (trimmed.split('').some((c) => FORBIDDEN_CHARS.includes(c))) return false;
+		return true;
+	}
+
+	function sanitizeInstanceName(name: string): string {
+		let clean = name
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^\x20-\x7E]/g, '')
+			.replace(/[\/\\<>\:"|?*]/g, '')
+			.replace(/\.\./g, '')
+			.replace(/\s+/g, ' ')
+			.trim();
+		if (!clean) clean = 'modpack';
+		if (clean.length > MAX_NAME_LEN) clean = clean.slice(0, MAX_NAME_LEN);
+		return clean;
 	}
 
 	$effect(() => {
@@ -289,21 +354,67 @@
 						options={versionOptions}
 						placeholder={t("createInstance.selectLoaderVersion")}
 						loading={loadingVersions}
-						disabled={versions.length === 0}
+						disabled={versions.length === 0 || installing}
 					/>
 				</div>
 
-				<button
-					type="button"
-					class="btn-primary install-btn"
-					onclick={install}
-					disabled={installing || !selectedVersion}
-				>
-					{installing
-						? t("createInstance.installingModpack")
-						: t("createInstance.installBtn")}
-				</button>
+				{#if needsCustomName}
+					<button
+						type="button"
+						class="btn-secondary install-btn"
+						onclick={cancelCustomName}
+						disabled={installing}
+					>
+						{t("createInstance.cancel")}
+					</button>
+				{:else}
+					<button
+						type="button"
+						class="btn-primary install-btn"
+						onclick={install}
+						disabled={installing || !selectedVersion}
+					>
+						{installing
+							? t("createInstance.installingModpack")
+							: t("createInstance.installBtn")}
+					</button>
+				{/if}
 			</div>
+
+			{#if needsCustomName}
+				<div class="custom-name-section">
+					<p class="custom-name-hint">
+						{t("createInstance.customNameNeeded")}
+					</p>
+					<div class="custom-name-input-row">
+						<input
+							type="text"
+							class="text-input"
+							class:error={customNameError}
+							bind:value={customName}
+							maxlength={16}
+							disabled={installing}
+							oninput={() => (customNameError = null)}
+							onkeydown={(e) =>
+								e.key === "Enter" && confirmCustomName()}
+							placeholder={t("createInstance.customNamePlaceholder")}
+						/>
+						<button
+							type="button"
+							class="btn-primary"
+							onclick={confirmCustomName}
+							disabled={installing || !customName.trim()}
+						>
+							{installing
+								? t("createInstance.installingModpack")
+								: t("createInstance.installBtn")}
+						</button>
+					</div>
+					{#if customNameError}
+						<span class="input-error">{customNameError}</span>
+					{/if}
+				</div>
+			{/if}
 
 			{#if loadingFullProject}
 				<div class="readme-loading">
@@ -754,5 +865,55 @@
 		border: none;
 		border-top: 1px solid var(--border);
 		margin: 14px 0;
+	}
+
+	.custom-name-section {
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		padding: 12px;
+		background: rgba(var(--accent-rgb, 255, 255, 255), 0.03);
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.custom-name-hint {
+		font-size: 0.78rem;
+		color: var(--text-secondary);
+		margin: 0;
+		line-height: 1.4;
+	}
+
+	.custom-name-input-row {
+		display: flex;
+		gap: 8px;
+		align-items: center;
+	}
+
+	.custom-name-input-row :global(.text-input) {
+		flex: 1;
+		padding: 8px 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--bg-input);
+		color: var(--text-primary);
+		font-size: 0.82rem;
+		font-family: inherit;
+		outline: none;
+	}
+
+	.custom-name-input-row :global(.text-input:focus) {
+		border-color: var(--accent);
+	}
+
+	.custom-name-input-row :global(.text-input.error) {
+		border-color: var(--color-error) !important;
+		box-shadow: 0 0 0 1px var(--color-error) !important;
+	}
+
+	.input-error {
+		font-size: 0.7rem;
+		color: var(--color-error);
+		display: block;
 	}
 </style>
