@@ -23,7 +23,6 @@
 	} from "$lib/api/cubicApi";
 	import type {
 		MinecraftVersion,
-		FabricGameVersion,
 		ForgeGameVersion,
 		NeoForgeGameVersion,
 	} from "$lib/types/types";
@@ -88,10 +87,7 @@
 	let forgeCache = $state<ForgeGameVersion[]>([]);
 	let neoForgeCache = $state<NeoForgeGameVersion[]>([]);
 
-	// --- "Browse all" for fabric/quilt ---
 	let fabricQuiltShowAll = $state(false);
-	let fabricQuiltCache = $state<FabricGameVersion[]>([]);
-	let loadingFabricQuiltAll = $state(false);
 
 	// --- Vanilla manifest cache for "Show all" ---
 	let vanillaAllCache = $state<MinecraftVersion[] | null>(null);
@@ -132,7 +128,6 @@
 		loaderItems = [];
 		selectedMcVersion = "";
 		fabricQuiltShowAll = false;
-		fabricQuiltCache = [];
 
 		try {
 			const raw = await getInstalledVersions();
@@ -162,17 +157,18 @@
 					}
 				}
 			} else {
-				const installedSet =
-					tab === "fabric" ? installed.fabric : installed.quilt;
-				const baseVersions = new SvelteSet<string>();
-				for (const v of installedSet) {
-					const parsed = parseMcFromLoaderVersion(v, tab);
-					if (parsed) baseVersions.add(parsed);
+				const list =
+					tab === "fabric"
+						? await getFabricVersions()
+						: await getQuiltVersions();
+				const seen = new SvelteSet<string>();
+				for (const v of list) {
+					if (v.version && v.stable && !seen.has(v.version)) {
+						seen.add(v.version);
+						mcList.push(v.version);
+					}
 				}
-				if (baseVersions.size === 0) {
-					for (const v of installed.vanilla) baseVersions.add(v);
-				}
-				mcList = Array.from(baseVersions);
+				fabricQuiltShowAll = true;
 			}
 
 			if (currentLoadId !== mcLoadId) return;
@@ -193,21 +189,6 @@
 		}
 	}
 
-	function parseMcFromLoaderVersion(
-		versionId: string,
-		loader: string,
-	): string | null {
-		if (loader === "fabric") {
-			const m = versionId.match(/^fabric-loader-[\d.]+-(.+)$/);
-			return m ? m[1] : null;
-		}
-		if (loader === "quilt") {
-			const m = versionId.match(/^quilt-loader-[\d.]+-(.+)$/);
-			return m ? m[1] : null;
-		}
-		return null;
-	}
-
 	async function loadLoaderVersions(mcVersion: string, loader: string) {
 		const currentLoadId = ++loaderLoadId;
 		loadingLoader = true;
@@ -216,30 +197,7 @@
 		try {
 			let items: LoaderDisplayItem[] = [];
 
-			if (
-				loader === "fabric" &&
-				fabricQuiltCache.length > 0 &&
-				fabricQuiltShowAll
-			) {
-				const filtered = fabricQuiltCache.filter((v) => {
-					const parsed = parseMcFromLoaderVersion(
-						v.version,
-						"fabric",
-					);
-					return parsed === mcVersion;
-				});
-				items = filtered.map((v) => {
-					const vid = v.version;
-					return {
-						version_id: vid,
-						display_version: v.version,
-						game_version: mcVersion,
-						stable: v.stable,
-						isInstalled: installed.fabric.has(vid),
-						isDownloading: isVersionDownloading(vid),
-					};
-				});
-			} else if (loader === "fabric") {
+			if (loader === "fabric") {
 				const list = await getFabricLoaderVersions(mcVersion);
 				for (const lv of list) {
 					const vid = `fabric-loader-${lv}-${mcVersion}`;
@@ -252,26 +210,6 @@
 						isDownloading: isVersionDownloading(vid),
 					});
 				}
-			} else if (
-				loader === "quilt" &&
-				fabricQuiltCache.length > 0 &&
-				fabricQuiltShowAll
-			) {
-				const filtered = fabricQuiltCache.filter((v) => {
-					const parsed = parseMcFromLoaderVersion(v.version, "quilt");
-					return parsed === mcVersion;
-				});
-				items = filtered.map((v) => {
-					const vid = v.version;
-					return {
-						version_id: vid,
-						display_version: v.version,
-						game_version: mcVersion,
-						stable: v.stable,
-						isInstalled: installed.quilt.has(vid),
-						isDownloading: isVersionDownloading(vid),
-					};
-				});
 			} else if (loader === "quilt") {
 				const list = await getQuiltLoaderVersions(mcVersion);
 				for (const lv of list) {
@@ -323,42 +261,6 @@
 			if (currentLoadId !== loaderLoadId) return;
 		} finally {
 			if (currentLoadId === loaderLoadId) loadingLoader = false;
-		}
-	}
-
-	// --- "Browse all" for Fabric/Quilt ---
-
-	async function loadFabricQuiltAll() {
-		if (loadingFabricQuiltAll || fabricQuiltCache.length > 0) return;
-		loadingFabricQuiltAll = true;
-		try {
-			const list =
-				loaderTab === "fabric"
-					? await getFabricVersions()
-					: await getQuiltVersions();
-			fabricQuiltCache = list;
-
-			const baseVersions = new SvelteSet<string>();
-			for (const v of list) {
-				const parsed = parseMcFromLoaderVersion(
-					v.version,
-					loaderTab === "fabric" ? "fabric" : "quilt",
-				);
-				if (parsed) baseVersions.add(parsed);
-			}
-			const merged = new SvelteSet([...mcVersions, ...baseVersions]);
-			const sorted = Array.from(merged).sort(compareVersions);
-			mcVersions = sorted;
-
-			if (!selectedMcVersion || !sorted.includes(selectedMcVersion)) {
-				selectedMcVersion = sorted[0] ?? "";
-			}
-			fabricQuiltShowAll = true;
-			await loadLoaderVersions(selectedMcVersion, loaderTab);
-		} catch {
-			// ignore
-		} finally {
-			loadingFabricQuiltAll = false;
 		}
 	}
 
@@ -475,7 +377,6 @@
 		} else if (loaderTab === "fabric" && fabricQuiltShowAll) {
 			refreshing = true;
 			try {
-				fabricQuiltCache = await getFabricVersions();
 				await loadLoaderVersions(selectedMcVersion, loaderTab);
 			} finally {
 				refreshing = false;
@@ -499,7 +400,6 @@
 		} else if (loaderTab === "quilt" && fabricQuiltShowAll) {
 			refreshing = true;
 			try {
-				fabricQuiltCache = await getQuiltVersions();
 				await loadLoaderVersions(selectedMcVersion, loaderTab);
 			} finally {
 				refreshing = false;
@@ -666,19 +566,6 @@
 								loadLoaderVersions(value, loaderTab)}
 						/>
 					</div>
-
-					{#if (loaderTab === "fabric" || loaderTab === "quilt") && !fabricQuiltShowAll}
-						<button
-							type="button"
-							class="browse-all-btn"
-							onclick={loadFabricQuiltAll}
-							disabled={loadingFabricQuiltAll}
-						>
-							{loadingFabricQuiltAll
-								? t("versionDownloader.loading")
-								: t("versionDownloader.browseAll")}
-						</button>
-					{/if}
 
 					{#if loaderTab === "forge" || loaderTab === "neoforge"}
 						<div

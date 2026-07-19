@@ -20,7 +20,7 @@
 		ModSource,
 	} from "$lib/types/types";
 	import { onDestroy } from "svelte";
-	import { SvelteMap } from "svelte/reactivity";
+	import { SvelteMap, SvelteSet } from "svelte/reactivity";
 	import Review from "./Review.svelte";
 	import Browse from "./Browse.svelte";
 
@@ -296,7 +296,7 @@
 			const mainResults = await Promise.all(mainFetches);
 
 			// Fase 2: procesar resultados principales y recolectar dependencias
-			const depProjectIds = new Set<string>();
+			const depProjectIds = new SvelteSet<string>();
 			const cfDownloadsToResolve: {
 				cfProject: CurseForgeProject;
 				file: CurseForgeFile;
