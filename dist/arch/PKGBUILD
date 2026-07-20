@@ -1,7 +1,7 @@
 # Maintainer: Santiagolxx
 
 pkgname=cubiclauncher
-pkgver=29.5
+pkgver=31
 pkgrel=1
 pkgdesc="Open-source Minecraft launcher"
 arch=('x86_64')
