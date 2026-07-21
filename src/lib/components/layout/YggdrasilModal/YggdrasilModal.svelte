@@ -66,9 +66,7 @@
 			);
 
 			const idx = launcherStore.settings.user.findIndex(
-				(u) =>
-					u.username === user.username &&
-					u.yggdrasil_server_url === user.yggdrasil_server_url,
+				(u) => u.uuid === user.uuid,
 			);
 			if (idx >= 0) {
 				launcherStore.settings.user[idx] = user;

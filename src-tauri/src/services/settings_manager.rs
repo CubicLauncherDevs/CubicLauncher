@@ -235,9 +235,23 @@ impl SettingsManager {
         self.user.push(user);
     }
 
+    #[allow(dead_code)]
     pub fn rem_user(&mut self, user_name: &str) {
         let idx = self.user.iter().position(|u| u.username == user_name);
         self.user.retain(|s| s.username != user_name);
+        if let Some(i) = idx {
+            if self.user.is_empty() {
+                self.user.push(MinecraftUser::cracked("Steve"));
+                self.active_user_idx = 0;
+            } else if i < self.active_user_idx || self.active_user_idx >= self.user.len() {
+                self.active_user_idx = self.active_user_idx.saturating_sub(1);
+            }
+        }
+    }
+
+    pub fn rem_user_by_uuid(&mut self, uuid: &str) {
+        let idx = self.user.iter().position(|u| u.uuid == uuid);
+        self.user.retain(|u| u.uuid != uuid);
         if let Some(i) = idx {
             if self.user.is_empty() {
                 self.user.push(MinecraftUser::cracked("Steve"));
@@ -261,6 +275,15 @@ impl SettingsManager {
             self.user[self.active_user_idx] = user;
         } else {
             warn!("se intento reemplazar un usuario pero este no existe.");
+        }
+    }
+
+    /// Reemplaza un usuario por su UUID
+    pub fn set_user_by_uuid(&mut self, user: &MinecraftUser) {
+        if let Some(existing) = self.user.iter_mut().find(|u| u.uuid == user.uuid) {
+            *existing = user.clone();
+        } else {
+            warn!("se intento reemplazar un usuario por UUID pero no se encontró: {}", user.uuid);
         }
     }
     // ── Persistencia ──────────────────────────────────────────────────────────

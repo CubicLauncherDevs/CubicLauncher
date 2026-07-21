@@ -28,10 +28,7 @@ pub async fn update_settings(mut new_settings: SettingsManager) -> Result<(), St
     }
     SettingsManager::write(|s| {
         for new_user in &mut new_settings.user {
-            if let Some(existing) = s.user.iter().find(|u| u.username == new_user.username) {
-                new_user.access_token = existing.access_token.clone();
-                new_user.refresh_token = existing.refresh_token.clone();
-            }
+            let _ = new_user.load_tokens();
         }
         *s = new_settings;
     })?;

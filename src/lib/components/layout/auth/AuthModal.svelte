@@ -28,7 +28,7 @@
 			const user = await startWebviewAuth();
 
 			const idx = launcherStore.settings.user.findIndex(
-				(u) => u.username === user.username,
+				(u) => u.uuid === user.uuid,
 			);
 			if (idx >= 0) {
 				launcherStore.settings.user[idx] = user;
