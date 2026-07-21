@@ -89,25 +89,6 @@
 <aside class="sidebar">
 	<div class="sidebar-header" data-tutorial="sidebar-header">
 		<h1 style="font-size: 0.9rem; font-weight: bold;">CUBICLAUNCHER</h1>
-		<button
-			type="button"
-			class="collapse-btn"
-			onclick={oncollapse}
-			title={t("sidebar.collapse")}
-		>
-			<svg
-				width="14"
-				height="14"
-				viewBox="0 0 16 16"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M10 4l-4 4 4 4" />
-			</svg>
-		</button>
 	</div>
 
 	<div class="sidebar-content">
@@ -210,6 +191,26 @@
 			onclick={() => (showUserMenu = true)}
 		/>
 	</div>
+
+	<button
+		type="button"
+		class="collapse-btn"
+		onclick={oncollapse}
+		title={t("sidebar.collapse")}
+	>
+		<svg
+			width="14"
+			height="14"
+			viewBox="0 0 16 16"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			<path d="M10 4l-4 4 4 4" />
+		</svg>
+	</button>
 </aside>
 
 <DeleteInstanceModal
@@ -243,6 +244,7 @@
 		padding: 18px 16px 0;
 		z-index: 10;
 		user-select: none;
+		position: relative;
 	}
 
 	.sidebar-header {
@@ -263,21 +265,26 @@
 	}
 
 	.collapse-btn {
-		background: transparent;
+		position: absolute;
+		right: -12px;
+		top: 50%;
+		transform: translateY(-50%);
+		z-index: 11;
+		background: var(--bg-sidebar);
 		border: 1px solid var(--border);
 		color: var(--text-secondary);
 		border-radius: var(--border-radius-sm);
+		box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		width: 24px;
-		height: 24px;
+		height: 28px;
 		padding: 0;
 		transition:
 			background 0.15s ease,
 			color 0.15s ease;
-		flex-shrink: 0;
 	}
 
 	.collapse-btn:hover {

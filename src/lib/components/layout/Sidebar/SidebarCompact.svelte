@@ -71,14 +71,6 @@
 <aside class="sidebar-compact">
 	<div class="sc-header">
 		<CubicIcon width="20" height="20" />
-		<button
-			type="button"
-			class="expand-btn"
-			onclick={onexpand}
-			title={t("sidebar.expand")}
-		>
-			<ChevronRightIcon size={14} />
-		</button>
 	</div>
 
 	<div class="sc-content">
@@ -177,6 +169,15 @@
 			{/if}
 		</div>
 	</div>
+
+	<button
+		type="button"
+		class="expand-btn"
+		onclick={onexpand}
+		title={t("sidebar.expand")}
+	>
+		<ChevronRightIcon size={14} />
+	</button>
 </aside>
 
 <DeleteInstanceModal
@@ -199,6 +200,7 @@
 		z-index: 10;
 		user-select: none;
 		align-items: center;
+		position: relative;
 	}
 
 	.sc-header {
@@ -217,16 +219,22 @@
 	}
 
 	.expand-btn {
-		background: transparent;
+		position: absolute;
+		right: -12px;
+		top: 50%;
+		transform: translateY(-50%);
+		z-index: 11;
+		background: var(--bg-sidebar);
 		border: 1px solid var(--border);
 		color: var(--text-secondary);
 		border-radius: var(--border-radius-sm);
+		box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		width: 24px;
-		height: 24px;
+		height: 28px;
 		padding: 0;
 		transition:
 			background 0.15s ease,

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { SvelteSet } from "svelte/reactivity";
 
 	import {
 		getInstalledVersions,
@@ -70,7 +69,6 @@
 
 	// --- Vanilla tab state ---
 	let vanillaSearch = $state("");
-	let vanillaShowAll = $state(false);
 	let loadingMojang = $state(false);
 	let loadingVanillaInstalled = $state(true);
 
@@ -87,7 +85,7 @@
 	let forgeCache = $state<ForgeGameVersion[]>([]);
 	let neoForgeCache = $state<NeoForgeGameVersion[]>([]);
 
-	let fabricQuiltShowAll = $state(false);
+	let loaderSearch = $state("");
 
 	// --- Vanilla manifest cache for "Show all" ---
 	let vanillaAllCache = $state<MinecraftVersion[] | null>(null);
@@ -97,8 +95,6 @@
 		display_version: string;
 		game_version: string;
 		stable: boolean;
-		isInstalled: boolean;
-		isDownloading: boolean;
 	}
 
 	// --- Helpers ---
@@ -127,7 +123,7 @@
 		mcVersions = [];
 		loaderItems = [];
 		selectedMcVersion = "";
-		fabricQuiltShowAll = false;
+		loaderSearch = "";
 
 		try {
 			const raw = await getInstalledVersions();
@@ -139,7 +135,7 @@
 			if (tab === "forge") {
 				if (forgeCache.length === 0)
 					forgeCache = await getForgeVersions();
-				const seen = new SvelteSet<string>();
+				const seen = new Set<string>();
 				for (const v of forgeCache) {
 					if (v.game_version && !seen.has(v.game_version)) {
 						seen.add(v.game_version);
@@ -149,7 +145,7 @@
 			} else if (tab === "neoforge") {
 				if (neoForgeCache.length === 0)
 					neoForgeCache = await getNeoForgeVersions();
-				const seen = new SvelteSet<string>();
+				const seen = new Set<string>();
 				for (const v of neoForgeCache) {
 					if (v.game_version && !seen.has(v.game_version)) {
 						seen.add(v.game_version);
@@ -161,14 +157,13 @@
 					tab === "fabric"
 						? await getFabricVersions()
 						: await getQuiltVersions();
-				const seen = new SvelteSet<string>();
+				const seen = new Set<string>();
 				for (const v of list) {
 					if (v.version && v.stable && !seen.has(v.version)) {
 						seen.add(v.version);
 						mcList.push(v.version);
 					}
 				}
-				fabricQuiltShowAll = true;
 			}
 
 			if (currentLoadId !== mcLoadId) return;
@@ -206,8 +201,6 @@
 						display_version: lv,
 						game_version: mcVersion,
 						stable: false,
-						isInstalled: installed.fabric.has(vid),
-						isDownloading: isVersionDownloading(vid),
 					});
 				}
 			} else if (loader === "quilt") {
@@ -219,43 +212,35 @@
 						display_version: lv,
 						game_version: mcVersion,
 						stable: false,
-						isInstalled: installed.quilt.has(vid),
-						isDownloading: isVersionDownloading(vid),
 					});
 				}
 			} else if (loader === "forge") {
 				for (const v of forgeCache) {
 					if (v.game_version !== mcVersion) continue;
-					const vid = v.version_id;
 					items.push({
-						version_id: vid,
+						version_id: v.version_id,
 						display_version: v.forge_version,
 						game_version: mcVersion,
 						stable: true,
-						isInstalled: installed.forge.has(vid),
-						isDownloading: isVersionDownloading(vid),
 					});
 				}
 			} else if (loader === "neoforge") {
 				for (const v of neoForgeCache) {
 					if (v.game_version !== mcVersion) continue;
-					const vid = v.version_id;
 					items.push({
-						version_id: vid,
+						version_id: v.version_id,
 						display_version: v.neoforge_version,
 						game_version: mcVersion,
 						stable: true,
-						isInstalled: installed.neoforge.has(vid),
-						isDownloading: isVersionDownloading(vid),
 					});
 				}
 			}
 
 			if (currentLoadId !== loaderLoadId) return;
 
-			items.sort((a, b) => {
-				return compareVersions(a.display_version, b.display_version);
-			});
+			items.sort((a, b) =>
+				compareVersions(a.display_version, b.display_version),
+			);
 			loaderItems = items;
 		} catch {
 			if (currentLoadId !== loaderLoadId) return;
@@ -276,15 +261,11 @@
 		}
 	}
 
-	async function showAllVanilla() {
-		if (vanillaAllCache) {
-			vanillaShowAll = true;
-			return;
-		}
+	async function loadAllVanillaVersions() {
+		if (vanillaAllCache) return;
 		loadingMojang = true;
 		try {
 			vanillaAllCache = await getAvailableVersions();
-			vanillaShowAll = true;
 		} catch {
 			// ignore
 		} finally {
@@ -293,42 +274,25 @@
 	}
 
 	const vanillaDisplayList = $derived.by(() => {
-		if (vanillaShowAll && vanillaAllCache) {
-			return vanillaAllCache.filter((v) => {
-				if (
-					vanillaSearch &&
-					!v.id.toLowerCase().includes(vanillaSearch.toLowerCase())
-				)
-					return false;
-				if (
-					!launcherStore.settings.show_snapshots &&
-					v.type === "snapshot"
-				)
-					return false;
-				if (
-					!launcherStore.settings.show_alpha &&
-					(v.type === "old_alpha" || v.type === "old_beta")
-				)
-					return false;
-				return true;
-			});
-		}
-		const list = Array.from(installed.vanilla);
-		const filtered = vanillaSearch
-			? list.filter((v) =>
-					v.toLowerCase().includes(vanillaSearch.toLowerCase()),
-				)
-			: list;
-		return filtered.sort(compareVersions).map(
-			(id) =>
-				({
-					id,
-					type: "release",
-					url: "",
-					time: "",
-					releaseTime: "",
-				}) as MinecraftVersion,
-		);
+		if (!vanillaAllCache) return [];
+		return vanillaAllCache.filter((v) => {
+			if (
+				vanillaSearch &&
+				!v.id.toLowerCase().includes(vanillaSearch.toLowerCase())
+			)
+				return false;
+			if (
+				!launcherStore.settings.show_snapshots &&
+				v.type === "snapshot"
+			)
+				return false;
+			if (
+				!launcherStore.settings.show_alpha &&
+				(v.type === "old_alpha" || v.type === "old_beta")
+			)
+				return false;
+			return true;
+		});
 	});
 
 	// --- Downloads ---
@@ -361,20 +325,32 @@
 			: t("createInstance.selectMcVersion"),
 	);
 
+	const filteredLoaderItems = $derived(
+		loaderSearch
+			? loaderItems.filter(
+					(item) =>
+						item.display_version
+							.toLowerCase()
+							.includes(loaderSearch.toLowerCase()) ||
+						item.game_version
+							.toLowerCase()
+							.includes(loaderSearch.toLowerCase()),
+				)
+			: loaderItems,
+	);
+
 	// --- Refresh ---
 
 	async function refreshCurrentSource() {
 		if (loaderTab === "vanilla") {
 			refreshing = true;
 			try {
-				if (vanillaShowAll) {
-					vanillaAllCache = await refreshAvailableVersions();
-				}
+				vanillaAllCache = await refreshAvailableVersions();
 				await loadVanillaInstalled();
 			} finally {
 				refreshing = false;
 			}
-		} else if (loaderTab === "fabric" && fabricQuiltShowAll) {
+		} else if (loaderTab === "fabric" || loaderTab === "quilt") {
 			refreshing = true;
 			try {
 				await loadLoaderVersions(selectedMcVersion, loaderTab);
@@ -397,13 +373,6 @@
 			} finally {
 				refreshing = false;
 			}
-		} else if (loaderTab === "quilt" && fabricQuiltShowAll) {
-			refreshing = true;
-			try {
-				await loadLoaderVersions(selectedMcVersion, loaderTab);
-			} finally {
-				refreshing = false;
-			}
 		}
 	}
 
@@ -411,6 +380,7 @@
 
 	onMount(() => {
 		loadVanillaInstalled();
+		loadAllVanillaVersions();
 
 		const unsubFinish = onAppEvent("DFinish", async () => {
 			await loadVanillaInstalled();
@@ -471,20 +441,7 @@
 						style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box;"
 					/>
 
-					{#if !vanillaShowAll}
-						<button
-							type="button"
-							class="browse-all-btn"
-							onclick={showAllVanilla}
-							disabled={loadingMojang}
-						>
-							{loadingMojang
-								? t("versionDownloader.loading")
-								: t("versionDownloader.showAll")}
-						</button>
-					{/if}
-
-					{#if loadingVanillaInstalled}
+					{#if loadingMojang || loadingVanillaInstalled}
 						<div class="qm-empty-state">
 							{t("versionDownloader.loading")}
 						</div>
@@ -507,23 +464,13 @@
 										<div class="version-card-name">
 											{vid}
 										</div>
-										{#if !vanillaShowAll}
-											<div
-												class="version-card-badge installed-badge"
-											>
-												{t(
-													"versionDownloader.installedTag",
-												)}
-											</div>
-										{:else}
-											<div class="version-card-type">
-												{(vitem as MinecraftVersion)
-													.type ?? "release"} • {new Date(
-													(vitem as MinecraftVersion)
-														.releaseTime ?? "",
-												).toLocaleDateString()}
-											</div>
-										{/if}
+										<div class="version-card-type">
+											{(vitem as MinecraftVersion)
+												.type ?? "release"} • {new Date(
+												(vitem as MinecraftVersion)
+													.releaseTime ?? "",
+											).toLocaleDateString()}
+										</div>
 									</div>
 									{#if isVanInstalled}
 										<div class="inst-icon">✓</div>
@@ -579,11 +526,18 @@
 						</div>
 					{/if}
 
+					<input
+						type="text"
+						placeholder={t("versionDownloader.loaderSearchPlaceholder")}
+						bind:value={loaderSearch}
+						style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box;"
+					/>
+
 					{#if loadingLoader}
 						<div class="qm-empty-state">
 							{t("versionDownloader.loading")}
 						</div>
-					{:else if loaderItems.length === 0}
+					{:else if filteredLoaderItems.length === 0}
 						<div class="qm-empty-state">
 							{t("versionDownloader.notFound")}
 						</div>
@@ -591,7 +545,11 @@
 						<div
 							style="display: flex; flex-direction: column; gap: 6px;"
 						>
-							{#each loaderItems as item (item.version_id)}
+							{#each filteredLoaderItems as item (item.version_id)}
+								{@const isInstalled =
+									installed[loaderTab as keyof typeof installed].has(item.version_id)}
+								{@const isDownloading =
+									isVersionDownloading(item.version_id)}
 								<div class="version-card">
 									<div class="version-card-info">
 										<div class="version-card-name">
@@ -600,13 +558,13 @@
 										<div class="version-card-type">
 											{loaderTab === "fabric" ||
 											loaderTab === "quilt"
-												? `${item.stable ? "STABLE" : "UNSTABLE"}`
+												? `${item.stable ? "STABLE" : "UNSTABLE"} • MC ${item.game_version}`
 												: `${loaderTab === "forge" ? "Forge" : "NeoForge"} • MC ${item.game_version}`}
 										</div>
 									</div>
-									{#if item.isInstalled}
+									{#if isInstalled}
 										<div class="inst-icon">✓</div>
-									{:else if item.isDownloading}
+									{:else if isDownloading}
 										<button
 											type="button"
 											class="download-btn"
@@ -698,22 +656,6 @@
 		text-overflow: ellipsis;
 	}
 
-	.version-card-badge {
-		font-size: 0.5rem;
-		padding: 1px 5px;
-		border-radius: 3px;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.3px;
-	}
-
-	.installed-badge {
-		background: rgba(var(--color-success-rgb), 0.1);
-		color: var(--color-success);
-		border: 1px solid rgba(var(--color-success-rgb), 0.2);
-		align-self: flex-start;
-	}
-
 	.inst-icon {
 		color: var(--color-success);
 		padding: 4px 8px;
@@ -765,30 +707,6 @@
 		to {
 			transform: rotate(360deg);
 		}
-	}
-
-	.browse-all-btn {
-		background: none;
-		border: 1px solid var(--border-color);
-		color: var(--accent);
-		padding: 8px 16px;
-		border-radius: var(--border-radius-sm);
-		font-size: 0.8rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition: all 0.15s;
-		text-align: center;
-		width: 100%;
-	}
-
-	.browse-all-btn:hover {
-		background: rgba(var(--accent-rgb), 0.06);
-		border-color: var(--accent);
-	}
-
-	.browse-all-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 
 	.linked-selects {

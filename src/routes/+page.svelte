@@ -403,7 +403,7 @@
 
 	.sidebar-container {
 		flex-shrink: 0;
-		overflow: hidden;
+		overflow: visible;
 		display: flex;
 		width: var(--sidebar-width);
 		background: var(--bg-sidebar-gradient, var(--bg-sidebar));

@@ -466,7 +466,8 @@
 		"browseAll": "Explorar todas las versiones MC",
 		"downloading": "Descargando...",
 		"forgeJavaHint": "Forge requiere Java 21 configurado en Ajustes > Java.",
-		"neoForgeJavaHint": "NeoForge requiere Java 17/21 configurado en Ajustes > Java."
+		"neoForgeJavaHint": "NeoForge requiere Java 17/21 configurado en Ajustes > Java.",
+		"loaderSearchPlaceholder": "Buscar versión del loader..."
 	},
 	"market": {
 		"empty": {
