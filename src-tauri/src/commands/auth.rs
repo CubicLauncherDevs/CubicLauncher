@@ -249,11 +249,7 @@ pub async fn remove_user(uuid: String) -> Result<(), String> {
     {
         let user = {
             let settings = SettingsManager::read();
-            settings
-                .user
-                .iter()
-                .find(|u| u.uuid == uuid)
-                .cloned()
+            settings.user.iter().find(|u| u.uuid == uuid).cloned()
         };
         if let Some(u) = user {
             info!("Eliminando tokens para {}", u.username);

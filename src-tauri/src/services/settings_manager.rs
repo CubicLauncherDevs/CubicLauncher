@@ -283,7 +283,10 @@ impl SettingsManager {
         if let Some(existing) = self.user.iter_mut().find(|u| u.uuid == user.uuid) {
             *existing = user.clone();
         } else {
-            warn!("se intento reemplazar un usuario por UUID pero no se encontró: {}", user.uuid);
+            warn!(
+                "se intento reemplazar un usuario por UUID pero no se encontró: {}",
+                user.uuid
+            );
         }
     }
     // ── Persistencia ──────────────────────────────────────────────────────────
