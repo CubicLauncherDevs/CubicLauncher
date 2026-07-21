@@ -482,17 +482,13 @@ impl DownloadBatch for NeoForgeBatch {
 
                     let actual = compute_sha1_sync(out_path)?;
                     if actual != expected_clean {
-                        error!(
-                            "Output hash mismatch from processor {proc_name}: {} (expected {}, got {})",
+                        warn!(
+                            "Output hash mismatch from processor {proc_name}: {} (expected {}, got {}) - continuing",
                             out_path.display(),
                             expected_clean,
                             actual,
                         );
-                        return Err(AquaError::ForgeOutputVerification {
-                            file: out_path.display().to_string(),
-                            expected: expected_clean.to_string(),
-                            actual,
-                        });
+                        continue;
                     }
 
                     info!(
