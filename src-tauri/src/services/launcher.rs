@@ -510,7 +510,7 @@ async fn refresh_microsoft_token(mut user: MinecraftUser) -> Result<MinecraftUse
                 warn!("Error guardando tokens: {:?}", e);
             }
             SettingsManager::write(|settings| {
-                settings.set_user(user.clone());
+                settings.set_user_by_uuid(&user);
             })?;
             SettingsManager::save().await?;
             Ok(user)
@@ -580,7 +580,7 @@ async fn refresh_yggdrasil_token(mut user: MinecraftUser) -> Result<MinecraftUse
                 warn!("Error guardando tokens Yggdrasil: {:?}", e);
             }
             SettingsManager::write(|settings| {
-                settings.set_user(user.clone());
+                settings.set_user_by_uuid(&user);
             })?;
             SettingsManager::save().await?;
             Ok(user)

@@ -490,12 +490,16 @@ export async function logout(): Promise<void> {
 	await invoke("logout");
 }
 
-export async function switchUser(idx: number): Promise<void> {
-	await invoke("switch_user", { idx });
+export async function switchUser(idx: number): Promise<MinecraftUser | null> {
+	try {
+		return await invoke<MinecraftUser>("switch_user", { idx });
+	} catch {
+		return null;
+	}
 }
 
-export async function removeUser(username: string): Promise<void> {
-	await invoke("remove_user", { username });
+export async function removeUser(uuid: string): Promise<void> {
+	await invoke("remove_user", { uuid });
 }
 
 export async function getUserList(): Promise<MinecraftUser[]> {
