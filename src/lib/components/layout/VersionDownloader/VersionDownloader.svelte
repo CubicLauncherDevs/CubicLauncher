@@ -26,6 +26,7 @@
 		NeoForgeGameVersion,
 	} from "$lib/types/types";
 	import { onAppEvent } from "$lib/api/launcherService";
+	import { SvelteSet } from "svelte/reactivity";
 	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
@@ -135,7 +136,7 @@
 			if (tab === "forge") {
 				if (forgeCache.length === 0)
 					forgeCache = await getForgeVersions();
-				const seen = new Set<string>();
+				const seen = new SvelteSet<string>();
 				for (const v of forgeCache) {
 					if (v.game_version && !seen.has(v.game_version)) {
 						seen.add(v.game_version);
@@ -145,7 +146,7 @@
 			} else if (tab === "neoforge") {
 				if (neoForgeCache.length === 0)
 					neoForgeCache = await getNeoForgeVersions();
-				const seen = new Set<string>();
+				const seen = new SvelteSet<string>();
 				for (const v of neoForgeCache) {
 					if (v.game_version && !seen.has(v.game_version)) {
 						seen.add(v.game_version);
@@ -157,7 +158,7 @@
 					tab === "fabric"
 						? await getFabricVersions()
 						: await getQuiltVersions();
-				const seen = new Set<string>();
+				const seen = new SvelteSet<string>();
 				for (const v of list) {
 					if (v.version && v.stable && !seen.has(v.version)) {
 						seen.add(v.version);
