@@ -211,6 +211,84 @@ export function getInstalledMcVersions(raw: string[]): {
 	return { vanilla, fabric, forge, neoforge, quilt };
 }
 
+function addInstalledLoaderVersion(
+	map: Map<string, Set<string>>,
+	loader: string,
+	mcVersion: string,
+	loaderVersion: string,
+) {
+	const key = `${loader}:${mcVersion}`;
+	if (!map.has(key)) {
+		map.set(key, new Set<string>());
+	}
+	map.get(key)!.add(loaderVersion);
+}
+
+/**
+ * Devuelve un mapa con las versiones de loader instaladas, agrupadas por
+ * loader y versión de Minecraft. La clave es `${loader}:${mcVersion}` y el
+ * valor es el conjunto de versiones del loader instaladas para esa
+ * combinación.
+ */
+export function getInstalledLoaderVersions(
+	raw: string[],
+): Map<string, Set<string>> {
+	const result = new Map<string, Set<string>>();
+
+	for (const v of raw) {
+		if (v.includes("fabric-loader-")) {
+			const clean = v.replace(/-fabric$/, "");
+			const prefix = "fabric-loader-";
+			const rest = clean.substring(prefix.length);
+			const dash = rest.indexOf("-");
+			if (dash === -1) continue;
+			const loaderVersion = rest.substring(0, dash);
+			const mcVersion = rest.substring(dash + 1);
+			addInstalledLoaderVersion(
+				result,
+				"fabric",
+				mcVersion,
+				loaderVersion,
+			);
+		} else if (v.includes("quilt-loader-")) {
+			const prefix = "quilt-loader-";
+			const rest = v.substring(prefix.length);
+			const dash = rest.indexOf("-");
+			if (dash === -1) continue;
+			const loaderVersion = rest.substring(0, dash);
+			const mcVersion = rest.substring(dash + 1);
+			addInstalledLoaderVersion(
+				result,
+				"quilt",
+				mcVersion,
+				loaderVersion,
+			);
+		} else if (v.includes("-neoforge-")) {
+			const idx = v.indexOf("-neoforge-");
+			const mcVersion = v.substring(0, idx);
+			const loaderVersion = v.substring(idx + 10);
+			addInstalledLoaderVersion(
+				result,
+				"neoforge",
+				mcVersion,
+				loaderVersion,
+			);
+		} else if (v.includes("-forge-")) {
+			const idx = v.indexOf("-forge-");
+			const mcVersion = v.substring(0, idx);
+			const loaderVersion = v.substring(idx + 7);
+			addInstalledLoaderVersion(
+				result,
+				"forge",
+				mcVersion,
+				loaderVersion,
+			);
+		}
+	}
+
+	return result;
+}
+
 export async function getInstanceMods(id: string): Promise<ModDto[]> {
 	try {
 		return await invoke<ModDto[]>("get_instance_mods", { id });

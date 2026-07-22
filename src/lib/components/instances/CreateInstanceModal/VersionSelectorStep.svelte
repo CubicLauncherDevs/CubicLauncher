@@ -2,20 +2,13 @@
 	import { onMount } from "svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import {
-		getFabricLoaderVersions,
-		getForgeVersions,
-		getNeoForgeVersions,
-		getQuiltLoaderVersions,
 		getInstalledVersions,
 		getInstalledMcVersions,
+		getInstalledLoaderVersions,
 	} from "$lib/api/cubicApi";
 	import Select from "$lib/components/layout/Select.svelte";
 	import { t } from "$lib/i18n";
 	import { showError } from "$lib/state/state.svelte";
-	import type {
-		ForgeGameVersion,
-		NeoForgeGameVersion,
-	} from "$lib/types/types";
 
 	let {
 		selectedLoader = $bindable<string>("vanilla"),
@@ -54,12 +47,10 @@
 	let loadingMinecraft = $state(false);
 	let loadingLoader = $state(false);
 
-	let forgeVersions = $state<ForgeGameVersion[]>([]);
-	let neoForgeVersions = $state<NeoForgeGameVersion[]>([]);
-
 	let cachedInstalledVersions: string[] | null = null;
 	let cachedParsedVersions: ReturnType<typeof getInstalledMcVersions> | null =
 		null;
+	let cachedInstalledLoaderVersions: Map<string, Set<string>> | null = null;
 
 	let mcLoadId = $state(0);
 	let loaderLoadId = $state(0);
@@ -88,6 +79,9 @@
 				cachedParsedVersions = getInstalledMcVersions(
 					cachedInstalledVersions,
 				);
+				cachedInstalledLoaderVersions = getInstalledLoaderVersions(
+					cachedInstalledVersions,
+				);
 			}
 			const parsed = cachedParsedVersions!;
 
@@ -95,9 +89,13 @@
 			if (loader === "vanilla") {
 				baseVersions = Array.from(parsed.vanilla);
 			} else if (loader === "fabric") {
-				baseVersions = Array.from(new SvelteSet([...parsed.fabric, ...parsed.vanilla]));
+				baseVersions = Array.from(
+					new SvelteSet([...parsed.fabric, ...parsed.vanilla]),
+				);
 			} else if (loader === "quilt") {
-				baseVersions = Array.from(new SvelteSet([...parsed.quilt, ...parsed.vanilla]));
+				baseVersions = Array.from(
+					new SvelteSet([...parsed.quilt, ...parsed.vanilla]),
+				);
 			} else if (loader === "forge") {
 				baseVersions = Array.from(parsed.forge).map((v) => {
 					const idx = v.indexOf("-forge-");
@@ -113,14 +111,6 @@
 			const deduped = Array.from(new SvelteSet(baseVersions)).sort(
 				compareVersions,
 			);
-
-			if (loader === "forge" && forgeVersions.length === 0) {
-				forgeVersions = await getForgeVersions();
-			}
-
-			if (loader === "neoforge" && neoForgeVersions.length === 0) {
-				neoForgeVersions = await getNeoForgeVersions();
-			}
 
 			if (currentLoadId !== mcLoadId) return;
 			mcVersions = deduped;
@@ -152,25 +142,10 @@
 
 		loadingLoader = true;
 		try {
-			let list: string[] = [];
-
-			if (loader === "fabric") {
-				list = (await getFabricLoaderVersions(mcVersion))
-					.filter((v) => v.stable)
-					.map((v) => v.version);
-			} else if (loader === "quilt") {
-				list = (await getQuiltLoaderVersions(mcVersion))
-					.filter((v) => v.stable)
-					.map((v) => v.version);
-			} else if (loader === "forge") {
-				list = forgeVersions
-					.filter((v) => v.game_version === mcVersion && v.stable)
-					.map((v) => v.forge_version);
-			} else if (loader === "neoforge") {
-				list = neoForgeVersions
-					.filter((v) => v.game_version === mcVersion && v.stable)
-					.map((v) => v.neoforge_version);
-			}
+			const key = `${loader}:${mcVersion}`;
+			const installed =
+				cachedInstalledLoaderVersions?.get(key) ?? new Set<string>();
+			const list = Array.from(installed).sort(compareVersions);
 
 			if (currentLoadId !== loaderLoadId) return;
 			loaderVersions = list;
