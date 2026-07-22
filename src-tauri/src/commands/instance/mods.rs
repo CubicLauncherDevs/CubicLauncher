@@ -420,6 +420,11 @@ pub async fn toggle_instance_mod(id: String, filename: String, enable: bool) -> 
         return Err(InstanceError::NotFound.to_string());
     };
 
+    if handle.is_busy() {
+        error!("Intento de toggle mod en instancia ocupada {}", id);
+        return Err(InstanceError::Busy.to_string());
+    }
+
     let mods_dir = handle.get_instance_dir().await.join("mods");
     let file_path = mods_dir.join(&filename);
 

@@ -85,13 +85,12 @@
 					{project}
 					selected={project.id === state.selectedId}
 					onSelect={() => state.selectProject(project.id)}
-					onInstall={state.filters.source !== "local" &&
-					!project.installed
-						? () => {
-								const version = state.selectedVersion();
-								if (version) state.install(project, version);
-							}
-						: undefined}
+					onInstall={state.filters.source !== "local"
+					? () => {
+							const version = state.selectedVersion();
+							if (version) state.install(project, version);
+						}
+					: undefined}
 				/>
 			{/if}
 		{/snippet}

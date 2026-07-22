@@ -78,8 +78,8 @@
 
 	async function handleDelete() {
 		if (!instanceToActOn) return;
-		await deleteInst(instanceToActOn.uuid);
-		if (selectedInstance?.uuid === instanceToActOn.uuid) {
+		const ok = await deleteInst(instanceToActOn.uuid);
+		if (ok && selectedInstance?.uuid === instanceToActOn.uuid) {
 			selectedInstance = null;
 		}
 		showDeleteModal = false;

@@ -423,7 +423,7 @@
 	},
 	"errors": {
 		"title": "Error",
-		"INST_NOT_FOUND": "Instancia no encontrada",
+		"INST_NOT_FOUND": "Versión de instancia no encontrada",
 		"INST_MOD_NOT_FOUND": "Mod no encontrado",
 		"INST_ALREADY_STARTED": "La instancia ya está en ejecución",
 		"INST_EXISTS": "La instancia '{name}' ya existe",
@@ -456,6 +456,7 @@
 		"AUTH_TOKENS_DEL": "Error al eliminar tokens: {error}",
 		"AUTH_BLOCKED": "Error interno: {error}",
 		"AUTH_SESSION_EXPIRED": "Sesión expirada. Reinicia el launcher e inicia sesión de nuevo: {error}",
+		"INST_BUSY": "La instancia está en ejecución",
 		"GENERIC": "Ocurrió un error inesperado: {error}"
 	},
 	"versionDownloader": {

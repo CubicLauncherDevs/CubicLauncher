@@ -30,9 +30,13 @@ import {
 } from "$lib/types/market";
 import type {
 	InstanceDto,
+	ModDto,
 	ModrinthProjectFull,
 	CurseForgeProject,
 } from "$lib/types/types";
+import { InstState } from "$lib/types/types";
+import { showWarning } from "$lib/state/state.svelte";
+import { t } from "$lib/i18n";
 
 const PAGE_SIZE = 20;
 
@@ -103,6 +107,7 @@ export function createMarketState(
 	let error = $state<string | null>(null);
 	let offset = $state(0);
 	let hasMore = $state(true);
+	let localModsById = $state<Map<string, ModDto>>(new Map());
 	let selectedId = $state<string | null>(null);
 	const detail = $state<MarketDetailState>({
 		versions: [],
@@ -160,20 +165,22 @@ export function createMarketState(
 		return [...list];
 	}
 
-	async function loadLocalItems() {
-		loading = true;
+	async function loadLocalItems(silent = false) {
+		if (!silent) loading = true;
 		error = null;
-		abortPending();
-		localAbortController?.abort();
-		localAbortController = new AbortController();
-		const signal = localAbortController.signal;
+		if (!silent) {
+			abortPending();
+			localAbortController?.abort();
+			localAbortController = new AbortController();
+		}
+		const signal = localAbortController?.signal;
 
 		try {
 			const localItems = await localLoader(instance.uuid);
-			if (signal.aborted) return;
+			if (signal?.aborted) return;
 
 			const mapped = localItems.map((mod) => localModToMarket(mod));
-			if (signal.aborted) return;
+			if (signal?.aborted) return;
 
 			const query = filters.query.trim().toLowerCase();
 			const filtered = query
@@ -186,16 +193,56 @@ export function createMarketState(
 				: mapped;
 
 			const sorted = sortLocalItems(filtered);
-			items.length = 0;
-			items.push(...sorted);
+
+			if (silent && items.length > 0) {
+				const newByFilename = new Map<string, MarketProject>();
+				for (const item of sorted) {
+					const key = item.installed?.filename ?? item.id;
+					newByFilename.set(key, item);
+				}
+				for (let i = items.length - 1; i >= 0; i--) {
+					const key = items[i].installed?.filename ?? items[i].id;
+					const replacement = newByFilename.get(key);
+					if (replacement) {
+						items[i] = replacement;
+						newByFilename.delete(key);
+					} else {
+						items.splice(i, 1);
+					}
+				}
+				for (const item of newByFilename.values()) {
+					items.push(item);
+				}
+			} else {
+				items.length = 0;
+				items.push(...sorted);
+			}
 			total = sorted.length;
 			hasMore = false;
+
+			const newMap = new Map<string, ModDto>();
+			for (const item of sorted) {
+				const id = item.installed?.project_id;
+				if (id) newMap.set(id, item.installed!);
+			}
+			localModsById = newMap;
+
+			if (newMap.size > 0 && filters.source !== "local") {
+				for (const item of items) {
+					const id = item.modrinthProjectId ?? item.curseforgeProjectId;
+					if (id && newMap.has(id)) {
+						item.installed = newMap.get(id)!;
+					}
+				}
+			}
 		} catch (e) {
 			if (e instanceof DOMException && e.name === "AbortError") return;
 			error = String(e ?? "Error loading local items");
 		} finally {
-			localAbortController = null;
-			loading = false;
+			if (!silent) {
+				localAbortController = null;
+				loading = false;
+			}
 		}
 	}
 
@@ -238,9 +285,14 @@ export function createMarketState(
 
 			if (!result) return;
 
-			const mapped = result.hits.map((hit) =>
-				modrinthProjectToMarket(hit),
-			);
+			const mapped = result.hits.map((hit) => {
+				const project = modrinthProjectToMarket(hit);
+				if (project.modrinthProjectId) {
+					const local = localModsById.get(project.modrinthProjectId);
+					if (local) project.installed = local;
+				}
+				return project;
+			});
 
 			if (reset) {
 				items.length = 0;
@@ -297,9 +349,14 @@ export function createMarketState(
 
 			if (!result) return;
 
-			const mapped = result.data.map((hit) =>
-				curseforgeProjectToMarket(hit),
-			);
+			const mapped = result.data.map((hit) => {
+				const project = curseforgeProjectToMarket(hit);
+				if (project.curseforgeProjectId) {
+					const local = localModsById.get(project.curseforgeProjectId);
+					if (local) project.installed = local;
+				}
+				return project;
+			});
 
 			if (reset) {
 				items.length = 0;
@@ -456,7 +513,15 @@ export function createMarketState(
 		);
 	}
 
+	function isInstanceBusy() {
+		return instance.status === InstState.Started || instance.status === InstState.Starting;
+	}
+
 	async function install(project: MarketProject, version: MarketVersion) {
+		if (isInstanceBusy()) {
+			showWarning(t("errors.title"), t("errors.INST_BUSY"));
+			return;
+		}
 		let fileUrl = version.primaryFileUrl;
 
 		if (project.source === "curseforge") {
@@ -481,40 +546,12 @@ export function createMarketState(
 					},
 				]);
 
-				for (const item of items) {
-					if (
-						item.id === project.id ||
-						item.curseforgeProjectId === cfProjectId
-					) {
-						item.installed = {
-							name: version.primaryFileName,
-							filename: version.primaryFileName,
-							version: version.id,
-							description: null,
-							authors: null,
-							icon: null,
-							enabled: true,
-							sha1: "",
-							file_size: 0,
-							source: "local",
-							project_id: null,
-							slug: null,
-						};
-						item.installedVersion = version.id;
-						item.curseforgeVersionId = version.id;
-						item.curseforgeProjectId = cfProjectId;
-					}
-				}
-
 				if (filters.source === "local") {
 					await loadLocalItems();
 				}
 
 				const current =
 					items.find((i) => i.id === project.id) ?? project;
-				current.installedVersion = version.id;
-				current.curseforgeVersionId = version.id;
-				current.curseforgeProjectId = cfProjectId;
 				await loadDetail(current);
 			} catch (e) {
 				console.error(e);
@@ -536,39 +573,11 @@ export function createMarketState(
 				},
 			]);
 
-			for (const item of items) {
-				if (
-					item.id === project.id ||
-					item.modrinthProjectId === projectId
-				) {
-					item.installed = {
-						name: version.primaryFileName,
-						filename: version.primaryFileName,
-						version: version.id,
-						description: null,
-						authors: null,
-						icon: null,
-						enabled: true,
-						sha1: "",
-						file_size: 0,
-						source: "local",
-						project_id: null,
-						slug: null,
-					};
-					item.installedVersion = version.id;
-					item.modrinthVersionId = version.id;
-					item.modrinthProjectId = projectId;
-				}
-			}
-
 			if (filters.source === "local") {
 				await loadLocalItems();
 			}
 
 			const current = items.find((i) => i.id === project.id) ?? project;
-			current.installedVersion = version.id;
-			current.modrinthVersionId = version.id;
-			current.modrinthProjectId = projectId;
 			await loadDetail(current);
 		} catch (e) {
 			console.error(e);
@@ -577,6 +586,10 @@ export function createMarketState(
 	}
 
 	async function uninstall(project: MarketProject) {
+		if (isInstanceBusy()) {
+			showWarning(t("errors.title"), t("errors.INST_BUSY"));
+			return;
+		}
 		if (!project.installed) return;
 		try {
 			await deleteInstanceFile(
@@ -609,6 +622,10 @@ export function createMarketState(
 	}
 
 	async function toggleEnabled(project: MarketProject) {
+		if (isInstanceBusy()) {
+			showWarning(t("errors.title"), t("errors.INST_BUSY"));
+			return;
+		}
 		if (!project.installed || !isModContent) return;
 		const newEnabled = !project.installed.enabled;
 		try {
@@ -682,8 +699,10 @@ export function createMarketState(
 	$effect(() => {
 		if (instance.uuid !== lastInstanceId) {
 			lastInstanceId = instance.uuid;
-			resetState();
-			performSearch(true);
+		resetState();
+		localModsById = new Map();
+		loadLocalItems(true);
+		performSearch(true);
 		}
 	});
 
@@ -692,7 +711,7 @@ export function createMarketState(
 		instance.uuid,
 		() => {
 			if (filters.source === "local") {
-				loadLocalItems();
+				loadLocalItems(true);
 			}
 		},
 	);

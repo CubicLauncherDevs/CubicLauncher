@@ -63,6 +63,13 @@ pub async fn set_instance_cover_image(instance_id: String, path: String) {
     );
     let manager = InstanceManager::get();
     if let Some(handle) = manager.get_handle(&instance_id).await {
+        if handle.is_busy() {
+            warn!(
+                "Intento de establecer cover image en instancia ocupada {}",
+                instance_id
+            );
+            return;
+        }
         handle.set_cover_image(Some(PathBuf::from(path))).await;
         if let Err(e) = handle.save_if_dirty().await {
             warn!(
@@ -87,6 +94,13 @@ pub async fn reset_instance_cover_image(instance_id: String) {
     info!("Reseteando cover image para instancia {}", instance_id);
     let manager = InstanceManager::get();
     if let Some(handle) = manager.get_handle(&instance_id).await {
+        if handle.is_busy() {
+            warn!(
+                "Intento de resetear cover image en instancia ocupada {}",
+                instance_id
+            );
+            return;
+        }
         handle.set_cover_image(None).await;
         if let Err(e) = handle.save_if_dirty().await {
             warn!(

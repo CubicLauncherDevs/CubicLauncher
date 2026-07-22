@@ -234,7 +234,7 @@ export async function killInst(uuid: string): Promise<void> {
 	}
 }
 
-export async function deleteInst(uuid: string): Promise<void> {
+export async function deleteInst(uuid: string): Promise<boolean> {
 	try {
 		await invoke("delete_instance", { id: uuid });
 
@@ -242,8 +242,10 @@ export async function deleteInst(uuid: string): Promise<void> {
 			(instance) => instance.uuid === uuid,
 		);
 		if (idx !== -1) launcherStore.loadedInstances.splice(idx, 1);
+		return true;
 	} catch (err) {
 		showErrorParsed(err);
+		return false;
 	}
 }
 

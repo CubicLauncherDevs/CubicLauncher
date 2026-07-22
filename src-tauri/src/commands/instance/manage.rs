@@ -42,7 +42,15 @@ pub async fn create_instance(
 pub async fn delete_instance(id: String) -> Result<(), String> {
     validate_uuid(&id)?;
     info!("Eliminando instancia {}", id);
-    let result = InstanceManager::get().delete_instance(&id).await;
+    let manager = InstanceManager::get();
+    let Some(handle) = manager.get_handle(&id).await else {
+        return Err(InstanceError::NotFound.to_string());
+    };
+    if handle.is_busy() {
+        error!("Intento de eliminar instancia ocupada {}", id);
+        return Err(InstanceError::Busy.to_string());
+    }
+    let result = manager.delete_instance(&id).await;
     if let Err(ref e) = result {
         error!("Error eliminando instancia {}: {}", id, e);
     } else {
@@ -180,6 +188,11 @@ pub async fn delete_instance_file(
         return Err(InstanceError::NotFound.to_string());
     };
 
+    if handle.is_busy() {
+        error!("Intento de eliminar archivo en instancia ocupada {}", id);
+        return Err(InstanceError::Busy.to_string());
+    }
+
     let instance_dir = handle.get_instance_dir().await;
     let sub_path = sanitize_sub_path(&instance_dir, Path::new(&sub_dir))?;
     let file_path = sub_path.join(&filename);
@@ -223,6 +236,11 @@ pub async fn add_instance_file(
         warn!("Instancia {} no encontrada para agregar archivo", id);
         return Err(InstanceError::NotFound.to_string());
     };
+
+    if handle.is_busy() {
+        error!("Intento de agregar archivo en instancia ocupada {}", id);
+        return Err(InstanceError::Busy.to_string());
+    }
 
     let instance_dir = handle.get_instance_dir().await;
     let dest_dir = sanitize_sub_path(&instance_dir, Path::new(&sub_dir))?;
@@ -284,6 +302,11 @@ pub async fn upload_custom_icon(
         return Err(InstanceError::NotFound.to_string());
     };
 
+    if handle.is_busy() {
+        error!("Intento de subir icono en instancia ocupada {}", instance_id);
+        return Err(InstanceError::Busy.to_string());
+    }
+
     let src = PathBuf::from(&source_path);
     if !src.exists() {
         return Err(format!("El archivo '{}' no existe", source_path));
@@ -344,6 +367,14 @@ pub async fn reset_instance_icon(instance_id: String) -> Result<(), String> {
         );
         return Err(InstanceError::NotFound.to_string());
     };
+
+    if handle.is_busy() {
+        error!(
+            "Intento de resetear icono en instancia ocupada {}",
+            instance_id
+        );
+        return Err(InstanceError::Busy.to_string());
+    }
 
     // Remove custom icon files
     let instance_dir = handle.get_instance_dir().await;

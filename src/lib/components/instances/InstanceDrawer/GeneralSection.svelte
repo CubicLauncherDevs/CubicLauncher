@@ -2,8 +2,9 @@
 	import { t } from "$lib/i18n";
 	import { INSTANCE_LOGOS } from "$lib/icons/logos";
 	import { uploadCustomIcon } from "$lib/api/cubicApi";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { launcherStore, showWarning } from "$lib/state/state.svelte";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
+	import { InstState } from "$lib/types/types";
 
 	let {
 		selectedIcon = $bindable<string | null>(null),
@@ -15,7 +16,19 @@
 		instanceUuid?: string;
 	} = $props();
 
+	const instance = $derived(
+		launcherStore.loadedInstances.find((i) => i.uuid === instanceUuid),
+	);
+	const isBusy = $derived(
+		instance?.status === InstState.Started ||
+			instance?.status === InstState.Starting,
+	);
+
 	async function handleUpload() {
+		if (isBusy) {
+			showWarning(t("errors.title"), t("errors.INST_BUSY"));
+			return;
+		}
 		try {
 			const selected = await openDialog({
 				multiple: false,
