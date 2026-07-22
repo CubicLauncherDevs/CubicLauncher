@@ -66,7 +66,8 @@ Para más detalle ver [CONTRIBUTING.md](CONTRIBUTING.md) y [TESTING.md](TESTING.
 
 ## Community
 
-[![Discord](https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/7VaqSrPukm)
+![Discord](https://img.shields.io/discord/1366945511273398342?style=for-the-badge&logo=discord&logoColor=fff&label=DISCORD&color=7289DA)
+![Subreddit subscribers](https://img.shields.io/reddit/subreddit-subscribers/CubicLauncher?style=for-the-badge)
 
 ## Building
 
