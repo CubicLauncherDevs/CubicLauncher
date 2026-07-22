@@ -6,6 +6,7 @@ import {
 	type Settings,
 	type MinecraftVersion,
 	type FabricGameVersion,
+	type LoaderVersion,
 	type ForgeGameVersion,
 	type NeoForgeGameVersion,
 	type ModrinthSearchResult,
@@ -21,6 +22,7 @@ import {
 	type MrpackInfo,
 	type YggdrasilServerInfo,
 } from "../types/types";
+
 import { invoke } from "@tauri-apps/api/core";
 import { showErrorParsed, showJreInstallPrompt } from "../state/state.svelte";
 import { apiCache } from "../util/apiCache";
@@ -325,9 +327,9 @@ export async function getFabricVersions(): Promise<FabricGameVersion[]> {
 
 export async function getFabricLoaderVersions(
 	gameVersion: string,
-): Promise<string[]> {
+): Promise<LoaderVersion[]> {
 	try {
-		return await invoke<string[]>("get_fabric_loader_versions", {
+		return await invoke<LoaderVersion[]>("get_fabric_loader_versions", {
 			gameVersion,
 		});
 	} catch (err) {
@@ -435,9 +437,9 @@ export async function refreshQuiltVersions(): Promise<FabricGameVersion[]> {
 
 export async function getQuiltLoaderVersions(
 	gameVersion: string,
-): Promise<string[]> {
+): Promise<LoaderVersion[]> {
 	try {
-		return await invoke<string[]>("get_quilt_loader_versions", {
+		return await invoke<LoaderVersion[]>("get_quilt_loader_versions", {
 			gameVersion,
 		});
 	} catch (err) {

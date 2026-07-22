@@ -61,8 +61,11 @@ impl FabricBatch {
             .await
             .map_err(|e| AquaError::Other(format!("Error parsing Fabric loaders: {}", e)))?;
 
+        // Prefer stable loaders; fallback to the first available one otherwise.
         loaders
-            .first()
+            .iter()
+            .find(|r| r.loader.stable)
+            .or_else(|| loaders.first())
             .map(|r| r.loader.version.clone())
             .ok_or_else(|| AquaError::Other("No Fabric loader found for this version".into()))
     }

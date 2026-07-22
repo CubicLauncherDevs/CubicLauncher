@@ -195,29 +195,29 @@
 
 			if (loader === "fabric") {
 				const list = await getFabricLoaderVersions(mcVersion);
-				for (const lv of list) {
-					const vid = `fabric-loader-${lv}-${mcVersion}`;
+				for (const lv of list.filter((v) => v.stable)) {
+					const vid = `fabric-loader-${lv.version}-${mcVersion}`;
 					items.push({
 						version_id: vid,
-						display_version: lv,
+						display_version: lv.version,
 						game_version: mcVersion,
-						stable: false,
+						stable: true,
 					});
 				}
 			} else if (loader === "quilt") {
 				const list = await getQuiltLoaderVersions(mcVersion);
-				for (const lv of list) {
-					const vid = `quilt-loader-${lv}-${mcVersion}`;
+				for (const lv of list.filter((v) => v.stable)) {
+					const vid = `quilt-loader-${lv.version}-${mcVersion}`;
 					items.push({
 						version_id: vid,
-						display_version: lv,
+						display_version: lv.version,
 						game_version: mcVersion,
-						stable: false,
+						stable: true,
 					});
 				}
 			} else if (loader === "forge") {
 				for (const v of forgeCache) {
-					if (v.game_version !== mcVersion) continue;
+					if (v.game_version !== mcVersion || !v.stable) continue;
 					items.push({
 						version_id: v.version_id,
 						display_version: v.forge_version,
@@ -227,7 +227,7 @@
 				}
 			} else if (loader === "neoforge") {
 				for (const v of neoForgeCache) {
-					if (v.game_version !== mcVersion) continue;
+					if (v.game_version !== mcVersion || !v.stable) continue;
 					items.push({
 						version_id: v.version_id,
 						display_version: v.neoforge_version,
@@ -556,12 +556,17 @@
 										<div class="version-card-name">
 											{item.display_version}
 										</div>
-										<div class="version-card-type">
-											{loaderTab === "fabric" ||
-											loaderTab === "quilt"
-												? `${item.stable ? "STABLE" : "UNSTABLE"} • MC ${item.game_version}`
-												: `${loaderTab === "forge" ? "Forge" : "NeoForge"} • MC ${item.game_version}`}
-										</div>
+									<div class="version-card-type">
+										{loaderTab === "fabric"
+											? "Fabric"
+											: loaderTab === "quilt"
+												? "Quilt"
+												: loaderTab === "forge"
+													? "Forge"
+													: "NeoForge"} •
+										MC {item.game_version}
+									</div>
+
 									</div>
 									{#if isInstalled}
 										<div class="inst-icon">✓</div>

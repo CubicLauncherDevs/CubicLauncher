@@ -155,16 +155,20 @@
 			let list: string[] = [];
 
 			if (loader === "fabric") {
-				list = await getFabricLoaderVersions(mcVersion);
+				list = (await getFabricLoaderVersions(mcVersion))
+					.filter((v) => v.stable)
+					.map((v) => v.version);
 			} else if (loader === "quilt") {
-				list = await getQuiltLoaderVersions(mcVersion);
+				list = (await getQuiltLoaderVersions(mcVersion))
+					.filter((v) => v.stable)
+					.map((v) => v.version);
 			} else if (loader === "forge") {
 				list = forgeVersions
-					.filter((v) => v.game_version === mcVersion)
+					.filter((v) => v.game_version === mcVersion && v.stable)
 					.map((v) => v.forge_version);
 			} else if (loader === "neoforge") {
 				list = neoForgeVersions
-					.filter((v) => v.game_version === mcVersion)
+					.filter((v) => v.game_version === mcVersion && v.stable)
 					.map((v) => v.neoforge_version);
 			}
 

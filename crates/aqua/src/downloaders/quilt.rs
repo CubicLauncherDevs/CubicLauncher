@@ -60,8 +60,10 @@ impl QuiltBatch {
             .await
             .map_err(|e| AquaError::Other(format!("Error parsing Quilt loaders: {}", e)))?;
 
-        // Prefer stable releases (no -beta, -alpha suffix)
-        let stable = loaders.iter().find(|r| !r.loader.version.contains('-'));
+        // Prefer stable releases (no beta/alpha/rc suffix); fallback to latest otherwise.
+        let stable = loaders
+            .iter()
+            .find(|r| !is_unstable_loader_version(&r.loader.version));
         match stable {
             Some(r) => Ok(r.loader.version.clone()),
             None => loaders
@@ -70,7 +72,14 @@ impl QuiltBatch {
                 .ok_or_else(|| AquaError::Other("No Quilt loader found for this version".into())),
         }
     }
+}
 
+fn is_unstable_loader_version(version: &str) -> bool {
+    let lower = version.to_lowercase();
+    lower.contains("beta") || lower.contains("alpha") || lower.contains("rc")
+}
+
+impl QuiltBatch {
     pub async fn new(
         shared_dir: &Path,
         game_version: &str,

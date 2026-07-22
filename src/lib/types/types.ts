@@ -145,16 +145,23 @@ export interface FabricGameVersion {
 	stable: boolean;
 }
 
+export interface LoaderVersion {
+	version: string;
+	stable: boolean;
+}
+
 export interface ForgeGameVersion {
 	version_id: string;
 	game_version: string;
 	forge_version: string;
+	stable: boolean;
 }
 
 export interface NeoForgeGameVersion {
 	version_id: string;
 	game_version: string;
 	neoforge_version: string;
+	stable: boolean;
 }
 
 export type AppEvent =

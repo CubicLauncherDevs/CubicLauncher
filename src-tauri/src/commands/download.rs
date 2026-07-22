@@ -8,6 +8,8 @@ use tracing::info;
 const MOJANG_MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const FORGE_MAVEN_METADATA_URL: &str =
     "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml";
+const FORGE_PROMOTIONS_URL: &str =
+    "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json";
 const NEOFORGE_MAVEN_METADATA_URL: &str =
     "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
 
@@ -49,10 +51,17 @@ pub struct FabricGameVersion {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LoaderVersion {
+    pub version: String,
+    pub stable: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ForgeGameVersion {
     pub version_id: String,
     pub game_version: String,
     pub forge_version: String,
+    pub stable: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -60,6 +69,7 @@ pub struct NeoForgeGameVersion {
     pub version_id: String,
     pub game_version: String,
     pub neoforge_version: String,
+    pub stable: bool,
 }
 
 #[tauri::command]
@@ -272,13 +282,53 @@ fn parse_maven_metadata(xml: &str) -> Vec<String> {
     versions
 }
 
+#[derive(Debug, Deserialize)]
+struct ForgePromotions {
+    promos: std::collections::HashMap<String, String>,
+}
+
+struct ForgePromotionVersions {
+    recommended: std::collections::HashMap<String, String>,
+    latest: std::collections::HashMap<String, String>,
+}
+
+async fn fetch_forge_promotion_versions() -> Result<ForgePromotionVersions, String> {
+    let response = HTTP
+        .get(FORGE_PROMOTIONS_URL)
+        .send()
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+
+    let promotions: ForgePromotions = response
+        .json()
+        .await
+        .map_err(|e| DownloadError::ParseJson(e.to_string()).to_string())?;
+
+    let mut recommended = std::collections::HashMap::new();
+    let mut latest = std::collections::HashMap::new();
+    for (key, value) in promotions.promos {
+        if let Some(mc_version) = key.strip_suffix("-recommended") {
+            recommended.insert(mc_version.to_string(), value);
+        } else if let Some(mc_version) = key.strip_suffix("-latest") {
+            latest.insert(mc_version.to_string(), value);
+        }
+    }
+    Ok(ForgePromotionVersions {
+        recommended,
+        latest,
+    })
+}
+
 fn version_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     let parts_a: Vec<u32> = a.split('.').filter_map(|s| s.parse().ok()).collect();
     let parts_b: Vec<u32> = b.split('.').filter_map(|s| s.parse().ok()).collect();
     parts_a.cmp(&parts_b)
 }
 
-fn group_forge_versions(all_versions: Vec<String>) -> Vec<ForgeGameVersion> {
+fn group_forge_versions(
+    all_versions: Vec<String>,
+    promotions: ForgePromotionVersions,
+) -> Vec<ForgeGameVersion> {
     use std::collections::BTreeMap;
 
     let mut groups: BTreeMap<String, Vec<String>> = BTreeMap::new();
@@ -307,14 +357,24 @@ fn group_forge_versions(all_versions: Vec<String>) -> Vec<ForgeGameVersion> {
     let mut result = Vec::new();
     // BTreeMap iterates mc_versions in ascending order; reverse so newest MC versions come first.
     for (mc_version, mut forge_versions) in groups.into_iter().rev() {
+        let recommended_for_mc = promotions.recommended.get(&mc_version);
+        let latest_for_mc = promotions.latest.get(&mc_version);
         // Sort by version and reverse so newest Forge builds come first.
         forge_versions.sort_by(|a, b| version_cmp(a, b));
         for forge_version in forge_versions.into_iter().rev() {
+            let stable = if let Some(rec) = recommended_for_mc {
+                rec == &forge_version
+            } else if let Some(latest) = latest_for_mc {
+                latest == &forge_version
+            } else {
+                false
+            };
             let version_id = format!("{mc_version}-forge-{forge_version}");
             result.push(ForgeGameVersion {
                 version_id,
                 game_version: mc_version.clone(),
                 forge_version,
+                stable,
             });
         }
     }
@@ -322,27 +382,33 @@ fn group_forge_versions(all_versions: Vec<String>) -> Vec<ForgeGameVersion> {
 }
 
 async fn fetch_forge_versions_from_maven() -> Result<Vec<ForgeGameVersion>, String> {
-    let response = HTTP
-        .get(FORGE_MAVEN_METADATA_URL)
-        .send()
-        .await
-        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+    let (maven_response, promotions) = tokio::join!(
+        async {
+            let response = HTTP
+                .get(FORGE_MAVEN_METADATA_URL)
+                .send()
+                .await
+                .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+            response
+                .text()
+                .await
+                .map_err(|e| DownloadError::ReadResponse(e.to_string()).to_string())
+        },
+        fetch_forge_promotion_versions(),
+    );
 
-    let xml = response
-        .text()
-        .await
-        .map_err(|e| DownloadError::ReadResponse(e.to_string()).to_string())?;
-
+    let xml = maven_response?;
+    let promotions = promotions?;
     let all_versions = parse_maven_metadata(&xml);
     info!(
         "Forge maven-metadata.xml parseado: {} versiones totales",
         all_versions.len()
     );
-    Ok(group_forge_versions(all_versions))
+    Ok(group_forge_versions(all_versions, promotions))
 }
 
 fn get_forge_cache_path() -> std::path::PathBuf {
-    PathManager::get().get_settings_dir().join("forge.crep")
+    PathManager::get().get_settings_dir().join("forge_v3.crep")
 }
 
 async fn read_forge_cache() -> Option<Vec<ForgeGameVersion>> {
@@ -424,6 +490,11 @@ pub async fn refresh_forge_versions() -> Result<Vec<ForgeGameVersion>, String> {
 
 // ─── NeoForge ─────────────────────────────────────────────────────────────────
 
+fn is_neoforge_version_stable(version: &str) -> bool {
+    let lower = version.to_lowercase();
+    !lower.contains("beta") && !lower.contains("alpha") && !lower.contains("rc")
+}
+
 fn parse_neoforge_game_version(loader_version: &str) -> Option<String> {
     // NeoForge versions are either:
     // - 20.2.29[-beta]  -> 1.20.2
@@ -464,12 +535,21 @@ fn group_neoforge_versions(all_versions: Vec<String>) -> Vec<NeoForgeGameVersion
     let mut result = Vec::new();
     for (game_version, mut neoforge_versions) in groups.into_iter().rev() {
         neoforge_versions.sort_by(|a, b| version_cmp(a, b));
-        for neoforge_version in neoforge_versions.into_iter().rev() {
+        let has_stable = neoforge_versions
+            .iter()
+            .any(|v| is_neoforge_version_stable(v));
+        for (idx, neoforge_version) in neoforge_versions.into_iter().rev().enumerate() {
+            let stable = if has_stable {
+                is_neoforge_version_stable(&neoforge_version)
+            } else {
+                idx == 0
+            };
             let version_id = format!("{game_version}-neoforge-{neoforge_version}");
             result.push(NeoForgeGameVersion {
                 version_id,
                 game_version: game_version.clone(),
                 neoforge_version,
+                stable,
             });
         }
     }
@@ -497,7 +577,7 @@ async fn fetch_neoforge_versions_from_maven() -> Result<Vec<NeoForgeGameVersion>
 }
 
 fn get_neoforge_cache_path() -> std::path::PathBuf {
-    PathManager::get().get_settings_dir().join("neoforge.crep")
+    PathManager::get().get_settings_dir().join("neoforge_v3.crep")
 }
 
 async fn read_neoforge_cache() -> Option<Vec<NeoForgeGameVersion>> {
@@ -734,7 +814,14 @@ pub async fn download_quilt(
 
 // ─── Loader versions per game version ───────────────────────────────────────
 
-async fn fetch_fabric_loader_versions(game_version: &str) -> Result<Vec<String>, String> {
+fn is_quilt_version_stable(version: &str) -> bool {
+    let lower = version.to_lowercase();
+    !lower.contains("beta") && !lower.contains("alpha") && !lower.contains("rc")
+}
+
+async fn fetch_fabric_loader_versions(
+    game_version: &str,
+) -> Result<Vec<LoaderVersion>, String> {
     let url = format!("https://meta.fabricmc.net/v2/versions/loader/{game_version}");
     let response = HTTP
         .get(&url)
@@ -750,12 +837,19 @@ async fn fetch_fabric_loader_versions(game_version: &str) -> Result<Vec<String>,
     let mut versions = Vec::new();
     if let Some(arr) = json.as_array() {
         for entry in arr {
-            if let Some(version) = entry
-                .get("loader")
+            let loader = entry.get("loader");
+            let version = loader
                 .and_then(|l| l.get("version"))
-                .and_then(|v| v.as_str())
-            {
-                versions.push(version.to_string());
+                .and_then(|v| v.as_str());
+            let stable = loader
+                .and_then(|l| l.get("stable"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            if let Some(version) = version {
+                versions.push(LoaderVersion {
+                    version: version.to_string(),
+                    stable,
+                });
             }
         }
     }
@@ -764,7 +858,9 @@ async fn fetch_fabric_loader_versions(game_version: &str) -> Result<Vec<String>,
 }
 
 #[tauri::command]
-pub async fn get_fabric_loader_versions(game_version: String) -> Result<Vec<String>, String> {
+pub async fn get_fabric_loader_versions(
+    game_version: String,
+) -> Result<Vec<LoaderVersion>, String> {
     info!(
         "Obteniendo loaders de Fabric para Minecraft {}",
         game_version
@@ -772,7 +868,9 @@ pub async fn get_fabric_loader_versions(game_version: String) -> Result<Vec<Stri
     fetch_fabric_loader_versions(&game_version).await
 }
 
-async fn fetch_quilt_loader_versions(game_version: &str) -> Result<Vec<String>, String> {
+async fn fetch_quilt_loader_versions(
+    game_version: &str,
+) -> Result<Vec<LoaderVersion>, String> {
     let url = format!("https://meta.quiltmc.org/v3/versions/loader/{game_version}");
     let response = HTTP
         .get(&url)
@@ -793,7 +891,10 @@ async fn fetch_quilt_loader_versions(game_version: &str) -> Result<Vec<String>, 
                 .and_then(|l| l.get("version"))
                 .and_then(|v| v.as_str())
             {
-                versions.push(version.to_string());
+                versions.push(LoaderVersion {
+                    version: version.to_string(),
+                    stable: is_quilt_version_stable(version),
+                });
             }
         }
     }
@@ -802,7 +903,9 @@ async fn fetch_quilt_loader_versions(game_version: &str) -> Result<Vec<String>, 
 }
 
 #[tauri::command]
-pub async fn get_quilt_loader_versions(game_version: String) -> Result<Vec<String>, String> {
+pub async fn get_quilt_loader_versions(
+    game_version: String,
+) -> Result<Vec<LoaderVersion>, String> {
     info!(
         "Obteniendo loaders de Quilt para Minecraft {}",
         game_version
