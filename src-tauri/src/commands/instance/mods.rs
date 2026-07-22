@@ -1,7 +1,7 @@
 use crate::core::errors::InstanceError;
 use crate::core::event_bus;
 use crate::services::{
-    AddonManager, AddonMetaNoIcon, InstanceManager, ModSource, PackFullCacheEntry,
+    AddonManager, AddonMetaNoIcon, InstanceManager, ModSource, PackCacheEntry, PackFullCacheEntry,
     compute_file_sha1, file_fingerprint, read_all_full_pack_cache,
 };
 use serde::{Deserialize, Serialize};
@@ -46,6 +46,26 @@ const MODRINTH_API: &str = "https://api.modrinth.com/v2";
 
 pub(crate) fn repo_path(mods_dir: &Path) -> PathBuf {
     mods_dir.join(".mod_cache.crep")
+}
+
+fn is_hidden_or_crep(filename: &str) -> bool {
+    filename.starts_with('.') || filename.ends_with(".crep")
+}
+
+/// Preserve a non-Local source that was saved during a market install
+/// so the frontend can still match the file with a remote project.
+fn preserve_pack_source(entry: &mut PackFullCacheEntry, repo: &ablage::Repo, filename: &str) {
+    if !matches!(entry.source, ModSource::Local) {
+        return;
+    }
+    let Some(data) = repo.get(filename).map(|e| e.data.clone()) else {
+        return;
+    };
+    if let Ok(prev) = postcard::from_bytes::<PackFullCacheEntry>(&data) {
+        entry.source = prev.source;
+    } else if let Ok(prev) = postcard::from_bytes::<PackCacheEntry>(&data) {
+        entry.source = prev.source;
+    }
 }
 
 #[tauri::command]
@@ -491,6 +511,9 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
                         return None;
                     }
                     let filename = path.file_name()?.to_string_lossy().to_string();
+                    if is_hidden_or_crep(&filename) {
+                        return None;
+                    }
                     let meta = std::fs::metadata(&path).ok()?;
                     let mtime = meta.modified().ok()?;
                     let size = meta.len();
@@ -620,14 +643,15 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
             })
             .collect();
 
-        let results: Vec<_> = futures::future::join_all(handles)
+        let mut results: Vec<_> = futures::future::join_all(handles)
             .await
             .into_iter()
             .filter_map(|r| r.ok())
             .collect();
 
         let mut repo = ablage::Repo::open(&cache_path2);
-        for (filename, fingerprint, entry) in &results {
+        for (filename, fingerprint, entry) in &mut results {
+            preserve_pack_source(entry, &repo, filename);
             if let Ok(data) = postcard::to_stdvec(entry) {
                 repo.put(
                     filename.clone(),
@@ -690,6 +714,9 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
                         return None;
                     }
                     let filename = path.file_name()?.to_string_lossy().to_string();
+                    if is_hidden_or_crep(&filename) {
+                        return None;
+                    }
                     let meta = std::fs::metadata(&path).ok()?;
                     let mtime = meta.modified().ok()?;
                     let size = meta.len();
@@ -819,14 +846,15 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
             })
             .collect();
 
-        let results: Vec<_> = futures::future::join_all(handles)
+        let mut results: Vec<_> = futures::future::join_all(handles)
             .await
             .into_iter()
             .filter_map(|r| r.ok())
             .collect();
 
         let mut repo = ablage::Repo::open(&cache_path2);
-        for (filename, fingerprint, entry) in &results {
+        for (filename, fingerprint, entry) in &mut results {
+            preserve_pack_source(entry, &repo, filename);
             if let Ok(data) = postcard::to_stdvec(entry) {
                 repo.put(
                     filename.clone(),
