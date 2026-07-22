@@ -95,6 +95,16 @@ impl DownloadQueue {
             return;
         }
 
+        let json_path = PathManager::get()
+            .get_shared_dir()
+            .join("versions")
+            .join(version.as_ref())
+            .join(format!("{}.json", version));
+        if json_path.exists() {
+            info!("{} ya instalada, omitiendo descarga", &*version);
+            return;
+        }
+
         info!("{} encolada", &*version);
 
         self.active

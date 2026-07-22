@@ -3,6 +3,7 @@
 		createInstance,
 		uploadCustomIcon,
 		fetchAll,
+		getInstalledVersions,
 		parseMrpack,
 		installMrpack,
 		searchModrinth,
@@ -17,6 +18,7 @@
 	import type { MrpackInfo } from "$lib/types/types";
 	import IconPicker from "./IconPicker.svelte";
 	import VersionSelectorStep from "./VersionSelectorStep.svelte";
+	import StepIndicator from "./StepIndicator.svelte";
 	import PackInfo from "./PackInfo.svelte";
 	import ModrinthModpackBrowser from "./ModrinthModpackBrowser.svelte";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -33,6 +35,7 @@
 
 	type Tab = "manual" | "import" | "modrinth";
 	let tab = $state<Tab>("manual");
+	let manualStep = $state(0);
 
 	// ── Instance fields ─────────────────────────────────────────────────────────
 	let name = $state("");
@@ -214,6 +217,12 @@
 		}
 	}
 
+	// ── Step navigation ─────────────────────────────────────────────────────────
+	function handleNext() {
+		if (!validateName()) return;
+		manualStep = 1;
+	}
+
 	// ── Create / Import ─────────────────────────────────────────────────────────
 	async function handleFinalAction() {
 		if (tab === "import" && mrpackPath && packInfo) {
@@ -261,6 +270,9 @@
 	}
 
 	async function enqueueSelectedVersion() {
+		const installed = await getInstalledVersions();
+		if (installed.includes(finalVersionId)) return;
+
 		if (selectedLoader === "vanilla") {
 			await addToQueue(finalVersionId);
 		} else if (selectedLoader === "fabric") {
@@ -331,6 +343,7 @@
 		loading = false;
 		mrpackPath = null;
 		tab = "manual";
+		manualStep = 0;
 	}
 
 	function reset() {
@@ -434,73 +447,114 @@
 			{/if}
 		{:else}
 			<div class="create-layout">
-				<div class="create-header">
-					<IconPicker
-						bind:selectedIcon
-						disabled={loading}
-						onupload={handleIconUpload}
-					/>
-					<div class="fields-column">
-						<div class="input-group">
-							<span class="input-label">
-								{t("createInstance.nameLabel")}
-							</span>
-							<input
-								type="text"
-								class="text-input"
-								class:error={nameMsg}
-								maxlength={16}
-								bind:value={name}
-								disabled={loading}
-								oninput={() => (nameMsg = null)}
-								onkeydown={(e) =>
-									e.key === "Enter" && handleFinalAction()}
-							/>
-							{#if nameMsg}
-								<span class="input-error">{t(nameMsg)}</span>
-							{/if}
+				<StepIndicator
+					currentStep={manualStep}
+					totalSteps={2}
+					labels={[t("createInstance.stepInfo"), t("createInstance.stepVersion")]}
+				/>
+
+				{#if manualStep === 0}
+					<div class="create-header">
+						<IconPicker
+							bind:selectedIcon
+							disabled={loading}
+							onupload={handleIconUpload}
+						/>
+						<div class="fields-column">
+							<div class="input-group">
+								<span class="input-label">
+									{t("createInstance.nameLabel")}
+								</span>
+								<input
+									type="text"
+									class="text-input"
+									class:error={nameMsg}
+									maxlength={16}
+									bind:value={name}
+									disabled={loading}
+									oninput={() => (nameMsg = null)}
+									onkeydown={(e) =>
+										e.key === "Enter" && handleNext()}
+								/>
+								{#if nameMsg}
+									<span class="input-error">{t(nameMsg)}</span>
+								{/if}
+							</div>
 						</div>
 					</div>
-				</div>
-
-				<VersionSelectorStep
-					bind:selectedLoader
-					bind:selectedMcVersion
-					bind:selectedLoaderVersion
-				/>
+				{:else}
+					<VersionSelectorStep
+						bind:selectedLoader
+						bind:selectedMcVersion
+						bind:selectedLoaderVersion
+					/>
+				{/if}
 			</div>
 		{/if}
 	</div>
 
 	{#snippet footer()}
 		<div class="footer-actions">
-			<div class="footer-left"></div>
+			<div class="footer-left">
+				{#if tab === "manual" && manualStep === 1}
+					<button
+						type="button"
+						class="btn-secondary"
+						onclick={() => (manualStep = 0)}
+						disabled={loading}
+					>
+						{t("createInstance.backBtn")}
+					</button>
+				{/if}
+			</div>
 			<div class="footer-right">
-				<button
-					type="button"
-					class="btn-secondary"
-					onclick={reset}
-					disabled={loading}
-				>
-					{t("createInstance.cancel")}
-				</button>
-				{#if tab === "import" || tab === "manual"}
+				{#if tab === "manual" && manualStep === 0}
+					<button
+						type="button"
+						class="btn-secondary"
+						onclick={reset}
+						disabled={loading}
+					>
+						{t("createInstance.cancel")}
+					</button>
+					<button
+						type="button"
+						class="btn-primary"
+						onclick={handleNext}
+						disabled={loading || !name.trim()}
+					>
+						{t("createInstance.nextBtn")}
+					</button>
+				{:else if tab === "manual" && manualStep === 1}
+					<button
+						type="button"
+						class="btn-primary"
+						onclick={handleManualCreate}
+						disabled={loading || !finalVersionId}
+					>
+						{loading
+							? t("createInstance.creatingBtn")
+							: t("createInstance.createBtn")}
+					</button>
+				{:else if tab === "import"}
+					<button
+						type="button"
+						class="btn-secondary"
+						onclick={reset}
+						disabled={loading}
+					>
+						{t("createInstance.cancel")}
+					</button>
 					<button
 						type="button"
 						class="btn-primary"
 						onclick={handleFinalAction}
 						disabled={loading ||
-							(tab === "import" &&
-								(!mrpackPath || !name.trim())) ||
-							(tab === "manual" && !finalVersionId)}
+							!mrpackPath || !name.trim()}
 					>
 						{loading
-							? packInfo
-								? t("createInstance.importingBtn")
-								: t("createInstance.creatingBtn")
-							: tab === "import"
-								? t("createInstance.importBtn")
-								: t("createInstance.createBtn")}
+							? t("createInstance.importingBtn")
+							: t("createInstance.importBtn")}
 					</button>
 				{/if}
 			</div>
