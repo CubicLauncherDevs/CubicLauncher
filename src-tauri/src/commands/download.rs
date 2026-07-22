@@ -577,7 +577,9 @@ async fn fetch_neoforge_versions_from_maven() -> Result<Vec<NeoForgeGameVersion>
 }
 
 fn get_neoforge_cache_path() -> std::path::PathBuf {
-    PathManager::get().get_settings_dir().join("neoforge_v3.crep")
+    PathManager::get()
+        .get_settings_dir()
+        .join("neoforge_v3.crep")
 }
 
 async fn read_neoforge_cache() -> Option<Vec<NeoForgeGameVersion>> {
@@ -819,9 +821,7 @@ fn is_quilt_version_stable(version: &str) -> bool {
     !lower.contains("beta") && !lower.contains("alpha") && !lower.contains("rc")
 }
 
-async fn fetch_fabric_loader_versions(
-    game_version: &str,
-) -> Result<Vec<LoaderVersion>, String> {
+async fn fetch_fabric_loader_versions(game_version: &str) -> Result<Vec<LoaderVersion>, String> {
     let url = format!("https://meta.fabricmc.net/v2/versions/loader/{game_version}");
     let response = HTTP
         .get(&url)
@@ -868,9 +868,7 @@ pub async fn get_fabric_loader_versions(
     fetch_fabric_loader_versions(&game_version).await
 }
 
-async fn fetch_quilt_loader_versions(
-    game_version: &str,
-) -> Result<Vec<LoaderVersion>, String> {
+async fn fetch_quilt_loader_versions(game_version: &str) -> Result<Vec<LoaderVersion>, String> {
     let url = format!("https://meta.quiltmc.org/v3/versions/loader/{game_version}");
     let response = HTTP
         .get(&url)
@@ -903,9 +901,7 @@ async fn fetch_quilt_loader_versions(
 }
 
 #[tauri::command]
-pub async fn get_quilt_loader_versions(
-    game_version: String,
-) -> Result<Vec<LoaderVersion>, String> {
+pub async fn get_quilt_loader_versions(game_version: String) -> Result<Vec<LoaderVersion>, String> {
     info!(
         "Obteniendo loaders de Quilt para Minecraft {}",
         game_version

@@ -303,7 +303,10 @@ pub async fn upload_custom_icon(
     };
 
     if handle.is_busy() {
-        error!("Intento de subir icono en instancia ocupada {}", instance_id);
+        error!(
+            "Intento de subir icono en instancia ocupada {}",
+            instance_id
+        );
         return Err(InstanceError::Busy.to_string());
     }
 

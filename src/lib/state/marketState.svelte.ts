@@ -1,3 +1,4 @@
+import { SvelteMap } from "svelte/reactivity";
 import {
 	deleteInstanceFile,
 	getInstanceMods,
@@ -107,7 +108,7 @@ export function createMarketState(
 	let error = $state<string | null>(null);
 	let offset = $state(0);
 	let hasMore = $state(true);
-	let localModsById = $state<Map<string, ModDto>>(new Map());
+	const localModsById = new SvelteMap<string, ModDto>();
 	let selectedId = $state<string | null>(null);
 	const detail = $state<MarketDetailState>({
 		versions: [],
@@ -195,7 +196,7 @@ export function createMarketState(
 			const sorted = sortLocalItems(filtered);
 
 			if (silent && items.length > 0) {
-				const newByFilename = new Map<string, MarketProject>();
+				const newByFilename = new SvelteMap<string, MarketProject>();
 				for (const item of sorted) {
 					const key = item.installed?.filename ?? item.id;
 					newByFilename.set(key, item);
@@ -220,18 +221,18 @@ export function createMarketState(
 			total = sorted.length;
 			hasMore = false;
 
-			const newMap = new Map<string, ModDto>();
+			localModsById.clear();
 			for (const item of sorted) {
 				const id = item.installed?.project_id;
-				if (id) newMap.set(id, item.installed!);
+				if (id) localModsById.set(id, item.installed!);
 			}
-			localModsById = newMap;
 
-			if (newMap.size > 0 && filters.source !== "local") {
+			if (localModsById.size > 0 && filters.source !== "local") {
 				for (const item of items) {
-					const id = item.modrinthProjectId ?? item.curseforgeProjectId;
-					if (id && newMap.has(id)) {
-						item.installed = newMap.get(id)!;
+					const id =
+						item.modrinthProjectId ?? item.curseforgeProjectId;
+					if (id && localModsById.has(id)) {
+						item.installed = localModsById.get(id)!;
 					}
 				}
 			}
@@ -352,7 +353,9 @@ export function createMarketState(
 			const mapped = result.data.map((hit) => {
 				const project = curseforgeProjectToMarket(hit);
 				if (project.curseforgeProjectId) {
-					const local = localModsById.get(project.curseforgeProjectId);
+					const local = localModsById.get(
+						project.curseforgeProjectId,
+					);
 					if (local) project.installed = local;
 				}
 				return project;
@@ -514,7 +517,10 @@ export function createMarketState(
 	}
 
 	function isInstanceBusy() {
-		return instance.status === InstState.Started || instance.status === InstState.Starting;
+		return (
+			instance.status === InstState.Started ||
+			instance.status === InstState.Starting
+		);
 	}
 
 	async function install(project: MarketProject, version: MarketVersion) {
@@ -699,10 +705,10 @@ export function createMarketState(
 	$effect(() => {
 		if (instance.uuid !== lastInstanceId) {
 			lastInstanceId = instance.uuid;
-		resetState();
-		localModsById = new Map();
-		loadLocalItems(true);
-		performSearch(true);
+			resetState();
+			localModsById.clear();
+			loadLocalItems(true);
+			performSearch(true);
 		}
 	});
 
