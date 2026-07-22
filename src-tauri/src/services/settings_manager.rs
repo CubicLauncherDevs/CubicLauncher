@@ -112,6 +112,8 @@ pub struct SettingsManager {
     pub discord_presence: bool,
     #[serde(default = "default_true")]
     pub show_tutorial: bool,
+    #[serde(default)]
+    pub market_filter_collapsed: bool,
     #[serde(skip)]
     pub dirty: bool,
 }
@@ -180,6 +182,7 @@ impl Default for SettingsManager {
             theme: CompactString::from("dark"),
             discord_presence: true,
             show_tutorial: true,
+            market_filter_collapsed: true,
             dirty: true,
         }
     }

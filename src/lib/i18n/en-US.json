@@ -484,6 +484,9 @@
 			"searchSubtitle": "Try a different search term or category."
 		},
 		"filter": {
+			"title": "Filters",
+			"hideFilters": "Hide advanced filters",
+			"showFilters": "Show advanced filters",
 			"tabModrinth": "Modrinth",
 			"tabCurseForge": "CurseForge",
 			"tabLocal": "Local",

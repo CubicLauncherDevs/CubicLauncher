@@ -60,6 +60,7 @@ export const launcherStore = $state<LauncherState>({
 		theme: "dark",
 		discord_presence: true,
 		show_tutorial: true,
+		market_filter_collapsed: true,
 	},
 });
 

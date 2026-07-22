@@ -364,12 +364,17 @@ pub async fn search_curseforge(
     }
 
     match index.as_str() {
-        "downloads" => append(&mut url, "sortOrder", "desc"),
-        "newest" => {
-            append(&mut url, "sortField", "2");
+        "downloads" => {
+            append(&mut url, "sortField", "6");
             append(&mut url, "sortOrder", "desc");
         }
-        _ => append(&mut url, "sortOrder", "desc"),
+        "newest" => {
+            append(&mut url, "sortField", "3");
+            append(&mut url, "sortOrder", "desc");
+        }
+        _ => {
+            append(&mut url, "sortOrder", "desc");
+        }
     }
 
     get_json_cf(&url).await

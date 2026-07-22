@@ -484,6 +484,9 @@
 			"searchSubtitle": "Prueba con otra búsqueda o categoría."
 		},
 		"filter": {
+			"title": "Filtros",
+			"hideFilters": "Ocultar filtros avanzados",
+			"showFilters": "Mostrar filtros avanzados",
 			"tabModrinth": "Modrinth",
 			"tabCurseForge": "CurseForge",
 			"tabLocal": "Local",

@@ -46,6 +46,19 @@ export type MarketSource = "local" | "modrinth" | "curseforge";
 export type MarketSort = "relevance" | "downloads" | "newest";
 export type LocalSort = "name-asc" | "name-desc";
 
+const CURSEFORGE_CATEGORY_IDS: Record<string, number> = {
+	adventure: 422,
+	magic: 419,
+	utility: 5191,
+	optimization: 6814,
+	equipment: 434,
+	worldgen: 406,
+	food: 436,
+	library: 421,
+	decoration: 424,
+	storage: 420,
+};
+
 export interface MarketFilters {
 	source: MarketSource;
 	query: string;
@@ -327,7 +340,10 @@ export function createMarketState(
 		error = null;
 
 		try {
-			const category = null;
+			const categoryId = filters.category
+				? CURSEFORGE_CATEGORY_IDS[filters.category]
+				: null;
+			const category = categoryId ? String(categoryId) : null;
 			const index = filters.sort;
 			const currentOffset = offset;
 

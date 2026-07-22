@@ -71,6 +71,7 @@ export interface Settings {
 	theme: string;
 	discord_presence: boolean;
 	show_tutorial: boolean;
+	market_filter_collapsed: boolean;
 }
 
 export interface JreStatus {

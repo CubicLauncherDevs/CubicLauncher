@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
 	import { slide } from "svelte/transition";
+	import { launcherStore } from "$lib/state/state.svelte";
+	import { saveSettings } from "$lib/api/launcherService";
 	import Loading from "$lib/icons/Loading.svelte";
+	import Lupa from "$lib/icons/Lupa.svelte";
+	import CloseIcon from "$lib/icons/CloseIcon.svelte";
+	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
 	import type {
 		MarketFilters,
 		MarketSort,
@@ -34,6 +39,25 @@
 	}: Props = $props();
 
 	const isModContent = $derived(contentType === "mods");
+	const collapsed = $derived(launcherStore.settings.market_filter_collapsed);
+
+	function toggleCollapsed() {
+		launcherStore.settings.market_filter_collapsed = !collapsed;
+		saveSettings().catch(console.error);
+	}
+
+	const sources = $derived<{ value: MarketSource; label: string }[]>([
+		{ value: "modrinth", label: t("market.filter.tabModrinth") },
+		...(isModContent
+			? [
+					{
+						value: "curseforge" as MarketSource,
+						label: t("market.filter.tabCurseForge"),
+					},
+				]
+			: []),
+		{ value: "local", label: t("market.filter.tabLocal") },
+	]);
 
 	const sorts: { value: MarketSort; label: string; icon: string }[] = [
 		{
@@ -69,48 +93,37 @@
 </script>
 
 <div class="market-filter-panel">
-	<div class="filter-row filter-tabs">
+	<div class="filter-header">
+		<span class="filter-title">{t("market.filter.title")}</span>
 		<button
 			type="button"
-			class="filter-tab"
-			class:active={filters.source === "modrinth"}
-			onclick={() => onSourceChange("modrinth")}
+			class="collapse-btn"
+			class:collapsed
+			onclick={toggleCollapsed}
+			aria-label={collapsed
+				? t("market.filter.showFilters")
+				: t("market.filter.hideFilters")}
 		>
-			{t("market.filter.tabModrinth")}
+			<ChevronDownIcon size={16} />
 		</button>
-		{#if isModContent}
+	</div>
+
+	<div class="filter-row filter-tabs">
+		{#each sources as source (source.value)}
 			<button
 				type="button"
 				class="filter-tab"
-				class:active={filters.source === "curseforge"}
-				onclick={() => onSourceChange("curseforge")}
+				class:active={filters.source === source.value}
+				onclick={() => onSourceChange(source.value)}
 			>
-				{t("market.filter.tabCurseForge")}
+				{source.label}
 			</button>
-		{/if}
-		<button
-			type="button"
-			class="filter-tab"
-			class:active={filters.source === "local"}
-			onclick={() => onSourceChange("local")}
-		>
-			{t("market.filter.tabLocal")}
-		</button>
+		{/each}
 	</div>
 
 	<div class="filter-row search-row">
 		<span class="search-icon">
-			<svg
-				width="15"
-				height="15"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-			>
-				<circle cx="11" cy="11" r="8" />
-				<path d="m21 21-4.35-4.35" />
-			</svg>
+			<Lupa width="15" height="15" />
 		</span>
 		<input
 			type="text"
@@ -129,7 +142,7 @@
 				class="search-clear"
 				onclick={() => onQueryChange("")}
 			>
-				×
+				<CloseIcon size={14} />
 			</button>
 		{/if}
 		<button
@@ -163,72 +176,78 @@
 		</button>
 	</div>
 
-	{#if filters.source === "local"}
-		<div transition:slide={{ duration: 150 }}>
-			<div class="filter-section">
-				<span class="filter-label">{t("market.filter.sortBy")}</span>
-				<div class="filter-chips">
-					{#each localSorts as sort (sort.value)}
-						<button
-							type="button"
-							class="filter-chip"
-							class:active={filters.localSort === sort.value}
-							onclick={() => onLocalSortChange?.(sort.value)}
-						>
-							<span class="chip-icon">{sort.icon}</span>
-							{sort.label}
-						</button>
-					{/each}
-				</div>
-			</div>
-		</div>
-	{:else if filters.source === "modrinth" && isModContent}
-		<div transition:slide={{ duration: 150 }}>
-			<div class="filter-section">
-				<span class="filter-label">{t("market.filter.sortBy")}</span>
-				<div class="filter-chips">
-					{#each sorts as sort (sort.value)}
-						<button
-							type="button"
-							class="filter-chip"
-							class:active={filters.sort === sort.value}
-							onclick={() => onSortChange(sort.value)}
-						>
-							<span class="chip-icon">{sort.icon}</span>
-							{sort.label}
-						</button>
-					{/each}
-				</div>
-			</div>
-
-			<div class="filter-section">
-				<span class="filter-label">{t("market.filter.category")}</span>
-				<div class="filter-chips">
-					<button
-						type="button"
-						class="filter-chip"
-						class:active={filters.category === null}
-						onclick={() => onCategoryChange(null)}
+	{#if !collapsed}
+		<div class="filter-advanced" transition:slide={{ duration: 180 }}>
+			{#if filters.source === "local"}
+				<div class="filter-section">
+					<span class="filter-label">{t("market.filter.sortBy")}</span
 					>
-						{t("market.filter.allCategories")}
-					</button>
-					{#each categories as category (category)}
+					<div class="filter-chips">
+						{#each localSorts as sort (sort.value)}
+							<button
+								type="button"
+								class="filter-chip"
+								class:active={filters.localSort === sort.value}
+								onclick={() => onLocalSortChange?.(sort.value)}
+							>
+								<span class="chip-icon">{sort.icon}</span>
+								{sort.label}
+							</button>
+						{/each}
+					</div>
+				</div>
+			{:else if isModContent}
+				<div class="filter-section">
+					<span class="filter-label">{t("market.filter.sortBy")}</span
+					>
+					<div class="filter-chips">
+						{#each sorts as sort (sort.value)}
+							<button
+								type="button"
+								class="filter-chip"
+								class:active={filters.sort === sort.value}
+								onclick={() => onSortChange(sort.value)}
+							>
+								<span class="chip-icon">{sort.icon}</span>
+								{sort.label}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<div class="filter-section">
+					<span class="filter-label"
+						>{t("market.filter.category")}</span
+					>
+					<div class="filter-chips">
 						<button
 							type="button"
 							class="filter-chip"
-							class:active={filters.category === category}
-							onclick={() => onCategoryChange(category)}
+							class:active={filters.category === null}
+							onclick={() => onCategoryChange(null)}
 						>
-							{category}
+							{t("market.filter.allCategories")}
 						</button>
-					{/each}
+						{#each categories as category (category)}
+							<button
+								type="button"
+								class="filter-chip"
+								class:active={filters.category === category}
+								onclick={() => onCategoryChange(category)}
+							>
+								{category}
+							</button>
+						{/each}
+					</div>
 				</div>
-			</div>
 
-			<div class="filter-section filter-info">
-				<span class="filter-pill">Minecraft {filters.gameVersion}</span>
-				<span class="filter-pill">{filters.loader}</span>
-			</div>
+				<div class="filter-section filter-info">
+					<span class="filter-pill"
+						>Minecraft {filters.gameVersion}</span
+					>
+					<span class="filter-pill">{filters.loader}</span>
+				</div>
+			{/if}
 		</div>
 	{/if}
 </div>
@@ -236,12 +255,56 @@
 <style>
 	.market-filter-panel {
 		padding: 12px 14px;
-		background: var(--bg-sidebar);
+		background: var(--bg-card-gradient), var(--bg-card);
 		border-bottom: 1px solid var(--border);
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
 		flex-shrink: 0;
+	}
+
+	.filter-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+	}
+
+	.filter-title {
+		font-size: 0.8rem;
+		font-weight: 800;
+		color: var(--text-primary);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.collapse-btn {
+		width: 26px;
+		height: 26px;
+		padding: 0;
+		background: var(--surface-card);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		color: var(--text-secondary);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.2s ease;
+	}
+
+	.collapse-btn:hover {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+		border-color: var(--accent);
+	}
+
+	.collapse-btn :global(svg) {
+		transition: transform 0.2s ease;
+	}
+
+	.collapse-btn.collapsed :global(svg) {
+		transform: rotate(-90deg);
 	}
 
 	.filter-row {
@@ -251,35 +314,38 @@
 	}
 
 	.filter-tabs {
-		background: rgba(255, 255, 255, 0.04);
-		border-radius: var(--border-radius-sm);
-		padding: 2px;
-		gap: 2px;
+		background: var(--surface-selected);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius);
+		padding: 3px;
+		gap: 3px;
 	}
 
 	.filter-tab {
 		flex: 1;
-		padding: 5px 10px;
+		padding: 5px 8px;
 		background: transparent;
 		border: none;
 		color: var(--text-secondary);
-		font-size: 0.72rem;
+		font-size: 0.7rem;
 		font-weight: 700;
 		cursor: pointer;
-		border-radius: calc(var(--border-radius-sm) - 1px);
-		transition: all 0.15s;
+		border-radius: calc(var(--border-radius) - 2px);
+		transition: all 0.15s ease;
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
+		white-space: nowrap;
 	}
 
 	.filter-tab:hover {
 		color: var(--text-primary);
-		background: rgba(255, 255, 255, 0.04);
+		background: var(--surface-hover);
 	}
 
 	.filter-tab.active {
 		background: var(--accent);
-		color: var(--bg-main);
+		color: var(--accent-text);
+		box-shadow: var(--shadow-sm);
 	}
 
 	.search-row {
@@ -291,40 +357,41 @@
 		position: absolute;
 		left: 10px;
 		color: var(--text-secondary);
-		opacity: 0.5;
+		opacity: 0.6;
 		pointer-events: none;
 		display: flex;
 		align-items: center;
+		justify-content: center;
 	}
 
 	.search-input {
 		flex: 1;
 		padding: 7px 66px 7px 34px;
-		background: rgba(255, 255, 255, 0.05);
+		background: var(--surface-input);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		color: var(--text-primary);
 		font-size: 0.85rem;
 		outline: none;
-		transition: all 0.2s;
+		transition: all 0.2s ease;
 		font-family: inherit;
 	}
 
 	.search-input:focus {
 		border-color: var(--accent);
-		background: rgba(255, 255, 255, 0.08);
+		background: rgba(var(--surface-rgb), 0.06);
 	}
 
 	.search-input::placeholder {
 		color: var(--text-secondary);
-		opacity: 0.6;
+		opacity: 0.55;
 	}
 
 	.search-clear,
 	.refresh-btn {
 		width: 28px;
 		height: 28px;
-		background: rgba(255, 255, 255, 0.05);
+		background: var(--surface-card);
 		border: 1px solid var(--border);
 		color: var(--text-secondary);
 		border-radius: var(--border-radius-sm);
@@ -332,20 +399,19 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: all 0.15s;
+		transition: all 0.15s ease;
 	}
 
 	.search-clear {
 		position: absolute;
 		right: 36px;
-		font-size: 1.1rem;
-		line-height: 1;
 	}
 
 	.search-clear:hover,
 	.refresh-btn:hover:not(:disabled) {
 		color: var(--text-primary);
-		background: rgba(255, 255, 255, 0.1);
+		background: var(--surface-hover);
+		border-color: var(--accent);
 	}
 
 	.refresh-btn:disabled {
@@ -356,6 +422,12 @@
 	:global(.filter-refresh-spinner) {
 		width: 14px;
 		height: 14px;
+	}
+
+	.filter-advanced {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
 	}
 
 	.filter-section {
@@ -379,32 +451,34 @@
 	}
 
 	.filter-chip {
-		padding: 3px 10px;
-		background: rgba(255, 255, 255, 0.04);
+		padding: 4px 11px;
+		background: var(--surface-card);
 		border: 1px solid var(--border);
 		border-radius: 20px;
 		color: var(--text-secondary);
 		font-size: 0.7rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: all 0.15s;
+		transition: all 0.15s ease;
 		font-family: inherit;
 		text-transform: capitalize;
 	}
 
 	.filter-chip:hover {
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--surface-hover);
 		color: var(--text-primary);
+		border-color: var(--text-tertiary);
 	}
 
 	.filter-chip.active {
 		background: var(--accent);
 		border-color: var(--accent);
-		color: var(--bg-main);
+		color: var(--accent-text);
+		box-shadow: var(--shadow-sm);
 	}
 
 	.chip-icon {
-		opacity: 0.8;
+		opacity: 0.85;
 		margin-right: 2px;
 	}
 
@@ -416,7 +490,7 @@
 
 	.filter-pill {
 		padding: 3px 8px;
-		background: rgba(255, 255, 255, 0.04);
+		background: var(--surface-card);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		color: var(--text-secondary);
