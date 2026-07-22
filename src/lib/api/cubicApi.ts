@@ -14,7 +14,7 @@ import {
 	type ModrinthProjectFull,
 	type ModrinthVersionFull,
 	type CurseForgeSearchResult,
-	type CurseForgeFilesResult,
+
 	type CurseForgeProject,
 	type CurseForgeFile,
 	type JreStatus,
@@ -25,7 +25,6 @@ import {
 
 import { invoke } from "@tauri-apps/api/core";
 import { showErrorParsed, showJreInstallPrompt } from "../state/state.svelte";
-import { apiCache } from "../util/apiCache";
 
 export async function killInstance(
 	uuid: string,
@@ -684,46 +683,20 @@ export async function searchModrinth(
 	index: string = "downloads",
 	limit: number = 24,
 	offset: number = 0,
-	signal?: AbortSignal,
 	projectType: string = "mod",
 ): Promise<ModrinthSearchResult | null> {
 	try {
-		const facets = [];
-		if (loader && loader.toLowerCase() !== "vanilla") {
-			facets.push([`categories:${loader.toLowerCase()}`]);
-		}
-		if (gameVersion) {
-			facets.push([`versions:${gameVersion}`]);
-		}
-		facets.push([`project_type:${projectType}`]);
-
-		if (category) {
-			facets.push([`categories:${category.toLowerCase()}`]);
-		}
-
-		const url = new URL("https://api.modrinth.com/v2/search");
-		url.searchParams.append("query", query);
-		url.searchParams.append("facets", JSON.stringify(facets));
-		url.searchParams.append("index", index);
-		url.searchParams.append("limit", limit.toString());
-		url.searchParams.append("offset", offset.toString());
-
-		const cacheKey = url.toString();
-		if (!signal) {
-			const cached = apiCache.get<ModrinthSearchResult>(cacheKey);
-			if (cached) return cached;
-		}
-
-		const res = await fetch(url.toString(), { signal });
-		if (!res.ok) {
-			throw new Error(`Modrinth API error: ${res.status}`);
-		}
-		const data = (await res.json()) as ModrinthSearchResult;
-		apiCache.set(cacheKey, data);
-		return data;
+		return await invoke<ModrinthSearchResult>("search_modrinth", {
+			query,
+			loader,
+			gameVersion: gameVersion || null,
+			category,
+			index,
+			limit,
+			offset,
+			projectType,
+		});
 	} catch (err) {
-		if (err instanceof DOMException && err.name === "AbortError")
-			return null;
 		showErrorParsed(err);
 		return null;
 	}
@@ -733,45 +706,18 @@ export async function getModrinthProjectVersions(
 	projectId: string,
 	loader?: string,
 	gameVersion?: string,
-	signal?: AbortSignal,
 ): Promise<ModrinthVersion[]> {
 	try {
-		const url = new URL(
-			`https://api.modrinth.com/v2/project/${projectId}/version`,
+		const result = await invoke<ModrinthVersion[]>(
+			"get_modrinth_project_versions",
+			{
+				projectId,
+				loader: loader || null,
+				gameVersion: gameVersion || null,
+			},
 		);
-		url.searchParams.append("include_changelog", "false");
-		if (loader) {
-			url.searchParams.append(
-				"loaders",
-				JSON.stringify([loader.toLowerCase()]),
-			);
-		}
-		if (gameVersion) {
-			url.searchParams.append(
-				"game_versions",
-				JSON.stringify([gameVersion]),
-			);
-		}
-
-		const cacheKey = url.toString();
-		if (!signal) {
-			const cached = apiCache.get<ModrinthVersion[]>(cacheKey);
-			if (cached) return cached;
-		}
-
-		const res = await fetch(url.toString(), { signal });
-		if (!res.ok) {
-			throw new Error(`Modrinth API error: ${res.status}`);
-		}
-		const data = (await res.json()) as ModrinthVersion[];
-		if (!signal) {
-			apiCache.set(cacheKey, data);
-		}
-		return data;
+		return result ?? [];
 	} catch (err) {
-		if (err instanceof DOMException && err.name === "AbortError") {
-			return [];
-		}
 		showErrorParsed(err);
 		return [];
 	}
@@ -781,15 +727,9 @@ export async function getModrinthProject(
 	projectId: string,
 ): Promise<ModrinthProjectFull | null> {
 	try {
-		const url = `https://api.modrinth.com/v2/project/${projectId}`;
-		const cached = apiCache.get<ModrinthProjectFull>(url);
-		if (cached) return cached;
-
-		const res = await fetch(url);
-		if (!res.ok) throw new Error(`Modrinth API error: ${res.status}`);
-		const data = (await res.json()) as ModrinthProjectFull;
-		apiCache.set(url, data);
-		return data;
+		return await invoke<ModrinthProjectFull>("get_modrinth_project", {
+			projectId,
+		});
 	} catch (err) {
 		showErrorParsed(err);
 		return null;
@@ -800,11 +740,9 @@ export async function getModrinthVersion(
 	versionId: string,
 ): Promise<ModrinthVersionFull | null> {
 	try {
-		const res = await fetch(
-			`https://api.modrinth.com/v2/version/${versionId}`,
-		);
-		if (!res.ok) throw new Error(`Modrinth API error: ${res.status}`);
-		return (await res.json()) as ModrinthVersionFull;
+		return await invoke<ModrinthVersionFull>("get_modrinth_version", {
+			versionId,
+		});
 	} catch (err) {
 		showErrorParsed(err);
 		return null;
@@ -818,21 +756,15 @@ export async function getModrinthLatestVersions(
 	gameVersions?: string[],
 ): Promise<Record<string, ModrinthVersionFull> | null> {
 	try {
-		const res = await fetch(
-			"https://api.modrinth.com/v2/version_files/update",
+		return await invoke<Record<string, ModrinthVersionFull>>(
+			"get_modrinth_latest_versions",
 			{
-				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({
-					hashes,
-					algorithm,
-					loaders: loaders ?? [],
-					game_versions: gameVersions ?? [],
-				}),
+				hashes,
+				algorithm,
+				loaders: loaders ?? [],
+				gameVersions: gameVersions ?? [],
 			},
 		);
-		if (!res.ok) throw new Error(`Modrinth API error: ${res.status}`);
-		return (await res.json()) as Record<string, ModrinthVersionFull>;
 	} catch (err) {
 		showErrorParsed(err);
 		return null;
@@ -883,11 +815,6 @@ export async function getInstanceScreenshotDir(
 	return await invoke<string>("get_instance_screenshot_dir", { instanceId });
 }
 
-const CURSEFORGE_API_BASE = "https://api.curseforge.com/v1";
-const MINECRAFT_GAME_ID = 432;
-const CURSEFORGE_API_KEY =
-	"$2a$10$v4G8m2LV2QhjUu5l.G24Ieqdp4JTEEQ6bRsZjvpa0YncCVaDaqBP6";
-
 export async function searchCurseForge(
 	query: string,
 	loader: string,
@@ -896,78 +823,20 @@ export async function searchCurseForge(
 	index: string = "popularity",
 	limit: number = 24,
 	offset: number = 0,
-	signal?: AbortSignal,
 ): Promise<CurseForgeSearchResult | null> {
 	try {
-		const apiKey = CURSEFORGE_API_KEY;
-
-		const url = new URL(`${CURSEFORGE_API_BASE}/mods/search`);
-		url.searchParams.append("gameId", MINECRAFT_GAME_ID.toString());
-		if (query) url.searchParams.append("searchFilter", query);
-		url.searchParams.append("pageSize", Math.min(limit, 50).toString());
-		url.searchParams.append("index", offset.toString());
-		url.searchParams.append("classId", "6");
-
-		if (loader.toLowerCase() !== "vanilla") {
-			url.searchParams.append(
-				"modLoaderType",
-				modLoaderNameToCurseForgeId(loader).toString(),
-			);
-		}
-		if (gameVersion) {
-			url.searchParams.append("gameVersion", gameVersion);
-		}
-		if (category) {
-			url.searchParams.append("categoryId", category);
-		}
-		if (index === "downloads") {
-			url.searchParams.append("sortOrder", "desc");
-		} else if (index === "newest") {
-			url.searchParams.append("sortField", "2");
-			url.searchParams.append("sortOrder", "desc");
-		} else {
-			url.searchParams.append("sortOrder", "desc");
-		}
-
-		const cacheKey = url.toString();
-		if (!signal) {
-			const cached = apiCache.get<CurseForgeSearchResult>(cacheKey);
-			if (cached) return cached;
-		}
-
-		const res = await fetch(url.toString(), {
-			signal,
-			headers: {
-				"x-api-key": apiKey,
-				Accept: "application/json",
-			},
+		return await invoke<CurseForgeSearchResult>("search_curseforge", {
+			query,
+			loader,
+			gameVersion: gameVersion || null,
+			category: category || null,
+			index,
+			limit,
+			offset,
 		});
-		if (!res.ok) {
-			throw new Error(`CurseForge API error: ${res.status}`);
-		}
-		const data = (await res.json()) as CurseForgeSearchResult;
-		apiCache.set(cacheKey, data);
-		return data;
 	} catch (err) {
-		if (err instanceof DOMException && err.name === "AbortError")
-			return null;
 		showErrorParsed(err);
 		return null;
-	}
-}
-
-function modLoaderNameToCurseForgeId(loader: string): number {
-	switch (loader.toLowerCase()) {
-		case "fabric":
-			return 4;
-		case "forge":
-			return 1;
-		case "neoforge":
-			return 6;
-		case "quilt":
-			return 5;
-		default:
-			return 4;
 	}
 }
 
@@ -975,24 +844,9 @@ export async function getCurseForgeProject(
 	modId: number,
 ): Promise<CurseForgeProject | null> {
 	try {
-		const apiKey = CURSEFORGE_API_KEY;
-		const url = `${CURSEFORGE_API_BASE}/mods/${modId}`;
-		const cached = apiCache.get<CurseForgeProject>(url);
-		if (cached) return cached;
-
-		const res = await fetch(url, {
-			headers: {
-				"x-api-key": apiKey,
-				Accept: "application/json",
-			},
+		return await invoke<CurseForgeProject>("get_curseforge_project", {
+			modId,
 		});
-		if (!res.ok) {
-			throw new Error(`CurseForge API error: ${res.status}`);
-		}
-		const body = await res.json();
-		const data = body.data as CurseForgeProject;
-		apiCache.set(url, data);
-		return data;
 	} catch (err) {
 		showErrorParsed(err);
 		return null;
@@ -1003,49 +857,18 @@ export async function getCurseForgeProjectFiles(
 	modId: number,
 	loader?: string,
 	gameVersion?: string,
-	signal?: AbortSignal,
 ): Promise<CurseForgeFile[]> {
 	try {
-		const apiKey = CURSEFORGE_API_KEY;
-		const url = new URL(`${CURSEFORGE_API_BASE}/mods/${modId}/files`);
-		url.searchParams.append("pageSize", "100");
-
-		if (gameVersion) {
-			url.searchParams.append("gameVersion", gameVersion);
-		}
-		if (loader && loader.toLowerCase() !== "vanilla") {
-			url.searchParams.append(
-				"modLoaderType",
-				modLoaderNameToCurseForgeId(loader).toString(),
-			);
-		}
-
-		const cacheKey = url.toString();
-		if (!signal) {
-			const cached = apiCache.get<CurseForgeFile[]>(cacheKey);
-			if (cached) return cached;
-		}
-
-		const res = await fetch(url.toString(), {
-			signal,
-			headers: {
-				"x-api-key": apiKey,
-				Accept: "application/json",
+		const result = await invoke<CurseForgeFile[]>(
+			"get_curseforge_project_files",
+			{
+				modId,
+				loader: loader || null,
+				gameVersion: gameVersion || null,
 			},
-		});
-		if (!res.ok) {
-			throw new Error(`CurseForge API error: ${res.status}`);
-		}
-		const body = (await res.json()) as CurseForgeFilesResult;
-		const data = body.data || [];
-		if (!signal) {
-			apiCache.set(cacheKey, data);
-		}
-		return data;
+		);
+		return result ?? [];
 	} catch (err) {
-		if (err instanceof DOMException && err.name === "AbortError") {
-			return [];
-		}
 		showErrorParsed(err);
 		return [];
 	}
@@ -1056,21 +879,14 @@ export async function getCurseForgeFileDownloadUrl(
 	fileId: number,
 ): Promise<string | null> {
 	try {
-		const apiKey = CURSEFORGE_API_KEY;
-		const res = await fetch(
-			`${CURSEFORGE_API_BASE}/mods/${modId}/files/${fileId}/download-url`,
+		const result = await invoke<string>(
+			"get_curseforge_file_download_url",
 			{
-				headers: {
-					"x-api-key": apiKey,
-					Accept: "application/json",
-				},
+				modId,
+				fileId,
 			},
 		);
-		if (!res.ok) {
-			throw new Error(`CurseForge API error: ${res.status}`);
-		}
-		const body = await res.json();
-		return body.data?.downloadUrl as string | null;
+		return result || null;
 	} catch (err) {
 		showErrorParsed(err);
 		return null;
@@ -1078,7 +894,8 @@ export async function getCurseForgeFileDownloadUrl(
 }
 
 export const CURSEFORGE_HEADERS = {
-	"x-api-key": CURSEFORGE_API_KEY,
+	"x-api-key":
+		"$2a$10$v4G8m2LV2QhjUu5l.G24Ieqdp4JTEEQ6bRsZjvpa0YncCVaDaqBP6",
 };
 
 export interface ModDownloadInfo {

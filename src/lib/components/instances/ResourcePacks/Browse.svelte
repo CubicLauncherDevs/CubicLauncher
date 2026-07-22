@@ -50,8 +50,8 @@
 	let selectedModVersions = $state<ModrinthVersion[]>([]);
 	let selectedVersionId = $state<string>("");
 	let versionSelection = new SvelteMap<string, string>();
+	let searchGen = 0;
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-	let abortController = $state<AbortController | null>(null);
 
 	const modrinthProjectType = $derived(
 		contentType === "shaders" ? "shader" : "resourcepack",
@@ -77,9 +77,7 @@
 	}
 
 	async function performSearch(resetResults = true) {
-		abortController?.abort();
-		abortController = new AbortController();
-		const signal = abortController.signal;
+		const gen = ++searchGen;
 
 		if (resetResults) {
 			searching = true;
@@ -99,9 +97,9 @@
 				sortIndex,
 				PAGE_SIZE,
 				resetResults ? 0 : currentOffset,
-				signal,
 				modrinthProjectType,
 			);
+			if (gen !== searchGen) return;
 			if (result) {
 				totalHits = result.total_hits;
 				allHits = resetResults
@@ -110,10 +108,8 @@
 				currentOffset = allHits.length;
 			}
 		} finally {
-			if (!signal.aborted) {
-				searching = false;
-				loadingMore = false;
-			}
+			searching = false;
+			loadingMore = false;
 		}
 	}
 
@@ -295,7 +291,6 @@
 
 	onDestroy(() => {
 		clearTimeout(debounceTimer);
-		abortController?.abort();
 	});
 </script>
 

@@ -271,7 +271,7 @@ mod tests {
         let mut tested: HashSet<&str> = HashSet::new();
 
         for entry in &manifest.versions {
-            if !interesting_types.contains(&&entry.version_type.as_str()) {
+            if !interesting_types.contains(&entry.version_type.as_str()) {
                 continue;
             }
             if tested.contains(entry.version_type.as_str()) {
@@ -331,7 +331,7 @@ mod tests {
         let mut tested: HashSet<&str> = HashSet::new();
 
         for entry in &manifest.versions {
-            if !interesting_types.contains(&&entry.version_type.as_str()) {
+            if !interesting_types.contains(&entry.version_type.as_str()) {
                 continue;
             }
             if tested.contains(entry.version_type.as_str()) {

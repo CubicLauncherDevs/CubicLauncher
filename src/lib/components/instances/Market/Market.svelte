@@ -100,6 +100,7 @@
 				{@const project = state.selectedProject}
 				<MarketDetail
 					{project}
+					source={state.filters.source}
 					{contentType}
 					detail={state.detail}
 					selectedVersion={state.selectedVersion()}

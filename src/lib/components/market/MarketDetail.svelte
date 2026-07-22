@@ -9,6 +9,7 @@
 		MarketProject,
 		MarketVersion,
 		ContentType,
+		MarketSource,
 	} from "$lib/types/market";
 	import type {
 		ModrinthProjectFull,
@@ -17,6 +18,7 @@
 
 	interface Props {
 		project: MarketProject;
+		source: MarketSource;
 		contentType: ContentType;
 		detail: MarketDetailState;
 		selectedVersion: MarketVersion | null;
@@ -30,6 +32,7 @@
 
 	let {
 		project,
+		source = "modrinth",
 		contentType = "mods",
 		detail,
 		selectedVersion,
@@ -147,7 +150,7 @@
 			{project.author || t("market.detail.unknownAuthor")}
 		</p>
 
-		{#if project.source !== "local"}
+		{#if source !== "local"}
 			<div class="market-detail-stats">
 				<div class="market-detail-stat">
 					<span class="market-detail-stat-label"
@@ -168,54 +171,67 @@
 			</div>
 		{/if}
 
-		<div class="market-detail-version">
-			{#if detail.loading || detail.versions.length === 0}
-				<span class="market-detail-version-loading">
-					{#if detail.loading}
-						<Loading class="detail-version-spinner" />
-					{/if}
-					{detail.loading
-						? t("market.detail.loadingVersions")
-						: t("market.detail.noVersions")}
-				</span>
-			{:else}
-				<div class="market-detail-version-row">
-					<span class="market-detail-version-label"
-						>{t("market.detail.version")}</span
-					>
-					<Dropdown
-						value={selectedVersion?.id ?? ""}
-						options={versionOptions}
-						placeholder={t("market.detail.selectVersion")}
-						onchange={(value) => {
-							const version = detail.versions.find(
-								(v) => v.id === value,
-							);
-							if (version) onVersionSelect(version);
-						}}
-					/>
-				</div>
-			{/if}
-		</div>
+		{#if source !== "local"}
+			<div class="market-detail-version">
+				{#if detail.loading || detail.versions.length === 0}
+					<span class="market-detail-version-loading">
+						{#if detail.loading}
+							<Loading class="detail-version-spinner" />
+						{/if}
+						{detail.loading
+							? t("market.detail.loadingVersions")
+							: t("market.detail.noVersions")}
+					</span>
+				{:else}
+					<div class="market-detail-version-row">
+						<span class="market-detail-version-label"
+							>{t("market.detail.version")}</span
+						>
+						<Dropdown
+							value={selectedVersion?.id ?? ""}
+							options={versionOptions}
+							placeholder={t("market.detail.selectVersion")}
+							onchange={(value) => {
+								const version = detail.versions.find(
+									(v) => v.id === value,
+								);
+								if (version) onVersionSelect(version);
+							}}
+						/>
+					</div>
+				{/if}
+			</div>
+		{/if}
 
 		<div class="market-detail-actions">
 			{#if project.installed}
-				<button
-					type="button"
-					class="market-detail-btn secondary"
-					onclick={onToggleEnabled}
-				>
-					{project.disabled
-						? t("market.detail.enable")
-						: t("market.detail.disable")}
-				</button>
-				<button
-					type="button"
-					class="market-detail-btn danger"
-					onclick={onUninstall}
-				>
-					{t("market.detail.uninstall")}
-				</button>
+				{#if source === "local"}
+					<span class="market-detail-installed-label">
+						{project.installed.version
+							? `v${project.installed.version}`
+							: t("market.detail.installedLabel")}
+					</span>
+					<button
+						type="button"
+						class="market-detail-btn secondary"
+						onclick={onToggleEnabled}
+					>
+						{project.disabled
+							? t("market.detail.enable")
+							: t("market.detail.disable")}
+					</button>
+					<button
+						type="button"
+						class="market-detail-btn danger"
+						onclick={onUninstall}
+					>
+						{t("market.detail.uninstall")}
+					</button>
+				{:else}
+					<span class="market-detail-installed-label">
+						{t("market.detail.installedLabel")}
+					</span>
+				{/if}
 			{:else if selectedVersion}
 				<button
 					type="button"
@@ -256,19 +272,6 @@
 					}}
 				>
 					{@html readmeHtml}
-				</div>
-			</div>
-		{/if}
-
-		{#if project.source !== "curseforge" && (detail.fullProject as ModrinthProjectFull | undefined)?.gallery?.length}
-			<div class="market-detail-gallery">
-				<h4 class="market-detail-section-title">
-					{t("market.detail.gallery")}
-				</h4>
-				<div class="gallery-grid">
-					{#each (detail.fullProject as ModrinthProjectFull).gallery as image, i (i)}
-						<img src={image.url} alt="Gallery" loading="lazy" />
-					{/each}
 				</div>
 			</div>
 		{/if}
@@ -512,6 +515,22 @@
 		cursor: wait;
 	}
 
+	.market-detail-installed-label {
+		flex: 1;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		padding: 8px 12px;
+		font-size: 0.78rem;
+		font-weight: 700;
+		color: #4ade80;
+		background: rgba(74, 222, 128, 0.08);
+		border: 1px solid rgba(74, 222, 128, 0.25);
+		border-radius: var(--border-radius-sm);
+		letter-spacing: 0.3px;
+	}
+
 	.market-detail-action-error {
 		color: #f87171;
 		font-size: 0.75rem;
@@ -609,26 +628,6 @@
 
 	:global(.markdown-body th) {
 		background: rgba(255, 255, 255, 0.04);
-	}
-
-	.market-detail-gallery {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
-	.gallery-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-		gap: 8px;
-	}
-
-	.gallery-grid img {
-		width: 100%;
-		aspect-ratio: 16 / 9;
-		object-fit: cover;
-		border-radius: var(--border-radius-sm);
-		border: 1px solid var(--border);
 	}
 
 	.market-detail-open-link {

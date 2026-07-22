@@ -509,6 +509,7 @@
 		},
 		"detail": {
 			"close": "Cerrar detalles",
+			"installedLabel": "Ya instalado",
 			"unknownAuthor": "Autor desconocido",
 			"downloads": "Descargas",
 			"version": "Versión",
@@ -516,7 +517,6 @@
 			"loadingVersions": "Cargando versiones...",
 			"selectVersion": "Seleccionar versión",
 			"readme": "Acerca de",
-			"gallery": "Galería",
 			"install": "Instalar",
 			"uninstall": "Desinstalar",
 			"enable": "Habilitar",

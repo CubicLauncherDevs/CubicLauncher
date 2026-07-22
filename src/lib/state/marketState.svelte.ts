@@ -117,8 +117,8 @@ export function createMarketState(
 	});
 
 	let overrideVersionId = $state<string | null>(null);
-	let abortController: AbortController | null = null;
-	let localAbortController: AbortController | null = null;
+	let searchGen = 0;
+	let localSearchGen = 0;
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const selectedProject = $derived<MarketProject | null>(
@@ -150,13 +150,6 @@ export function createMarketState(
 		detail.error = null;
 	}
 
-	function abortPending() {
-		if (abortController) {
-			abortController.abort();
-			abortController = null;
-		}
-	}
-
 	function sortLocalItems(list: MarketProject[]): MarketProject[] {
 		const sort = filters.localSort;
 		if (sort === "name-asc")
@@ -167,21 +160,19 @@ export function createMarketState(
 	}
 
 	async function loadLocalItems(silent = false) {
-		if (!silent) loading = true;
-		error = null;
 		if (!silent) {
-			abortPending();
-			localAbortController?.abort();
-			localAbortController = new AbortController();
+			loading = true;
+			localSearchGen++;
 		}
-		const signal = localAbortController?.signal;
+		error = null;
+		const gen = localSearchGen;
 
 		try {
 			const localItems = await localLoader(instance.uuid);
-			if (signal?.aborted) return;
+			if (gen !== localSearchGen) return;
 
 			const mapped = localItems.map((mod) => localModToMarket(mod));
-			if (signal?.aborted) return;
+			if (gen !== localSearchGen) return;
 
 			const query = filters.query.trim().toLowerCase();
 			const filtered = query
@@ -237,16 +228,13 @@ export function createMarketState(
 				}
 			}
 		} catch (e) {
-			if (e instanceof DOMException && e.name === "AbortError") return;
 			error = String(e ?? "Error loading local items");
 		} finally {
 			if (!silent) {
-				localAbortController = null;
 				loading = false;
 			}
 		}
 	}
-
 	async function searchRemoteModrinth(reset = false) {
 		if (loading) return;
 
@@ -256,15 +244,14 @@ export function createMarketState(
 			return;
 		}
 
+		const gen = ++searchGen;
+
 		if (reset) {
 			loading = true;
 		} else {
 			loadingMore = true;
 		}
 		error = null;
-		abortPending();
-		abortController = new AbortController();
-		const signal = abortController.signal;
 
 		try {
 			const category = filters.category;
@@ -272,6 +259,7 @@ export function createMarketState(
 			const currentOffset = offset;
 
 			const searchLoader = isModContent ? filters.loader : "";
+
 			const result = await searchModrinth(
 				filters.query,
 				searchLoader,
@@ -280,10 +268,10 @@ export function createMarketState(
 				index,
 				PAGE_SIZE,
 				currentOffset,
-				signal,
 				projectType,
 			);
 
+			if (gen !== searchGen) return;
 			if (!result) return;
 
 			const mapped = result.hits.map((hit) => {
@@ -303,12 +291,10 @@ export function createMarketState(
 			offset = items.length;
 			hasMore = items.length < result.total_hits;
 		} catch (e) {
-			if (e instanceof DOMException && e.name === "AbortError") return;
 			error = String(e ?? "Error searching Modrinth");
 		} finally {
 			loading = false;
 			loadingMore = false;
-			abortController = null;
 		}
 	}
 
@@ -322,15 +308,14 @@ export function createMarketState(
 			return;
 		}
 
+		const gen = ++searchGen;
+
 		if (reset) {
 			loading = true;
 		} else {
 			loadingMore = true;
 		}
 		error = null;
-		abortPending();
-		abortController = new AbortController();
-		const signal = abortController.signal;
 
 		try {
 			const category = null;
@@ -345,9 +330,9 @@ export function createMarketState(
 				index,
 				PAGE_SIZE,
 				currentOffset,
-				signal,
 			);
 
+			if (gen !== searchGen) return;
 			if (!result) return;
 
 			const mapped = result.data.map((hit) => {
@@ -369,12 +354,10 @@ export function createMarketState(
 			offset = items.length;
 			hasMore = items.length < result.pagination.totalCount;
 		} catch (e) {
-			if (e instanceof DOMException && e.name === "AbortError") return;
 			error = String(e ?? "Error searching CurseForge");
 		} finally {
 			loading = false;
 			loadingMore = false;
-			abortController = null;
 		}
 	}
 
@@ -552,9 +535,7 @@ export function createMarketState(
 					},
 				]);
 
-				if (filters.source === "local") {
-					await loadLocalItems();
-				}
+				await loadLocalItems(true);
 
 				const current =
 					items.find((i) => i.id === project.id) ?? project;
@@ -579,9 +560,7 @@ export function createMarketState(
 				},
 			]);
 
-			if (filters.source === "local") {
-				await loadLocalItems();
-			}
+			await loadLocalItems(true);
 
 			const current = items.find((i) => i.id === project.id) ?? project;
 			await loadDetail(current);
@@ -723,9 +702,8 @@ export function createMarketState(
 	);
 
 	function destroy() {
-		abortPending();
-		localAbortController?.abort();
-		localAbortController = null;
+		searchGen++;
+		localSearchGen++;
 		clearTimeout(searchTimer);
 		searchTimer = undefined;
 		_unregisterRefresh();

@@ -301,7 +301,6 @@
 					"downloads",
 					1,
 					0,
-					undefined,
 					"modpack",
 				);
 				if (searchResult && searchResult.hits.length > 0) {

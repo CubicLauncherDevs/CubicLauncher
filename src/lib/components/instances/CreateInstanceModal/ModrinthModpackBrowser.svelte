@@ -84,7 +84,6 @@
 				"downloads",
 				10,
 				reset ? 0 : offset,
-				undefined,
 				"modpack",
 			);
 			if (result) {

@@ -26,8 +26,6 @@
 
 	onDestroy(() => {
 		clearTimeout(debounceTimer);
-		abortController?.abort();
-		versionsAbortController?.abort();
 	});
 
 	let { instance } = $props<{ instance: InstanceDto }>();
@@ -86,8 +84,7 @@
 
 	const gameVersion = $derived(getGameVersion(instance.version));
 
-	let abortController = $state<AbortController | null>(null);
-	let versionsAbortController = $state<AbortController | null>(null);
+	let searchGen = 0;
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 	function getProjectId(
@@ -111,9 +108,7 @@
 	}
 
 	async function performSearch(resetResults = true) {
-		abortController?.abort();
-		abortController = new AbortController();
-		const signal = abortController.signal;
+		const gen = ++searchGen;
 
 		if (resetResults) {
 			searching = true;
@@ -134,8 +129,8 @@
 					sortIndex,
 					PAGE_SIZE,
 					resetResults ? 0 : currentOffset,
-					signal,
 				);
+				if (gen !== searchGen) return;
 				if (result) {
 					totalHits = result.total_hits;
 					allHits = resetResults
@@ -156,8 +151,8 @@
 					sortIndex,
 					PAGE_SIZE,
 					resetResults ? 0 : currentOffset,
-					signal,
 				);
+				if (gen !== searchGen) return;
 				if (result) {
 					totalHits = result.pagination.totalCount;
 					allHits = resetResults
@@ -167,10 +162,8 @@
 				}
 			}
 		} finally {
-			if (!signal.aborted) {
-				searching = false;
-				loadingMore = false;
-			}
+			searching = false;
+			loadingMore = false;
 		}
 	}
 
@@ -449,10 +442,6 @@
 	}
 
 	async function loadVersions(projectId: string) {
-		versionsAbortController?.abort();
-		versionsAbortController = new AbortController();
-		const signal = versionsAbortController.signal;
-
 		loadingVersions = true;
 		selectedModVersions = [];
 		selectedVersionId = "";
@@ -462,7 +451,6 @@
 					projectId,
 					instance.loader,
 					gameVersion,
-					signal,
 				);
 				const sorted = [...versions].sort((a, b) => {
 					const aCompat = isVersionCompatibleModrinth(a) ? 1 : 0;
@@ -490,7 +478,6 @@
 					modId,
 					instance.loader,
 					gameVersion,
-					signal,
 				);
 				const cfFiles = [...files].sort((a, b) => {
 					const aCompat = isVersionCompatibleCurseForge(a) ? 1 : 0;

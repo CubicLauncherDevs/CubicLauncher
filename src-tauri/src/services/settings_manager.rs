@@ -427,10 +427,12 @@ mod tests {
     /// y marcar `dirty` como `true`.
     #[test]
     fn test_migrate_converts_gb_to_mb() {
-        let mut s = SettingsManager::default();
-        s.min_memory = 2;
-        s.max_memory = 4;
-        s.dirty = false;
+        let mut s = SettingsManager {
+            min_memory: 2,
+            max_memory: 4,
+            dirty: false,
+            ..Default::default()
+        };
         s.migrate();
         assert_eq!(s.min_memory, 2048);
         assert_eq!(s.max_memory, 4096);
@@ -441,10 +443,12 @@ mod tests {
     /// y luego v2→v3 (×1024), dando el mismo resultado (idempotente).
     #[test]
     fn test_migrate_legacy_mb_roundtrip() {
-        let mut s = SettingsManager::default();
-        s.min_memory = 2048;
-        s.max_memory = 4096;
-        s.dirty = false;
+        let mut s = SettingsManager {
+            min_memory: 2048,
+            max_memory: 4096,
+            dirty: false,
+            ..Default::default()
+        };
         s.migrate();
         assert_eq!(s.min_memory, 2048);
         assert_eq!(s.max_memory, 4096);
@@ -455,9 +459,11 @@ mod tests {
     /// y luego v2→v3 (→1024).
     #[test]
     fn test_migrate_odd_legacy_mb() {
-        let mut s = SettingsManager::default();
-        s.min_memory = 1500;
-        s.dirty = false;
+        let mut s = SettingsManager {
+            min_memory: 1500,
+            dirty: false,
+            ..Default::default()
+        };
         s.migrate();
         assert_eq!(s.min_memory, 1024);
     }
@@ -467,10 +473,12 @@ mod tests {
     /// se deja intacto.
     #[test]
     fn test_migrate_ambiguous_128() {
-        let mut s = SettingsManager::default();
-        s.min_memory = 2;
-        s.max_memory = 128;
-        s.dirty = false;
+        let mut s = SettingsManager {
+            min_memory: 2,
+            max_memory: 128,
+            dirty: false,
+            ..Default::default()
+        };
         s.migrate();
         assert_eq!(s.min_memory, 2048);
         assert_eq!(s.max_memory, 128);
