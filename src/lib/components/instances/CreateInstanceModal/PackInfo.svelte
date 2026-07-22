@@ -33,43 +33,50 @@
 </script>
 
 <div class="pack-info">
-	<div class="info-row">
-		<span class="info-label">Pack</span>
-		<span class="info-value">{getPackName(packInfo)}</span>
-	</div>
-	<div class="info-row">
-		<span class="info-label">Versión</span>
-		<span class="info-value">{getPackVersion(packInfo)}</span>
-	</div>
-	{#if getPackSummary(packInfo)}
-		<div class="info-row">
-			<span class="info-label">Descripción</span>
-			<span class="info-value summary">{getPackSummary(packInfo)}</span>
+	<div class="pack-header">
+		{#if packInfo.icon}
+			<img src={packInfo.icon} alt="" class="pack-icon" />
+		{/if}
+		<div class="pack-header-info">
+			<div class="info-row">
+				<span class="info-label">Pack</span>
+				<span class="info-value">{getPackName(packInfo)}</span>
+			</div>
+			<div class="info-row">
+				<span class="info-label">Versión</span>
+				<span class="info-value">{getPackVersion(packInfo)}</span>
+			</div>
+			{#if getPackSummary(packInfo)}
+				<div class="info-row">
+					<span class="info-label">Descripción</span>
+					<span class="info-value summary">{getPackSummary(packInfo)}</span>
+				</div>
+			{/if}
+			<div class="info-row">
+				<span class="info-label">Minecraft</span>
+				<span class="info-value">{getPackMcVersion(packInfo) ?? "—"}</span>
+			</div>
+			<div class="info-row">
+				<span class="info-label">Loader</span>
+				<span class="info-value"
+					>{getPackLoader(packInfo) ?? "Vanilla"}{getPackLoaderVersion(
+						packInfo,
+					)
+						? " " + getPackLoaderVersion(packInfo)
+						: ""}</span
+				>
+			</div>
+			<div class="info-row">
+				<span class="info-label">Formato</span>
+				<span class="info-value">Modrinth</span>
+			</div>
+			<div class="info-row">
+				<span class="info-label">Archivos</span>
+				<span class="info-value"
+					>{getPackFileCount(packInfo)} mods/archivos</span
+				>
+			</div>
 		</div>
-	{/if}
-	<div class="info-row">
-		<span class="info-label">Minecraft</span>
-		<span class="info-value">{getPackMcVersion(packInfo) ?? "—"}</span>
-	</div>
-	<div class="info-row">
-		<span class="info-label">Loader</span>
-		<span class="info-value"
-			>{getPackLoader(packInfo) ?? "Vanilla"}{getPackLoaderVersion(
-				packInfo,
-			)
-				? " " + getPackLoaderVersion(packInfo)
-				: ""}</span
-		>
-	</div>
-	<div class="info-row">
-		<span class="info-label">Formato</span>
-		<span class="info-value">Modrinth</span>
-	</div>
-	<div class="info-row">
-		<span class="info-label">Archivos</span>
-		<span class="info-value"
-			>{getPackFileCount(packInfo)} mods/archivos</span
-		>
 	</div>
 </div>
 <button type="button" class="btn-change-file" onclick={onChangeFile}>
@@ -85,6 +92,29 @@
 		background: rgba(var(--accent-rgb, 255, 255, 255), 0.02);
 		border-radius: var(--border-radius-sm);
 		border: 1px solid var(--border);
+	}
+
+	.pack-header {
+		display: flex;
+		gap: 12px;
+		align-items: flex-start;
+	}
+
+	.pack-icon {
+		width: 56px;
+		height: 56px;
+		border-radius: var(--border-radius-sm);
+		object-fit: cover;
+		flex-shrink: 0;
+		background: var(--bg-card);
+	}
+
+	.pack-header-info {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 0;
 	}
 
 	.info-row {

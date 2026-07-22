@@ -11,6 +11,7 @@
 	} from "$lib/api/launcherService";
 	import type { InstanceDto } from "$lib/types/types";
 	import Sidebar from "$lib/components/layout/Sidebar/Sidebar.svelte";
+	import SidebarCompact from "$lib/components/layout/Sidebar/SidebarCompact.svelte";
 	import InstanceView from "$lib/components/instances/InstanceView/InstanceView.svelte";
 	import Drawer from "$lib/components/layout/Drawer.svelte";
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
@@ -42,6 +43,8 @@
 	});
 
 	let selectedInstance = $state<InstanceDto | null>(null);
+	let sidebarMode = $state<"normal" | "compact">("normal");
+	let transitioning = $state(false);
 	let quickMenuOpen = $state(false);
 	let instanceEditorOpen = $state(false);
 	let versionDownloaderOpen = $state(false);
@@ -63,6 +66,10 @@
 	let editingTimer: ReturnType<typeof setTimeout> | undefined;
 
 	onMount(async () => {
+		const stored = localStorage.getItem("sidebarMode");
+		if (stored === "compact") {
+			sidebarMode = "compact";
+		}
 		initEventListeners();
 
 		await Promise.all([syncSettings(), getVersions()]);
@@ -75,8 +82,6 @@
 		if (firstInstance && !selectedInstance) {
 			selectedInstance = firstInstance;
 		}
-
-		applyTheme(launcherStore.settings.theme);
 
 		if (launcherStore.settings.discord_presence) {
 			initDiscordPresence();
@@ -103,6 +108,17 @@
 		unlistenDragDrop?.();
 		clearTimeout(checkUpdatesTimer);
 		clearTimeout(editingTimer);
+	});
+
+	$effect(() => {
+		const theme = launcherStore.settings.theme;
+		if (theme) {
+			applyTheme(theme);
+		}
+	});
+
+	$effect(() => {
+		localStorage.setItem("sidebarMode", sidebarMode);
 	});
 
 	async function setupDragDrop() {
@@ -198,6 +214,15 @@
 		}
 	}
 
+	function toggleSidebar() {
+		if (transitioning) return;
+		transitioning = true;
+		sidebarMode = sidebarMode === "normal" ? "compact" : "normal";
+		setTimeout(() => {
+			transitioning = false;
+		}, 350);
+	}
+
 	function onTutorialClose() {
 		launcherStore.settings.show_tutorial = false;
 		saveSettings();
@@ -254,16 +279,38 @@
 			</div>
 		{/if}
 
-		<Sidebar
-			bind:selectedInstance
-			onopenquickmenu={() => (quickMenuOpen = true)}
-			onopenversiondownloader={() => (versionDownloaderOpen = true)}
-			onopencreateinstance={() => (openCreateModal = true)}
-			onopeneditinstance={(inst) => {
-				instanceEditorOpen = true;
-				editingInstance = inst;
-			}}
-		/>
+		<div
+			class="sidebar-container"
+			class:compact={sidebarMode === "compact"}
+		>
+			{#if sidebarMode === "normal"}
+				<Sidebar
+					bind:selectedInstance
+					onopenquickmenu={() => (quickMenuOpen = true)}
+					onopenversiondownloader={() =>
+						(versionDownloaderOpen = true)}
+					onopencreateinstance={() => (openCreateModal = true)}
+					onopeneditinstance={(inst) => {
+						instanceEditorOpen = true;
+						editingInstance = inst;
+					}}
+					oncollapse={toggleSidebar}
+				/>
+			{:else}
+				<SidebarCompact
+					bind:selectedInstance
+					onopenquickmenu={() => (quickMenuOpen = true)}
+					onopenversiondownloader={() =>
+						(versionDownloaderOpen = true)}
+					onopencreateinstance={() => (openCreateModal = true)}
+					onopeneditinstance={(inst) => {
+						instanceEditorOpen = true;
+						editingInstance = inst;
+					}}
+					onexpand={toggleSidebar}
+				/>
+			{/if}
+		</div>
 
 		<main class="main-content">
 			<div class="background-overlay"></div>
@@ -352,5 +399,27 @@
 	.drag-overlay-content p {
 		font-size: 0.9rem;
 		opacity: 0.8;
+	}
+
+	.sidebar-container {
+		flex-shrink: 0;
+		overflow: visible;
+		display: flex;
+		width: var(--sidebar-width);
+		background: var(--bg-sidebar-gradient, var(--bg-sidebar));
+		transition: width 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+	}
+
+	.sidebar-container.compact {
+		width: 70px;
+	}
+
+	.empty-state {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
 	}
 </style>

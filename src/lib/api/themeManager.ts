@@ -8,6 +8,7 @@ const builtinThemes: ThemeEntry[] = [
 		author: "CubicLauncher",
 		version: "1.0",
 		type: "builtin",
+		preview: { bg: "#0c0c0c", accent: "#ffffff", text: "#d8d8d8" },
 	},
 	{
 		id: "lima",
@@ -15,6 +16,15 @@ const builtinThemes: ThemeEntry[] = [
 		author: "CubicLauncher",
 		version: "1.0",
 		type: "builtin",
+		preview: { bg: "#0a0f0a", accent: "#97C459", text: "#c8ddb0" },
+	},
+	{
+		id: "light",
+		name: "Claro",
+		author: "CubicLauncher",
+		version: "1.0",
+		type: "builtin",
+		preview: { bg: "#f5f5f5", accent: "#2563eb", text: "#1a1a1a" },
 	},
 ];
 
@@ -38,14 +48,16 @@ export interface ThemeResponse {
 	fonts: ThemeFontFace[];
 	inject_css?: string | null;
 }
+
+const THEME_VARS_ID = "cubic-theme-vars";
+const DEFAULT_FONTS_ID = "cubic-default-fonts";
+const CUSTOM_CSS_ID = "cubic-theme-css";
+const CUSTOM_FONTS_ID = "cubic-theme-fonts";
+
 let currentImage: HTMLImageElement | null = null;
 let currentGeneration = 0;
 let currentBlobUrl: string | null = null;
 const addedFonts: Set<globalThis.FontFace> = new Set();
-
-const DEFAULT_FONTS_ID = "cubic-default-fonts";
-const CUSTOM_CSS_ID = "cubic-theme-css";
-const CUSTOM_FONTS_ID = "cubic-theme-fonts";
 
 const defaultFontsCSS = `
 @font-face {
@@ -114,6 +126,14 @@ export async function import_theme_cbth(cbthPath: string): Promise<ThemeEntry> {
 	return invoke<ThemeEntry>("import_theme_cbth", { cbthPath });
 }
 
+export async function removeTheme(id: string): Promise<void> {
+	return invoke("remove_theme", { id });
+}
+
+export async function exportTheme(id: string, dest: string): Promise<string> {
+	return invoke<string>("export_theme", { id, dest });
+}
+
 function releaseImage(img: HTMLImageElement | null) {
 	if (!img) return;
 	img.onload = null;
@@ -122,25 +142,51 @@ function releaseImage(img: HTMLImageElement | null) {
 	img.removeAttribute("src");
 }
 
-function releaseCurrentThemeResources() {
+function buildThemeCSS(theme: ThemeResponse): string {
+	let css = ":root {\n";
+	for (const [key, value] of Object.entries(theme.variables)) {
+		css += `  ${key}: ${value};\n`;
+	}
+	if (theme.bg_image_blur != null) {
+		css += `  --bg-image-blur: ${theme.bg_image_blur}px;\n`;
+	}
+	if (theme.bg_image_opacity != null) {
+		css += `  --bg-image-opacity: ${theme.bg_image_opacity};\n`;
+	}
+	css += `  --font-loaded: 1;\n`;
+	css += "}\n";
+	return css;
+}
+
+function setThemeStyle(css: string) {
+	let el = document.getElementById(THEME_VARS_ID) as HTMLStyleElement | null;
+	if (!el) {
+		el = document.createElement("style");
+		el.id = THEME_VARS_ID;
+		document.head.appendChild(el);
+	}
+	el.textContent = css;
+}
+
+function removeThemeStyle() {
+	const el = document.getElementById(THEME_VARS_ID);
+	if (el) el.remove();
+}
+
+function clearThemeResources() {
+	removeThemeStyle();
+
+	const root = document.documentElement;
+	root.style.removeProperty("--bg-image");
+	root.style.removeProperty("--bg-image-loaded");
+	root.style.removeProperty("--font-loaded");
+
 	releaseImage(currentImage);
 	currentImage = null;
 
 	if (currentBlobUrl) {
 		URL.revokeObjectURL(currentBlobUrl);
 		currentBlobUrl = null;
-	}
-
-	const root = document.documentElement;
-	root.style.setProperty("--bg-image", "none");
-	root.style.setProperty("--bg-image-loaded", "0");
-
-	const style = root.style;
-	for (let i = style.length - 1; i >= 0; i--) {
-		const prop = style.item(i);
-		if (prop.startsWith("--")) {
-			style.removeProperty(prop);
-		}
 	}
 
 	const existingCustomCss = document.getElementById(CUSTOM_CSS_ID);
@@ -158,7 +204,7 @@ function releaseCurrentThemeResources() {
 export async function applyTheme(themeId: string) {
 	const gen = ++currentGeneration;
 
-	releaseCurrentThemeResources();
+	clearThemeResources();
 
 	if (gen !== currentGeneration) return;
 
@@ -181,11 +227,9 @@ export async function applyTheme(themeId: string) {
 	if (!theme) return;
 	if (gen !== currentGeneration) return;
 
-	const root = document.documentElement;
+	setThemeStyle(buildThemeCSS(theme));
 
-	for (const [key, value] of Object.entries(theme.variables)) {
-		root.style.setProperty(key, value);
-	}
+	const root = document.documentElement;
 
 	const bgImg = theme.bg_image;
 	if (bgImg) {
@@ -213,15 +257,6 @@ export async function applyTheme(themeId: string) {
 			root.style.setProperty("--bg-image", "none");
 		};
 		img.src = imgUrl;
-	}
-	if (theme.bg_image_blur) {
-		root.style.setProperty("--bg-image-blur", `${theme.bg_image_blur}px`);
-	}
-	if (theme.bg_image_opacity != null) {
-		root.style.setProperty(
-			"--bg-image-opacity",
-			String(theme.bg_image_opacity),
-		);
 	}
 
 	if (theme.fonts && theme.fonts.length > 0) {

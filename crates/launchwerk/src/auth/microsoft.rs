@@ -152,7 +152,8 @@ impl MicrosoftAuth {
             .append_pair("scope", SCOPE)
             .append_pair("code_challenge", code_challenge)
             .append_pair("code_challenge_method", "S256")
-            .append_pair("state", state);
+            .append_pair("state", state)
+            .append_pair("prompt", "select_account");
         url.to_string()
     }
 

@@ -51,7 +51,7 @@
 }
 
 .action-btn:hover {
-	background: rgba(255, 255, 255, 0.08);
+	background: var(--surface-hover);
 	color: var(--text-primary);
 }
 
@@ -109,7 +109,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	background: rgba(255, 255, 255, 0.03);
+	background: var(--surface-input);
 	border: 1px solid var(--border);
 	border-radius: var(--border-radius-sm);
 	padding: 10px 14px;
@@ -128,14 +128,14 @@
 }
 
 .select-trigger:hover:not(.disabled) {
-	background: rgba(255, 255, 255, 0.06);
-	border-color: rgba(255, 255, 255, 0.2);
+	background: var(--surface-active);
+	border-color: rgba(var(--surface-rgb), 0.2);
 }
 
 .select-trigger.open {
-	border-color: rgba(255, 255, 255, 0.3);
-	background: rgba(255, 255, 255, 0.06);
-	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.02);
+	border-color: rgba(var(--surface-rgb), 0.3);
+	background: var(--surface-active);
+	box-shadow: 0 0 0 2px rgba(var(--surface-rgb), 0.02);
 }
 
 .select-trigger.disabled {
@@ -162,7 +162,7 @@
 
 .select-dropdown {
 	position: fixed;
-	background: #121212;
+	background: var(--surface-dropdown);
 	border: 1px solid var(--border);
 	border-radius: var(--border-radius-sm);
 	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -191,15 +191,15 @@
 }
 
 .select-option:hover {
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--surface-hover);
 	color: var(--text-primary);
 }
 
 .select-option.selected {
-	background: rgba(255, 255, 255, 0.03);
+	background: var(--surface-selected);
 	color: var(--text-primary);
 	font-weight: 600;
-	border: 1px solid rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(var(--surface-rgb), 0.05);
 }
 
 .check-icon {
@@ -214,7 +214,7 @@
 .select-option-badge {
 	font-size: 0.7rem;
 	color: var(--text-muted);
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--surface-hover);
 	padding: 1px 6px;
 	border-radius: 3px;
 	margin-left: 6px;
@@ -224,7 +224,7 @@
 
 .select-option:hover .select-option-badge {
 	color: var(--text-secondary);
-	background: rgba(255, 255, 255, 0.08);
+	background: var(--surface-active);
 }
 
 .select-dropdown::-webkit-scrollbar {
@@ -258,7 +258,7 @@
 	justify-content: center;
 	font-size: 1.2rem;
 	color: var(--text-secondary);
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--surface-hover);
 }
 
 .icon-selector {
@@ -271,7 +271,7 @@
 	width: 48px;
 	height: 48px;
 	border-radius: var(--border-radius-sm);
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--surface-hover);
 	border: 1px solid transparent;
 	cursor: pointer;
 	padding: 6px;
@@ -282,12 +282,12 @@
 }
 
 .icon-option:hover {
-	background: rgba(255, 255, 255, 0.1);
+	background: var(--surface-active);
 }
 
 .icon-option.selected {
 	border-color: var(--accent);
-	background: rgba(255, 255, 255, 0.1);
+	background: var(--surface-active);
 }
 
 .icon-option img {
@@ -311,7 +311,7 @@
 }
 
 .text-input {
-	background: rgba(255, 255, 255, 0.03);
+	background: var(--surface-input);
 	border: 1px solid var(--border);
 	border-radius: var(--border-radius-sm);
 	padding: 10px 12px;
@@ -323,5 +323,5 @@
 }
 
 .text-input:focus {
-	border-color: rgba(255, 255, 255, 0.3);
+	border-color: rgba(var(--surface-rgb), 0.3);
 }

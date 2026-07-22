@@ -259,12 +259,19 @@ export interface ConsoleOutputPayload {
 	stream: "stdout" | "stderr";
 }
 
+export interface ThemePreview {
+	bg: string;
+	accent: string;
+	text: string;
+}
+
 export interface ThemeEntry {
 	id: string;
 	name: string;
 	author: string;
 	version: string;
 	type: string;
+	preview?: ThemePreview | null;
 }
 
 export interface ModrinthFile {
@@ -468,6 +475,7 @@ export interface MrpackInfo {
 	loader_version: string | null;
 	file_count: number;
 	version_id_for_instance?: string | null;
+	icon: string | null;
 }
 
 export interface CurseForgeGameVersion {

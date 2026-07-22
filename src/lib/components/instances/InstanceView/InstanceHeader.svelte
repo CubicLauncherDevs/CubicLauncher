@@ -4,7 +4,7 @@
 	import { listen } from "@tauri-apps/api/event";
 	import type { InstanceDto } from "$lib/types/types";
 	import { launcherStore } from "$lib/state/state.svelte";
-	import { getLoaderLogo } from "$lib/icons/logos";
+	import { getLoaderLogo, getDisplayIconSrc } from "$lib/icons/logos";
 
 	let {
 		instance,
@@ -110,7 +110,7 @@
 				<div class="title-left">
 					<img
 						class="instance-icon"
-						src={instance.icon || "/images/cubic.svg"}
+						src={getDisplayIconSrc(instance.icon)}
 						alt={instance.name}
 					/>
 					<h1 class="instance-title">{instance.name}</h1>
@@ -423,7 +423,7 @@
 			</button>
 			<img
 				class="compact-icon"
-				src={instance.icon || "/images/cubic.svg"}
+				src={getDisplayIconSrc(instance.icon)}
 				alt={instance.name}
 			/>
 			<div class="compact-title-area">
@@ -659,8 +659,8 @@
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
-		background: white;
-		color: black;
+		background: var(--accent);
+		color: var(--accent-text);
 		border: none;
 		min-width: 145px;
 		padding: 10px 28px;
@@ -679,7 +679,7 @@
 	}
 
 	.launch-btn:hover:not(:disabled) {
-		background: #f0f0f0;
+		background: var(--accent-hover);
 		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 	}
 
@@ -688,11 +688,11 @@
 	}
 
 	.launch-btn:disabled {
-		background: rgba(255, 255, 255, 0.15);
-		color: rgba(255, 255, 255, 0.35);
+		background: var(--surface-hover);
+		color: var(--text-muted);
 		cursor: not-allowed;
 		box-shadow: none;
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		border: 1px solid var(--border);
 	}
 
 	.details-row {

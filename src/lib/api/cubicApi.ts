@@ -42,12 +42,16 @@ export async function createInstance(
 	name: string,
 	version: string,
 	icon: string | null,
-	callback?: () => void,
+	callback?: (uuid: string) => void,
 	onError?: (err: unknown) => void,
 ): Promise<void> {
 	try {
-		await invoke("create_instance", { name, version, icon });
-		callback?.();
+		const uuid = await invoke<string>("create_instance", {
+			name,
+			version,
+			icon,
+		});
+		callback?.(uuid);
 	} catch (err) {
 		showErrorParsed(err);
 		onError?.(err);
@@ -486,12 +490,16 @@ export async function logout(): Promise<void> {
 	await invoke("logout");
 }
 
-export async function switchUser(idx: number): Promise<void> {
-	await invoke("switch_user", { idx });
+export async function switchUser(idx: number): Promise<MinecraftUser | null> {
+	try {
+		return await invoke<MinecraftUser>("switch_user", { idx });
+	} catch {
+		return null;
+	}
 }
 
-export async function removeUser(username: string): Promise<void> {
-	await invoke("remove_user", { username });
+export async function removeUser(uuid: string): Promise<void> {
+	await invoke("remove_user", { uuid });
 }
 
 export async function getUserList(): Promise<MinecraftUser[]> {
@@ -645,11 +653,13 @@ export async function getModrinthProjectVersions(
 	projectId: string,
 	loader?: string,
 	gameVersion?: string,
+	signal?: AbortSignal,
 ): Promise<ModrinthVersion[]> {
 	try {
 		const url = new URL(
 			`https://api.modrinth.com/v2/project/${projectId}/version`,
 		);
+		url.searchParams.append("include_changelog", "false");
 		if (loader) {
 			url.searchParams.append(
 				"loaders",
@@ -664,17 +674,24 @@ export async function getModrinthProjectVersions(
 		}
 
 		const cacheKey = url.toString();
-		const cached = apiCache.get<ModrinthVersion[]>(cacheKey);
-		if (cached) return cached;
+		if (!signal) {
+			const cached = apiCache.get<ModrinthVersion[]>(cacheKey);
+			if (cached) return cached;
+		}
 
-		const res = await fetch(url.toString());
+		const res = await fetch(url.toString(), { signal });
 		if (!res.ok) {
 			throw new Error(`Modrinth API error: ${res.status}`);
 		}
 		const data = (await res.json()) as ModrinthVersion[];
-		apiCache.set(cacheKey, data);
+		if (!signal) {
+			apiCache.set(cacheKey, data);
+		}
 		return data;
 	} catch (err) {
+		if (err instanceof DOMException && err.name === "AbortError") {
+			return [];
+		}
 		showErrorParsed(err);
 		return [];
 	}
@@ -759,6 +776,7 @@ export async function installMrpackWithUpstream(
 	instanceName: string,
 	projectId?: string,
 	versionId?: string,
+	iconUrl?: string,
 	callback?: () => void,
 	onError?: (err: unknown) => void,
 ): Promise<MrpackInfo | null> {
@@ -768,6 +786,7 @@ export async function installMrpackWithUpstream(
 			instanceName,
 			projectId: projectId ?? null,
 			modrinthVersionId: versionId ?? null,
+			iconUrl: iconUrl ?? null,
 		});
 		callback?.();
 		return result;
@@ -904,6 +923,7 @@ export async function getCurseForgeProjectFiles(
 	modId: number,
 	loader?: string,
 	gameVersion?: string,
+	signal?: AbortSignal,
 ): Promise<CurseForgeFile[]> {
 	try {
 		const apiKey = CURSEFORGE_API_KEY;
@@ -921,10 +941,13 @@ export async function getCurseForgeProjectFiles(
 		}
 
 		const cacheKey = url.toString();
-		const cached = apiCache.get<CurseForgeFile[]>(cacheKey);
-		if (cached) return cached;
+		if (!signal) {
+			const cached = apiCache.get<CurseForgeFile[]>(cacheKey);
+			if (cached) return cached;
+		}
 
 		const res = await fetch(url.toString(), {
+			signal,
 			headers: {
 				"x-api-key": apiKey,
 				Accept: "application/json",
@@ -935,9 +958,14 @@ export async function getCurseForgeProjectFiles(
 		}
 		const body = (await res.json()) as CurseForgeFilesResult;
 		const data = body.data || [];
-		apiCache.set(cacheKey, data);
+		if (!signal) {
+			apiCache.set(cacheKey, data);
+		}
 		return data;
 	} catch (err) {
+		if (err instanceof DOMException && err.name === "AbortError") {
+			return [];
+		}
 		showErrorParsed(err);
 		return [];
 	}
@@ -969,6 +997,10 @@ export async function getCurseForgeFileDownloadUrl(
 	}
 }
 
+export const CURSEFORGE_HEADERS = {
+	"x-api-key": CURSEFORGE_API_KEY,
+};
+
 export interface ModDownloadInfo {
 	url: string;
 	filename: string;
@@ -976,6 +1008,7 @@ export interface ModDownloadInfo {
 	iconUrl?: string;
 	project_id?: string;
 	version_id?: string;
+	headers?: Record<string, string>;
 }
 
 export async function downloadMods(
@@ -1084,6 +1117,7 @@ export async function parseMrpack(path: string): Promise<MrpackInfo | null> {
 export async function installMrpack(
 	path: string,
 	instanceName: string,
+	iconUrl?: string,
 	callback?: () => void,
 	onError?: (err: unknown) => void,
 ): Promise<MrpackInfo | null> {
@@ -1091,6 +1125,7 @@ export async function installMrpack(
 		const result = await invoke<MrpackInfo>("install_mrpack", {
 			path,
 			instanceName,
+			iconUrl: iconUrl ?? null,
 		});
 		callback?.();
 		return result;
@@ -1098,6 +1133,29 @@ export async function installMrpack(
 		showErrorParsed(err);
 		onError?.(err);
 		return null;
+	}
+}
+
+export async function uploadCustomIcon(
+	instanceId: string,
+	sourcePath: string,
+): Promise<string | null> {
+	try {
+		return await invoke<string>("upload_custom_icon", {
+			instanceId,
+			sourcePath,
+		});
+	} catch (err) {
+		showErrorParsed(err);
+		return null;
+	}
+}
+
+export async function resetInstanceIcon(instanceId: string): Promise<void> {
+	try {
+		await invoke("reset_instance_icon", { instanceId });
+	} catch (err) {
+		showErrorParsed(err);
 	}
 }
 

@@ -135,7 +135,7 @@
 	}
 
 	.picker-item {
-		background: rgba(255, 255, 255, 0.02);
+		background: rgba(var(--surface-rgb), 0.02);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		overflow: hidden;

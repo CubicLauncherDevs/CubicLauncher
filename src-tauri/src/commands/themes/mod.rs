@@ -1,5 +1,5 @@
-use crate::commands::themes::v1::{ThemeEntry, ThemeFile};
-use crate::commands::themes::v2::{ThemeDef, ThemeMeta, V2Theme};
+use crate::commands::themes::v1::{ThemeEntry, ThemeFile, ThemePreview};
+use crate::commands::themes::v2::{ThemeDef, ThemeMeta, V2Theme, flatten_variables};
 use crate::core::errors::{CoreError, FsError};
 use crate::core::{AppEvent, PathManager, emit};
 use crate::services::SettingsManager;
@@ -53,6 +53,25 @@ pub(crate) trait ZipImportable: Sized {
     fn import_name(&self) -> &str;
     fn import_author(&self) -> &str;
     fn import_version(&self) -> &str;
+}
+
+fn extract_preview(vars: &HashMap<String, String>) -> ThemePreview {
+    ThemePreview {
+        bg: vars
+            .get("--bg-main")
+            .or_else(|| vars.get("--bg-card"))
+            .or_else(|| vars.get("--bg-sidebar"))
+            .cloned()
+            .unwrap_or_else(|| "#0c0c0c".into()),
+        accent: vars
+            .get("--accent")
+            .cloned()
+            .unwrap_or_else(|| "#ffffff".into()),
+        text: vars
+            .get("--text-primary")
+            .cloned()
+            .unwrap_or_else(|| "#d8d8d8".into()),
+    }
 }
 
 fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntry>, String> {
@@ -221,6 +240,7 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
         author: author_str.into(),
         version: version_str.into(),
         r#type: "user".into(),
+        preview: None,
     }))
 }
 
@@ -262,24 +282,37 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
                 Ok(t) => t,
                 Err(_) => continue,
             };
+            let preview = path
+                .join("Definition.toml")
+                .exists()
+                .then(|| -> Option<ThemePreview> {
+                    let def_content = std::fs::read_to_string(path.join("Definition.toml")).ok()?;
+                    let definitions: ThemeDef = toml::from_str(&def_content).ok()?;
+                    let vars = flatten_variables(&definitions);
+                    Some(extract_preview(&vars))
+                })
+                .flatten();
             ThemeEntry {
                 id: id.into(),
                 name: theme.name,
                 author: theme.author,
                 version: theme.version,
                 r#type: "v2".into(),
+                preview,
             }
         } else {
             let theme: ThemeFile = match serde_json::from_str(&content) {
                 Ok(t) => t,
                 Err(_) => continue,
             };
+            let preview = Some(extract_preview(&theme.variables));
             ThemeEntry {
                 id: id.into(),
                 name: theme.name,
                 author: theme.author,
                 version: theme.version,
                 r#type: theme.r#type,
+                preview,
             }
         };
         themes.push(entry);
@@ -569,12 +602,14 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
         "Theme importado: id='{}', name='{}'",
         theme_id, theme_file.name
     );
+    let preview = Some(extract_preview(&theme_file.variables));
     Ok(ThemeEntry {
         id: theme_id.into(),
         name: theme_file.name,
         author: theme_file.author,
         version: theme_file.version,
         r#type: "user".into(),
+        preview,
     })
 }
 
@@ -597,4 +632,86 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
             import_theme_cbth(zip_path)
         }
     }
+}
+
+#[command]
+pub fn remove_theme(id: String) -> Result<(), String> {
+    info!("Eliminando theme '{}'", id);
+    let theme_dir = PathManager::get().get_themes_dir().join(&id);
+    if !theme_dir.exists() {
+        return Err(FsError::NotFound(theme_dir.to_string_lossy().to_string()).to_string());
+    }
+    std::fs::remove_dir_all(&theme_dir).map_err(|e| FsError::Remove {
+        path: theme_dir.to_string_lossy().to_string(),
+        source: e,
+    })?;
+    info!("Theme '{}' eliminado", id);
+    Ok(())
+}
+
+#[command]
+pub fn export_theme(id: String, dest: String) -> Result<String, String> {
+    info!("Exportando theme '{}' a '{}'", id, dest);
+    let theme_dir = PathManager::get().get_themes_dir().join(&id);
+    if !theme_dir.exists() {
+        return Err(FsError::NotFound(theme_dir.to_string_lossy().to_string()).to_string());
+    }
+
+    let dest_path = std::path::Path::new(&dest);
+    let cbth_name = format!("{}.cbth", id);
+    let output = dest_path.join(&cbth_name);
+
+    let file = std::fs::File::create(&output).map_err(|e| FsError::WriteFile {
+        path: output.to_string_lossy().to_string(),
+        source: e,
+    })?;
+    let mut zip_writer = zip::ZipWriter::new(file);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    fn add_dir_to_zip(
+        zip: &mut zip::ZipWriter<std::fs::File>,
+        dir: &std::path::Path,
+        prefix: &std::path::Path,
+        options: zip::write::SimpleFileOptions,
+    ) -> Result<(), String> {
+        for entry in std::fs::read_dir(dir).map_err(|e| FsError::ReadDir {
+            path: dir.to_string_lossy().to_string(),
+            source: e,
+        })? {
+            let entry = entry.map_err(|e| FsError::ReadDir {
+                path: dir.to_string_lossy().to_string(),
+                source: e,
+            })?;
+            let path = entry.path();
+            let relative = path
+                .strip_prefix(prefix)
+                .map_err(|_| CoreError::Other("Error calculando ruta relativa".into()))?;
+            if path.is_dir() {
+                zip.add_directory(relative.to_string_lossy(), options)
+                    .map_err(|e| CoreError::Other(format!("Error agregando directorio: {}", e)))?;
+                add_dir_to_zip(zip, &path, prefix, options)?;
+            } else {
+                let data = std::fs::read(&path).map_err(|e| FsError::ReadFile {
+                    path: path.to_string_lossy().to_string(),
+                    source: e,
+                })?;
+                zip.start_file(relative.to_string_lossy(), options)
+                    .map_err(|e| CoreError::Other(format!("Error agregando archivo: {}", e)))?;
+                std::io::Write::write_all(&mut *zip, &data)
+                    .map_err(|e| CoreError::Other(format!("Error escribiendo ZIP: {}", e)))?;
+            }
+        }
+        Ok(())
+    }
+
+    add_dir_to_zip(&mut zip_writer, &theme_dir, &theme_dir, options)?;
+
+    zip_writer
+        .finish()
+        .map_err(|e| CoreError::Other(format!("Error finalizando ZIP: {}", e)))?;
+
+    let out_path = output.to_string_lossy().to_string();
+    info!("Theme exportado a '{}'", out_path);
+    Ok(out_path)
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use aqua::{DownloadItemSpec, DownloadManager, GenericBatch};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
@@ -18,6 +20,8 @@ pub struct ModDownloadInfo {
     pub version_id: Option<String>,
     #[serde(default)]
     pub sha1: Option<String>,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
 }
 
 #[tauri::command]
@@ -43,6 +47,9 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
         .iter()
         .map(|m| {
             let mut spec = DownloadItemSpec::new(m.url.clone(), mods_dir.join(&m.filename), "mod");
+            if !m.headers.is_empty() {
+                spec = spec.with_headers(m.headers.clone());
+            }
             if let Some(hash) = &m.sha1
                 && !hash.is_empty()
             {
@@ -174,7 +181,12 @@ pub async fn download_resourcepacks(
                 m.filename,
                 rp_dir.join(&m.filename)
             );
-            DownloadItemSpec::new(m.url.clone(), rp_dir.join(&m.filename), "resourcepack")
+            let mut spec =
+                DownloadItemSpec::new(m.url.clone(), rp_dir.join(&m.filename), "resourcepack");
+            if !m.headers.is_empty() {
+                spec = spec.with_headers(m.headers.clone());
+            }
+            spec
         })
         .collect();
 
@@ -245,7 +257,12 @@ pub async fn download_shaderpacks(
                 m.filename,
                 sp_dir.join(&m.filename)
             );
-            DownloadItemSpec::new(m.url.clone(), sp_dir.join(&m.filename), "shaderpack")
+            let mut spec =
+                DownloadItemSpec::new(m.url.clone(), sp_dir.join(&m.filename), "shaderpack");
+            if !m.headers.is_empty() {
+                spec = spec.with_headers(m.headers.clone());
+            }
+            spec
         })
         .collect();
 

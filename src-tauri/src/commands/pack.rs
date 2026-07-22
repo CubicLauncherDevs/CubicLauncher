@@ -16,6 +16,7 @@ pub struct MrpackInfo {
     pub loader_version: Option<String>,
     pub file_count: usize,
     pub version_id_for_instance: Option<String>,
+    pub icon: Option<String>,
 }
 
 #[tauri::command]
@@ -48,6 +49,7 @@ pub async fn parse_mrpack(path: String) -> Result<MrpackInfo, String> {
             .and_then(|gv| gv.loader.version().map(|s| s.to_string())),
         file_count: metadata.file_count,
         version_id_for_instance,
+        icon: None,
     })
 }
 
@@ -57,10 +59,11 @@ pub async fn install_mrpack(
     instance_name: String,
     project_id: Option<String>,
     modrinth_version_id: Option<String>,
+    icon_url: Option<String>,
 ) -> Result<MrpackInfo, String> {
     info!(
-        "Installing mrpack '{}' as instance '{}' (project={:?}, version={:?})",
-        path, instance_name, project_id, modrinth_version_id
+        "Installing mrpack '{}' as instance '{}' (project={:?}, version={:?}, icon={:?})",
+        path, instance_name, project_id, modrinth_version_id, icon_url
     );
 
     let metadata = cubrinth::mrpack::parse_mrpack(std::path::Path::new(&path))
@@ -138,6 +141,37 @@ pub async fn install_mrpack(
 
     install_result.map_err(|e| format!("Failed to install mrpack: {}", e))?;
 
+    // Download icon from Modrinth if available and set as instance icon
+    let icon = if let Some(url) = icon_url {
+        match reqwest::get(&url).await {
+            Ok(response) => match response.bytes().await {
+                Ok(bytes) => {
+                    let icon_path = instance_dir.join("icon.png");
+                    if let Err(e) = tokio::fs::write(&icon_path, &bytes).await {
+                        tracing::error!("Failed to write icon: {}", e);
+                        None
+                    } else if let Some(icon_str) = icon_path.to_str() {
+                        handle.set_icon(Some(icon_str.to_string())).await;
+                        let _ = handle.save_if_dirty().await;
+                        Some(icon_str.to_string())
+                    } else {
+                        None
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Failed to read icon bytes: {}", e);
+                    None
+                }
+            },
+            Err(e) => {
+                tracing::error!("Failed to download icon: {}", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     match &game_version.loader {
         zellkern::Loader::Fabric(_)
         | zellkern::Loader::Quilt(_)
@@ -168,5 +202,6 @@ pub async fn install_mrpack(
         loader_version: game_version.loader.version().map(|s| s.to_string()),
         file_count: metadata.file_count,
         version_id_for_instance: Some(version_id),
+        icon,
     })
 }

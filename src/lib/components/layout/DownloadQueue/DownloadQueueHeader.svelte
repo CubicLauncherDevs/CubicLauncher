@@ -54,7 +54,7 @@
 	}
 
 	.sd-header:hover {
-		background: rgba(255, 255, 255, 0.03);
+		background: var(--surface-selected);
 	}
 
 	.sd-header.expanded {

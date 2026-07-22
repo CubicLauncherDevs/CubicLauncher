@@ -95,9 +95,9 @@
 			if (loader === "vanilla") {
 				baseVersions = Array.from(parsed.vanilla);
 			} else if (loader === "fabric") {
-				baseVersions = Array.from(parsed.fabric);
+				baseVersions = Array.from(new SvelteSet([...parsed.fabric, ...parsed.vanilla]));
 			} else if (loader === "quilt") {
-				baseVersions = Array.from(parsed.quilt);
+				baseVersions = Array.from(new SvelteSet([...parsed.quilt, ...parsed.vanilla]));
 			} else if (loader === "forge") {
 				baseVersions = Array.from(parsed.forge).map((v) => {
 					const idx = v.indexOf("-forge-");

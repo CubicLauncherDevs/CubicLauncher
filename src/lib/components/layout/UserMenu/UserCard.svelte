@@ -205,7 +205,7 @@
 		border-radius: var(--border-radius-sm);
 		box-shadow:
 			var(--shadow-sm),
-			inset 0 1px 0 rgba(255, 255, 255, 0.03);
+			inset 0 1px 0 var(--surface-selected);
 		overflow: hidden;
 	}
 
@@ -215,7 +215,7 @@
 	}
 
 	.user-card:hover {
-		border-color: rgba(255, 255, 255, 0.1);
+		border-color: rgba(var(--surface-rgb), 0.1);
 	}
 
 	.user-card.active {
@@ -267,7 +267,7 @@
 
 	.user-name.clickable {
 		cursor: text;
-		border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+		border-bottom: 1px dashed rgba(var(--surface-rgb), 0.1);
 	}
 
 	.user-name.clickable:hover {
@@ -278,7 +278,7 @@
 		font-size: 0.85rem;
 		font-weight: 600;
 		padding: 2px 4px;
-		background: rgba(255, 255, 255, 0.05);
+		background: rgba(var(--surface-rgb), 0.05);
 		border: 1px solid var(--accent);
 		border-radius: 3px;
 		color: var(--text-primary);
@@ -331,7 +331,7 @@
 	.icon-btn:hover {
 		color: var(--text-primary);
 		border-color: var(--border-color);
-		background: rgba(255, 255, 255, 0.03);
+		background: var(--surface-selected);
 	}
 
 	.icon-btn.remove:hover {

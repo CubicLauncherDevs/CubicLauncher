@@ -5,6 +5,13 @@
 		"save": "Save",
 		"retry": "Retry"
 	},
+	"languages": {
+		"es": "Spanish",
+		"en": "English",
+		"fr": "French",
+		"de": "German",
+		"uk": "Ukrainian"
+	},
 	"settings": {
 		"title": "Settings",
 		"advanced": "Advanced",
@@ -32,6 +39,11 @@
 			"javaSpan": "You don't know what Java is? Check out our documentation at https://cubiclauncher.org/docs/java",
 			"themes": "Themes",
 			"themesActive": "Active theme",
+			"themesImport": "Import Theme",
+			"themesImporting": "Importing...",
+			"themesExport": "Export",
+			"themesDelete": "Delete",
+			"themesUnknownAuthor": "User Themes",
 			"checkingBtn": "Checking for updates",
 			"searchBtn": "Check for Updates",
 			"downloadingBtn": "Downloading update",
@@ -116,7 +128,9 @@
 			"deleteDesc2": "? This action cannot be undone.",
 			"deleteBtn": "Delete"
 		},
-		"downloadVersions": "Download Versions"
+		"downloadVersions": "Download Versions",
+		"collapse": "Collapse sidebar",
+		"expand": "Expand sidebar"
 	},
 	"userMenu": {
 		"title": "User Profile",
@@ -344,12 +358,23 @@
 		"installBtn": "Install",
 		"loadMore": "Load more",
 		"downloads": "downloads",
-		"selectMrpackBtn": "Select .mrpack file"
+		"selectMrpackBtn": "Select .mrpack file",
+		"uploadIcon": "Upload logo",
+		"iconFilter": "Images",
+		"customNameNeeded": "This modpack name contains unsupported characters. Please enter a custom name:",
+		"customNamePlaceholder": "Instance name",
+		"nameInvalidChars": "The name contains invalid characters. Use only ASCII letters, numbers, and basic punctuation.",
+		"nameInvalidNonAscii": "The name can only contain ASCII characters (a-z, 0-9, -, _).",
+		"nextBtn": "Next",
+		"backBtn": "Back",
+		"stepInfo": "Info",
+		"stepVersion": "Version"
 	},
 	"themes": {
 		"importSuccess": "Theme imported",
 		"importSuccessMessage": "The theme has been imported and applied successfully.",
-		"importError": "Error importing theme"
+		"importError": "Error importing theme",
+		"deleteConfirm": "Are you sure you want to delete {name}?"
 	},
 	"downloadProgress": {
 		"statusLibs": "Downloading libraries",
@@ -445,7 +470,8 @@
 		"browseAll": "Browse all MC versions",
 		"downloading": "Downloading...",
 		"forgeJavaHint": "Forge requires Java 21 to be configured in Settings > Java.",
-		"neoForgeJavaHint": "NeoForge requires Java 17/21 to be configured in Settings > Java."
+		"neoForgeJavaHint": "NeoForge requires Java 17/21 to be configured in Settings > Java.",
+		"loaderSearchPlaceholder": "Search loader version..."
 	},
 	"market": {
 		"empty": {

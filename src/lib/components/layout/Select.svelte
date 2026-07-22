@@ -8,6 +8,7 @@
 		value: string;
 		label: string;
 		badge?: string;
+		icon?: string;
 	}
 
 	let {
@@ -110,6 +111,10 @@
 	const selectedLabel = $derived(
 		options.find((o: Option) => o.value === value)?.label || placeholder,
 	);
+
+	const selectedIcon = $derived(
+		options.find((o: Option) => o.value === value)?.icon,
+	);
 </script>
 
 <div class="custom-select-container" bind:this={container} {id}>
@@ -132,6 +137,15 @@
 			<span class="select-spinner" aria-hidden="true"></span>
 		{/if}
 		<span class="selected-value">
+			{#if !loading && selectedIcon}
+				<span class="option-icon">
+					{#if selectedIcon.startsWith("/")}
+						<img src={selectedIcon} alt="" class="option-img" />
+					{:else}
+						{selectedIcon}
+					{/if}
+				</span>
+			{/if}
 			{loading ? loadingPlaceholder : selectedLabel}
 		</span>
 		{#if !loading}
@@ -158,6 +172,15 @@
 					aria-selected={option.value === value}
 					tabindex="0"
 				>
+					{#if option.icon}
+						<span class="option-icon">
+							{#if option.icon.startsWith("/")}
+								<img src={option.icon} alt="" class="option-img" />
+							{:else}
+								{option.icon}
+							{/if}
+						</span>
+					{/if}
 					<span class="select-option-label">{option.label}</span>
 					{#if option.badge}
 						<span class="select-option-badge">{option.badge}</span>
@@ -186,5 +209,25 @@
 		to {
 			transform: rotate(360deg);
 		}
+	}
+
+	.option-icon {
+		font-size: 1.2em;
+		line-height: 1;
+		margin-right: 6px;
+		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+	}
+
+	.option-img {
+		width: 1.2em;
+		height: 1.2em;
+		display: block;
+		filter: var(--icon-filter);
+	}
+
+	.selected-value .option-icon {
+		margin-right: 4px;
 	}
 </style>

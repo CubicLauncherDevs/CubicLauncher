@@ -30,10 +30,16 @@
 	let selectedJavaVersion = $state("");
 	let useOverrides = $state(false);
 
-	const parsedVersion = parseInstanceVersion(instance.version);
-	let selectedLoader = $state(parsedVersion.loader);
-	let selectedMcVersion = $state(parsedVersion.mcVersion);
-	let selectedLoaderVersion = $state(parsedVersion.loaderVersion);
+	let parsedVersion = $derived(parseInstanceVersion(instance.version));
+	let selectedLoader = $state("");
+	let selectedMcVersion = $state("");
+	let selectedLoaderVersion = $state("");
+
+	$effect(() => {
+		selectedLoader = parsedVersion.loader;
+		selectedMcVersion = parsedVersion.mcVersion;
+		selectedLoaderVersion = parsedVersion.loaderVersion;
+	});
 
 	let repairing = $state(false);
 
@@ -167,7 +173,11 @@
 				iconSrc="/images/icons/settings.svg"
 				storageKey="instance_general"
 			>
-				<GeneralSection bind:selectedIcon bind:instanceName />
+				<GeneralSection
+					bind:selectedIcon
+					bind:instanceName
+					instanceUuid={instance.uuid}
+				/>
 			</CollapsibleSection>
 			<CollapsibleSection
 				title="Installation"

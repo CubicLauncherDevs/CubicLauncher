@@ -7,6 +7,7 @@
 		getCurseForgeFileDownloadUrl,
 		downloadMods,
 		getInstanceMods,
+		CURSEFORGE_HEADERS,
 		type ModDownloadInfo,
 	} from "$lib/api/cubicApi";
 	import type {
@@ -19,13 +20,14 @@
 		ModSource,
 	} from "$lib/types/types";
 	import { onDestroy } from "svelte";
-	import { SvelteMap } from "svelte/reactivity";
+	import { SvelteMap, SvelteSet } from "svelte/reactivity";
 	import Review from "./Review.svelte";
 	import Browse from "./Browse.svelte";
 
 	onDestroy(() => {
 		clearTimeout(debounceTimer);
 		abortController?.abort();
+		versionsAbortController?.abort();
 	});
 
 	let { instance } = $props<{ instance: InstanceDto }>();
@@ -85,6 +87,7 @@
 	const gameVersion = $derived(getGameVersion(instance.version));
 
 	let abortController = $state<AbortController | null>(null);
+	let versionsAbortController = $state<AbortController | null>(null);
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 	function getProjectId(
@@ -260,83 +263,21 @@
 			);
 
 			const queue: ModDownloadInfo[] = [];
-			for (const [id, project] of basket) {
+
+			// Fase 1: descargar versiones de los proyectos principales en paralelo
+			const mainFetches = [...basket].map(async ([id, project]) => {
 				if (isModrinthProject(project)) {
-					const mrProject = project as ModrinthProject;
 					const versions = await getModrinthProjectVersions(
 						id,
 						instance.loader,
 						gameVersion,
 					);
-					if (versions && versions.length > 0) {
-						let targetVersion: ModrinthVersion | undefined;
-						const storedVersionId = versionSelection.get(id);
-						if (storedVersionId) {
-							targetVersion = versions.find(
-								(v) => v.id === storedVersionId,
-							);
-						}
-						if (!targetVersion) {
-							targetVersion = versions[0];
-						}
-						const primaryFile =
-							targetVersion.files.find(
-								(f: ModrinthFile) => f.primary,
-							) || targetVersion.files[0];
-						if (
-							!queue.find(
-								(q) => q.filename === primaryFile.filename,
-							)
-						) {
-							queue.push({
-								url: primaryFile.url,
-								filename: primaryFile.filename,
-								projectTitle: mrProject.title,
-								iconUrl: mrProject.icon_url || undefined,
-							});
-						}
-
-						if (targetVersion.dependencies) {
-							for (const dep of targetVersion.dependencies) {
-								if (
-									dep.dependency_type === "required" &&
-									dep.project_id
-								) {
-									const depVersions =
-										await getModrinthProjectVersions(
-											dep.project_id,
-											instance.loader,
-											gameVersion,
-										);
-									if (depVersions && depVersions.length > 0) {
-										const depLatest = depVersions[0];
-										const depFile =
-											depLatest.files.find(
-												(f: ModrinthFile) => f.primary,
-											) || depLatest.files[0];
-
-										const alreadyInstalled =
-											installedFilenames.has(
-												depFile.filename.toLowerCase(),
-											);
-										const alreadyQueued = queue.find(
-											(q) =>
-												q.filename === depFile.filename,
-										);
-										if (
-											!alreadyInstalled &&
-											!alreadyQueued
-										) {
-											queue.push({
-												url: depFile.url,
-												filename: depFile.filename,
-											});
-										}
-									}
-								}
-							}
-						}
-					}
+					return {
+						id,
+						project,
+						versions,
+						files: null as CurseForgeFile[] | null,
+					};
 				} else {
 					const cfProject = project as CurseForgeProject;
 					const files = await getCurseForgeProjectFiles(
@@ -344,41 +285,151 @@
 						instance.loader,
 						gameVersion,
 					);
-					if (files && files.length > 0) {
-						let targetFile: CurseForgeFile | undefined;
-						const storedFileId = versionSelection.get(id);
-						if (storedFileId) {
-							targetFile = files.find(
-								(f) => f.id.toString() === storedFileId,
-							);
-						}
-						if (!targetFile) {
-							targetFile = files[0];
-						}
-						let downloadUrl = targetFile.downloadUrl;
-						if (!downloadUrl) {
-							downloadUrl = await getCurseForgeFileDownloadUrl(
-								cfProject.id,
-								targetFile.id,
-							);
-						}
-						if (downloadUrl) {
+					return {
+						id,
+						project,
+						versions: null as ModrinthVersion[] | null,
+						files,
+					};
+				}
+			});
+			const mainResults = await Promise.all(mainFetches);
+
+			// Fase 2: procesar resultados principales y recolectar dependencias
+			const depProjectIds = new SvelteSet<string>();
+			const cfDownloadsToResolve: {
+				cfProject: CurseForgeProject;
+				file: CurseForgeFile;
+			}[] = [];
+
+			for (const result of mainResults) {
+				const { id, project } = result;
+				if (result.versions) {
+					const mrProject = project as ModrinthProject;
+					const versions = result.versions;
+					if (versions.length === 0) continue;
+
+					let targetVersion = versions.find(
+						(v) => v.id === versionSelection.get(id),
+					);
+					if (!targetVersion) {
+						targetVersion = versions[0];
+					}
+					const primaryFile =
+						targetVersion.files.find(
+							(f: ModrinthFile) => f.primary,
+						) || targetVersion.files[0];
+					if (
+						!queue.find((q) => q.filename === primaryFile.filename)
+					) {
+						queue.push({
+							url: primaryFile.url,
+							filename: primaryFile.filename,
+							projectTitle: mrProject.title,
+							iconUrl: mrProject.icon_url || undefined,
+						});
+					}
+
+					if (targetVersion.dependencies) {
+						for (const dep of targetVersion.dependencies) {
 							if (
-								!queue.find(
-									(q) => q.filename === targetFile!.fileName,
-								)
+								dep.dependency_type === "required" &&
+								dep.project_id
 							) {
-								queue.push({
-									url: downloadUrl,
-									filename: targetFile.fileName,
-									projectTitle: cfProject.name,
-									iconUrl: cfProject.logo?.url || undefined,
-								});
+								depProjectIds.add(dep.project_id);
 							}
 						}
 					}
+				} else if (result.files) {
+					const cfProject = project as CurseForgeProject;
+					const files = result.files;
+					if (files.length === 0) continue;
+
+					let targetFile = files.find(
+						(f) => f.id.toString() === versionSelection.get(id),
+					);
+					if (!targetFile) {
+						targetFile = files[0];
+					}
+					if (targetFile.downloadUrl) {
+						if (
+							!queue.find(
+								(q) => q.filename === targetFile.fileName,
+							)
+						) {
+							queue.push({
+								url: targetFile.downloadUrl,
+								filename: targetFile.fileName,
+								projectTitle: cfProject.name,
+								iconUrl: cfProject.logo?.url || undefined,
+								headers: CURSEFORGE_HEADERS,
+							});
+						}
+					} else {
+						cfDownloadsToResolve.push({
+							cfProject,
+							file: targetFile,
+						});
+					}
 				}
 			}
+
+			// Fase 3: resolver URLs de descarga de CurseForge en paralelo
+			if (cfDownloadsToResolve.length > 0) {
+				const urlFetches = cfDownloadsToResolve.map(
+					({ cfProject, file }) =>
+						getCurseForgeFileDownloadUrl(
+							cfProject.id,
+							file.id,
+						).then((url) => ({ cfProject, file, url })),
+				);
+				const resolvedCf = await Promise.all(urlFetches);
+				for (const { cfProject, file, url } of resolvedCf) {
+					if (!url) continue;
+					if (!queue.find((q) => q.filename === file.fileName)) {
+						queue.push({
+							url,
+							filename: file.fileName,
+							projectTitle: cfProject.name,
+							iconUrl: cfProject.logo?.url || undefined,
+							headers: CURSEFORGE_HEADERS,
+						});
+					}
+				}
+			}
+
+			// Fase 4: descargar versiones de dependencias en paralelo
+			if (depProjectIds.size > 0) {
+				const depFetches = [...depProjectIds].map(async (depId) => {
+					const depVersions = await getModrinthProjectVersions(
+						depId,
+						instance.loader,
+						gameVersion,
+					);
+					return { depId, depVersions };
+				});
+				const depResults = await Promise.all(depFetches);
+				for (const { depVersions } of depResults) {
+					if (!depVersions || depVersions.length === 0) continue;
+					const depLatest = depVersions[0];
+					const depFile =
+						depLatest.files.find((f: ModrinthFile) => f.primary) ||
+						depLatest.files[0];
+					const alreadyInstalled = installedFilenames.has(
+						depFile.filename.toLowerCase(),
+					);
+					const alreadyQueued = queue.find(
+						(q) => q.filename === depFile.filename,
+					);
+					if (!alreadyInstalled && !alreadyQueued) {
+						queue.push({
+							url: depFile.url,
+							filename: depFile.filename,
+						});
+					}
+				}
+			}
+
 			downloadQueue = queue;
 		} finally {
 			resolvingDeps = false;
@@ -398,6 +449,10 @@
 	}
 
 	async function loadVersions(projectId: string) {
+		versionsAbortController?.abort();
+		versionsAbortController = new AbortController();
+		const signal = versionsAbortController.signal;
+
 		loadingVersions = true;
 		selectedModVersions = [];
 		selectedVersionId = "";
@@ -406,6 +461,8 @@
 				const versions = await getModrinthProjectVersions(
 					projectId,
 					instance.loader,
+					gameVersion,
+					signal,
 				);
 				const sorted = [...versions].sort((a, b) => {
 					const aCompat = isVersionCompatibleModrinth(a) ? 1 : 0;
@@ -432,6 +489,8 @@
 				const files = await getCurseForgeProjectFiles(
 					modId,
 					instance.loader,
+					gameVersion,
+					signal,
 				);
 				const cfFiles = [...files].sort((a, b) => {
 					const aCompat = isVersionCompatibleCurseForge(a) ? 1 : 0;

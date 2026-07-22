@@ -8,17 +8,28 @@
 	--bg-sidebar-gradient: linear-gradient(180deg, #0f1010 0%, #0c0c0c 100%);
 	--bg-card-gradient: linear-gradient(
 		135deg,
-		rgba(255, 255, 255, 0.03) 0%,
+		var(--surface-card) 0%,
 		rgba(255, 255, 255, 0) 100%
 	);
 	--text-primary: #d8d8d8;
 	--text-secondary: #606060;
 	--text-muted: #444;
+	--text-tertiary: #888;
 	--accent: #ffffff;
 	--accent-rgb: 255, 255, 255;
 	--accent-hover: #e0e0e0;
 	--accent-text: #0c0c0c;
 	--accent-primary: #ffffff;
+	--surface-rgb: 255, 255, 255;
+	--surface-hover: rgba(var(--surface-rgb), 0.08);
+	--surface-active: rgba(var(--surface-rgb), 0.06);
+	--surface-selected: rgba(var(--surface-rgb), 0.03);
+	--surface-card: rgba(var(--surface-rgb), 0.03);
+	--surface-input: rgba(var(--surface-rgb), 0.03);
+	--surface-dropdown: #121212;
+	--bg-surface: #1e1e1e;
+	--toast-bg: rgba(28, 28, 36, 0.84);
+	--toast-border: rgba(var(--surface-rgb), 0.1);
 	--border: #242424;
 	--border-color: #222;
 	--border-width: 1px;

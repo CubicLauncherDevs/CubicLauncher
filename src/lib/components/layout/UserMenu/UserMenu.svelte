@@ -22,12 +22,12 @@
 	let showYggdrasilModal = $state(false);
 	let addingOffline = $state(false);
 	let offlineName = $state("");
-	let removingUser = $state<string | null>(null);
+	let removingUserUuid = $state<string | null>(null);
 
 	$effect(() => {
 		if (open) {
 			editingIdx = null;
-			removingUser = null;
+			removingUserUuid = null;
 			addingOffline = false;
 			offlineName = "";
 		}
@@ -58,15 +58,18 @@
 	async function handleSwitchUser(idx: number) {
 		if (idx === launcherStore.settings.active_user_idx) return;
 		launcherStore.settings.active_user_idx = idx;
-		removingUser = null;
+		removingUserUuid = null;
 		editingIdx = null;
 		markLocalSettingsChange();
-		await switchUser(idx);
+		const user = await switchUser(idx);
+		if (user) {
+			launcherStore.settings.user[idx] = user;
+		}
 	}
 
-	async function handleRemoveUser(username: string) {
+	async function handleRemoveUser(uuid: string) {
 		const idx = launcherStore.settings.user.findIndex(
-			(u) => u.username === username,
+			(u) => u.uuid === uuid,
 		);
 		if (idx === -1) return;
 		launcherStore.settings.user.splice(idx, 1);
@@ -85,9 +88,9 @@
 				launcherStore.settings.active_user_idx - 1,
 			);
 		}
-		removingUser = null;
+		removingUserUuid = null;
 		markLocalSettingsChange();
-		await removeUser(username);
+		await removeUser(uuid);
 	}
 
 	async function handleAddOffline() {
@@ -163,7 +166,7 @@
 						avatarSvg={avatarSvgs.get(u.username) ?? ""}
 						isEditing={editingIdx === i}
 						bind:editingName
-						isConfirmingRemove={removingUser === u.username}
+						isConfirmingRemove={removingUserUuid === u.uuid}
 						onswitch={() => handleSwitchUser(i)}
 						onstartedit={() => {
 							editingIdx = i;
@@ -172,9 +175,9 @@
 						onsavename={() => handleSaveName(i)}
 						oncancelname={() => (editingIdx = null)}
 						onlogout={handleLogout}
-						onstartremove={() => (removingUser = u.username)}
-						onconfirmremove={() => handleRemoveUser(u.username)}
-						oncancelremove={() => (removingUser = null)}
+						onstartremove={() => (removingUserUuid = u.uuid)}
+						onconfirmremove={() => handleRemoveUser(u.uuid)}
+						oncancelremove={() => (removingUserUuid = null)}
 					/>
 				{/each}
 			</div>

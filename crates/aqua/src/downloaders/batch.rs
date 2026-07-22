@@ -15,6 +15,7 @@ pub struct DownloadItemSpec {
     pub required: bool,
     pub stage: DownloadStage,
     pub size: Option<u64>,
+    pub headers: Vec<(String, String)>,
 }
 
 impl DownloadItemSpec {
@@ -28,7 +29,19 @@ impl DownloadItemSpec {
             required: true,
             stage: DownloadStage::Generic,
             size: None,
+            headers: Vec::new(),
         }
+    }
+
+    pub fn with_headers(
+        mut self,
+        headers: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
+    ) -> Self {
+        self.headers = headers
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
+        self
     }
 
     pub fn with_hash(mut self, hash: impl Into<String>) -> Self {

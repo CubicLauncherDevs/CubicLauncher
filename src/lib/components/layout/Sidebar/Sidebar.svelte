@@ -18,6 +18,7 @@
 		onopeneditinstance: (instance: InstanceDto) => void;
 		onopencreateinstance?: () => void;
 		onopenversiondownloader?: () => void;
+		oncollapse?: () => void;
 	}
 
 	let {
@@ -26,6 +27,7 @@
 		onopeneditinstance,
 		onopencreateinstance,
 		onopenversiondownloader,
+		oncollapse,
 	}: Props = $props();
 
 	let showUserMenu = $state(false);
@@ -189,6 +191,26 @@
 			onclick={() => (showUserMenu = true)}
 		/>
 	</div>
+
+	<button
+		type="button"
+		class="collapse-btn"
+		onclick={oncollapse}
+		title={t("sidebar.collapse")}
+	>
+		<svg
+			width="14"
+			height="14"
+			viewBox="0 0 16 16"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			<path d="M10 4l-4 4 4 4" />
+		</svg>
+	</button>
 </aside>
 
 <DeleteInstanceModal
@@ -222,12 +244,16 @@
 		padding: 18px 16px 0;
 		z-index: 10;
 		user-select: none;
+		position: relative;
 	}
 
 	.sidebar-header {
 		padding-bottom: 14px;
 		margin-bottom: 8px;
 		border-bottom: 1px solid var(--border);
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 	}
 
 	.sidebar-header h1 {
@@ -236,6 +262,34 @@
 		letter-spacing: 2px;
 		text-transform: uppercase;
 		color: var(--text-secondary);
+	}
+
+	.collapse-btn {
+		position: absolute;
+		right: -12px;
+		top: 50%;
+		transform: translateY(-50%);
+		z-index: 11;
+		background: var(--bg-sidebar);
+		border: 1px solid var(--border);
+		color: var(--text-secondary);
+		border-radius: var(--border-radius-sm);
+		box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 24px;
+		height: 28px;
+		padding: 0;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease;
+	}
+
+	.collapse-btn:hover {
+		background: var(--bg-item-active);
+		color: var(--text-primary);
 	}
 
 	.section-label {

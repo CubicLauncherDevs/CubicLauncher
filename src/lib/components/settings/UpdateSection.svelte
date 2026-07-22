@@ -161,7 +161,7 @@
 		border-radius: var(--border-radius-sm);
 		box-shadow:
 			var(--shadow-sm),
-			inset 0 1px 0 rgba(255, 255, 255, 0.03);
+			inset 0 1px 0 var(--surface-selected);
 		overflow: hidden;
 	}
 
@@ -236,7 +236,7 @@
 
 	.action-btn:hover:not(:disabled) {
 		color: var(--text-primary);
-		background: rgba(255, 255, 255, 0.03);
+		background: var(--surface-selected);
 	}
 
 	.action-btn:disabled {

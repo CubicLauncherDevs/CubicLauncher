@@ -2,9 +2,11 @@
 	let {
 		currentStep = $bindable(0),
 		totalSteps = 2,
+		labels = [],
 	}: {
 		currentStep: number;
 		totalSteps?: number;
+		labels?: string[];
 	} = $props();
 </script>
 
@@ -12,22 +14,27 @@
 	{#each { length: totalSteps } as _, i (i)}
 		{@const active = i === currentStep}
 		{@const done = i < currentStep}
-		<div class="step-dot" class:active class:done>
-			{#if done}
-				<svg
-					width="12"
-					height="12"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="3"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<polyline points="20 6 9 17 4 12"></polyline>
-				</svg>
-			{:else}
-				<span>{i + 1}</span>
+		<div class="step-item">
+			<div class="step-dot" class:active class:done>
+				{#if done}
+					<svg
+						width="12"
+						height="12"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="3"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<polyline points="20 6 9 17 4 12"></polyline>
+					</svg>
+				{:else}
+					<span>{i + 1}</span>
+				{/if}
+			</div>
+			{#if labels[i]}
+				<span class="step-label" class:active class:done>{labels[i]}</span>
 			{/if}
 		</div>
 		{#if i < totalSteps - 1}
@@ -42,6 +49,13 @@
 		align-items: center;
 		gap: 0;
 		padding: 4px 0 12px;
+	}
+
+	.step-item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 4px;
 	}
 
 	.step-dot {
@@ -82,5 +96,21 @@
 
 	.step-line.done {
 		background: var(--accent);
+	}
+
+	.step-label {
+		font-size: 0.65rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+		white-space: nowrap;
+		transition: color 0.2s;
+	}
+
+	.step-label.active {
+		color: var(--accent);
+	}
+
+	.step-label.done {
+		color: var(--accent);
 	}
 </style>

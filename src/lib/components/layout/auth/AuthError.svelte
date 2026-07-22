@@ -119,7 +119,7 @@
 	}
 
 	.action-btn.retry:hover {
-		background: rgba(255, 255, 255, 0.04);
+		background: rgba(var(--surface-rgb), 0.04);
 		color: var(--text-primary);
 		border-color: var(--text-muted);
 	}

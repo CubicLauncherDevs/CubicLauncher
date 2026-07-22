@@ -8,7 +8,8 @@
 		onAppEvent,
 	} from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
-	import { t, locales } from "$lib/i18n";
+	import { t, locales, downloadLocale } from "$lib/i18n";
+	import { i18nLoader } from "$lib/i18n/loader.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
 	import {
 		checkForUpdates,
@@ -16,6 +17,7 @@
 		installUpdate,
 	} from "$lib/api/updaterServices";
 	import { listThemes } from "$lib/api/themeManager";
+	import ThemeSelector from "./ThemeSelector.svelte";
 	import {
 		getJreVersions,
 		installJre,
@@ -129,20 +131,18 @@
 		{ id: "java", label: t("settings.tabs.java") },
 	]);
 
-	const languageOptions = locales.map((l) => ({
-		value: l.code,
-		label: l.label,
-	}));
-	let availableThemes = $state<ThemeEntry[]>([]);
-	let themeOptions = $derived(
-		availableThemes.map((t: ThemeEntry) => ({
-			value: t.id,
-			label: t.name,
-			badge: [t.author, t.version ? `v${t.version}` : ""]
-				.filter(Boolean)
-				.join(" "),
+	const languageOptions = $derived(
+		locales.map((l) => ({
+			value: l.code,
+			label: `${t(`languages.${l.code}`)} (${l.label})`,
+			icon: i18nLoader.loading === l.code
+				? "⏳"
+				: i18nLoader.fetched.has(l.code)
+					? l.flag
+					: "/images/icons/download.svg",
 		})),
 	);
+	let availableThemes = $state<ThemeEntry[]>([]);
 
 	async function loadThemes() {
 		availableThemes = await listThemes();
@@ -291,32 +291,18 @@
 					iconSrc="/images/icons/pencil.svg"
 					storageKey="section_themes"
 				>
-					<Select
-						id="theme"
-						label={t("settings.launcher.themesActive")}
-						options={themeOptions}
+					<ThemeSelector
+						themes={availableThemes}
 						bind:value={launcherStore.settings.theme}
-						onchange={async () => {
+						onchange={async (id: string) => {
 							try {
-								await invoke("set_theme", {
-									id: launcherStore.settings.theme,
-								});
+								await invoke("set_theme", { id });
 							} catch (e) {
 								console.error("Error setting theme:", e);
 							}
 						}}
+						onrefresh={loadThemes}
 					/>
-					<span
-						class="qm-themes-hint"
-						onclick={() =>
-							openUrl("https://www.cubiclauncher.org/themes")}
-						role="link"
-						tabindex="0"
-						onkeydown={(e) => {
-							if (e.key === "Enter")
-								openUrl("https://www.cubiclauncher.org/themes");
-						}}>{t("settings.launcher.themesSpan")}</span
-					>
 				</CollapsibleSection>
 
 				<CollapsibleSection
@@ -329,7 +315,10 @@
 						label={t("settings.launcher.language")}
 						options={languageOptions}
 						bind:value={launcherStore.settings.language}
-						onchange={handleSave}
+						onchange={(val) => {
+							downloadLocale(val);
+							handleSave();
+						}}
 					/>
 					<div class="qm-field-checkbox">
 						<input
@@ -706,7 +695,7 @@
 		border: 1px solid var(--border-color);
 		box-shadow:
 			var(--shadow-sm),
-			inset 0 1px 0 rgba(255, 255, 255, 0.03);
+			inset 0 1px 0 var(--surface-selected);
 		margin-bottom: 6px;
 	}
 

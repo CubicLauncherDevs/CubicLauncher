@@ -1,9 +1,12 @@
 <script lang="ts">
 	import {
 		createInstance,
+		uploadCustomIcon,
 		fetchAll,
+		getInstalledVersions,
 		parseMrpack,
 		installMrpack,
+		searchModrinth,
 		addToQueue,
 		downloadFabric,
 		downloadForge,
@@ -15,6 +18,7 @@
 	import type { MrpackInfo } from "$lib/types/types";
 	import IconPicker from "./IconPicker.svelte";
 	import VersionSelectorStep from "./VersionSelectorStep.svelte";
+	import StepIndicator from "./StepIndicator.svelte";
 	import PackInfo from "./PackInfo.svelte";
 	import ModrinthModpackBrowser from "./ModrinthModpackBrowser.svelte";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -31,10 +35,12 @@
 
 	type Tab = "manual" | "import" | "modrinth";
 	let tab = $state<Tab>("manual");
+	let manualStep = $state(0);
 
 	// ── Instance fields ─────────────────────────────────────────────────────────
 	let name = $state("");
 	let selectedIcon = $state<string | null>(null);
+	let customIconPath = $state<string | null>(null);
 
 	// ── Version selector ──────────────────────────────────────────────────────
 	let selectedLoader = $state("vanilla");
@@ -70,6 +76,33 @@
 	let existingNames = $state<string[]>([]);
 	let nameMsg = $state<string | null>(null);
 
+	const FORBIDDEN_CHARS = ['/', '\\', '<', '>', ':', '"', '|', '?', '*'];
+	const MAX_NAME_LEN = 16;
+
+	function isValidInstanceName(name: string): boolean {
+		const trimmed = name.trim();
+		if (!trimmed) return false;
+		if (trimmed.length > MAX_NAME_LEN) return false;
+		if (!/^[\0-\x7F]*$/.test(trimmed)) return false;
+		if (trimmed.includes('..')) return false;
+		if (trimmed.split('').some((c) => FORBIDDEN_CHARS.includes(c))) return false;
+		return true;
+	}
+
+	function sanitizeInstanceName(name: string): string {
+		let clean = name
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^\x20-\x7E]/g, '')
+			.replace(/[\\/<>:"|?*]/g, '')
+			.replace(/\.\./g, '')
+			.replace(/\s+/g, ' ')
+			.trim();
+		if (!clean) clean = 'modpack';
+		if (clean.length > MAX_NAME_LEN) clean = clean.slice(0, MAX_NAME_LEN);
+		return clean;
+	}
+
 	function validateName(): boolean {
 		const trimmed = name.trim();
 		if (!trimmed) {
@@ -82,6 +115,10 @@
 		}
 		if (existingNames.includes(trimmed)) {
 			nameMsg = "createInstance.nameExists";
+			return false;
+		}
+		if (!isValidInstanceName(trimmed)) {
+			nameMsg = "createInstance.nameInvalidChars";
 			return false;
 		}
 		nameMsg = null;
@@ -130,7 +167,11 @@
 			const info = await parseMrpack(mrpackPath);
 			if (info) {
 				packInfo = info;
-				if (!name.trim()) name = info.name;
+				if (!name.trim()) {
+					name = isValidInstanceName(info.name)
+						? info.name
+						: sanitizeInstanceName(info.name);
+				}
 				const loaderIcon = selectIconForLoader(info.loader);
 				if (loaderIcon) selectedIcon = loaderIcon;
 			} else {
@@ -176,6 +217,12 @@
 		}
 	}
 
+	// ── Step navigation ─────────────────────────────────────────────────────────
+	function handleNext() {
+		if (!validateName()) return;
+		manualStep = 1;
+	}
+
 	// ── Create / Import ─────────────────────────────────────────────────────────
 	async function handleFinalAction() {
 		if (tab === "import" && mrpackPath && packInfo) {
@@ -183,6 +230,11 @@
 		} else if (tab === "manual") {
 			await handleManualCreate();
 		}
+	}
+
+	function handleIconUpload(filePath: string) {
+		customIconPath = filePath;
+		selectedIcon = filePath;
 	}
 
 	async function handleManualCreate() {
@@ -197,8 +249,11 @@
 			await createInstance(
 				name,
 				finalVersionId,
-				selectedIcon,
-				async () => {
+				customIconPath ? null : selectedIcon,
+				async (uuid: string) => {
+					if (customIconPath) {
+						await uploadCustomIcon(uuid, customIconPath);
+					}
 					await enqueueSelectedVersion();
 					open = false;
 					resetState();
@@ -215,6 +270,9 @@
 	}
 
 	async function enqueueSelectedVersion() {
+		const installed = await getInstalledVersions();
+		if (installed.includes(finalVersionId)) return;
+
 		if (selectedLoader === "vanilla") {
 			await addToQueue(finalVersionId);
 		} else if (selectedLoader === "fabric") {
@@ -233,9 +291,28 @@
 		loading = true;
 		error = null;
 		try {
+			let iconUrl: string | undefined;
+			try {
+				const searchResult = await searchModrinth(
+					name.trim(),
+					"",
+					undefined,
+					null,
+					"downloads",
+					1,
+					0,
+					undefined,
+					"modpack",
+				);
+				if (searchResult && searchResult.hits.length > 0) {
+					iconUrl = searchResult.hits[0].icon_url ?? undefined;
+				}
+			} catch { /* ignore search errors */ }
+
 			const result = await installMrpack(
 				mrpackPath,
 				name.trim(),
+				iconUrl,
 				() => {
 					open = false;
 					mrpackPath = null;
@@ -259,12 +336,14 @@
 		selectedMcVersion = "";
 		selectedLoaderVersion = "";
 		selectedIcon = null;
+		customIconPath = null;
 		error = null;
 		parsing = false;
 		packInfo = null;
 		loading = false;
 		mrpackPath = null;
 		tab = "manual";
+		manualStep = 0;
 	}
 
 	function reset() {
@@ -328,6 +407,27 @@
 							<p>{t("createInstance.parsingPack")}</p>
 						</div>
 					{:else}
+						<div class="import-name-section">
+							<div class="input-group">
+								<span class="input-label">
+									{t("createInstance.nameLabel")}
+								</span>
+								<input
+									type="text"
+									class="text-input"
+									class:error={nameMsg}
+									maxlength={16}
+									bind:value={name}
+									disabled={loading}
+									oninput={() => (nameMsg = null)}
+									onkeydown={(e) =>
+										e.key === "Enter" && handleFinalAction()}
+								/>
+								{#if nameMsg}
+									<span class="input-error">{t(nameMsg)}</span>
+								{/if}
+							</div>
+						</div>
 						<PackInfo {packInfo} onChangeFile={selectMrpackFile} />
 					{/if}
 				</div>
@@ -347,69 +447,114 @@
 			{/if}
 		{:else}
 			<div class="create-layout">
-				<div class="create-header">
-					<IconPicker bind:selectedIcon disabled={loading} />
-					<div class="fields-column">
-						<div class="input-group">
-							<span class="input-label">
-								{t("createInstance.nameLabel")}
-							</span>
-							<input
-								type="text"
-								class="text-input"
-								class:error={nameMsg}
-								maxlength={16}
-								bind:value={name}
-								disabled={loading}
-								oninput={() => (nameMsg = null)}
-								onkeydown={(e) =>
-									e.key === "Enter" && handleFinalAction()}
-							/>
-							{#if nameMsg}
-								<span class="input-error">{t(nameMsg)}</span>
-							{/if}
+				<StepIndicator
+					currentStep={manualStep}
+					totalSteps={2}
+					labels={[t("createInstance.stepInfo"), t("createInstance.stepVersion")]}
+				/>
+
+				{#if manualStep === 0}
+					<div class="create-header">
+						<IconPicker
+							bind:selectedIcon
+							disabled={loading}
+							onupload={handleIconUpload}
+						/>
+						<div class="fields-column">
+							<div class="input-group">
+								<span class="input-label">
+									{t("createInstance.nameLabel")}
+								</span>
+								<input
+									type="text"
+									class="text-input"
+									class:error={nameMsg}
+									maxlength={16}
+									bind:value={name}
+									disabled={loading}
+									oninput={() => (nameMsg = null)}
+									onkeydown={(e) =>
+										e.key === "Enter" && handleNext()}
+								/>
+								{#if nameMsg}
+									<span class="input-error">{t(nameMsg)}</span>
+								{/if}
+							</div>
 						</div>
 					</div>
-				</div>
-
-				<VersionSelectorStep
-					bind:selectedLoader
-					bind:selectedMcVersion
-					bind:selectedLoaderVersion
-				/>
+				{:else}
+					<VersionSelectorStep
+						bind:selectedLoader
+						bind:selectedMcVersion
+						bind:selectedLoaderVersion
+					/>
+				{/if}
 			</div>
 		{/if}
 	</div>
 
 	{#snippet footer()}
 		<div class="footer-actions">
-			<div class="footer-left"></div>
+			<div class="footer-left">
+				{#if tab === "manual" && manualStep === 1}
+					<button
+						type="button"
+						class="btn-secondary"
+						onclick={() => (manualStep = 0)}
+						disabled={loading}
+					>
+						{t("createInstance.backBtn")}
+					</button>
+				{/if}
+			</div>
 			<div class="footer-right">
-				<button
-					type="button"
-					class="btn-secondary"
-					onclick={reset}
-					disabled={loading}
-				>
-					{t("createInstance.cancel")}
-				</button>
-				{#if tab === "import" || tab === "manual"}
+				{#if tab === "manual" && manualStep === 0}
+					<button
+						type="button"
+						class="btn-secondary"
+						onclick={reset}
+						disabled={loading}
+					>
+						{t("createInstance.cancel")}
+					</button>
+					<button
+						type="button"
+						class="btn-primary"
+						onclick={handleNext}
+						disabled={loading || !name.trim()}
+					>
+						{t("createInstance.nextBtn")}
+					</button>
+				{:else if tab === "manual" && manualStep === 1}
+					<button
+						type="button"
+						class="btn-primary"
+						onclick={handleManualCreate}
+						disabled={loading || !finalVersionId}
+					>
+						{loading
+							? t("createInstance.creatingBtn")
+							: t("createInstance.createBtn")}
+					</button>
+				{:else if tab === "import"}
+					<button
+						type="button"
+						class="btn-secondary"
+						onclick={reset}
+						disabled={loading}
+					>
+						{t("createInstance.cancel")}
+					</button>
 					<button
 						type="button"
 						class="btn-primary"
 						onclick={handleFinalAction}
 						disabled={loading ||
-							(tab === "import" &&
-								(!mrpackPath || !name.trim())) ||
-							(tab === "manual" && !finalVersionId)}
+							!mrpackPath || !name.trim()}
 					>
 						{loading
-							? packInfo
-								? t("createInstance.importingBtn")
-								: t("createInstance.creatingBtn")
-							: tab === "import"
-								? t("createInstance.importBtn")
-								: t("createInstance.createBtn")}
+							? t("createInstance.importingBtn")
+							: t("createInstance.importBtn")}
 					</button>
 				{/if}
 			</div>
@@ -557,5 +702,31 @@
 		gap: 16px;
 		color: var(--text-secondary);
 		font-size: 0.85rem;
+	}
+
+	.import-name-section {
+		margin-bottom: 8px;
+	}
+
+	.import-name-section :global(.text-input) {
+		width: 100%;
+		padding: 8px 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--bg-input);
+		color: var(--text-primary);
+		font-size: 0.82rem;
+		font-family: inherit;
+		outline: none;
+		box-sizing: border-box;
+	}
+
+	.import-name-section :global(.text-input:focus) {
+		border-color: var(--accent);
+	}
+
+	.import-name-section :global(.text-input.error) {
+		border-color: var(--color-error) !important;
+		box-shadow: 0 0 0 1px var(--color-error) !important;
 	}
 </style>

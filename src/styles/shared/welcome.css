@@ -83,7 +83,7 @@
 }
 .tut-close:hover {
 	color: var(--text-primary);
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--surface-hover);
 }
 
 .tut-body {
@@ -167,7 +167,7 @@
 }
 .lang-close:hover {
 	color: var(--text-primary);
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--surface-hover);
 }
 .lang-body {
 	padding: 16px 20px;
@@ -195,28 +195,8 @@
 }
 
 .tut-lang {
-	display: flex;
-	gap: 8px;
-	margin-top: 4px;
+	margin-top: 8px;
 }
-.tut-lang-btn {
-	flex: 1;
-	padding: 6px 12px;
-	font-size: 0.78rem;
-	border: 1px solid var(--border);
-	border-radius: var(--border-radius-sm);
-	background: transparent;
-	color: var(--text-secondary);
-	cursor: pointer;
-	text-align: center;
-	transition: all 0.15s;
-}
-.tut-lang-btn:hover {
-	border-color: var(--text-muted);
-	color: var(--text-primary);
-}
-.tut-lang-btn.active {
-	background: var(--accent);
-	color: var(--accent-text);
-	border-color: var(--accent);
+.tut-lang .custom-select-container {
+	width: 100%;
 }

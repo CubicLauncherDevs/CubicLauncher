@@ -211,11 +211,11 @@
 		gap: 10px;
 		padding: 9px 16px 9px 9px;
 		border-radius: 22px;
-		background: rgba(28, 28, 36, 0.84);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-top-color: rgba(255, 255, 255, 0.18);
+		background: var(--toast-bg);
+		border: 1px solid var(--toast-border);
+		border-top-color: rgba(var(--surface-rgb), 0.18);
 		box-shadow:
-			inset 0 1px 0 rgba(255, 255, 255, 0.07),
+			inset 0 1px 0 rgba(var(--surface-rgb), 0.07),
 			0 4px 24px rgba(0, 0, 0, 0.5);
 
 		position: relative;
@@ -230,7 +230,7 @@
 	}
 
 	.notification-toast:hover {
-		background: rgba(36, 36, 48, 0.9);
+		background: var(--surface-hover);
 	}
 	.notification-toast:active {
 		transform: scale(0.985);
@@ -276,7 +276,7 @@
 		border-radius: 22px 22px 0 0;
 		background: linear-gradient(
 			180deg,
-			rgba(255, 255, 255, 0.05) 0%,
+			var(--surface-card) 0%,
 			transparent 100%
 		);
 		pointer-events: none;
@@ -297,7 +297,7 @@
 
 	.progress-ring :global(.track) {
 		fill: none;
-		stroke: rgba(255, 255, 255, 0.08);
+		stroke: var(--surface-hover);
 		stroke-width: 1.8;
 	}
 
@@ -318,7 +318,7 @@
 		align-items: center;
 		justify-content: center;
 		box-shadow:
-			inset 0 1px 0 rgba(255, 255, 255, 0.22),
+			inset 0 1px 0 rgba(var(--surface-rgb), 0.22),
 			0 2px 6px rgba(0, 0, 0, 0.4);
 		transition: background 0.4s ease;
 		overflow: hidden;
@@ -342,7 +342,7 @@
 		border-radius: 50% 50% 0 0 / 50% 50% 0 0;
 		background: linear-gradient(
 			180deg,
-			rgba(255, 255, 255, 0.22) 0%,
+			rgba(var(--surface-rgb), 0.22) 0%,
 			transparent 100%
 		);
 	}
@@ -357,7 +357,7 @@
 	.notification-title {
 		font-size: 13px;
 		font-weight: 400;
-		color: rgba(255, 255, 255, 0.88);
+		color: var(--text-primary);
 		letter-spacing: 0.01em;
 		white-space: nowrap;
 		overflow: hidden;
@@ -366,7 +366,7 @@
 
 	.notification-message {
 		font-size: 11px;
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--text-secondary);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -374,13 +374,13 @@
 
 	.notification-sub {
 		font-size: 11px;
-		color: rgba(255, 255, 255, 0.35);
+		color: var(--text-muted);
 		font-variant-numeric: tabular-nums;
 		letter-spacing: 0.02em;
 		transition: color 0.3s;
 	}
 
 	.notification-sub.done {
-		color: rgba(80, 200, 120, 0.65);
+		color: var(--color-success);
 	}
 </style>

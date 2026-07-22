@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { t, locales } from "$lib/i18n";
+	import { t, locales, downloadLocale } from "$lib/i18n";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { saveSettings } from "$lib/api/launcherService";
+	import Select from "$lib/components/layout/Select.svelte";
 
 	let {
 		stepKey,
@@ -11,8 +12,13 @@
 		isFirstStep: boolean;
 	} = $props();
 
-	async function setLanguage(lang: string) {
-		launcherStore.settings.language = lang;
+	const languageOptions = locales.map((l) => ({
+		value: l.code,
+		label: l.label,
+	}));
+
+	async function onLanguageChange() {
+		downloadLocale(launcherStore.settings.language);
 		await saveSettings();
 	}
 </script>
@@ -26,14 +32,11 @@
 	</p>
 	{#if isFirstStep}
 		<div class="tut-lang">
-			{#each locales.filter((l) => l.code === "en" || l.code === "es") as lang (lang)}
-				<button
-					type="button"
-					class="tut-lang-btn"
-					class:active={launcherStore.settings.language === lang.code}
-					onclick={() => setLanguage(lang.code)}>{lang.label}</button
-				>
-			{/each}
+			<Select
+				bind:value={launcherStore.settings.language}
+				options={languageOptions}
+				onchange={onLanguageChange}
+			/>
 		</div>
 	{/if}
 </div>

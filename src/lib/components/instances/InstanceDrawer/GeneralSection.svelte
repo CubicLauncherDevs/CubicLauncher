@@ -1,14 +1,50 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
 	import { INSTANCE_LOGOS } from "$lib/icons/logos";
+	import { uploadCustomIcon } from "$lib/api/cubicApi";
+	import { launcherStore } from "$lib/state/state.svelte";
+	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 	let {
 		selectedIcon = $bindable<string | null>(null),
 		instanceName = $bindable(""),
+		instanceUuid = "",
 	}: {
 		selectedIcon: string | null;
 		instanceName: string;
+		instanceUuid?: string;
 	} = $props();
+
+	async function handleUpload() {
+		try {
+			const selected = await openDialog({
+				multiple: false,
+				filters: [
+					{
+						name: t("createInstance.iconFilter"),
+						extensions: ["png", "jpg", "jpeg", "webp", "gif"],
+					},
+				],
+			});
+			if (selected && instanceUuid) {
+				const path = await uploadCustomIcon(instanceUuid, selected);
+				if (path) {
+					selectedIcon = path;
+					const idx = launcherStore.loadedInstances.findIndex(
+						(i) => i.uuid === instanceUuid,
+					);
+					if (idx !== -1) {
+						launcherStore.loadedInstances[idx] = {
+							...launcherStore.loadedInstances[idx],
+							icon: path,
+						};
+					}
+				}
+			}
+		} catch (e) {
+			console.error("Error selecting icon:", e);
+		}
+	}
 </script>
 
 <div style="margin-bottom: 4px;">
@@ -28,6 +64,27 @@
 			<img src={iconPath} alt={iconName} />
 		</button>
 	{/each}
+	<button
+		type="button"
+		class="icon-option upload-option"
+		onclick={handleUpload}
+		title={t("createInstance.uploadIcon")}
+	>
+		<svg
+			width="16"
+			height="16"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+			<polyline points="17 8 12 3 7 8" />
+			<line x1="12" y1="3" x2="12" y2="15" />
+		</svg>
+	</button>
 </div>
 <div class="name-section">
 	<span>{t("createInstance.nameLabel")}</span>
@@ -76,6 +133,18 @@
 		width: 100%;
 		height: 100%;
 		object-fit: contain;
+	}
+
+	.upload-option {
+		color: var(--text-tertiary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.upload-option:hover {
+		color: var(--accent);
+		border-color: var(--accent);
 	}
 
 	.text-input {

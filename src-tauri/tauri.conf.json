@@ -1,7 +1,7 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
 	"productName": "cubiclauncher",
-	"version": "31.0.0",
+	"version": "32.0.0",
 	"identifier": "com.cubiclauncher.launcher",
 	"build": {
 		"beforeDevCommand": "bun run dev",
@@ -12,7 +12,7 @@
 	"app": {
 		"windows": [
 			{
-				"title": "CubicLauncher @31",
+				"title": "CubicLauncher @32",
 				"width": 800,
 				"height": 600,
 				"minWidth": 800,
@@ -21,32 +21,23 @@
 			}
 		],
 		"security": {
-		"csp": {
-			"default-src": ["'self'", "tauri:", "http://localhost:*", "https://tauri.localhost"],
-			"img-src": ["'self'", "asset:", "https:", "http://textures.minecraft.net", "blob:", "data:", "http://localhost:*"],
-			"style-src": ["'self'", "'unsafe-inline'", "blob:", "http://localhost:*", "https://tauri.localhost"],
-			"font-src": ["'self'", "asset:", "https://asset.localhost", "http://asset.localhost", "http://localhost:*"],
-			"script-src": ["'self'", "'unsafe-inline'", "http://localhost:*"],
-			"connect-src": [
-				"'self'", "tauri://localhost", "ipc://localhost",
-				"http://localhost:*", "https://tauri.localhost",
-				"https://skins.cubiclauncher.org", "https://api.modrinth.com",
-				"https://api.curseforge.com", "https://api.modpacks.ch/public/modpack"
-			]
-		},
-		"devCsp": {
-			"default-src": ["'self'", "tauri:", "http://localhost:*", "https://tauri.localhost"],
-			"img-src": ["'self'", "asset:", "https:", "http://textures.minecraft.net", "blob:", "data:", "http://localhost:*"],
-			"style-src": ["'self'", "'unsafe-inline'", "blob:", "http://localhost:*", "https://tauri.localhost"],
-			"font-src": ["'self'", "asset:", "https://asset.localhost", "http://asset.localhost", "http://localhost:*"],
-			"script-src": ["'self'", "'unsafe-inline'", "http://localhost:*"],
-			"connect-src": [
-				"'self'", "tauri://localhost", "ipc://localhost",
-				"http://localhost:*", "https://tauri.localhost",
-				"https://skins.cubiclauncher.org", "https://api.modrinth.com",
-				"https://api.curseforge.com", "https://api.modpacks.ch/public/modpack"
-			]
-		},
+			"dangerousDisableAssetCspModification": true,
+			"csp": {
+				"default-src": "'self' tauri: http://localhost:* https://tauri.localhost",
+				"img-src": "'self' asset: https: http://textures.minecraft.net blob: data: http://localhost:*",
+				"style-src": "'self' 'unsafe-inline' blob: http://localhost:* https://tauri.localhost",
+				"font-src": "'self' asset: https: https://asset.localhost http://asset.localhost http://localhost:*",
+				"script-src": "'self' 'unsafe-inline' http://localhost:*",
+				"connect-src": "'self' tauri://localhost ipc://localhost http://localhost:* https://tauri.localhost https://i18n.cubiclauncher.org https://skins.cubiclauncher.org https://api.modrinth.com https://api.curseforge.com"
+			},
+			"devCsp": {
+				"default-src": "'self' tauri: http://localhost:* https://tauri.localhost",
+				"img-src": "'self' asset: https: http://textures.minecraft.net blob: data: http://localhost:*",
+				"style-src": "'self' 'unsafe-inline' blob: http://localhost:* https://tauri.localhost",
+				"font-src": "'self' asset: https: https://asset.localhost http://asset.localhost http://localhost:*",
+				"script-src": "'self' 'unsafe-inline' http://localhost:*",
+				"connect-src": "'self' tauri://localhost ipc://localhost http://localhost:* https://tauri.localhost https://i18n.cubiclauncher.org https://skins.cubiclauncher.org https://api.modrinth.com https://api.curseforge.com"
+			},
 			"assetProtocol": {
 				"enable": true,
 				"scope": ["$HOME/.cubic/**"]

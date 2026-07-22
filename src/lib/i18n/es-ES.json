@@ -5,6 +5,13 @@
 		"save": "Guardar",
 		"retry": "Reintentar"
 	},
+	"languages": {
+		"es": "Español",
+		"en": "Inglés",
+		"fr": "Francés",
+		"de": "Alemán",
+		"uk": "Ucraniano"
+	},
 	"settings": {
 		"title": "Ajustes",
 		"advanced": "Avanzado",
@@ -32,6 +39,11 @@
 			"javaSpan": "No sabes que es Java? Revisa nuestra documentacion en https://cubiclauncher.org/docs/java",
 			"themes": "Temas",
 			"themesActive": "Tema activo",
+			"themesImport": "Importar tema",
+			"themesImporting": "Importando...",
+			"themesExport": "Exportar",
+			"themesDelete": "Eliminar",
+			"themesUnknownAuthor": "Temas de usuario",
 			"checkingBtn": "Comprobando actualizaciones",
 			"searchBtn": "Buscar Actualizaciones",
 			"downloadingBtn": "Descargando actualización",
@@ -116,7 +128,9 @@
 			"deleteDesc2": "? Esta acción no se puede deshacer.",
 			"deleteBtn": "Eliminar"
 		},
-		"downloadVersions": "Descargar Versiones"
+		"downloadVersions": "Descargar Versiones",
+		"collapse": "Colapsar barra lateral",
+		"expand": "Expandir barra lateral"
 	},
 	"userMenu": {
 		"title": "Perfil de Usuario",
@@ -344,12 +358,23 @@
 		"installBtn": "Instalar",
 		"loadMore": "Cargar más",
 		"downloads": "descargas",
-		"selectMrpackBtn": "Seleccionar archivo .mrpack"
+		"selectMrpackBtn": "Seleccionar archivo .mrpack",
+		"uploadIcon": "Subir logo",
+		"iconFilter": "Imágenes",
+		"customNameNeeded": "El nombre de este modpack contiene caracteres no soportados. Ingresa un nombre personalizado:",
+		"customNamePlaceholder": "Nombre de la instancia",
+		"nameInvalidChars": "El nombre contiene caracteres no válidos. Usa solo letras ASCII, números y puntuación básica.",
+		"nameInvalidNonAscii": "El nombre solo puede contener caracteres ASCII (a-z, 0-9, -, _).",
+		"nextBtn": "Siguiente",
+		"backBtn": "Volver",
+		"stepInfo": "Información",
+		"stepVersion": "Versión"
 	},
 	"themes": {
 		"importSuccess": "Theme importado",
 		"importSuccessMessage": "El theme se ha importado y aplicado correctamente.",
-		"importError": "Error al importar theme"
+		"importError": "Error al importar theme",
+		"deleteConfirm": "¿Estás seguro de que quieres eliminar {name}?"
 	},
 	"downloadProgress": {
 		"statusLibs": "Descargando librerías",
@@ -445,7 +470,8 @@
 		"browseAll": "Explorar todas las versiones MC",
 		"downloading": "Descargando...",
 		"forgeJavaHint": "Forge requiere Java 21 configurado en Ajustes > Java.",
-		"neoForgeJavaHint": "NeoForge requiere Java 17/21 configurado en Ajustes > Java."
+		"neoForgeJavaHint": "NeoForge requiere Java 17/21 configurado en Ajustes > Java.",
+		"loaderSearchPlaceholder": "Buscar versión del loader..."
 	},
 	"market": {
 		"empty": {

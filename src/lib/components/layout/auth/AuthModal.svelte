@@ -28,7 +28,7 @@
 			const user = await startWebviewAuth();
 
 			const idx = launcherStore.settings.user.findIndex(
-				(u) => u.username === user.username,
+				(u) => u.uuid === user.uuid,
 			);
 			if (idx >= 0) {
 				launcherStore.settings.user[idx] = user;
@@ -117,7 +117,7 @@
 		border: 1px solid var(--border-color);
 		box-shadow:
 			var(--shadow-sm),
-			inset 0 1px 0 rgba(255, 255, 255, 0.03);
+			inset 0 1px 0 var(--surface-selected);
 		animation: slideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 	}
 

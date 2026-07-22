@@ -2,6 +2,7 @@
 	import type { InstanceDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
 	import Trash from "$lib/icons/Trash.svelte";
+	import { getDisplayIconSrc } from "$lib/icons/logos";
 
 	let {
 		instance,
@@ -33,7 +34,7 @@
 		<div class="instance-icon">
 			{#if instance.icon}
 				<img
-					src={instance.icon}
+					src={getDisplayIconSrc(instance.icon)}
 					alt={instance.name}
 					width="16"
 					height="16"
@@ -96,7 +97,7 @@
 	}
 
 	.instance-item:hover {
-		background: rgba(255, 255, 255, 0.03);
+		background: var(--surface-selected);
 	}
 
 	.instance-item.active {
@@ -107,7 +108,7 @@
 	.instance-icon {
 		width: 22px;
 		height: 22px;
-		background: rgba(255, 255, 255, 0.04);
+		background: rgba(var(--surface-rgb), 0.04);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		display: flex;

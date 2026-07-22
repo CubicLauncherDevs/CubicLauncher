@@ -217,9 +217,9 @@ pub async fn logout() -> Result<(), String> {
 }
 
 #[command]
-pub async fn switch_user(idx: usize) -> Result<(), String> {
+pub async fn switch_user(idx: usize) -> Result<MinecraftUser, String> {
     info!("Cambiando al usuario en índice {}", idx);
-    {
+    let user = {
         let settings = SettingsManager::read();
         if idx >= settings.user.len() {
             return Err(CoreError::Other(format!(
@@ -229,29 +229,27 @@ pub async fn switch_user(idx: usize) -> Result<(), String> {
             ))
             .to_string());
         }
-    }
-    SettingsManager::write(|settings| {
-        settings.active_user_idx = idx;
-        let mut user = settings.get_user();
+        let mut user = settings.user[idx].clone();
         if let Err(e) = user.load_tokens() {
             warn!("Error cargando tokens: {:?}", e);
         }
+        user
+    };
+    SettingsManager::write(|settings| {
+        settings.active_user_idx = idx;
+        settings.user[idx] = user.clone();
     })?;
     SettingsManager::save().await?;
-    Ok(())
+    Ok(user)
 }
 
 #[command]
-pub async fn remove_user(username: String) -> Result<(), String> {
-    info!("Eliminando usuario {}", username);
+pub async fn remove_user(uuid: String) -> Result<(), String> {
+    info!("Eliminando usuario {}", uuid);
     {
         let user = {
             let settings = SettingsManager::read();
-            settings
-                .user
-                .iter()
-                .find(|u| u.username == username)
-                .cloned()
+            settings.user.iter().find(|u| u.uuid == uuid).cloned()
         };
         if let Some(u) = user {
             info!("Eliminando tokens para {}", u.username);
@@ -261,10 +259,10 @@ pub async fn remove_user(username: String) -> Result<(), String> {
         }
     }
     SettingsManager::write(|settings| {
-        settings.rem_user(&username);
+        settings.rem_user_by_uuid(&uuid);
     })?;
     SettingsManager::save().await?;
-    info!("Usuario {} eliminado exitosamente", username);
+    info!("Usuario {} eliminado exitosamente", uuid);
     Ok(())
 }
 
@@ -390,7 +388,7 @@ pub async fn yggdrasil_refresh_token(idx: usize) -> Result<(), String> {
         .map_err(|e| AuthError::SaveTokensFailed(e.to_string()).to_string())?;
 
     SettingsManager::write(|settings| {
-        settings.set_user(new_user);
+        settings.set_user_by_uuid(&new_user);
     })?;
     SettingsManager::save().await?;
 

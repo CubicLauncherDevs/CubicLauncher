@@ -60,7 +60,7 @@
 
 <style>
 	.mod-card {
-		background: rgba(255, 255, 255, 0.03);
+		background: var(--surface-selected);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		padding: 14px;
@@ -73,8 +73,8 @@
 	}
 
 	.mod-card:hover {
-		background: rgba(255, 255, 255, 0.06);
-		border-color: rgba(255, 255, 255, 0.1);
+		background: var(--surface-active);
+		border-color: rgba(var(--surface-rgb), 0.1);
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 	}
 
@@ -91,7 +91,7 @@
 	.mod-icon {
 		width: 44px;
 		height: 44px;
-		background: rgba(255, 255, 255, 0.03);
+		background: var(--surface-selected);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		display: flex;
@@ -139,7 +139,7 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
-		background: rgba(255, 255, 255, 0.05);
+		background: rgba(var(--surface-rgb), 0.05);
 		padding: 1px 6px;
 		border-radius: var(--border-radius-sm);
 		border: 1px solid var(--border);
@@ -184,7 +184,7 @@
 		appearance: none;
 		width: 32px;
 		height: 18px;
-		background: rgba(255, 255, 255, 0.1);
+		background: rgba(var(--surface-rgb), 0.1);
 		border-radius: 20px;
 		position: relative;
 		cursor: pointer;

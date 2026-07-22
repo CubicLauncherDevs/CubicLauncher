@@ -86,7 +86,7 @@
 		border-radius: var(--border-radius-sm);
 		box-shadow:
 			var(--shadow-sm),
-			inset 0 1px 0 rgba(255, 255, 255, 0.03);
+			inset 0 1px 0 var(--surface-selected);
 		overflow: hidden;
 	}
 
@@ -128,7 +128,7 @@
 	}
 
 	.add-toggle-btn:hover:not(.active) {
-		background: rgba(255, 255, 255, 0.04);
+		background: rgba(var(--surface-rgb), 0.04);
 		color: var(--text-primary);
 	}
 
@@ -195,7 +195,7 @@
 	}
 
 	.btn-secondary:hover {
-		background: rgba(255, 255, 255, 0.03);
+		background: var(--surface-selected);
 		color: var(--text-primary);
 	}
 </style>
