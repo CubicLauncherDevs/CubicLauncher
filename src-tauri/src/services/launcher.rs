@@ -452,7 +452,7 @@ impl Launcher {
                                 "main",
                                 WebviewUrl::App("index.html".into()),
                             )
-                            .title("CubicLauncher @31 (Alpha 4)")
+                            .title("CubicLauncher @32")
                             .inner_size(800.0, 600.0)
                             .min_inner_size(800.0, 600.0)
                             .build();

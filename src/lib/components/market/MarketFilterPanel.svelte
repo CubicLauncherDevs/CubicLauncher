@@ -196,56 +196,61 @@
 						{/each}
 					</div>
 				</div>
-			{:else if isModContent}
-				<div class="filter-section">
-					<span class="filter-label">{t("market.filter.sortBy")}</span
-					>
-					<div class="filter-chips">
-						{#each sorts as sort (sort.value)}
-							<button
-								type="button"
-								class="filter-chip"
-								class:active={filters.sort === sort.value}
-								onclick={() => onSortChange(sort.value)}
-							>
-								<span class="chip-icon">{sort.icon}</span>
-								{sort.label}
-							</button>
-						{/each}
-					</div>
-				</div>
-
-				<div class="filter-section">
-					<span class="filter-label"
-						>{t("market.filter.category")}</span
-					>
-					<div class="filter-chips">
-						<button
-							type="button"
-							class="filter-chip"
-							class:active={filters.category === null}
-							onclick={() => onCategoryChange(null)}
+			{:else}
+				{#if isModContent}
+					<div class="filter-section">
+						<span class="filter-label"
+							>{t("market.filter.sortBy")}</span
 						>
-							{t("market.filter.allCategories")}
-						</button>
-						{#each categories as category (category)}
+						<div class="filter-chips">
+							{#each sorts as sort (sort.value)}
+								<button
+									type="button"
+									class="filter-chip"
+									class:active={filters.sort === sort.value}
+									onclick={() => onSortChange(sort.value)}
+								>
+									<span class="chip-icon">{sort.icon}</span>
+									{sort.label}
+								</button>
+							{/each}
+						</div>
+					</div>
+
+					<div class="filter-section">
+						<span class="filter-label"
+							>{t("market.filter.category")}</span
+						>
+						<div class="filter-chips">
 							<button
 								type="button"
 								class="filter-chip"
-								class:active={filters.category === category}
-								onclick={() => onCategoryChange(category)}
+								class:active={filters.category === null}
+								onclick={() => onCategoryChange(null)}
 							>
-								{category}
+								{t("market.filter.allCategories")}
 							</button>
-						{/each}
+							{#each categories as category (category)}
+								<button
+									type="button"
+									class="filter-chip"
+									class:active={filters.category === category}
+									onclick={() => onCategoryChange(category)}
+								>
+									{category}
+								</button>
+							{/each}
+						</div>
 					</div>
-				</div>
+				{/if}
 
 				<div class="filter-section filter-info">
 					<span class="filter-pill"
 						>Minecraft {filters.gameVersion}</span
 					>
-					<span class="filter-pill">{filters.loader}</span>
+					{#if isModContent}
+						<span class="filter-pill">{filters.loader}</span>
+					{/if}
 				</div>
 			{/if}
 		</div>

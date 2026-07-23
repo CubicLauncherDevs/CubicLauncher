@@ -490,6 +490,10 @@ export function createMarketState(
 		}
 	}
 
+	function isGameVersionCompatible(version: MarketVersion): boolean {
+		return version.gameVersions.includes(filters.gameVersion);
+	}
+
 	function selectedVersion(): MarketVersion | null {
 		if (detail.versions.length === 0) return null;
 
@@ -503,11 +507,10 @@ export function createMarketState(
 		const installed = detail.versions.find((v) => v.isInstalled);
 		if (installed) return installed;
 
-		const compatible = detail.versions.find(
-			(v) =>
-				v.gameVersions.includes(filters.gameVersion) &&
-				v.loaders.includes(filters.loader),
-		);
+		const compatible = detail.versions.find((v) => {
+			if (!isGameVersionCompatible(v)) return false;
+			return isModContent ? v.loaders.includes(filters.loader) : true;
+		});
 		if (compatible) return compatible;
 
 		return detail.versions[0];
@@ -518,10 +521,8 @@ export function createMarketState(
 	}
 
 	function isVersionCompatible(version: MarketVersion): boolean {
-		return (
-			version.gameVersions.includes(filters.gameVersion) &&
-			version.loaders.includes(filters.loader)
-		);
+		if (!isGameVersionCompatible(version)) return false;
+		return isModContent ? version.loaders.includes(filters.loader) : true;
 	}
 
 	function isInstanceBusy() {
