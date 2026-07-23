@@ -91,7 +91,7 @@ impl Theme for V2Theme {
         self.meta.name.clone()
     }
     fn get_author(&self) -> CompactString {
-        self.meta.author.clone()
+        CompactString::new(self.meta.author.to_lowercase())
     }
     fn get_version(&self) -> CompactString {
         self.meta.version.clone()
@@ -412,7 +412,7 @@ mod tests {
         };
 
         assert_eq!(v2.get_name().as_str(), "MyTheme");
-        assert_eq!(v2.get_author().as_str(), "TestAuthor");
+        assert_eq!(v2.get_author().as_str(), "testauthor");
         assert_eq!(v2.get_version().as_str(), "1.0");
     }
 
@@ -425,7 +425,7 @@ mod tests {
 
         let res = v2.to_theme_res();
         assert_eq!(res.name, "ResTheme");
-        assert_eq!(res.author, "TestAuthor");
+        assert_eq!(res.author, "testauthor");
         assert_eq!(res.version, "1.0");
         assert_eq!(res.r#type, "user");
         assert!(res.variables.contains_key("--accent"));

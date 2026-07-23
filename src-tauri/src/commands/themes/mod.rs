@@ -237,7 +237,7 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
     Ok(Some(ThemeEntry {
         id: theme_id.into(),
         name: name_str.into(),
-        author: author_str.into(),
+        author: author_str.to_lowercase().into(),
         version: version_str.into(),
         r#type: "user".into(),
         preview: None,
@@ -295,7 +295,7 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
             ThemeEntry {
                 id: id.into(),
                 name: theme.name,
-                author: theme.author,
+                author: theme.author.to_lowercase(),
                 version: theme.version,
                 r#type: "v2".into(),
                 preview,
@@ -308,8 +308,8 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
             let preview = Some(extract_preview(&theme.variables));
             ThemeEntry {
                 id: id.into(),
-                name: theme.name,
-                author: theme.author,
+                name: theme.name.to_lowercase(),
+                author: theme.author.to_lowercase(),
                 version: theme.version,
                 r#type: theme.r#type,
                 preview,
@@ -606,7 +606,7 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
     Ok(ThemeEntry {
         id: theme_id.into(),
         name: theme_file.name,
-        author: theme_file.author,
+        author: theme_file.author.to_lowercase(),
         version: theme_file.version,
         r#type: "user".into(),
         preview,

@@ -50,7 +50,7 @@ pub struct ThemeEntry {
 
 impl Theme for ThemeFile {
     fn get_author(&self) -> CompactString {
-        self.author.clone()
+        CompactString::new(self.author.to_lowercase())
     }
     fn get_name(&self) -> CompactString {
         self.name.clone()
@@ -62,7 +62,7 @@ impl Theme for ThemeFile {
     fn to_theme_res(&self) -> super::ThemeResponse {
         super::ThemeResponse {
             name: self.name.clone().into(),
-            author: self.author.clone().into(),
+            author: self.author.to_lowercase().to_string(),
             version: self.version.clone().into(),
             r#type: self.r#type.clone().into(),
             variables: self.variables.clone(),
