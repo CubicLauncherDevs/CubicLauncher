@@ -60,7 +60,7 @@
 		"updater": {
 			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM2QkJCQ0JGMjc1NkRGOUQKUldTZDMxWW52N3k3eGt1NW1tYmRNVnNjSEtBdUp1Slh1SWV6ZFBibUtRR3BLR3c5Z0luQmJpZ0wK",
 			"endpoints": [
-				"https://github.com/CubicLauncher/CubicLauncher/releases/latest/download/latest.json",
+				"https://updates.cubiclauncher.org",
 				"https://github.com/CubicLauncherDevs/CubicLauncher/releases/latest/download/latest.json"
 			],
 			"windows": { "installMode": "passive" }
