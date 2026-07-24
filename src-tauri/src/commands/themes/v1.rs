@@ -98,4 +98,3 @@ impl ZipImportable for ThemeFile {
         self.version.as_str()
     }
 }
-

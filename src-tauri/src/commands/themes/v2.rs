@@ -145,7 +145,11 @@ pub fn flatten_variables(theme: &ThemeDef) -> HashMap<String, String> {
         insert_var(&mut vars, format!("--bg-{}", k), v.clone());
     }
     for (k, v) in &theme.backdrop {
-        insert_var(&mut vars, format!("--backdrop-blur-{}", k), format!("{}px", v));
+        insert_var(
+            &mut vars,
+            format!("--backdrop-blur-{}", k),
+            format!("{}px", v),
+        );
     }
     for (k, v) in &theme.others {
         insert_var(&mut vars, format!("--{}", k), v.clone());

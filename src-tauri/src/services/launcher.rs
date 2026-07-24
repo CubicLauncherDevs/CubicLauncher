@@ -88,11 +88,7 @@ impl LogLevel {
             }
         }
 
-        if stderr {
-            Self::Stderr
-        } else {
-            Self::Message
-        }
+        if stderr { Self::Stderr } else { Self::Message }
     }
 
     fn from_keyword(word: &str) -> Self {
@@ -141,9 +137,7 @@ fn token_regex() -> &'static Regex {
 /// Limpia líneas que puedan contener credenciales. Oculta solo el valor,
 /// no descarta la línea completa.
 fn sanitize_line(line: &str) -> String {
-    token_regex()
-        .replace_all(line, "${1}${2}***")
-        .into_owned()
+    token_regex().replace_all(line, "${1}${2}***").into_owned()
 }
 
 // ── Log Ring Buffer ─────────────────────────────────────────────────────────
@@ -604,10 +598,7 @@ impl Launcher {
                         }
                     };
                     unregister_kill_sender(&uuid);
-                    push_launcher_message(
-                        &uuid,
-                        format!("El proceso terminó: {:?}", result),
-                    );
+                    push_launcher_message(&uuid, format!("El proceso terminó: {:?}", result));
                     discord_presence::on_instance_stop(&inst_name).await;
                     remove_log_ring(&uuid);
                     h.set_status(InstanceStatus::Off);
@@ -824,7 +815,10 @@ fn spawn_io_forwarding(
             let lines: Vec<LogEntryEvent> = mem::take(&mut batch);
             let _ = app.emit(
                 "instance-log-batch",
-                LogBatchEvent { id: id.clone(), lines },
+                LogBatchEvent {
+                    id: id.clone(),
+                    lines,
+                },
             );
         }
     });
