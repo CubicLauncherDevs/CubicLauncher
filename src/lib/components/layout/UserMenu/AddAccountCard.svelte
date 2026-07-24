@@ -128,7 +128,7 @@
 	}
 
 	.add-toggle-btn:hover:not(.active) {
-		background: rgba(var(--surface-rgb), 0.04);
+		background: var(--surface-selected);
 		color: var(--text-primary);
 	}
 
@@ -157,7 +157,6 @@
 		border-radius: var(--border-radius-sm);
 		font-size: 0.8rem;
 		height: 28px;
-		box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 		box-sizing: border-box;
 	}
 

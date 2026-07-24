@@ -215,7 +215,7 @@
 	}
 
 	.user-card:hover {
-		border-color: rgba(var(--surface-rgb), 0.1);
+		border-color: var(--text-muted);
 	}
 
 	.user-card.active {
@@ -267,7 +267,7 @@
 
 	.user-name.clickable {
 		cursor: text;
-		border-bottom: 1px dashed rgba(var(--surface-rgb), 0.1);
+		border-bottom: 1px dashed var(--text-muted);
 	}
 
 	.user-name.clickable:hover {
@@ -278,7 +278,7 @@
 		font-size: 0.85rem;
 		font-weight: 600;
 		padding: 2px 4px;
-		background: rgba(var(--surface-rgb), 0.05);
+		background: var(--bg-input);
 		border: 1px solid var(--accent);
 		border-radius: 3px;
 		color: var(--text-primary);
