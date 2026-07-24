@@ -52,5 +52,6 @@ ablage = { path = "../crates/ablage" }
 postcard = { version = "1", features = ["use-std"] }
 urlencoding = "2"
 url = "2"
+regex = "1"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

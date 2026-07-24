@@ -843,6 +843,7 @@ dependencies = [
  "notify",
  "parking_lot",
  "postcard",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

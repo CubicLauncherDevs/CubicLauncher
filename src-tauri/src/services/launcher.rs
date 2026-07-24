@@ -16,9 +16,10 @@ use launchwerk::auth::{
 };
 use launchwerk::models::VersionManifest;
 use launchwerk::{LaunchConfig, Launchwerk};
+use regex::Regex;
 use std::collections::VecDeque;
 use std::mem;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tokio::fs;
@@ -30,24 +31,137 @@ use dashmap::DashMap;
 
 const LOG_RING_CAPACITY: usize = 5000;
 
+static LINE_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 pub(crate) static KEEP_ALIVE: AtomicBool = AtomicBool::new(false);
 
 pub(crate) fn should_keep_alive() -> bool {
     KEEP_ALIVE.load(Ordering::Relaxed)
 }
 
+// ── Log Level ───────────────────────────────────────────────────────────────
+
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    /// No se pudo clasificar la línea.
+    Unknown,
+    /// Error estándar genérico.
+    Stderr,
+    /// Mensajes propios del launcher.
+    Launcher,
+    Trace,
+    Debug,
+    Info,
+    /// Mensajes de Minecraft u otros sin tag (texto plano).
+    Message,
+    Warn,
+    Error,
+    Fatal,
+}
+
+impl LogLevel {
+    /// Detecta el nivel de una línea de log siguiendo formatos comunes de
+    /// Minecraft, log4j/logback y Java.
+    pub fn from_line(line: &str, stderr: bool) -> Self {
+        let stripped = strip_ansi(line);
+
+        // Mensajes marcados por el launcher.
+        if stripped.trim_start().starts_with("[CubicLauncher]")
+            || stripped.trim_start().starts_with("[Cubite]")
+        {
+            return Self::Launcher;
+        }
+
+        // Formato típico de Minecraft/modloaders:
+        // [12:34:56] [Server thread/INFO]: ...
+        if let Some(cap) = minecraft_level_regex().captures(&stripped) {
+            if let Some(level) = cap.get(1) {
+                return Self::from_keyword(level.as_str());
+            }
+        }
+
+        // Palabra de nivel suelta al inicio de la línea (log4j básico, etc).
+        if let Some(cap) = leading_level_regex().captures(&stripped) {
+            if let Some(level) = cap.get(1) {
+                return Self::from_keyword(level.as_str());
+            }
+        }
+
+        if stderr {
+            Self::Stderr
+        } else {
+            Self::Message
+        }
+    }
+
+    fn from_keyword(word: &str) -> Self {
+        match word.to_uppercase().as_str() {
+            "TRACE" => Self::Trace,
+            "DEBUG" => Self::Debug,
+            "INFO" | "CONFIG" | "FINE" | "FINER" | "FINEST" => Self::Info,
+            "WARN" | "WARNING" => Self::Warn,
+            "ERROR" => Self::Error,
+            "FATAL" | "SEVERE" => Self::Fatal,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+fn minecraft_level_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)\[[^\]/\s]{1,60}/\s*(TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|SEVERE|CONFIG|FINE|FINER|FINEST)\s*\]").unwrap()
+    })
+}
+
+fn leading_level_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)^(?:\d{4}[-/]\d{2}[-/]\d{2}[\sT])?(?:\d{1,2}:\d{2}:\d{2}(?:\.\d+)?(?:\s*[AP]M)?\s+)?(TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|SEVERE)\b").unwrap()
+    })
+}
+
+fn ansi_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"[\x1b\x9b]\[[0-?]*[ -/]*[@-~]").unwrap())
+}
+
+fn strip_ansi(line: &str) -> String {
+    ansi_regex().replace_all(line, "").into_owned()
+}
+
+fn token_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"(?i)(access[_-]?token|refresh[_-]?token|client[_-]?token|authorization|bearer)(['"]?\s*[:=]\s*['"]?|\s+)([A-Za-z0-9_\-\.]+)"#).unwrap()
+    })
+}
+
+/// Limpia líneas que puedan contener credenciales. Oculta solo el valor,
+/// no descarta la línea completa.
+fn sanitize_line(line: &str) -> String {
+    token_regex()
+        .replace_all(line, "${1}${2}***")
+        .into_owned()
+}
+
 // ── Log Ring Buffer ─────────────────────────────────────────────────────────
 
 #[derive(Clone, serde::Serialize)]
 pub struct LogLine {
-    pub text: String,
+    pub id: u64,
+    pub text: Arc<str>,
     pub stream: String,
+    pub level: LogLevel,
     pub timestamp: u64,
 }
 
 struct LogLineRaw {
-    text: String,
+    id: u64,
+    text: Arc<str>,
     stream: u8,
+    level: LogLevel,
     timestamp: u64,
 }
 
@@ -62,7 +176,7 @@ impl LogRing {
         }
     }
 
-    pub fn push(&self, text: String, stream: u8) {
+    pub fn push(&self, text: Arc<str>, level: LogLevel, stream: u8) {
         let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -72,22 +186,27 @@ impl LogRing {
             guard.pop_front();
         }
         guard.push_back(LogLineRaw {
+            id: LINE_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
             text,
             stream,
+            level,
             timestamp: ts,
         });
     }
 
-    pub fn drain(&self) -> Vec<LogLine> {
-        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+    pub fn snapshot(&self) -> Vec<LogLine> {
+        let guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         guard
-            .drain(..)
+            .iter()
             .map(|raw| LogLine {
-                text: raw.text,
+                id: raw.id,
+                text: raw.text.clone(),
                 stream: match raw.stream {
                     0 => "stdout".into(),
-                    _ => "stderr".into(),
+                    1 => "stderr".into(),
+                    _ => "launcher".into(),
                 },
+                level: raw.level,
                 timestamp: raw.timestamp,
             })
             .collect()
@@ -104,13 +223,35 @@ fn get_log_ring(id: &str) -> Arc<LogRing> {
 }
 
 pub fn get_log_history(id: &str) -> Vec<LogLine> {
-    get_log_ring(id).drain()
+    get_log_ring(id).snapshot()
 }
 
 pub fn remove_log_ring(id: &str) {
     if let Some(map) = LOG_RINGS.get() {
         map.remove(id);
     }
+}
+
+/// Añade un mensaje del launcher al anillo de logs de una instancia.
+pub fn push_launcher_message(id: &str, message: impl Into<String>) {
+    get_log_ring(id).push(Arc::from(message.into()), LogLevel::Launcher, 2);
+}
+
+// ── Log Event Payloads ──────────────────────────────────────────────────────
+
+#[derive(Clone, serde::Serialize)]
+struct LogEntryEvent {
+    id: u64,
+    line: Arc<str>,
+    stream: &'static str,
+    level: LogLevel,
+    timestamp: u64,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct LogBatchEvent {
+    id: Arc<str>,
+    lines: Vec<LogEntryEvent>,
 }
 
 // ── Statics ───────────────────────────────────────────────────────────────────
@@ -299,6 +440,11 @@ impl Launcher {
             (max_memf, min_memf)
         };
 
+        // Datos que necesitamos mostrar en el log antes de mover los originales.
+        let java_path_str = java_path.display().to_string();
+        let min_mem_str = min_mem.clone();
+        let max_mem_str = max_mem.clone();
+
         let mut builder = LaunchConfig::builder()
             .java_path(java_path)
             .username(user.username)
@@ -378,12 +524,28 @@ impl Launcher {
         extra_jvm_args.extend(parsed_jvm_args);
         builder = builder.extra_jvm_args(extra_jvm_args);
 
+        let instance_name = name.clone();
+        let instance_version = version.clone();
+        push_launcher_message(
+            &handle.uuid,
+            format!(
+                "Iniciando instancia \"{}\" ({})",
+                instance_name, instance_version
+            ),
+        );
+        push_launcher_message(
+            &handle.uuid,
+            format!("Java: {} (versión {})", java_path_str, java_version),
+        );
+        push_launcher_message(
+            &handle.uuid,
+            format!("Memoria: {} / {}", min_mem_str, max_mem_str),
+        );
+
         let options = builder.build();
 
         let lw_handle = self.lw.prepare(manifest, options, instance_dir);
         handle.update_last_played().await;
-        let instance_name = name.clone();
-        let instance_version = version.clone();
 
         match lw_handle.launch().await {
             Ok(_) => {
@@ -405,6 +567,7 @@ impl Launcher {
                     .clone();
                 if let Some(ref app) = app_handle {
                     let id = handle.uuid.clone();
+                    push_launcher_message(&id, "Proceso iniciado");
                     let stdout_rx = lw_handle.subscribe_stdout();
                     let stderr_rx = lw_handle.subscribe_stderr();
                     spawn_io_forwarding(app.clone(), id.clone(), stdout_rx, "stdout");
@@ -427,19 +590,24 @@ impl Launcher {
                 let inst_name = instance_name.clone();
                 let app_for_show = app_handle.clone();
                 tokio::spawn(async move {
-                    tokio::select! {
+                    let result = tokio::select! {
                         _ = kill_rx => {
                             info!("Kill signal received for {}", uuid);
                             if let Err(e) = lw_handle.kill().await {
                                 warn!("Error al matar proceso {}: {:?}", uuid, e);
                             }
-                            lw_handle.wait().await;
+                            lw_handle.wait().await
                         }
                         result = lw_handle.wait() => {
                             info!("Instance {} exited: {:?}", uuid, result);
-                            unregister_kill_sender(&uuid);
+                            result
                         }
-                    }
+                    };
+                    unregister_kill_sender(&uuid);
+                    push_launcher_message(
+                        &uuid,
+                        format!("El proceso terminó: {:?}", result),
+                    );
                     discord_presence::on_instance_stop(&inst_name).await;
                     remove_log_ring(&uuid);
                     h.set_status(InstanceStatus::Off);
@@ -464,8 +632,10 @@ impl Launcher {
                 });
             }
             Err(e) => {
-                error!("{}", e.to_string());
-                handle.set_status(InstanceStatus::Error(e.to_string()));
+                let msg = e.to_string();
+                error!("{}", msg);
+                push_launcher_message(&handle.uuid, format!("Error al iniciar: {}", msg));
+                handle.set_status(InstanceStatus::Error(msg));
             }
         }
         Ok(())
@@ -603,9 +773,10 @@ fn spawn_io_forwarding(
 ) {
     tokio::spawn(async move {
         let ring = get_log_ring(&id);
-        let stream_id: u8 = if stream == "stderr" { 1 } else { 0 };
+        let stderr = stream == "stderr";
+        let stream_id: u8 = if stderr { 1 } else { 0 };
         let stream_name = stream;
-        let mut batch: Vec<serde_json::Value> = Vec::with_capacity(64);
+        let mut batch: Vec<LogEntryEvent> = Vec::with_capacity(64);
         let mut interval = tokio::time::interval(std::time::Duration::from_millis(80));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
@@ -614,19 +785,25 @@ fn spawn_io_forwarding(
                 line_result = rx.recv() => {
                     match line_result {
                         Ok(line) => {
-                            if line.to_lowercase().contains("token") {
+                            let cleaned = sanitize_line(&strip_ansi(&line));
+                            if cleaned.is_empty() {
                                 continue;
                             }
+                            let level = LogLevel::from_line(&cleaned, stderr);
                             let ts = std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
                                 .map(|d| d.as_millis() as u64)
                                 .unwrap_or(0);
-                            ring.push(line.clone(), stream_id);
-                            batch.push(serde_json::json!({
-                                "line": line,
-                                "stream": stream_name,
-                                "timestamp": ts,
-                            }));
+                            let text: Arc<str> = Arc::from(cleaned);
+                            let id_for_line = LINE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+                            ring.push(text.clone(), level, stream_id);
+                            batch.push(LogEntryEvent {
+                                id: id_for_line,
+                                line: text,
+                                stream: stream_name,
+                                level,
+                                timestamp: ts,
+                            });
                         }
                         Err(broadcast::error::RecvError::Lagged(_)) => continue,
                         Err(broadcast::error::RecvError::Closed) => break,
@@ -634,20 +811,20 @@ fn spawn_io_forwarding(
                 }
                 _ = interval.tick() => {
                     if !batch.is_empty() {
-                        let lines: Vec<serde_json::Value> = mem::take(&mut batch);
+                        let lines: Vec<LogEntryEvent> = mem::take(&mut batch);
                         let _ = app.emit(
                             "instance-log-batch",
-                            serde_json::json!({ "id": id, "lines": lines }),
+                            LogBatchEvent { id: id.clone(), lines },
                         );
                     }
                 }
             }
         }
         if !batch.is_empty() {
-            let lines: Vec<serde_json::Value> = mem::take(&mut batch);
+            let lines: Vec<LogEntryEvent> = mem::take(&mut batch);
             let _ = app.emit(
                 "instance-log-batch",
-                serde_json::json!({ "id": id, "lines": lines }),
+                LogBatchEvent { id: id.clone(), lines },
             );
         }
     });

@@ -1,233 +1,68 @@
 <script lang="ts">
-	import { onMount, tick } from "svelte";
+	import { onMount } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
 	import { listen } from "@tauri-apps/api/event";
 	import { showSuccess, showError } from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
 	import { openUrl } from "$lib/api/cubicApi";
+	import { LogState } from "./logState.svelte";
+	import { LogRenderer } from "./LogRenderer";
+	import LogHeader from "./LogHeader.svelte";
+	import LogControls from "./LogControls.svelte";
+	import LogViewport from "./LogViewport.svelte";
 
 	let {
 		instanceId,
 		instanceName,
 	}: { instanceId: string; instanceName: string } = $props();
 
-	interface LogLine {
-		text: string;
-		stream: string;
-		timestamp: number;
-		level: "info" | "warn" | "error" | "fatal" | "default";
-	}
+	const log = new LogState();
+	const renderer = new LogRenderer(log);
+	log.setRenderer(renderer);
 
-	const MAX_LINES = 4000;
-	const SCROLL_THRESHOLD = 60;
-
-	let lines: LogLine[] = $state([]);
 	let isAtBottom = $state(true);
 	let unseenCount = $state(0);
-	let uploading = $state(false);
-	let logContainer: HTMLDivElement | undefined = $state();
 	let destroyed = false;
 	let unlistenFn: (() => void) | undefined;
-	let scrollTicking = false;
 
-	function computeLevel(
-		text: string,
-	): "info" | "warn" | "error" | "fatal" | "default" {
-		const m = text.match(/\[.*?\/(\w+)\]/);
-		if (m) {
-			const lv = m[1].toUpperCase();
-			if (["FATAL", "SEVERE"].includes(lv)) return "fatal";
-			if (lv === "ERROR") return "error";
-			if (["WARN", "WARNING"].includes(lv)) return "warn";
-			if (
-				[
-					"INFO",
-					"CONFIG",
-					"FINE",
-					"FINER",
-					"FINEST",
-					"DEBUG",
-					"TRACE",
-				].includes(lv)
-			)
-				return "info";
-		}
-		const u = text.toUpperCase();
-		if (/\b(FATAL|SEVERE)\b/.test(u)) return "fatal";
-		if (/\bERROR\b/.test(u)) return "error";
-		if (/\bWARN(ING)?\b/.test(u)) return "warn";
-		return "default";
+	function onScrollState(state: { isAtBottom: boolean; unseenCount: number }) {
+		isAtBottom = state.isAtBottom;
+		unseenCount = state.unseenCount;
 	}
 
-	const timeFmt = new Intl.DateTimeFormat("en-US", {
-		hour: "2-digit",
-		minute: "2-digit",
-		second: "2-digit",
-		hour12: false,
-	});
-
-	function appendLines(newLines: LogLine[]) {
-		lines.push(...newLines);
-		if (lines.length > MAX_LINES) {
-			lines.splice(0, lines.length - MAX_LINES);
+	function handleSearchKeydown(e: KeyboardEvent) {
+		if (e.key === "Enter") {
+			e.preventDefault();
+			log.flushSearch();
+			if (e.shiftKey) renderer.prevMatch();
+			else renderer.nextMatch();
 		}
-		renderLines();
-	}
-
-	function renderLines() {
-		const viewport = logContainer;
-		if (!viewport) return;
-		const container = viewport.querySelector(".log-lines");
-		if (!container) return;
-
-		const frag = document.createDocumentFragment();
-		const start = container.children.length;
-		for (let i = start; i < lines.length; i++) {
-			const line = lines[i];
-			const level = line.level;
-			const div = document.createElement("div");
-			div.className = `log-line ${level}${line.stream === "stderr" ? " stderr" : ""} new`;
-			const ts = document.createElement("span");
-			ts.className = "line-ts";
-			ts.textContent = timeFmt.format(new Date(line.timestamp));
-			const txt = document.createElement("span");
-			txt.className = "line-text";
-			txt.textContent = line.text;
-			div.appendChild(ts);
-			div.appendChild(txt);
-			frag.appendChild(div);
-		}
-		container.appendChild(frag);
-
-		requestAnimationFrame(() => {
-			if (destroyed) return;
-			container.querySelectorAll(".log-line.new").forEach((el) => {
-				el.classList.remove("new");
-			});
-		});
-
-		if (isAtBottom && viewport) {
-			viewport.scrollTop = viewport.scrollHeight;
+		if (e.key === "Escape") {
+			log.resetSearch();
 		}
 	}
 
-	onMount(() => {
-		destroyed = false;
-
-		(async () => {
-			const raw: LogLine[] = await invoke("get_log_history_cmd", {
-				instanceId,
-			});
-			lines = raw.map((l) => ({
-				...l,
-				level: l.stream === "stderr" ? "error" : computeLevel(l.text),
-			}));
-			await tick();
-
-			const viewport = logContainer;
-			if (viewport) {
-				const container = viewport.querySelector(".log-lines");
-				if (container) {
-					const frag = document.createDocumentFragment();
-					for (const line of lines) {
-						const level = line.level;
-						const div = document.createElement("div");
-						div.className = `log-line ${level}${line.stream === "stderr" ? " stderr" : ""}`;
-						const ts = document.createElement("span");
-						ts.className = "line-ts";
-						ts.textContent = timeFmt.format(
-							new Date(line.timestamp),
-						);
-						const txt = document.createElement("span");
-						txt.className = "line-text";
-						txt.textContent = line.text;
-						div.appendChild(ts);
-						div.appendChild(txt);
-						frag.appendChild(div);
-					}
-					container.appendChild(frag);
-				}
-				viewport.scrollTop = viewport.scrollHeight;
-			}
-
-			unlistenFn = await listen<{
-				id: string;
-				lines: { line: string; stream: string; timestamp: number }[];
-			}>("instance-log-batch", (event) => {
-				if (destroyed || event.payload.id !== instanceId) return;
-				const batch: LogLine[] = event.payload.lines.map((e) => ({
-					text: e.line,
-					stream: e.stream,
-					timestamp: e.timestamp,
-					level:
-						e.stream === "stderr" ? "error" : computeLevel(e.line),
-				}));
-				appendLines(batch);
-			});
-		})();
-
-		return () => {
-			destroyed = true;
-			unlistenFn?.();
-		};
-	});
-
-	function handleScroll() {
-		if (!logContainer || scrollTicking) return;
-		scrollTicking = true;
-		requestAnimationFrame(() => {
-			scrollTicking = false;
-			const el = logContainer;
-			if (!el) return;
-			const atBottom =
-				el.scrollHeight - el.scrollTop - el.clientHeight <
-				SCROLL_THRESHOLD;
-			if (atBottom && !isAtBottom) {
-				unseenCount = 0;
-			}
-			isAtBottom = atBottom;
-			if (!isAtBottom) {
-				const container = el.querySelector(".log-lines");
-				if (container) {
-					unseenCount = Math.max(
-						0,
-						container.children.length -
-							Math.floor(el.scrollTop / 20) -
-							Math.floor(el.clientHeight / 20),
-					);
-				}
-			}
-		});
-	}
-
-	function scrollToBottom() {
-		if (logContainer) {
-			logContainer.scrollTo({
-				top: logContainer.scrollHeight,
-				behavior: "smooth",
-			});
-			isAtBottom = true;
-			unseenCount = 0;
+	function handleGlobalKeydown(e: KeyboardEvent) {
+		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+			e.preventDefault();
+			const input = document.getElementById(
+				"log-search-input",
+			) as HTMLInputElement | null;
+			input?.focus();
+			input?.select();
 		}
-	}
-
-	function clearLog() {
-		lines = [];
-		const container = logContainer?.querySelector(".log-lines");
-		if (container) container.innerHTML = "";
-		unseenCount = 0;
 	}
 
 	async function copyLog() {
-		const text = lines.map((l) => l.text).join("\n");
+		const text = log.lines.map((l) => l.text).join("\n");
 		await navigator.clipboard.writeText(text);
 	}
 
 	async function uploadToMclogs() {
-		if (uploading || lines.length === 0) return;
-		uploading = true;
+		if (log.uploading || log.totalLines === 0) return;
+		log.uploading = true;
 		try {
-			const text = lines.map((l) => l.text).join("\n");
+			const text = log.lines.map((l) => l.text).join("\n");
 			const url = await invoke<string>("upload_log_to_mclogs", {
 				content: text,
 			});
@@ -236,167 +71,91 @@
 		} catch (err) {
 			showError(t("errors.title"), String(err));
 		} finally {
-			uploading = false;
+			log.uploading = false;
 		}
 	}
+
+	function onClear() {
+		log.clear();
+		renderer.scrollToBottom();
+	}
+
+	onMount(() => {
+		destroyed = false;
+
+		(async () => {
+			const raw = await invoke<
+				{ id: number; text: string; stream: string; level: string; timestamp: number }[]
+			>("get_log_history_cmd", {
+				instanceId,
+			});
+			log.ingestHistory(raw);
+			renderer.rebuild();
+			renderer.scrollToBottom();
+
+			unlistenFn = await listen<{
+				id: string;
+				lines: {
+					id: number;
+					line: string;
+					stream: string;
+					level: string;
+					timestamp: number;
+				}[];
+			}>("instance-log-batch", (event) => {
+				if (destroyed || event.payload.id !== instanceId) return;
+				log.ingestBatch(event.payload.lines);
+			});
+		})();
+
+		document.addEventListener("keydown", handleGlobalKeydown);
+
+		return () => {
+			destroyed = true;
+			unlistenFn?.();
+			document.removeEventListener("keydown", handleGlobalKeydown);
+			renderer.detach();
+		};
+	});
 </script>
 
 <div class="log-window">
-	<div class="log-header">
-		<div class="log-title">
-			<span class="log-dot" class:alive={lines.length > 0}></span>
-			<span>{instanceName}</span>
-			{#if lines.length > 0}
-				<span class="log-count">{lines.length}</span>
-			{/if}
-		</div>
-		<div class="log-toolbar">
-			<button
-				type="button"
-				class="toolbar-btn"
-				onclick={clearLog}
-				disabled={lines.length === 0}
-				title="Clear log"
-			>
-				<svg
-					width="13"
-					height="13"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<polyline points="3 6 5 6 21 6" /><path
-						d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-					/>
-				</svg>
-			</button>
-			<button
-				type="button"
-				class="toolbar-btn"
-				onclick={copyLog}
-				disabled={lines.length === 0}
-				title="Copy log"
-			>
-				<svg
-					width="13"
-					height="13"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<rect
-						x="9"
-						y="9"
-						width="13"
-						height="13"
-						rx="2"
-						ry="2"
-					/><path
-						d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
-					/>
-				</svg>
-			</button>
-			<button
-				type="button"
-				class="toolbar-btn"
-				onclick={uploadToMclogs}
-				disabled={lines.length === 0 || uploading}
-				title={uploading ? "Uploading..." : "Upload to mclo.gs"}
-			>
-				{#if uploading}
-					<svg
-						width="13"
-						height="13"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						class="spin"
-					>
-						<line x1="12" y1="2" x2="12" y2="6" /><line
-							x1="12"
-							y1="18"
-							x2="12"
-							y2="22"
-						/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76" /><line
-							x1="16.24"
-							y1="16.24"
-							x2="19.07"
-							y2="19.07"
-						/><line x1="2" y1="12" x2="6" y2="12" /><line
-							x1="18"
-							y1="12"
-							x2="22"
-							y2="12"
-						/><line
-							x1="4.93"
-							y1="19.07"
-							x2="7.76"
-							y2="16.24"
-						/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
-					</svg>
-				{:else}
-					<svg
-						width="13"
-						height="13"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path
-							d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
-						/><polyline points="17 8 12 3 7 8" /><line
-							x1="12"
-							y1="3"
-							x2="12"
-							y2="15"
-						/>
-					</svg>
-				{/if}
-			</button>
-			<button
-				type="button"
-				class="toolbar-btn"
-				class:active={isAtBottom}
-				onclick={scrollToBottom}
-				title="Auto-scroll"
-			>
-				<svg
-					width="13"
-					height="13"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<line x1="12" y1="5" x2="12" y2="19" /><polyline
-						points="19 12 12 19 5 12"
-					/>
-				</svg>
-			</button>
-		</div>
-	</div>
+	<LogHeader
+		{instanceName}
+		totalLines={log.totalLines}
+		{isAtBottom}
+		uploading={log.uploading}
+		onClear={onClear}
+		onCopy={copyLog}
+		onUpload={uploadToMclogs}
+		onScrollBottom={() => renderer.scrollToBottom()}
+	/>
 
-	<div class="log-viewport" bind:this={logContainer} onscroll={handleScroll}>
-		<div class="log-lines"></div>
-	</div>
+	<LogControls
+		activeLevels={log.activeLevels}
+		query={log.inputQuery}
+		matchCount={log.matchCount}
+		currentMatchIndex={log.currentMatchIndex}
+		onQueryInput={(v) => log.searchInput(v)}
+		onQueryKeydown={handleSearchKeydown}
+		onClearQuery={() => log.resetSearch()}
+		onPrev={() => {
+			log.flushSearch();
+			renderer.prevMatch();
+		}}
+		onNext={() => {
+			log.flushSearch();
+			renderer.nextMatch();
+		}}
+		onToggleLevel={(l) => log.toggleLevel(l)}
+		onSetAllLevels={(a) => log.setAllLevels(a)}
+	/>
+
+	<LogViewport {renderer} {onScrollState} />
 
 	{#if !isAtBottom && unseenCount > 0}
-		<button type="button" class="jump-bottom" onclick={scrollToBottom}>
-			↓ {unseenCount} lineas nuevas
+		<button type="button" class="jump-bottom" onclick={() => renderer.scrollToBottom()}>
+			↓ {unseenCount} líneas nuevas
 		</button>
 	{/if}
 </div>
@@ -411,161 +170,7 @@
 		padding: 0;
 		background: var(--bg-input, #0a0a0a);
 		color: var(--text-primary, #c8c8c8);
-
 		font-size: 0.65rem;
-	}
-
-	.log-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 6px 14px;
-		background: var(--bg-card, #111);
-		border-bottom: 1px solid var(--border, #222);
-		flex-shrink: 0;
-	}
-
-	.log-title {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		font-size: 0.62rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 1px;
-		color: var(--text-tertiary, #888);
-	}
-
-	.log-dot {
-		width: 7px;
-		height: 7px;
-		border-radius: 50%;
-		background: #546e7a;
-		transition: all 0.3s ease;
-	}
-
-	.log-dot.alive {
-		background: var(--color-status-started, #66bb6a);
-		box-shadow: 0 0 8px rgba(102, 187, 106, 0.5);
-		animation: pulse 1.5s ease-in-out infinite;
-	}
-
-	.log-count {
-		background: rgba(255, 255, 255, 0.08);
-		padding: 1px 6px;
-		border-radius: 8px;
-		font-size: 0.55rem;
-		color: var(--text-secondary, #666);
-	}
-
-	.log-toolbar {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-	}
-
-	.toolbar-btn {
-		background: transparent;
-		border: none;
-		color: var(--text-secondary, #666);
-		width: 26px;
-		height: 26px;
-		border-radius: 4px;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.15s ease;
-	}
-
-	.toolbar-btn:hover:not(:disabled) {
-		background: rgba(255, 255, 255, 0.06);
-		color: var(--text-primary, #ccc);
-	}
-
-	.toolbar-btn.active {
-		color: var(--color-success, #81c784);
-		background: rgba(var(--color-success-rgb), 0.12);
-	}
-
-	.toolbar-btn:disabled {
-		opacity: 0.3;
-		cursor: not-allowed;
-	}
-
-	.log-viewport {
-		flex: 1;
-		overflow-y: auto;
-		contain: layout style;
-	}
-
-	.log-viewport::-webkit-scrollbar {
-		width: 4px;
-	}
-
-	.log-viewport::-webkit-scrollbar-thumb {
-		background: var(--bg-item-active, #333);
-		border-radius: 4px;
-	}
-
-	:global(.log-line) {
-		display: flex;
-		gap: 10px;
-		padding: 0 14px;
-		min-height: 16px;
-		content-visibility: auto;
-		contain-intrinsic-size: auto 16px;
-	}
-
-	:global(.log-line:hover) {
-		background: rgba(255, 255, 255, 0.02);
-	}
-
-	:global(.log-line.new) {
-		animation: logSlideIn 0.2s ease-out;
-	}
-
-	:global(.log-line.stderr) {
-		background: rgba(244, 67, 54, 0.03);
-	}
-
-	:global(.line-ts) {
-		color: var(--text-muted, #444);
-		font-size: 0.6rem;
-		flex-shrink: 0;
-		width: 68px;
-		text-align: right;
-		user-select: none;
-		opacity: 0.6;
-		padding-top: 1px;
-	}
-
-	:global(.line-text) {
-		color: var(--text-primary, #c8c8c8);
-		white-space: pre-wrap;
-		word-break: break-all;
-		min-width: 0;
-	}
-
-	:global(.log-line.info .line-text) {
-		color: var(--color-success, #81c784);
-	}
-
-	:global(.log-line.warn .line-text) {
-		color: var(--color-warning, #ffd54f);
-	}
-
-	:global(.log-line.error .line-text) {
-		color: var(--color-error, #e57373);
-	}
-
-	:global(.log-line.fatal .line-text) {
-		color: var(--color-error, #ef5350);
-		font-weight: 700;
-	}
-
-	:global(.log-line.stderr .line-text) {
-		color: #ff8a65;
 	}
 
 	.jump-bottom {
@@ -593,6 +198,104 @@
 		color: white;
 	}
 
+	:global(.log-line) {
+		display: flex;
+		gap: 10px;
+		padding: 0 14px;
+		min-height: 16px;
+		content-visibility: auto;
+		contain-intrinsic-size: auto 16px;
+	}
+
+	:global(.log-line.hidden) {
+		display: none;
+	}
+
+	:global(.log-line:hover) {
+		background: rgba(255, 255, 255, 0.02);
+	}
+
+	:global(.log-line.new) {
+		animation: logSlideIn 0.2s ease-out;
+	}
+
+	:global(.log-line.search-active) {
+		background: rgba(255, 235, 59, 0.1);
+		box-shadow: inset 2px 0 0 0 rgba(255, 235, 59, 0.8);
+	}
+
+	:global(.log-line.stderr) {
+		background: rgba(244, 67, 54, 0.03);
+	}
+
+	:global(.line-ts) {
+		color: var(--text-muted, #444);
+		font-size: 0.6rem;
+		flex-shrink: 0;
+		width: 68px;
+		text-align: right;
+		user-select: none;
+		opacity: 0.6;
+		padding-top: 1px;
+	}
+
+	:global(.line-text) {
+		color: var(--text-primary, #c8c8c8);
+		white-space: pre-wrap;
+		word-break: break-all;
+		min-width: 0;
+	}
+
+	:global(.line-text mark) {
+		background: rgba(255, 235, 59, 0.28);
+		color: inherit;
+		padding: 0 1px;
+		border-radius: 2px;
+	}
+
+	:global(.log-line.info .line-text) {
+		color: var(--color-success, #81c784);
+	}
+
+	:global(.log-line.warn .line-text) {
+		color: var(--color-warning, #ffd54f);
+	}
+
+	:global(.log-line.error .line-text) {
+		color: var(--color-error, #e57373);
+	}
+
+	:global(.log-line.fatal .line-text) {
+		color: var(--color-error, #ef5350);
+		font-weight: 700;
+	}
+
+	:global(.log-line.stderr .line-text) {
+		color: #ff8a65;
+	}
+
+	:global(.log-line.launcher .line-text) {
+		color: #82b1ff;
+		font-style: italic;
+	}
+
+	:global(.log-line.trace .line-text),
+	:global(.log-line.debug .line-text) {
+		color: var(--text-muted, #888);
+	}
+
+	:global(.log-line.trace .line-text) {
+		font-size: 0.58rem;
+	}
+
+	:global(.log-line.message .line-text) {
+		color: var(--text-primary, #c8c8c8);
+	}
+
+	:global(.log-line.unknown .line-text) {
+		color: var(--text-tertiary, #888);
+	}
+
 	@keyframes logSlideIn {
 		from {
 			opacity: 0;
@@ -601,29 +304,6 @@
 		to {
 			opacity: 1;
 			transform: translateY(0);
-		}
-	}
-
-	@keyframes pulse {
-		0%,
-		100% {
-			opacity: 1;
-		}
-		50% {
-			opacity: 0.5;
-		}
-	}
-
-	:global(.spin) {
-		animation: spin 1s linear infinite;
-	}
-
-	@keyframes spin {
-		from {
-			transform: rotate(0deg);
-		}
-		to {
-			transform: rotate(360deg);
 		}
 	}
 </style>
