@@ -597,15 +597,15 @@
 	}
 
 	.inline-status.status-starting {
-		color: #64b5f6;
+		color: var(--color-status-starting);
 	}
 
 	.inline-status.status-started {
-		color: #81c784;
+		color: var(--color-status-started);
 	}
 
 	.inline-status.status-error {
-		color: #e57373;
+		color: var(--color-error);
 	}
 
 	.inline-status .status-text {

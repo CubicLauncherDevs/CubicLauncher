@@ -191,9 +191,9 @@
 		align-items: center;
 		gap: 6px;
 		padding: 6px 12px;
-		background: rgba(255, 68, 68, 0.1);
-		border: 1px solid rgba(255, 68, 68, 0.25);
-		color: #ff4444;
+		background: rgba(var(--color-error-rgb), 0.1);
+		border: 1px solid rgba(var(--color-error-rgb), 0.25);
+		color: var(--color-error);
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
 		font-size: 0.78rem;
@@ -210,8 +210,8 @@
 	}
 
 	.delete-selected-btn:not(:disabled):hover {
-		background: rgba(255, 68, 68, 0.2);
-		border-color: rgba(255, 68, 68, 0.4);
+		background: rgba(var(--color-error-rgb), 0.2);
+		border-color: rgba(var(--color-error-rgb), 0.4);
 	}
 
 	.mods-loading {

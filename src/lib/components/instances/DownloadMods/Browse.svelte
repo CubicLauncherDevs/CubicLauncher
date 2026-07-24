@@ -807,9 +807,9 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
-		color: #4ade80;
-		background: rgba(74, 222, 128, 0.1);
-		border: 1px solid rgba(74, 222, 128, 0.25);
+		color: var(--color-success);
+		background: rgba(var(--color-success-rgb), 0.1);
+		border: 1px solid rgba(var(--color-success-rgb), 0.25);
 		padding: 1px 5px;
 		border-radius: var(--border-radius-sm);
 		white-space: nowrap;
@@ -823,9 +823,9 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
-		color: #f87171;
-		background: rgba(248, 113, 113, 0.08);
-		border: 1px solid rgba(248, 113, 113, 0.2);
+		color: var(--color-error);
+		background: rgba(var(--color-error-rgb), 0.08);
+		border: 1px solid rgba(var(--color-error-rgb), 0.2);
 		padding: 2px 6px;
 		border-radius: var(--border-radius-sm);
 		white-space: nowrap;
@@ -978,12 +978,12 @@
 	}
 	.dm-no-versions-msg {
 		font-size: 0.75rem;
-		color: #f87171;
+		color: var(--color-error);
 		text-align: center;
 		padding: 8px;
-		border: 1px solid rgba(248, 113, 113, 0.2);
+		border: 1px solid rgba(var(--color-error-rgb), 0.2);
 		border-radius: var(--border-radius-sm);
-		background: rgba(248, 113, 113, 0.06);
+		background: rgba(var(--color-error-rgb), 0.06);
 	}
 	.dm-loading-versions {
 		font-size: 0.72rem;
@@ -1020,9 +1020,9 @@
 		border: 1px solid var(--border);
 	}
 	.dm-primary-btn.dm-btn-remove:hover:not(:disabled) {
-		background: rgba(255, 68, 68, 0.12);
-		color: #ff6b6b;
-		border-color: rgba(255, 68, 68, 0.3);
+		background: rgba(var(--color-error-rgb), 0.12);
+		color: var(--color-error);
+		border-color: rgba(var(--color-error-rgb), 0.3);
 	}
 
 	.dm-ghost-btn {

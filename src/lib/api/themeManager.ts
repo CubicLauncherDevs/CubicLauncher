@@ -147,13 +147,18 @@ function buildThemeCSS(theme: ThemeResponse): string {
 	for (const [key, value] of Object.entries(theme.variables)) {
 		css += `  ${key}: ${value};\n`;
 	}
-	if (theme.bg_image_blur != null) {
+	if (
+		theme.bg_image_blur != null &&
+		!("--bg-image-blur" in theme.variables)
+	) {
 		css += `  --bg-image-blur: ${theme.bg_image_blur}px;\n`;
 	}
-	if (theme.bg_image_opacity != null) {
+	if (
+		theme.bg_image_opacity != null &&
+		!("--bg-image-opacity" in theme.variables)
+	) {
 		css += `  --bg-image-opacity: ${theme.bg_image_opacity};\n`;
 	}
-	css += `  --font-loaded: 1;\n`;
 	css += "}\n";
 	return css;
 }

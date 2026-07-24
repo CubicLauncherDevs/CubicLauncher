@@ -19,7 +19,7 @@
 	--accent-rgb: 255, 255, 255;
 	--accent-hover: #e0e0e0;
 	--accent-text: #0c0c0c;
-	--accent-primary: #ffffff;
+	--accent-primary: var(--accent);
 	--surface-rgb: 255, 255, 255;
 	--surface-hover: rgba(var(--surface-rgb), 0.08);
 	--surface-active: rgba(var(--surface-rgb), 0.06);
@@ -30,8 +30,8 @@
 	--bg-surface: #1e1e1e;
 	--toast-bg: rgba(28, 28, 36, 0.84);
 	--toast-border: rgba(var(--surface-rgb), 0.1);
-	--border: #242424;
-	--border-color: #222;
+	--border-color: #242424;
+	--border: var(--border-color);
 	--border-width: 1px;
 	--border-radius: 8px;
 	--border-radius-sm: 4px;
@@ -45,17 +45,20 @@
 	--font-size-sm: 12px;
 	--font-size-lg: 16px;
 	--font-loaded: 1;
-	--glow-accent: 0 0 12px rgba(255, 255, 255, 0.15);
-	--glow-error: 0 0 12px rgba(248, 81, 73, 0.3);
-	--glow-success: 0 0 12px rgba(63, 185, 80, 0.3);
-	--color-success: #3fb950;
-	--color-success-rgb: 63, 185, 80;
-	--color-error: #f85149;
-	--color-error-rgb: 248, 81, 73;
+	--glow-accent: 0 0 12px rgba(var(--accent-rgb), 0.15);
+	--glow-error: 0 0 12px rgba(var(--color-error-rgb), 0.3);
+	--glow-success: 0 0 12px rgba(var(--color-success-rgb), 0.3);
+	--color-success: #4ade80;
+	--color-success-rgb: 74, 222, 128;
+	--color-error: #f87171;
+	--color-error-rgb: 248, 113, 113;
 	--color-warning: #d29922;
 	--color-warning-rgb: 210, 153, 34;
-	--color-status-starting: #5e81ac;
-	--color-status-started: #8fbc8f;
+	--color-info: #64b5f6;
+	--color-info-rgb: 100, 181, 246;
+	--color-status-starting: #64b5f6;
+	--color-status-started: #81c784;
+	--color-status-error: var(--color-error);
 	--icon-filter: invert(1);
 	--icon-filter-error: invert(16%) sepia(89%) saturate(4668%) hue-rotate(0deg)
 		brightness(96%) contrast(112%);
@@ -63,6 +66,13 @@
 	--clr-loader-fabric: #66bb6a;
 	--clr-loader-forge: #ffa726;
 	--clr-loader-quilt: #ab47bc;
+	--backdrop-blur-overlay: 4px;
+	--backdrop-blur-modal: 4px;
+	--backdrop-blur-dropdown: 4px;
+	--backdrop-blur-panel: 2px;
+	--backdrop-blur-float: 4px;
+	--backdrop-blur-viewer: 2px;
+	--scrollbar-thumb-hover: var(--text-secondary);
 	--scrollbar-track: #0c0c0c;
 	--scrollbar-thumb: #242424;
 }

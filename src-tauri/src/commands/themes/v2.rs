@@ -3,6 +3,7 @@ use super::{Theme, ZipImportable};
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tracing::warn;
 
 /// Estructura que representa los metadatos de segunda version del
 /// sistema de Themes. Implementa el Trait `Theme` el cual es el
@@ -113,42 +114,41 @@ impl Theme for V2Theme {
     }
 }
 
+fn insert_var(vars: &mut HashMap<String, String>, key: String, value: String) {
+    if let Some(old) = vars.insert(key.clone(), value) {
+        warn!(
+            "Key collision en theme: '{}' fue sobrescrito (anterior: '{}')",
+            key, old
+        );
+    }
+}
+
 pub fn flatten_variables(theme: &ThemeDef) -> HashMap<String, String> {
     let mut vars = HashMap::new();
 
     for (k, v) in &theme.colors {
-        vars.insert(format!("--{}", k), v.clone());
+        insert_var(&mut vars, format!("--{}", k), v.clone());
     }
     for (k, v) in &theme.text {
-        vars.insert(format!("--text-{}", k), v.clone());
+        insert_var(&mut vars, format!("--text-{}", k), v.clone());
     }
     for (k, v) in &theme.borders {
-        vars.insert(format!("--border-{}", k), v.clone());
+        insert_var(&mut vars, format!("--border-{}", k), v.clone());
     }
     for (k, v) in &theme.layout {
-        vars.insert(format!("--{}", k), v.clone());
+        insert_var(&mut vars, format!("--{}", k), v.clone());
     }
     for (k, v) in &theme.shadows {
-        vars.insert(format!("--{}", k), v.clone());
+        insert_var(&mut vars, format!("--{}", k), v.clone());
     }
     for (k, v) in &theme.backgrounds {
-        vars.insert(format!("--bg-{}", k), v.clone());
+        insert_var(&mut vars, format!("--bg-{}", k), v.clone());
     }
     for (k, v) in &theme.backdrop {
-        vars.insert(format!("--backdrop-blur-{}", k), format!("{}px", v));
+        insert_var(&mut vars, format!("--backdrop-blur-{}", k), format!("{}px", v));
     }
     for (k, v) in &theme.others {
-        vars.insert(format!("--{}", k), v.clone());
-    }
-
-    if let Some(path) = &theme.background.reference_path {
-        vars.insert("--bg-image-path".into(), path.clone());
-    }
-    if let Some(blur) = theme.background.image_blur {
-        vars.insert("--bg-image-blur".into(), format!("{}px", blur));
-    }
-    if let Some(opacity) = theme.background.image_opacity {
-        vars.insert("--bg-image-opacity".into(), opacity.to_string());
+        insert_var(&mut vars, format!("--{}", k), v.clone());
     }
 
     vars
@@ -329,9 +329,12 @@ mod tests {
     fn flatten_background_fields() {
         let theme = build_theme_def();
         let vars = flatten_variables(&theme);
-        assert_eq!(vars.get("--bg-image-path").unwrap(), "bg.webp");
-        assert_eq!(vars.get("--bg-image-blur").unwrap(), "10px");
-        assert_eq!(vars.get("--bg-image-opacity").unwrap(), "0.5");
+        assert!(
+            !vars.contains_key("--bg-image-path"),
+            "background fields should NOT be in variables (exposed via ThemeResponse fields)"
+        );
+        assert!(!vars.contains_key("--bg-image-blur"));
+        assert!(!vars.contains_key("--bg-image-opacity"));
     }
 
     #[test]

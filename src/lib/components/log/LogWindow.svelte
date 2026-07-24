@@ -409,8 +409,8 @@
 		height: 100vh;
 		margin: 0;
 		padding: 0;
-		background: #0a0a0a;
-		color: #c8c8c8;
+		background: var(--bg-input, #0a0a0a);
+		color: var(--text-primary, #c8c8c8);
 
 		font-size: 0.65rem;
 	}
@@ -420,8 +420,8 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 6px 14px;
-		background: #111;
-		border-bottom: 1px solid #222;
+		background: var(--bg-card, #111);
+		border-bottom: 1px solid var(--border, #222);
 		flex-shrink: 0;
 	}
 
@@ -433,7 +433,7 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 1px;
-		color: #888;
+		color: var(--text-tertiary, #888);
 	}
 
 	.log-dot {
@@ -445,7 +445,7 @@
 	}
 
 	.log-dot.alive {
-		background: #66bb6a;
+		background: var(--color-status-started, #66bb6a);
 		box-shadow: 0 0 8px rgba(102, 187, 106, 0.5);
 		animation: pulse 1.5s ease-in-out infinite;
 	}
@@ -455,7 +455,7 @@
 		padding: 1px 6px;
 		border-radius: 8px;
 		font-size: 0.55rem;
-		color: #666;
+		color: var(--text-secondary, #666);
 	}
 
 	.log-toolbar {
@@ -467,7 +467,7 @@
 	.toolbar-btn {
 		background: transparent;
 		border: none;
-		color: #666;
+		color: var(--text-secondary, #666);
 		width: 26px;
 		height: 26px;
 		border-radius: 4px;
@@ -480,12 +480,12 @@
 
 	.toolbar-btn:hover:not(:disabled) {
 		background: rgba(255, 255, 255, 0.06);
-		color: #ccc;
+		color: var(--text-primary, #ccc);
 	}
 
 	.toolbar-btn.active {
-		color: #81c784;
-		background: rgba(76, 175, 80, 0.12);
+		color: var(--color-success, #81c784);
+		background: rgba(var(--color-success-rgb), 0.12);
 	}
 
 	.toolbar-btn:disabled {
@@ -504,7 +504,7 @@
 	}
 
 	.log-viewport::-webkit-scrollbar-thumb {
-		background: #333;
+		background: var(--bg-item-active, #333);
 		border-radius: 4px;
 	}
 
@@ -530,7 +530,7 @@
 	}
 
 	:global(.line-ts) {
-		color: #444;
+		color: var(--text-muted, #444);
 		font-size: 0.6rem;
 		flex-shrink: 0;
 		width: 68px;
@@ -541,26 +541,26 @@
 	}
 
 	:global(.line-text) {
-		color: #c8c8c8;
+		color: var(--text-primary, #c8c8c8);
 		white-space: pre-wrap;
 		word-break: break-all;
 		min-width: 0;
 	}
 
 	:global(.log-line.info .line-text) {
-		color: #81c784;
+		color: var(--color-success, #81c784);
 	}
 
 	:global(.log-line.warn .line-text) {
-		color: #ffd54f;
+		color: var(--color-warning, #ffd54f);
 	}
 
 	:global(.log-line.error .line-text) {
-		color: #e57373;
+		color: var(--color-error, #e57373);
 	}
 
 	:global(.log-line.fatal .line-text) {
-		color: #ef5350;
+		color: var(--color-error, #ef5350);
 		font-weight: 700;
 	}
 
@@ -574,8 +574,8 @@
 		left: 50%;
 		transform: translateX(-50%);
 		background: rgba(30, 30, 30, 0.9);
-		border: 1px solid #444;
-		color: #ccc;
+		border: 1px solid var(--border, #444);
+		color: var(--text-primary, #ccc);
 		padding: 6px 16px;
 		border-radius: 20px;
 		font-size: 0.6rem;
@@ -589,7 +589,7 @@
 
 	.jump-bottom:hover {
 		background: rgba(50, 50, 50, 0.95);
-		border-color: #666;
+		border-color: var(--text-secondary, #666);
 		color: white;
 	}
 

@@ -501,13 +501,13 @@
 	}
 
 	.market-detail-btn.danger {
-		background: rgba(255, 68, 68, 0.12);
-		color: #ff6b6b;
-		border: 1px solid rgba(255, 68, 68, 0.3);
+		background: rgba(var(--color-error-rgb), 0.12);
+		color: var(--color-error);
+		border: 1px solid rgba(var(--color-error-rgb), 0.3);
 	}
 
 	.market-detail-btn.danger:hover {
-		background: rgba(255, 68, 68, 0.2);
+		background: rgba(var(--color-error-rgb), 0.2);
 	}
 
 	.market-detail-btn:disabled {
@@ -524,15 +524,15 @@
 		padding: 8px 12px;
 		font-size: 0.78rem;
 		font-weight: 700;
-		color: #4ade80;
-		background: rgba(74, 222, 128, 0.08);
-		border: 1px solid rgba(74, 222, 128, 0.25);
+		color: var(--color-success);
+		background: rgba(var(--color-success-rgb), 0.08);
+		border: 1px solid rgba(var(--color-success-rgb), 0.25);
 		border-radius: var(--border-radius-sm);
 		letter-spacing: 0.3px;
 	}
 
 	.market-detail-action-error {
-		color: #f87171;
+		color: var(--color-error);
 		font-size: 0.75rem;
 		margin: 0;
 		text-align: center;

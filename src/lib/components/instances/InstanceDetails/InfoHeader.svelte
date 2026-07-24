@@ -99,15 +99,15 @@
 	}
 
 	.badge.status-starting {
-		color: #64b5f6;
+		color: var(--color-status-starting);
 	}
 
 	.badge.status-started {
-		color: #81c784;
+		color: var(--color-status-started);
 	}
 
 	.badge.status-error {
-		color: #e57373;
+		color: var(--color-error);
 	}
 
 	.path-row {

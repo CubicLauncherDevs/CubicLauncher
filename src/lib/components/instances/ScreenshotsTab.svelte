@@ -194,7 +194,7 @@
 	.delete-btn {
 		background: rgba(0, 0, 0, 0.6);
 		border: none;
-		color: #ff4444;
+		color: var(--color-error);
 		padding: 6px;
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
@@ -204,7 +204,7 @@
 	}
 
 	.delete-btn:hover {
-		background: rgba(255, 68, 68, 0.2);
+		background: rgba(var(--color-error-rgb), 0.2);
 		color: white;
 	}
 

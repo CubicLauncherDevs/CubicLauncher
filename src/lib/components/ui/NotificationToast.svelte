@@ -24,12 +24,12 @@
 
 	function typeColor(type: string): string {
 		const map: Record<string, string> = {
-			error: "#c75818",
-			warning: "#8a6800",
-			success: "#1a7a3c",
-			info: "#1a5fa8",
+			error: "var(--color-error)",
+			warning: "var(--color-warning)",
+			success: "var(--color-success)",
+			info: "var(--color-info)",
 		};
-		return map[type] ?? "#444";
+		return map[type] ?? "var(--text-muted)";
 	}
 
 	function dismiss() {
@@ -44,7 +44,7 @@
 	function handleComplete() {
 		if (isDone) return;
 		isDone = true;
-		iconColor = "#1a7a3c";
+		iconColor = "var(--color-success)";
 		completeTimer = setTimeout(() => dismiss(), 1400);
 	}
 
@@ -115,7 +115,7 @@
 				cx="16"
 				cy="16"
 				r={R}
-				stroke={iconColor}
+				style:stroke={iconColor}
 				stroke-dasharray={CIRC}
 				stroke-dashoffset={hasProgress ? progressOffset : CIRC}
 			/>

@@ -197,7 +197,7 @@
 	}
 
 	.market-list-error {
-		color: #f87171;
+		color: var(--color-error);
 	}
 
 	.market-list-error p {

@@ -161,7 +161,7 @@
 	}
 
 	.market-item.incompatible {
-		border-left: 3px solid #f87171;
+		border-left: 3px solid var(--color-error);
 	}
 
 	.market-item-icon {
@@ -243,9 +243,9 @@
 	}
 
 	.market-item-badge.incompatible {
-		color: #f87171;
-		background: rgba(248, 113, 113, 0.08);
-		border: 1px solid rgba(248, 113, 113, 0.2);
+		color: var(--color-error);
+		background: rgba(var(--color-error-rgb), 0.08);
+		border: 1px solid rgba(var(--color-error-rgb), 0.2);
 	}
 
 	.market-item-badge.remote {
@@ -326,9 +326,9 @@
 		letter-spacing: 0.5px;
 		padding: 3px 8px;
 		border-radius: var(--border-radius-sm);
-		color: #4ade80;
-		background: rgba(74, 222, 128, 0.1);
-		border: 1px solid rgba(74, 222, 128, 0.25);
+		color: var(--color-success);
+		background: rgba(var(--color-success-rgb), 0.1);
+		border: 1px solid rgba(var(--color-success-rgb), 0.25);
 		white-space: nowrap;
 	}
 

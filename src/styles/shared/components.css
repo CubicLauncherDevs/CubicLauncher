@@ -56,8 +56,8 @@
 }
 
 .action-btn.delete:hover {
-	background: rgba(255, 68, 68, 0.15);
-	color: #ff4444;
+	background: rgba(var(--color-error-rgb), 0.15);
+	color: var(--color-error);
 }
 
 .empty-state {
