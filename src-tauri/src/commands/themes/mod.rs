@@ -657,9 +657,7 @@ pub fn export_theme(id: String, dest: String) -> Result<String, String> {
         return Err(FsError::NotFound(theme_dir.to_string_lossy().to_string()).to_string());
     }
 
-    let dest_path = std::path::Path::new(&dest);
-    let cbth_name = format!("{}.cbth", id);
-    let output = dest_path.join(&cbth_name);
+    let output = std::path::PathBuf::from(&dest);
 
     let file = std::fs::File::create(&output).map_err(|e| FsError::WriteFile {
         path: output.to_string_lossy().to_string(),
