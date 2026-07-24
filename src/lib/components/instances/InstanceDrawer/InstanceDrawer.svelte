@@ -31,9 +31,10 @@
 	let useOverrides = $state(false);
 
 	let parsedVersion = $derived(parseInstanceVersion(instance.version));
-	let selectedLoader = $state(parsedVersion.loader);
-	let selectedMcVersion = $state(parsedVersion.mcVersion);
-	let selectedLoaderVersion = $state(parsedVersion.loaderVersion);
+
+	let selectedLoader = $state("");
+	let selectedMcVersion = $state("");
+	let selectedLoaderVersion = $state("");
 
 	$effect(() => {
 		selectedLoader = parsedVersion.loader;
