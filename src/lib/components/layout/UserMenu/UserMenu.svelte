@@ -110,19 +110,29 @@
 		await saveSettings();
 	}
 
+	function userKey(u: {
+		uuid: string;
+		username: string;
+		user_type: string;
+	}): string {
+		return u.uuid || `${u.username}:${u.user_type}`;
+	}
+
 	let avatarSvgs = new SvelteMap<string, string>();
 
-	async function loadAvatar(
-		username: string,
-		userType: string,
-	): Promise<void> {
-		const endpoint = userType === "Yggdrasil" ? "elyby" : "mojang";
-		const url = `https://skins.cubiclauncher.org/api/${endpoint}/head/${username}`;
+	async function loadAvatar(u: {
+		uuid: string;
+		username: string;
+		user_type: string;
+	}): Promise<void> {
+		const key = userKey(u);
+		const endpoint = u.user_type === "Yggdrasil" ? "elyby" : "mojang";
+		const url = `https://skins.cubiclauncher.org/api/${endpoint}/head/${u.username}`;
 
 		const cached = getAvatar(url);
 		if (cached !== undefined) {
-			if (avatarSvgs.get(username) !== cached) {
-				avatarSvgs.set(username, cached);
+			if (avatarSvgs.get(key) !== cached) {
+				avatarSvgs.set(key, cached);
 			}
 			return;
 		}
@@ -131,16 +141,16 @@
 			const res = await fetch(url);
 			const svg = await res.text();
 			setAvatar(url, svg);
-			avatarSvgs.set(username, svg);
+			avatarSvgs.set(key, svg);
 		} catch {
-			avatarSvgs.set(username, "");
+			avatarSvgs.set(key, "");
 		}
 	}
 
 	$effect(() => {
 		if (!open) return;
 		for (const u of launcherStore.settings.user) {
-			loadAvatar(u.username, u.user_type);
+			loadAvatar(u);
 		}
 	});
 </script>
@@ -163,7 +173,7 @@
 					<UserCard
 						user={u}
 						isActive={i === launcherStore.settings.active_user_idx}
-						avatarSvg={avatarSvgs.get(u.username) ?? ""}
+						avatarSvg={avatarSvgs.get(userKey(u)) ?? ""}
 						isEditing={editingIdx === i}
 						bind:editingName
 						isConfirmingRemove={removingUserUuid === u.uuid}
