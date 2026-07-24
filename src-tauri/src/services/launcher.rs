@@ -75,17 +75,17 @@ impl LogLevel {
 
         // Formato típico de Minecraft/modloaders:
         // [12:34:56] [Server thread/INFO]: ...
-        if let Some(cap) = minecraft_level_regex().captures(&stripped) {
-            if let Some(level) = cap.get(1) {
-                return Self::from_keyword(level.as_str());
-            }
+        if let Some(cap) = minecraft_level_regex().captures(&stripped)
+            && let Some(level) = cap.get(1)
+        {
+            return Self::from_keyword(level.as_str());
         }
 
         // Palabra de nivel suelta al inicio de la línea (log4j básico, etc).
-        if let Some(cap) = leading_level_regex().captures(&stripped) {
-            if let Some(level) = cap.get(1) {
-                return Self::from_keyword(level.as_str());
-            }
+        if let Some(cap) = leading_level_regex().captures(&stripped)
+            && let Some(level) = cap.get(1)
+        {
+            return Self::from_keyword(level.as_str());
         }
 
         if stderr { Self::Stderr } else { Self::Message }

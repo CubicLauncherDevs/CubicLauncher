@@ -298,10 +298,9 @@ export function createMarketState(
 
 			const mapped = result.hits.map((hit) => {
 				const project = modrinthProjectToMarket(hit);
-				if (project.modrinthProjectId) {
-					const local = localModsById.get(project.modrinthProjectId);
-					if (local) project.installed = local;
-				}
+				const id = project.modrinthProjectId ?? project.id;
+				const local = localModsById.get(id);
+				if (local) project.installed = local;
 				return project;
 			});
 
@@ -362,12 +361,9 @@ export function createMarketState(
 
 			const mapped = result.data.map((hit) => {
 				const project = curseforgeProjectToMarket(hit);
-				if (project.curseforgeProjectId) {
-					const local = localModsById.get(
-						project.curseforgeProjectId,
-					);
-					if (local) project.installed = local;
-				}
+				const id = project.curseforgeProjectId ?? project.id;
+				const local = localModsById.get(id);
+				if (local) project.installed = local;
 				return project;
 			});
 

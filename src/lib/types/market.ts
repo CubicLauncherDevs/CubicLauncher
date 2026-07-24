@@ -79,6 +79,7 @@ export function modrinthProjectToMarket(
 		author: project.author,
 		icon: project.icon_url,
 		source: "modrinth",
+		modrinthProjectId: project.project_id,
 		downloadCount: project.downloads,
 		modrinth: project,
 	};
@@ -94,6 +95,7 @@ export function curseforgeProjectToMarket(
 		author: project.authors.map((a) => a.name).join(", "),
 		icon: project.logo?.url ?? null,
 		source: "curseforge",
+		curseforgeProjectId: String(project.id),
 		downloadCount: project.downloadCount,
 		curseforge: project,
 	};

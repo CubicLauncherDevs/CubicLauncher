@@ -3,7 +3,6 @@
 	import { slide } from "svelte/transition";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { saveSettings } from "$lib/api/launcherService";
-	import Loading from "$lib/icons/Loading.svelte";
 	import Lupa from "$lib/icons/Lupa.svelte";
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
@@ -23,7 +22,6 @@
 		onSortChange: (sort: MarketSort) => void;
 		onCategoryChange: (category: string | null) => void;
 		onLocalSortChange?: (sort: LocalSort) => void;
-		onRefresh: () => void;
 	}
 
 	let {
@@ -35,7 +33,6 @@
 		onSortChange,
 		onCategoryChange,
 		onLocalSortChange,
-		onRefresh,
 	}: Props = $props();
 
 	const isModContent = $derived(contentType === "mods");
@@ -145,35 +142,6 @@
 				<CloseIcon size={14} />
 			</button>
 		{/if}
-		<button
-			type="button"
-			class="refresh-btn"
-			disabled={loading}
-			onclick={onRefresh}
-			aria-label={t("market.filter.refresh")}
-		>
-			{#if loading}
-				<Loading class="filter-refresh-spinner" />
-			{:else}
-				<svg
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-				>
-					<path
-						d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
-					/>
-					<path d="M3 3v5h5" />
-					<path
-						d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"
-					/>
-					<path d="M16 16h5v5" />
-				</svg>
-			{/if}
-		</button>
 	</div>
 
 	{#if !collapsed}
@@ -371,7 +339,7 @@
 
 	.search-input {
 		flex: 1;
-		padding: 7px 66px 7px 34px;
+		padding: 7px 36px 7px 34px;
 		background: var(--surface-input);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
@@ -392,8 +360,7 @@
 		opacity: 0.55;
 	}
 
-	.search-clear,
-	.refresh-btn {
+	.search-clear {
 		width: 28px;
 		height: 28px;
 		background: var(--surface-card);
@@ -405,28 +372,14 @@
 		align-items: center;
 		justify-content: center;
 		transition: all 0.15s ease;
-	}
-
-	.search-clear {
 		position: absolute;
 		right: 36px;
 	}
 
-	.search-clear:hover,
-	.refresh-btn:hover:not(:disabled) {
+	.search-clear:hover {
 		color: var(--text-primary);
 		background: var(--surface-hover);
 		border-color: var(--accent);
-	}
-
-	.refresh-btn:disabled {
-		opacity: 0.5;
-		cursor: wait;
-	}
-
-	:global(.filter-refresh-spinner) {
-		width: 14px;
-		height: 14px;
 	}
 
 	.filter-advanced {
