@@ -1,5 +1,5 @@
 use crate::core::http_client::HTTP;
-use crate::services::launcher::{LogLine, get_log_history};
+use crate::services::launcher::{LogLine, get_log_history, sanitize_with_user};
 use dashmap::DashMap;
 use std::sync::OnceLock;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -69,6 +69,7 @@ pub async fn open_log_window(
 
 #[tauri::command]
 pub async fn upload_log_to_mclogs(content: String) -> Result<String, String> {
+    let content = sanitize_with_user(&content);
     let resp = HTTP
         .post("https://api.mclo.gs/1/log")
         .form(&[("content", content.as_str())])

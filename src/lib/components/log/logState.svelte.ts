@@ -26,6 +26,7 @@ export class LogState {
 	currentMatchIndex = $state(0);
 	matchCount = $state(0);
 	uploading = $state(false);
+	privacyTerms = $state<string[]>([]);
 
 	private searchTimer: ReturnType<typeof setTimeout> | null = null;
 	renderer?: LogRenderer;
@@ -40,8 +41,21 @@ export class LogState {
 
 	lineVisible(line: LogLine): boolean {
 		if (!this.activeLevels.has(line.displayClass)) return false;
+		if (
+			this.privacyTerms.length > 0 &&
+			this.privacyTerms.some((term) => line.textLower.includes(term))
+		) {
+			return false;
+		}
 		if (!this.normalizedQuery) return true;
 		return line.textLower.includes(this.normalizedQuery);
+	}
+
+	setPrivacyTerms(terms: string[]) {
+		const normalized = terms
+			.map((t) => t.trim().toLowerCase())
+			.filter(Boolean);
+		this.privacyTerms = normalized;
 	}
 
 	ingestHistory(raw: HistoryLogLine[]) {

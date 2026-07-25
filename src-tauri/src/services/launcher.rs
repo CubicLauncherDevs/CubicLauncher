@@ -19,6 +19,7 @@ use launchwerk::auth::{
 };
 use launchwerk::models::VersionManifest;
 use launchwerk::{LaunchConfig, Launchwerk};
+use parking_lot::RwLock;
 use regex::Regex;
 use std::collections::VecDeque;
 use std::mem;
@@ -137,10 +138,101 @@ fn token_regex() -> &'static Regex {
     })
 }
 
+fn session_id_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"(?i)(session\s+id\s+is\s*[:=]?\s*)([A-Za-z0-9_\-\.=+/]+)"#).unwrap()
+    })
+}
+
 /// Limpia líneas que puedan contener credenciales. Oculta solo el valor,
 /// no descarta la línea completa.
 fn sanitize_line(line: &str) -> String {
-    token_regex().replace_all(line, "${1}${2}***").into_owned()
+    let line = token_regex().replace_all(line, "${1}${2}***").into_owned();
+    session_id_regex()
+        .replace_all(&line, "${1}***")
+        .into_owned()
+}
+
+// ── User-aware Sensitive Data Filter ────────────────────────────────────────
+
+#[derive(Clone)]
+struct SensitiveFilter {
+    patterns: Vec<(String, String)>,
+}
+
+impl SensitiveFilter {
+    fn from_user(user: &MinecraftUser) -> Self {
+        let mut patterns = Vec::new();
+
+        let mut add = |value: &str, label: &str| {
+            if value.len() >= 2 {
+                patterns.push((value.to_string(), format!("<{label}>")));
+            }
+        };
+
+        add(&user.username, "username");
+        add(&user.uuid, "uuid");
+
+        // Only mask real-looking secrets to avoid replacing short placeholders
+        // such as the cracked account access_token "0".
+        if user.user_type != AccountType::Cracked && user.access_token.len() >= 8 {
+            add(&user.access_token, "access_token");
+        }
+        if user.user_type != AccountType::Cracked {
+            if let Some(ref token) = user.refresh_token {
+                if token.len() >= 8 {
+                    add(token, "refresh_token");
+                }
+            }
+            if let Some(ref token) = user.client_token {
+                if token.len() >= 8 {
+                    add(token, "client_token");
+                }
+            }
+        }
+
+        // Replace longest needles first to avoid partial matches shadowing longer values.
+        patterns.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+
+        Self { patterns }
+    }
+
+    fn apply(&self, line: &str) -> String {
+        let mut out = line.to_string();
+        for (needle, replacement) in &self.patterns {
+            if needle.len() > out.len() {
+                continue;
+            }
+            out = out.replace(needle, replacement);
+        }
+        out
+    }
+}
+
+static USER_FILTER: OnceLock<RwLock<Option<Arc<SensitiveFilter>>>> = OnceLock::new();
+
+fn user_filter() -> &'static RwLock<Option<Arc<SensitiveFilter>>> {
+    USER_FILTER.get_or_init(|| RwLock::new(None))
+}
+
+/// Crea o actualiza el filtro de datos sensibles a partir del usuario activo.
+/// Debe llamarse después de cargar los tokens del almacenamiento seguro.
+pub(crate) fn set_user_filter(user: &MinecraftUser) {
+    let filter = Arc::new(SensitiveFilter::from_user(user));
+    *user_filter().write() = Some(filter);
+}
+
+/// Sanitiza una línea aplicando el filtro de usuario (si existe) y luego el
+/// reemplazo genérico de tokens.
+pub(crate) fn sanitize_with_user(line: &str) -> String {
+    let guard = user_filter().read();
+    let user_cleaned = guard
+        .as_ref()
+        .map(|filter| filter.apply(line))
+        .unwrap_or_else(|| line.to_string());
+    drop(guard);
+    sanitize_line(&user_cleaned)
 }
 
 // ── Log Ring Buffer ─────────────────────────────────────────────────────────
@@ -274,8 +366,10 @@ fn cleanup_crash_log_snapshots() {
 }
 
 /// Añade un mensaje del launcher al anillo de logs de una instancia.
+/// Sanitiza el contenido para evitar fugas de datos de la cuenta activa.
 pub fn push_launcher_message(id: &str, message: impl Into<String>) {
-    get_log_ring(id).push(Arc::from(message.into()), LogLevel::Launcher, 2);
+    let sanitized = sanitize_with_user(&message.into());
+    get_log_ring(id).push(Arc::from(sanitized), LogLevel::Launcher, 2);
 }
 
 // ── Log Event Payloads ──────────────────────────────────────────────────────
@@ -396,6 +490,7 @@ impl Launcher {
                 e
             ))));
         }
+        set_user_filter(&user);
 
         // Resolve java version through inheritsFrom chain (Forge version.json may omit it)
         let mut java_version_req = if manifest.java_version.is_some() {
@@ -896,7 +991,7 @@ fn spawn_io_forwarding(
                 line_result = rx.recv() => {
                     match line_result {
                         Ok(line) => {
-                            let cleaned = sanitize_line(&strip_ansi(&line));
+                            let cleaned = sanitize_with_user(&strip_ansi(&line));
                             if cleaned.is_empty() {
                                 continue;
                             }

@@ -2,7 +2,11 @@
 	import { onMount } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
 	import { listen } from "@tauri-apps/api/event";
-	import { showSuccess, showError } from "$lib/state/state.svelte";
+	import {
+		showSuccess,
+		showError,
+		launcherStore,
+	} from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
 	import { openUrl } from "$lib/api/cubicApi";
 	import { LogState } from "./logState.svelte";
@@ -19,6 +23,28 @@
 	const log = new LogState();
 	const renderer = new LogRenderer(log);
 	log.setRenderer(renderer);
+
+	const activeUser = $derived(
+		launcherStore.settings.user[launcherStore.settings.active_user_idx],
+	);
+	const activeUsername = $derived(activeUser?.username ?? null);
+
+	function buildPrivacyTerms(username: string | null): string[] {
+		const terms = [
+			"access_token",
+			"refresh_token",
+			"client_token",
+			"bearer",
+			"msa",
+			"microsoft",
+		];
+		if (username) terms.push(username.toLowerCase());
+		return terms;
+	}
+
+	$effect(() => {
+		log.setPrivacyTerms(buildPrivacyTerms(activeUsername));
+	});
 
 	let isAtBottom = $state(true);
 	let unseenCount = $state(0);
@@ -85,6 +111,7 @@
 
 	onMount(() => {
 		destroyed = false;
+		log.setPrivacyTerms(buildPrivacyTerms(activeUsername));
 
 		(async () => {
 			const raw = await invoke<
