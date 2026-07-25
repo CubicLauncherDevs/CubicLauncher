@@ -17,8 +17,9 @@ pub fn get_log_history_cmd(instance_id: String) -> Vec<LogLine> {
     get_log_history(&instance_id)
 }
 
-#[tauri::command]
-pub async fn open_log_window(
+/// Abre la ventana de logs de una instancia. Puede llamarse tanto desde
+/// comandos Tauri como directamente desde el backend.
+pub async fn open_log_window_for_instance(
     app: AppHandle,
     instance_id: String,
     instance_name: String,
@@ -55,6 +56,15 @@ pub async fn open_log_window(
 
     map.insert(instance_id, label);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn open_log_window(
+    app: AppHandle,
+    instance_id: String,
+    instance_name: String,
+) -> Result<(), String> {
+    open_log_window_for_instance(app, instance_id, instance_name).await
 }
 
 #[tauri::command]

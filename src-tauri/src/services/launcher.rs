@@ -1,3 +1,5 @@
+use crate::commands::log_window::open_log_window_for_instance;
+use crate::core::event_bus::{AppEvent, emit};
 use crate::core::path_manager::PathManager;
 use crate::core::{AppError, AuthError, DownloadError, FsError, InstanceError};
 use crate::services::SettingsManager;
@@ -9,6 +11,7 @@ use crate::services::instance_manager::{
 };
 use crate::services::java_manager::JavaManager;
 use aqua::JavaVersion;
+use compact_str::{CompactString, ToCompactString};
 use launchwerk::auth::{
     AccountType, MinecraftUser,
     microsoft::MicrosoftAuth,
@@ -217,13 +220,57 @@ fn get_log_ring(id: &str) -> Arc<LogRing> {
 }
 
 pub fn get_log_history(id: &str) -> Vec<LogLine> {
-    get_log_ring(id).snapshot()
+    let map = LOG_RINGS.get_or_init(DashMap::new);
+    if let Some(entry) = map.get(id) {
+        entry.snapshot()
+    } else {
+        get_crash_log_snapshot(id).unwrap_or_default()
+    }
 }
 
 pub fn remove_log_ring(id: &str) {
     if let Some(map) = LOG_RINGS.get() {
         map.remove(id);
     }
+}
+
+struct CrashLogSnapshot {
+    lines: Vec<LogLine>,
+    created: std::time::Instant,
+}
+
+/// Guarda un snapshot de los logs de una instancia antes de descartar el
+/// anillo, para que la ventana de logs del crash siga teniendo historial.
+pub fn save_crash_log_snapshot(id: &str) {
+    let snapshot = CrashLogSnapshot {
+        lines: get_log_ring(id).snapshot(),
+        created: std::time::Instant::now(),
+    };
+    crash_log_snapshots().insert(Arc::from(id), snapshot);
+    cleanup_crash_log_snapshots();
+}
+
+pub fn clear_crash_log_snapshot(id: &str) {
+    crash_log_snapshots().remove(id);
+}
+
+fn get_crash_log_snapshot(id: &str) -> Option<Vec<LogLine>> {
+    crash_log_snapshots()
+        .get(id)
+        .map(|entry| entry.value().lines.clone())
+}
+
+fn crash_log_snapshots() -> &'static DashMap<Arc<str>, CrashLogSnapshot> {
+    static SNAPSHOTS: OnceLock<DashMap<Arc<str>, CrashLogSnapshot>> = OnceLock::new();
+    SNAPSHOTS.get_or_init(DashMap::new)
+}
+
+const CRASH_LOG_SNAPSHOT_TTL: std::time::Duration = std::time::Duration::from_secs(3600);
+
+fn cleanup_crash_log_snapshots() {
+    let now = std::time::Instant::now();
+    crash_log_snapshots()
+        .retain(|_, snapshot| now.duration_since(snapshot.created) < CRASH_LOG_SNAPSHOT_TTL);
 }
 
 /// Añade un mensaje del launcher al anillo de logs de una instancia.
@@ -289,6 +336,7 @@ impl Launcher {
             warn!("La instancia ya está corriendo o iniciando");
             return Err(AppError::Instance(InstanceError::AlreadyStarted));
         }
+        clear_crash_log_snapshot(&handle.uuid);
         handle.set_status(InstanceStatus::Starting);
 
         let settings_m = SettingsManager::launch_snapshot();
@@ -407,9 +455,30 @@ impl Launcher {
         };
 
         if !java_path.exists() {
-            handle.set_status(InstanceStatus::Error(
-                InstanceError::JreNotFound(java_version.to_string()).to_string(),
-            ));
+            let reason = InstanceError::JreNotFound(java_version.to_string()).to_string();
+            handle.set_status(InstanceStatus::Error(reason.clone()));
+            emit(AppEvent::InstanceCrashed {
+                id: handle.uuid.to_compact_string(),
+                name: name.to_compact_string(),
+                exit_code: None,
+                reason: Some(CompactString::new(reason.clone())),
+            });
+            let app_handle = self
+                .app_handle
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone();
+            if let Some(app) = app_handle {
+                let instance_id = handle.uuid.to_compact_string().to_string();
+                let instance_name = name.to_compact_string().to_string();
+                tokio::spawn(async move {
+                    if let Err(err) =
+                        open_log_window_for_instance(app, instance_id, instance_name).await
+                    {
+                        warn!("No se pudo abrir ventana de logs: {}", err);
+                    }
+                });
+            }
             Err(AppError::Instance(InstanceError::JreNotFound(
                 java_version.to_string(),
             )))?;
@@ -599,6 +668,35 @@ impl Launcher {
                     };
                     unregister_kill_sender(&uuid);
                     push_launcher_message(&uuid, format!("El proceso terminó: {:?}", result));
+
+                    let crashed = matches!(result, Some(code) if code != 0);
+                    if crashed {
+                        let code = result.unwrap_or(-1);
+                        push_launcher_message(&uuid, format!("Crash detectado (código {})", code));
+                        save_crash_log_snapshot(&uuid);
+                        emit(AppEvent::InstanceCrashed {
+                            id: uuid.to_compact_string(),
+                            name: inst_name.to_compact_string(),
+                            exit_code: result,
+                            reason: Some(CompactString::new(format!(
+                                "El proceso terminó con código {}",
+                                code
+                            ))),
+                        });
+                        if let Some(app) = app_for_show.clone() {
+                            let instance_id = uuid.to_compact_string().to_string();
+                            let instance_name = inst_name.to_compact_string().to_string();
+                            tokio::spawn(async move {
+                                if let Err(err) =
+                                    open_log_window_for_instance(app, instance_id, instance_name)
+                                        .await
+                                {
+                                    warn!("No se pudo abrir ventana de logs: {}", err);
+                                }
+                            });
+                        }
+                    }
+
                     discord_presence::on_instance_stop(&inst_name).await;
                     remove_log_ring(&uuid);
                     h.set_status(InstanceStatus::Off);
@@ -626,7 +724,29 @@ impl Launcher {
                 let msg = e.to_string();
                 error!("{}", msg);
                 push_launcher_message(&handle.uuid, format!("Error al iniciar: {}", msg));
-                handle.set_status(InstanceStatus::Error(msg));
+                handle.set_status(InstanceStatus::Error(msg.clone()));
+                emit(AppEvent::InstanceCrashed {
+                    id: handle.uuid.to_compact_string(),
+                    name: name.to_compact_string(),
+                    exit_code: None,
+                    reason: Some(CompactString::new(msg.clone())),
+                });
+                let app_handle = self
+                    .app_handle
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone();
+                if let Some(app) = app_handle {
+                    let instance_id = handle.uuid.to_compact_string().to_string();
+                    let instance_name = name.to_compact_string().to_string();
+                    tokio::spawn(async move {
+                        if let Err(err) =
+                            open_log_window_for_instance(app, instance_id, instance_name).await
+                        {
+                            warn!("No se pudo abrir ventana de logs: {}", err);
+                        }
+                    });
+                }
             }
         }
         Ok(())

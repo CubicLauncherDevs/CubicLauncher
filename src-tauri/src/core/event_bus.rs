@@ -55,6 +55,12 @@ pub enum AppEvent {
     ShaderpacksEnriched {
         id: CompactString,
     },
+    InstanceCrashed {
+        id: CompactString,
+        name: CompactString,
+        exit_code: Option<i32>,
+        reason: Option<CompactString>,
+    },
 }
 
 pub fn init(app: AppHandle) {

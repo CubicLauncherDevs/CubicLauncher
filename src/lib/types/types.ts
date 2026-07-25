@@ -192,6 +192,15 @@ export type AppEvent =
 			};
 	  }
 	| {
+			type: "InstanceCrashed";
+			data: {
+				id: string;
+				name: string;
+				exit_code: number | null;
+				reason: string | null;
+			};
+	  }
+	| {
 			type: "DProgress";
 			data: {
 				version: string;
