@@ -27,8 +27,18 @@ export function isPresetIcon(iconPath: string | null): boolean {
 	return !!iconPath && iconPath.startsWith(PRESET_ICON_PREFIX);
 }
 
+export function isAssetIcon(iconPath: string | null): boolean {
+	return !!iconPath && iconPath.startsWith("/images/");
+}
+
 export function getDisplayIconSrc(iconPath: string | null): string {
 	if (!iconPath) return "/images/cubic.svg";
 	if (isPresetIcon(iconPath)) return iconPath;
+	return convertFileSrc(iconPath);
+}
+
+export function getPreviewIconSrc(iconPath: string | null): string {
+	if (!iconPath) return "/images/cubic.svg";
+	if (isAssetIcon(iconPath)) return iconPath;
 	return convertFileSrc(iconPath);
 }

@@ -346,7 +346,7 @@ pub async fn upload_custom_icon(
     })?;
 
     let icon_path_str = dest_path.to_string_lossy().to_string();
-    handle.set_icon(Some(icon_path_str.clone())).await;
+    handle.set_icon(Some(icon_path_str)).await;
     handle.save_if_dirty().await.map_err(|e| {
         error!("Error guardando instancia tras subir icono: {}", e);
         e.to_string()
@@ -356,7 +356,11 @@ pub async fn upload_custom_icon(
     });
     info!("Icono personalizado subido a {:?}", dest_path);
 
-    Ok(icon_path_str)
+    Ok(handle
+        .get_icon_absolute()
+        .await
+        .map(|s| s.to_string())
+        .unwrap_or_default())
 }
 
 #[tauri::command]

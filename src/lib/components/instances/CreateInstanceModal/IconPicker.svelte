@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { INSTANCE_LOGOS } from "$lib/icons/logos";
+	import { INSTANCE_LOGOS, getPreviewIconSrc } from "$lib/icons/logos";
 	import { t } from "$lib/i18n";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
@@ -38,7 +38,7 @@
 	<span class="input-label">{t("createInstance.iconLabel")}</span>
 	<div class="icon-preview">
 		{#if selectedIcon}
-			<img src={selectedIcon} alt="Logo" />
+			<img src={getPreviewIconSrc(selectedIcon)} alt="Logo" />
 			<button
 				type="button"
 				class="icon-clear"

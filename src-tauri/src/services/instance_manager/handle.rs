@@ -2,13 +2,31 @@ use crate::core::{AppEvent, InstanceError, emit};
 use crate::services::{InstOverrides, SettingsManager};
 use compact_str::ToCompactString;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use super::data::{InstanceData, InstanceDto};
+
 use super::manager::signal_kill;
 use super::status::{AtomicStatus, InstanceStatus};
+
+fn is_asset_icon(icon: &str) -> bool {
+	icon.starts_with("/images/")
+}
+
+fn normalize_icon_path(icon: &str, instance_dir: &Path) -> Arc<str> {
+	if is_asset_icon(icon) {
+		return icon.into();
+	}
+	let path = Path::new(icon);
+	if path.is_absolute() {
+		if let Ok(rel) = path.strip_prefix(instance_dir) {
+			return rel.to_string_lossy().to_string().into();
+		}
+	}
+	icon.into()
+}
 
 #[derive(Clone)]
 pub struct InstanceHandle {
@@ -27,7 +45,23 @@ impl InstanceHandle {
     }
 
     pub async fn load(name: &str) -> Option<Self> {
-        let data = InstanceData::load(name).await?;
+        let mut data = InstanceData::load(name).await?;
+
+        // Migrate legacy absolute custom icon paths to instance-relative paths.
+        if let Some(icon) = data.icon.as_ref() {
+            let icon_str = icon.as_ref();
+            if !is_asset_icon(icon_str) {
+                let instance_dir = data.get_instance_dir();
+                let path = Path::new(icon_str);
+                if path.is_absolute() {
+                    if let Ok(rel) = path.strip_prefix(&instance_dir) {
+                        data.icon = Some(rel.to_string_lossy().to_string().into());
+                        data.dirty = true;
+                    }
+                }
+            }
+        }
+
         Some(Self::new(data))
     }
 
@@ -92,7 +126,24 @@ impl InstanceHandle {
         self.data.read().await.overrides
     }
 
+    pub async fn get_icon_absolute(&self) -> Option<Arc<str>> {
+        let data = self.data.read().await;
+        let icon = data.icon.as_ref()?;
+        let icon_str = icon.as_ref();
+        if is_asset_icon(icon_str) {
+            return Some(icon.clone());
+        }
+        Some(
+            data.get_instance_dir()
+                .join(icon_str)
+                .to_string_lossy()
+                .to_string()
+                .into(),
+        )
+    }
+
     pub async fn to_dto(&self) -> InstanceDto {
+        let icon = self.get_icon_absolute().await;
         let data = self.data.read().await;
         InstanceDto {
             name: data.name.clone(),
@@ -101,7 +152,7 @@ impl InstanceHandle {
             last_played: data.last_played,
             status: self.get_status(),
             cover_image: data.cover_image.clone(),
-            icon: data.icon.clone(),
+            icon,
             uuid: self.uuid.clone(),
             path: data.get_instance_dir(),
             overrides: data.overrides,
@@ -127,7 +178,8 @@ impl InstanceHandle {
 
     pub async fn set_icon(&self, icon: Option<String>) {
         let mut data = self.data.write().await;
-        data.icon = icon.map(|s| s.into());
+        let instance_dir = data.get_instance_dir();
+        data.icon = icon.map(|s| normalize_icon_path(&s, &instance_dir));
         data.dirty = true;
     }
 
