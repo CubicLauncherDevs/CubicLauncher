@@ -20,10 +20,10 @@ fn normalize_icon_path(icon: &str, instance_dir: &Path) -> Arc<str> {
         return icon.into();
     }
     let path = Path::new(icon);
-    if path.is_absolute() {
-        if let Ok(rel) = path.strip_prefix(instance_dir) {
-            return rel.to_string_lossy().to_string().into();
-        }
+    if path.is_absolute()
+        && let Ok(rel) = path.strip_prefix(instance_dir)
+    {
+        return rel.to_string_lossy().to_string().into();
     }
     icon.into()
 }
@@ -53,11 +53,11 @@ impl InstanceHandle {
             if !is_asset_icon(icon_str) {
                 let instance_dir = data.get_instance_dir();
                 let path = Path::new(icon_str);
-                if path.is_absolute() {
-                    if let Ok(rel) = path.strip_prefix(&instance_dir) {
-                        data.icon = Some(rel.to_string_lossy().to_string().into());
-                        data.dirty = true;
-                    }
+                if path.is_absolute()
+                    && let Ok(rel) = path.strip_prefix(&instance_dir)
+                {
+                    data.icon = Some(rel.to_string_lossy().to_string().into());
+                    data.dirty = true;
                 }
             }
         }
