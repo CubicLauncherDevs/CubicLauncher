@@ -10,7 +10,8 @@
 		"en": "English",
 		"fr": "French",
 		"de": "German",
-		"uk": "Ukrainian"
+		"uk": "Ukrainian",
+		"ja": "Japanese"
 	},
 	"settings": {
 		"title": "Settings",

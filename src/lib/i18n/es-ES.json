@@ -10,7 +10,8 @@
 		"en": "Inglés",
 		"fr": "Francés",
 		"de": "Alemán",
-		"uk": "Ucraniano"
+		"uk": "Ucraniano",
+		"ja": "Japonés"
 	},
 	"settings": {
 		"title": "Ajustes",
@@ -423,7 +424,7 @@
 	},
 	"errors": {
 		"title": "Error",
-		"INST_NOT_FOUND": "Versión de instancia no encontrada",
+		"INST_NOT_FOUND": "Instancia no encontrada",
 		"INST_MOD_NOT_FOUND": "Mod no encontrado",
 		"INST_ALREADY_STARTED": "La instancia ya está en ejecución",
 		"INST_EXISTS": "La instancia '{name}' ya existe",
@@ -456,8 +457,8 @@
 		"AUTH_TOKENS_DEL": "Error al eliminar tokens: {error}",
 		"AUTH_BLOCKED": "Error interno: {error}",
 		"AUTH_SESSION_EXPIRED": "Sesión expirada. Reinicia el launcher e inicia sesión de nuevo: {error}",
-		"INST_BUSY": "La instancia está en ejecución",
-		"GENERIC": "Ocurrió un error inesperado: {error}"
+		"GENERIC": "Ocurrió un error inesperado: {error}",
+		"INST_BUSY": "La instancia se está ejecutando"
 	},
 	"versionDownloader": {
 		"title": "Descargar Versiones",
@@ -484,9 +485,6 @@
 			"searchSubtitle": "Prueba con otra búsqueda o categoría."
 		},
 		"filter": {
-			"title": "Filtros",
-			"hideFilters": "Ocultar filtros avanzados",
-			"showFilters": "Mostrar filtros avanzados",
 			"tabModrinth": "Modrinth",
 			"tabCurseForge": "CurseForge",
 			"tabLocal": "Local",
@@ -499,7 +497,10 @@
 			"sortNewest": "Más nuevos",
 			"category": "Categoría",
 			"allCategories": "Todas",
-			"refresh": "Actualizar"
+			"refresh": "Actualizar",
+			"title": "Filters",
+			"hideFilters": "Hide advanced filters",
+			"showFilters": "Show advanced filters"
 		},
 		"item": {
 			"by": "por",
@@ -512,7 +513,6 @@
 		},
 		"detail": {
 			"close": "Cerrar detalles",
-			"installedLabel": "Ya instalado",
 			"unknownAuthor": "Autor desconocido",
 			"downloads": "Descargas",
 			"version": "Versión",
@@ -520,6 +520,7 @@
 			"loadingVersions": "Cargando versiones...",
 			"selectVersion": "Seleccionar versión",
 			"readme": "Acerca de",
+			"gallery": "Galería",
 			"install": "Instalar",
 			"uninstall": "Desinstalar",
 			"enable": "Habilitar",
@@ -527,7 +528,8 @@
 			"openOnModrinth": "Abrir en Modrinth",
 			"openOnCurseForge": "Abrir en CurseForge",
 			"noSelection": "Selecciona un mod para ver sus detalles",
-			"by": "por"
+			"by": "por",
+			"installedLabel": "Ya instalado"
 		}
 	}
 }
