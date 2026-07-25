@@ -12,20 +12,20 @@ use super::manager::signal_kill;
 use super::status::{AtomicStatus, InstanceStatus};
 
 fn is_asset_icon(icon: &str) -> bool {
-	icon.starts_with("/images/")
+    icon.starts_with("/images/")
 }
 
 fn normalize_icon_path(icon: &str, instance_dir: &Path) -> Arc<str> {
-	if is_asset_icon(icon) {
-		return icon.into();
-	}
-	let path = Path::new(icon);
-	if path.is_absolute() {
-		if let Ok(rel) = path.strip_prefix(instance_dir) {
-			return rel.to_string_lossy().to_string().into();
-		}
-	}
-	icon.into()
+    if is_asset_icon(icon) {
+        return icon.into();
+    }
+    let path = Path::new(icon);
+    if path.is_absolute() {
+        if let Ok(rel) = path.strip_prefix(instance_dir) {
+            return rel.to_string_lossy().to_string().into();
+        }
+    }
+    icon.into()
 }
 
 #[derive(Clone)]
