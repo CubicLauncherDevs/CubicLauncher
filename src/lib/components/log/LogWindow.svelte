@@ -25,7 +25,10 @@
 	let destroyed = false;
 	let unlistenFn: (() => void) | undefined;
 
-	function onScrollState(state: { isAtBottom: boolean; unseenCount: number }) {
+	function onScrollState(state: {
+		isAtBottom: boolean;
+		unseenCount: number;
+	}) {
 		isAtBottom = state.isAtBottom;
 		unseenCount = state.unseenCount;
 	}
@@ -85,7 +88,13 @@
 
 		(async () => {
 			const raw = await invoke<
-				{ id: number; text: string; stream: string; level: string; timestamp: number }[]
+				{
+					id: number;
+					text: string;
+					stream: string;
+					level: string;
+					timestamp: number;
+				}[]
 			>("get_log_history_cmd", {
 				instanceId,
 			});
@@ -125,7 +134,7 @@
 		totalLines={log.totalLines}
 		{isAtBottom}
 		uploading={log.uploading}
-		onClear={onClear}
+		{onClear}
 		onCopy={copyLog}
 		onUpload={uploadToMclogs}
 		onScrollBottom={() => renderer.scrollToBottom()}
@@ -154,7 +163,11 @@
 	<LogViewport {renderer} {onScrollState} />
 
 	{#if !isAtBottom && unseenCount > 0}
-		<button type="button" class="jump-bottom" onclick={() => renderer.scrollToBottom()}>
+		<button
+			type="button"
+			class="jump-bottom"
+			onclick={() => renderer.scrollToBottom()}
+		>
 			↓ {unseenCount} líneas nuevas
 		</button>
 	{/if}

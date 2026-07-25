@@ -14,7 +14,6 @@ import {
 	type ModrinthProjectFull,
 	type ModrinthVersionFull,
 	type CurseForgeSearchResult,
-
 	type CurseForgeProject,
 	type CurseForgeFile,
 	type JreStatus,
@@ -894,8 +893,7 @@ export async function getCurseForgeFileDownloadUrl(
 }
 
 export const CURSEFORGE_HEADERS = {
-	"x-api-key":
-		"$2a$10$v4G8m2LV2QhjUu5l.G24Ieqdp4JTEEQ6bRsZjvpa0YncCVaDaqBP6",
+	"x-api-key": "$2a$10$v4G8m2LV2QhjUu5l.G24Ieqdp4JTEEQ6bRsZjvpa0YncCVaDaqBP6",
 };
 
 export interface ModDownloadInfo {

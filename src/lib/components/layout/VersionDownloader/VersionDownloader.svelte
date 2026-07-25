@@ -282,10 +282,7 @@
 				!v.id.toLowerCase().includes(vanillaSearch.toLowerCase())
 			)
 				return false;
-			if (
-				!launcherStore.settings.show_snapshots &&
-				v.type === "snapshot"
-			)
+			if (!launcherStore.settings.show_snapshots && v.type === "snapshot")
 				return false;
 			if (
 				!launcherStore.settings.show_alpha &&
@@ -466,8 +463,8 @@
 											{vid}
 										</div>
 										<div class="version-card-type">
-											{(vitem as MinecraftVersion)
-												.type ?? "release"} • {new Date(
+											{(vitem as MinecraftVersion).type ??
+												"release"} • {new Date(
 												(vitem as MinecraftVersion)
 													.releaseTime ?? "",
 											).toLocaleDateString()}
@@ -529,7 +526,9 @@
 
 					<input
 						type="text"
-						placeholder={t("versionDownloader.loaderSearchPlaceholder")}
+						placeholder={t(
+							"versionDownloader.loaderSearchPlaceholder",
+						)}
 						bind:value={loaderSearch}
 						style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box;"
 					/>
@@ -547,26 +546,26 @@
 							style="display: flex; flex-direction: column; gap: 6px;"
 						>
 							{#each filteredLoaderItems as item (item.version_id)}
-								{@const isInstalled =
-									installed[loaderTab as keyof typeof installed].has(item.version_id)}
-								{@const isDownloading =
-									isVersionDownloading(item.version_id)}
+								{@const isInstalled = installed[
+									loaderTab as keyof typeof installed
+								].has(item.version_id)}
+								{@const isDownloading = isVersionDownloading(
+									item.version_id,
+								)}
 								<div class="version-card">
 									<div class="version-card-info">
 										<div class="version-card-name">
 											{item.display_version}
 										</div>
-									<div class="version-card-type">
-										{loaderTab === "fabric"
-											? "Fabric"
-											: loaderTab === "quilt"
-												? "Quilt"
-												: loaderTab === "forge"
-													? "Forge"
-													: "NeoForge"} •
-										MC {item.game_version}
-									</div>
-
+										<div class="version-card-type">
+											{loaderTab === "fabric"
+												? "Fabric"
+												: loaderTab === "quilt"
+													? "Quilt"
+													: loaderTab === "forge"
+														? "Forge"
+														: "NeoForge"} • MC {item.game_version}
+										</div>
 									</div>
 									{#if isInstalled}
 										<div class="inst-icon">✓</div>

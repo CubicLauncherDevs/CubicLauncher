@@ -175,7 +175,11 @@
 					{#if option.icon}
 						<span class="option-icon">
 							{#if option.icon.startsWith("/")}
-								<img src={option.icon} alt="" class="option-img" />
+								<img
+									src={option.icon}
+									alt=""
+									class="option-img"
+								/>
 							{:else}
 								{option.icon}
 							{/if}

@@ -14,7 +14,9 @@
 		Forge: "var(--clr-loader-forge, #ffa726)",
 		Quilt: "var(--clr-loader-quilt, #ab47bc)",
 	};
-	const loaderColor = $derived(loaderColors[instance.loader] || "var(--clr-loader-vanilla, #78909c)");
+	const loaderColor = $derived(
+		loaderColors[instance.loader] || "var(--clr-loader-vanilla, #78909c)",
+	);
 
 	const statusLabel = $derived(
 		instance.status === "started"

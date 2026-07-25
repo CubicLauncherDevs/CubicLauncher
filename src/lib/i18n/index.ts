@@ -72,10 +72,7 @@ function getFlat(lang: string): Record<string, string> {
 				cached = flatten(dict);
 			} else {
 				cached = {};
-				if (
-					!pendingFetches.has(lang) &&
-					!failedLocales.has(lang)
-				) {
+				if (!pendingFetches.has(lang) && !failedLocales.has(lang)) {
 					downloadLocale(lang);
 				}
 			}
@@ -108,7 +105,10 @@ async function loadCachedLocales(): Promise<void> {
 
 	for (const result of results) {
 		if (result.status === "rejected") {
-			console.error("[i18n] Failed to load cached locale:", result.reason);
+			console.error(
+				"[i18n] Failed to load cached locale:",
+				result.reason,
+			);
 		}
 	}
 
@@ -134,8 +134,9 @@ export async function downloadLocale(lang: string): Promise<void> {
 			flatCache.set(lang, flatten(data));
 			i18nLoader.fetched.add(lang);
 			i18nLoader.version++;
-			invoke("save_locale", { lang, data: JSON.stringify(data) })
-				.catch((e) => console.error("[i18n] Failed to persist locale:", e));
+			invoke("save_locale", { lang, data: JSON.stringify(data) }).catch(
+				(e) => console.error("[i18n] Failed to persist locale:", e),
+			);
 		})
 		.catch((err) => {
 			failedLocales.add(lang);

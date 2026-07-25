@@ -1,6 +1,5 @@
 <script lang="ts" generics="T">
 	import { onMount, onDestroy } from "svelte";
-	import { fly } from "svelte/transition";
 	import type { Snippet } from "svelte";
 
 	interface Props {
@@ -95,8 +94,6 @@
 				class="virtual-list-item-wrapper"
 				style="position: absolute; transform: translateY({index *
 					itemHeight}px); left: 0; width: 100%; height: {itemHeight}px;"
-				in:fly={{ y: 8, duration: 200, delay: idx * 20 }}
-				out:fly={{ y: -8, duration: 100 }}
 			>
 				{@render children(item, index)}
 			</div>

@@ -21,10 +21,7 @@ export interface MarketProject {
 	source: MarketSource;
 	downloadCount: number;
 	followerCount?: number;
-
-	// Remote-specific data
-	modrinth?: ModrinthProject;
-	curseforge?: CurseForgeProject;
+	slug?: string;
 
 	// Local-specific data
 	installed?: ModDto;
@@ -81,7 +78,7 @@ export function modrinthProjectToMarket(
 		source: "modrinth",
 		modrinthProjectId: project.project_id,
 		downloadCount: project.downloads,
-		modrinth: project,
+		slug: project.slug,
 	};
 }
 
@@ -97,7 +94,7 @@ export function curseforgeProjectToMarket(
 		source: "curseforge",
 		curseforgeProjectId: String(project.id),
 		downloadCount: project.downloadCount,
-		curseforge: project,
+		slug: project.slug,
 	};
 }
 
@@ -150,7 +147,6 @@ export function curseforgeVersionToMarket(
 }
 
 export function localModToMarket(mod: ModDto): MarketProject {
-	const isNumericId = mod.project_id ? /^\d+$/.test(mod.project_id) : false;
 	const source: MarketSource = (mod.source as MarketSource) ?? "local";
 
 	return {
@@ -170,14 +166,7 @@ export function localModToMarket(mod: ModDto): MarketProject {
 		curseforgeVersionId: undefined,
 		disabled: !mod.enabled,
 		hasRemoteData: source !== "local",
-		curseforge:
-			mod.slug && isNumericId
-				? ({ slug: mod.slug } as unknown as CurseForgeProject)
-				: undefined,
-		modrinth:
-			mod.slug && !isNumericId
-				? ({ slug: mod.slug } as unknown as ModrinthProject)
-				: undefined,
+		slug: mod.slug ?? undefined,
 	};
 }
 

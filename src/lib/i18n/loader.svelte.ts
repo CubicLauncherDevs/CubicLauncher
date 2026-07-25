@@ -1,4 +1,4 @@
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteSet } from "svelte/reactivity";
 
 export const i18nLoader = $state({
 	version: 0,

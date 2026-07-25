@@ -61,11 +61,7 @@
 			placeholder="Buscar en logs..."
 		/>
 		{#if query}
-			<button
-				type="button"
-				class="search-clear"
-				onclick={onClearQuery}
-			>
+			<button type="button" class="search-clear" onclick={onClearQuery}>
 				×
 			</button>
 		{/if}
@@ -97,7 +93,8 @@
 			type="button"
 			class="chip all"
 			class:active={activeLevels.size === LEVEL_ORDER.length}
-			onclick={() => onSetAllLevels(activeLevels.size !== LEVEL_ORDER.length)}
+			onclick={() =>
+				onSetAllLevels(activeLevels.size !== LEVEL_ORDER.length)}
 		>
 			ALL
 		</button>
@@ -210,7 +207,11 @@
 	}
 
 	.chip.active {
-		background: color-mix(in srgb, var(--chip-color, var(--text-secondary, #888)) 15%, transparent);
+		background: color-mix(
+			in srgb,
+			var(--chip-color, var(--text-secondary, #888)) 15%,
+			transparent
+		);
 		border-color: var(--chip-color, var(--text-secondary, #888));
 	}
 

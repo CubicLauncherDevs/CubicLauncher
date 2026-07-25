@@ -76,7 +76,7 @@
 	let existingNames = $state<string[]>([]);
 	let nameMsg = $state<string | null>(null);
 
-	const FORBIDDEN_CHARS = ['/', '\\', '<', '>', ':', '"', '|', '?', '*'];
+	const FORBIDDEN_CHARS = ["/", "\\", "<", ">", ":", '"', "|", "?", "*"];
 	const MAX_NAME_LEN = 16;
 
 	function isValidInstanceName(name: string): boolean {
@@ -84,21 +84,22 @@
 		if (!trimmed) return false;
 		if (trimmed.length > MAX_NAME_LEN) return false;
 		if (!/^[\0-\x7F]*$/.test(trimmed)) return false;
-		if (trimmed.includes('..')) return false;
-		if (trimmed.split('').some((c) => FORBIDDEN_CHARS.includes(c))) return false;
+		if (trimmed.includes("..")) return false;
+		if (trimmed.split("").some((c) => FORBIDDEN_CHARS.includes(c)))
+			return false;
 		return true;
 	}
 
 	function sanitizeInstanceName(name: string): string {
 		let clean = name
-			.normalize('NFD')
-			.replace(/[\u0300-\u036f]/g, '')
-			.replace(/[^\x20-\x7E]/g, '')
-			.replace(/[\\/<>:"|?*]/g, '')
-			.replace(/\.\./g, '')
-			.replace(/\s+/g, ' ')
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.replace(/[^\x20-\x7E]/g, "")
+			.replace(/[\\/<>:"|?*]/g, "")
+			.replace(/\.\./g, "")
+			.replace(/\s+/g, " ")
 			.trim();
-		if (!clean) clean = 'modpack';
+		if (!clean) clean = "modpack";
 		if (clean.length > MAX_NAME_LEN) clean = clean.slice(0, MAX_NAME_LEN);
 		return clean;
 	}
@@ -306,7 +307,9 @@
 				if (searchResult && searchResult.hits.length > 0) {
 					iconUrl = searchResult.hits[0].icon_url ?? undefined;
 				}
-			} catch { /* ignore search errors */ }
+			} catch {
+				/* ignore search errors */
+			}
 
 			const result = await installMrpack(
 				mrpackPath,
@@ -420,10 +423,12 @@
 									disabled={loading}
 									oninput={() => (nameMsg = null)}
 									onkeydown={(e) =>
-										e.key === "Enter" && handleFinalAction()}
+										e.key === "Enter" &&
+										handleFinalAction()}
 								/>
 								{#if nameMsg}
-									<span class="input-error">{t(nameMsg)}</span>
+									<span class="input-error">{t(nameMsg)}</span
+									>
 								{/if}
 							</div>
 						</div>
@@ -449,7 +454,10 @@
 				<StepIndicator
 					currentStep={manualStep}
 					totalSteps={2}
-					labels={[t("createInstance.stepInfo"), t("createInstance.stepVersion")]}
+					labels={[
+						t("createInstance.stepInfo"),
+						t("createInstance.stepVersion"),
+					]}
 				/>
 
 				{#if manualStep === 0}
@@ -476,7 +484,8 @@
 										e.key === "Enter" && handleNext()}
 								/>
 								{#if nameMsg}
-									<span class="input-error">{t(nameMsg)}</span>
+									<span class="input-error">{t(nameMsg)}</span
+									>
 								{/if}
 							</div>
 						</div>
@@ -548,8 +557,7 @@
 						type="button"
 						class="btn-primary"
 						onclick={handleFinalAction}
-						disabled={loading ||
-							!mrpackPath || !name.trim()}
+						disabled={loading || !mrpackPath || !name.trim()}
 					>
 						{loading
 							? t("createInstance.importingBtn")

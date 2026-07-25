@@ -4,7 +4,10 @@
 
 	interface Props {
 		renderer: LogRenderer;
-		onScrollState?: (state: { isAtBottom: boolean; unseenCount: number }) => void;
+		onScrollState?: (state: {
+			isAtBottom: boolean;
+			unseenCount: number;
+		}) => void;
 	}
 
 	let { renderer, onScrollState }: Props = $props();

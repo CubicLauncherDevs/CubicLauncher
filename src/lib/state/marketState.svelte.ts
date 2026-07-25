@@ -116,12 +116,14 @@ export function createMarketState(
 
 	const items = $state<MarketProject[]>([]);
 	let total = $state(0);
-	let loading = $state(false);
+	let loadingLocal = $state(false);
+	let loadingRemote = $state(false);
 	let loadingMore = $state(false);
 	let error = $state<string | null>(null);
 	let offset = $state(0);
 	let hasMore = $state(true);
 	const localModsById = new SvelteMap<string, ModDto>();
+	let rawLocalItems: MarketProject[] = [];
 	let selectedId = $state<string | null>(null);
 	const detail = $state<MarketDetailState>({
 		versions: [],
@@ -137,6 +139,28 @@ export function createMarketState(
 	const selectedProject = $derived<MarketProject | null>(
 		items.find((i) => i.id === selectedId) ?? null,
 	);
+
+	const selectedVersion = $derived.by<MarketVersion | null>(() => {
+		if (detail.versions.length === 0) return null;
+
+		if (overrideVersionId) {
+			const overridden = detail.versions.find(
+				(v) => v.id === overrideVersionId,
+			);
+			if (overridden) return overridden;
+		}
+
+		const installed = detail.versions.find((v) => v.isInstalled);
+		if (installed) return installed;
+
+		const compatible = detail.versions.find((v) => {
+			if (!isGameVersionCompatible(v)) return false;
+			return isModContent ? v.loaders.includes(filters.loader) : true;
+		});
+		if (compatible) return compatible;
+
+		return detail.versions[0];
+	});
 
 	function resetPagination() {
 		offset = 0;
@@ -161,6 +185,8 @@ export function createMarketState(
 		detail.versions = [];
 		detail.loading = false;
 		detail.error = null;
+		rawLocalItems = [];
+		localModsById.clear();
 	}
 
 	function sortLocalItems(list: MarketProject[]): MarketProject[] {
@@ -170,6 +196,17 @@ export function createMarketState(
 		if (sort === "name-desc")
 			return [...list].sort((a, b) => b.title.localeCompare(a.title));
 		return [...list];
+	}
+
+	function filterLocalItems(list: MarketProject[]): MarketProject[] {
+		const query = filters.query.trim().toLowerCase();
+		if (!query) return list;
+		return list.filter(
+			(m) =>
+				m.title.toLowerCase().includes(query) ||
+				m.description.toLowerCase().includes(query) ||
+				m.author.toLowerCase().includes(query),
+		);
 	}
 
 	function syncInstalledToItems() {
@@ -184,13 +221,92 @@ export function createMarketState(
 		}
 	}
 
-	async function loadLocalItems(silent = false) {
+	function isSameProject(
+		item: MarketProject,
+		project: MarketProject,
+	): boolean {
+		if (item.id === project.id) return true;
+
+		const modrinthId = project.modrinthProjectId;
+		if (modrinthId != null && item.modrinthProjectId === modrinthId)
+			return true;
+
+		const curseId = project.curseforgeProjectId;
+		if (curseId != null && item.curseforgeProjectId === curseId) return true;
+
+		const filename = project.installed?.filename;
+		if (
+			filename != null &&
+			filename !== "" &&
+			item.installed?.filename === filename
+		)
+			return true;
+
+		return false;
+	}
+
+	function toggleDisabledSuffix(filename: string, enabled: boolean): string {
+		if (enabled) {
+			return filename.replace(/\.disabled$/i, "");
+		}
+		return /\.disabled$/i.test(filename)
+			? filename
+			: `${filename}.disabled`;
+	}
+
+	function patchRawLocalItem(project: MarketProject) {
+		if (!project.installed) return;
+		const idx = rawLocalItems.findIndex((i) => i.id === project.id);
+		if (idx !== -1) rawLocalItems[idx] = project;
+	}
+
+	function removeRawLocalItem(project: MarketProject) {
+		const idx = rawLocalItems.findIndex((i) => i.id === project.id);
+		if (idx !== -1) rawLocalItems.splice(idx, 1);
+	}
+
+	function setLocalItems(sorted: MarketProject[], merge = false) {
+		if (merge && items.length > 0) {
+			const newByFilename = new SvelteMap<string, MarketProject>();
+			for (const item of sorted) {
+				const key = item.installed?.filename ?? item.id;
+				newByFilename.set(key, item);
+			}
+			for (let i = items.length - 1; i >= 0; i--) {
+				const key = items[i].installed?.filename ?? items[i].id;
+				const replacement = newByFilename.get(key);
+				if (replacement) {
+					items[i] = replacement;
+					newByFilename.delete(key);
+				} else {
+					items.splice(i, 1);
+				}
+			}
+			for (const item of newByFilename.values()) {
+				items.push(item);
+			}
+		} else {
+			items.length = 0;
+			items.push(...sorted);
+		}
+		total = sorted.length;
+		hasMore = false;
+	}
+
+	function applyLocalFilters(merge = false) {
+		if (filters.source !== "local") return;
+		const filtered = filterLocalItems(rawLocalItems);
+		const sorted = sortLocalItems(filtered);
+		setLocalItems(sorted, merge);
+	}
+
+	async function scanLocalItems(silent = false) {
 		if (!silent) {
-			loading = true;
+			loadingLocal = true;
 			localSearchGen++;
 		}
-		error = null;
 		const gen = localSearchGen;
+		error = null;
 
 		try {
 			const localItems = await localLoader(instance.uuid);
@@ -199,6 +315,7 @@ export function createMarketState(
 			const mapped = localItems.map((mod) => localModToMarket(mod));
 			if (gen !== localSearchGen) return;
 
+			rawLocalItems = mapped;
 			localModsById.clear();
 			for (const item of mapped) {
 				const id = item.installed?.project_id;
@@ -206,59 +323,23 @@ export function createMarketState(
 			}
 
 			if (filters.source === "local") {
-				const query = filters.query.trim().toLowerCase();
-				const filtered = query
-					? mapped.filter(
-							(m) =>
-								m.title.toLowerCase().includes(query) ||
-								m.description.toLowerCase().includes(query) ||
-								m.author.toLowerCase().includes(query),
-						)
-					: mapped;
-
-				const sorted = sortLocalItems(filtered);
-
-				if (silent && items.length > 0) {
-					const newByFilename = new SvelteMap<
-						string,
-						MarketProject
-					>();
-					for (const item of sorted) {
-						const key = item.installed?.filename ?? item.id;
-						newByFilename.set(key, item);
-					}
-					for (let i = items.length - 1; i >= 0; i--) {
-						const key = items[i].installed?.filename ?? items[i].id;
-						const replacement = newByFilename.get(key);
-						if (replacement) {
-							items[i] = replacement;
-							newByFilename.delete(key);
-						} else {
-							items.splice(i, 1);
-						}
-					}
-					for (const item of newByFilename.values()) {
-						items.push(item);
-					}
-				} else {
-					items.length = 0;
-					items.push(...sorted);
-				}
-				total = sorted.length;
-				hasMore = false;
+				applyLocalFilters(silent);
 			} else {
 				syncInstalledToItems();
 			}
 		} catch (e) {
-			error = String(e ?? "Error loading local items");
+			if (gen === localSearchGen) {
+				error = String(e ?? "Error loading local items");
+			}
 		} finally {
-			if (!silent) {
-				loading = false;
+			if (!silent && gen === localSearchGen) {
+				loadingLocal = false;
 			}
 		}
 	}
+
 	async function searchRemoteModrinth(reset = false) {
-		if (loading) return;
+		if (loadingRemote || loadingMore) return;
 
 		if (reset) {
 			resetPagination();
@@ -269,7 +350,7 @@ export function createMarketState(
 		const gen = ++searchGen;
 
 		if (reset) {
-			loading = true;
+			loadingRemote = true;
 		} else {
 			loadingMore = true;
 		}
@@ -314,14 +395,14 @@ export function createMarketState(
 		} catch (e) {
 			error = String(e ?? "Error searching Modrinth");
 		} finally {
-			loading = false;
+			loadingRemote = false;
 			loadingMore = false;
 		}
 	}
 
 	async function searchRemoteCurseForge(reset = false) {
 		if (!isModContent) return;
-		if (loading) return;
+		if (loadingRemote || loadingMore) return;
 
 		if (reset) {
 			resetPagination();
@@ -332,7 +413,7 @@ export function createMarketState(
 		const gen = ++searchGen;
 
 		if (reset) {
-			loading = true;
+			loadingRemote = true;
 		} else {
 			loadingMore = true;
 		}
@@ -377,14 +458,15 @@ export function createMarketState(
 		} catch (e) {
 			error = String(e ?? "Error searching CurseForge");
 		} finally {
-			loading = false;
+			loadingRemote = false;
 			loadingMore = false;
 		}
 	}
 
 	function performSearch(reset = false) {
 		if (filters.source === "local") {
-			return loadLocalItems();
+			applyLocalFilters();
+			return Promise.resolve();
 		}
 		if (filters.source === "curseforge") {
 			return searchRemoteCurseForge(reset);
@@ -490,28 +572,6 @@ export function createMarketState(
 		return version.gameVersions.includes(filters.gameVersion);
 	}
 
-	function selectedVersion(): MarketVersion | null {
-		if (detail.versions.length === 0) return null;
-
-		if (overrideVersionId) {
-			const overridden = detail.versions.find(
-				(v) => v.id === overrideVersionId,
-			);
-			if (overridden) return overridden;
-		}
-
-		const installed = detail.versions.find((v) => v.isInstalled);
-		if (installed) return installed;
-
-		const compatible = detail.versions.find((v) => {
-			if (!isGameVersionCompatible(v)) return false;
-			return isModContent ? v.loaders.includes(filters.loader) : true;
-		});
-		if (compatible) return compatible;
-
-		return detail.versions[0];
-	}
-
 	function setSelectedVersion(version: MarketVersion) {
 		overrideVersionId = version.id;
 	}
@@ -557,7 +617,7 @@ export function createMarketState(
 					},
 				]);
 
-				await loadLocalItems(true);
+				await scanLocalItems(true);
 
 				const current =
 					items.find((i) => i.id === project.id) ?? project;
@@ -582,7 +642,7 @@ export function createMarketState(
 				},
 			]);
 
-			await loadLocalItems(true);
+			await scanLocalItems(true);
 
 			const current = items.find((i) => i.id === project.id) ?? project;
 			await loadDetail(current);
@@ -606,11 +666,7 @@ export function createMarketState(
 			);
 			// Remove installed state from all matching items
 			for (const item of items) {
-				if (
-					item.id === project.id ||
-					item.modrinthProjectId === project.modrinthProjectId ||
-					item.curseforgeProjectId === project.curseforgeProjectId
-				) {
+				if (isSameProject(item, project)) {
 					item.installed = undefined;
 					item.installedVersion = undefined;
 					item.modrinthVersionId = undefined;
@@ -620,7 +676,13 @@ export function createMarketState(
 				}
 			}
 			if (filters.source === "local") {
-				await loadLocalItems();
+				const installedId =
+					project.modrinthProjectId ?? project.curseforgeProjectId;
+				if (installedId) localModsById.delete(installedId);
+				removeRawLocalItem(project);
+				const idx = items.findIndex((i) => i.id === project.id);
+				if (idx !== -1) items.splice(idx, 1);
+				total = items.length;
 			}
 			selectProject(null);
 		} catch (e) {
@@ -641,23 +703,19 @@ export function createMarketState(
 				project.installed.filename,
 				newEnabled,
 			);
-			// Update enabled state in all matching items
+			// Update enabled state and filename in all matching items
 			for (const item of items) {
-				if (
-					item.installed &&
-					(item.id === project.id ||
-						item.modrinthProjectId === project.modrinthProjectId ||
-						item.curseforgeProjectId ===
-							project.curseforgeProjectId)
-				) {
+				if (item.installed && isSameProject(item, project)) {
 					item.installed.enabled = newEnabled;
+					item.installed.filename = toggleDisabledSuffix(
+						item.installed.filename,
+						newEnabled,
+					);
 					item.disabled = !newEnabled;
 				}
 			}
-			if (filters.source === "local") {
-				await loadLocalItems();
-			}
-			if (selectedId) {
+			patchRawLocalItem(project);
+			if (selectedId && filters.source !== "local") {
 				await loadDetail(project);
 			}
 		} catch (e) {
@@ -666,7 +724,12 @@ export function createMarketState(
 	}
 
 	function loadMore() {
-		if (filters.source !== "local" && hasMore && !loading && !loadingMore) {
+		if (
+			filters.source !== "local" &&
+			hasMore &&
+			!loadingRemote &&
+			!loadingMore
+		) {
 			performSearch(false);
 		}
 	}
@@ -678,10 +741,13 @@ export function createMarketState(
 		clearTimeout(searchTimer);
 		searchTimer = setTimeout(async () => {
 			if (source === "local") {
-				await loadLocalItems();
+				if (rawLocalItems.length === 0) {
+					await scanLocalItems();
+				} else {
+					applyLocalFilters();
+				}
 			} else {
-				await loadLocalItems(true);
-				await performSearch(true);
+				await Promise.all([scanLocalItems(true), performSearch(true)]);
 			}
 		}, 200);
 	}
@@ -704,7 +770,7 @@ export function createMarketState(
 	function setLocalSort(sort: LocalSort) {
 		filters.localSort = sort;
 		if (filters.source === "local") {
-			loadLocalItems();
+			applyLocalFilters();
 		}
 	}
 
@@ -714,12 +780,7 @@ export function createMarketState(
 		if (instance.uuid !== lastInstanceId) {
 			lastInstanceId = instance.uuid;
 			resetState();
-			localModsById.clear();
-			loadLocalItems(true).then(() => {
-				if (filters.source !== "local") {
-					performSearch(true);
-				}
-			});
+			Promise.all([scanLocalItems(true), performSearch(true)]);
 		}
 	});
 
@@ -727,7 +788,7 @@ export function createMarketState(
 	const _unregisterRefresh = registerModsRefreshCallback(
 		instance.uuid,
 		() => {
-			loadLocalItems(true);
+			scanLocalItems(true);
 		},
 	);
 
@@ -746,6 +807,8 @@ export function createMarketState(
 		detail.versions = [];
 		detail.loading = false;
 		detail.error = null;
+		rawLocalItems = [];
+		localModsById.clear();
 	}
 
 	return {
@@ -759,7 +822,13 @@ export function createMarketState(
 			return total;
 		},
 		get loading() {
-			return loading;
+			return loadingLocal || loadingRemote;
+		},
+		get loadingLocal() {
+			return loadingLocal;
+		},
+		get loadingRemote() {
+			return loadingRemote;
 		},
 		get loadingMore() {
 			return loadingMore;
@@ -779,7 +848,9 @@ export function createMarketState(
 		get detail() {
 			return detail;
 		},
-		selectedVersion,
+		get selectedVersion() {
+			return selectedVersion;
+		},
 		setSelectedVersion,
 		isVersionCompatible,
 		setSource,

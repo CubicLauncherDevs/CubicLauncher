@@ -115,7 +115,12 @@
 </script>
 
 <div class="theme-selector">
-	<button type="button" class="import-btn" onclick={handleImport} disabled={importing}>
+	<button
+		type="button"
+		class="import-btn"
+		onclick={handleImport}
+		disabled={importing}
+	>
 		{importing
 			? t("settings.launcher.themesImporting")
 			: t("settings.launcher.themesImport")}
@@ -131,7 +136,8 @@
 					role="button"
 					tabindex="0"
 					onclick={() => selectTheme(theme.id)}
-					onkeydown={(e) => e.key === "Enter" && selectTheme(theme.id)}
+					onkeydown={(e) =>
+						e.key === "Enter" && selectTheme(theme.id)}
 				>
 					{#if theme.preview}
 						<div class="swatch">
@@ -181,7 +187,8 @@
 							</div>
 						{/if}
 						{#if theme.type !== "builtin"}
-							<button type="button"
+							<button
+								type="button"
 								class="icon-btn"
 								title={t("settings.launcher.themesExport")}
 								onclick={(e) => {
@@ -191,7 +198,8 @@
 							>
 								<DownloadIcon size={14} />
 							</button>
-							<button type="button"
+							<button
+								type="button"
 								class="icon-btn danger"
 								title={t("settings.launcher.themesDelete")}
 								onclick={(e) => {

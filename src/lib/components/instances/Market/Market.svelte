@@ -85,11 +85,11 @@
 					selected={project.id === state.selectedId}
 					onSelect={() => state.selectProject(project.id)}
 					onInstall={state.filters.source !== "local"
-					? () => {
-							const version = state.selectedVersion();
-							if (version) state.install(project, version);
-						}
-					: undefined}
+						? () => {
+								const version = state.selectedVersion;
+								if (version) state.install(project, version);
+							}
+						: undefined}
 				/>
 			{/if}
 		{/snippet}
@@ -102,11 +102,11 @@
 					source={state.filters.source}
 					{contentType}
 					detail={state.detail}
-					selectedVersion={state.selectedVersion()}
+					selectedVersion={state.selectedVersion}
 					isVersionCompatible={state.isVersionCompatible}
 					onVersionSelect={state.setSelectedVersion}
 					onInstall={() => {
-						const version = state.selectedVersion();
+						const version = state.selectedVersion;
 						if (version) return state.install(project, version);
 					}}
 					onUninstall={() => state.uninstall(project)}

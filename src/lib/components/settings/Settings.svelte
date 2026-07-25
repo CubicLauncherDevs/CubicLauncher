@@ -135,11 +135,12 @@
 		locales.map((l) => ({
 			value: l.code,
 			label: `${t(`languages.${l.code}`)} (${l.label})`,
-			icon: i18nLoader.loading === l.code
-				? "⏳"
-				: i18nLoader.fetched.has(l.code)
-					? l.flag
-					: "/images/icons/download.svg",
+			icon:
+				i18nLoader.loading === l.code
+					? "⏳"
+					: i18nLoader.fetched.has(l.code)
+						? l.flag
+						: "/images/icons/download.svg",
 		})),
 	);
 	let availableThemes = $state<ThemeEntry[]>([]);

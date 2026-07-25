@@ -11,10 +11,7 @@
 		ContentType,
 		MarketSource,
 	} from "$lib/types/market";
-	import type {
-		ModrinthProjectFull,
-		CurseForgeProject,
-	} from "$lib/types/types";
+	import type { ModrinthProjectFull } from "$lib/types/types";
 
 	interface Props {
 		project: MarketProject;
@@ -98,19 +95,14 @@
 	);
 
 	function openProjectUrl() {
+		const slug = detail.fullProject?.slug ?? project.slug;
+		if (!slug) return;
+
 		if (project.source === "curseforge") {
-			const slug =
-				(detail.fullProject as CurseForgeProject | undefined)?.slug ??
-				project.curseforge?.slug;
-			if (slug) {
-				openUrl(`https://curseforge.com/minecraft/mc-mods/${slug}`);
-			}
+			openUrl(`https://curseforge.com/minecraft/mc-mods/${slug}`);
 			return;
 		}
-		const slug = detail.fullProject?.slug ?? project.modrinth?.slug;
-		if (slug) {
-			openUrl(`https://modrinth.com/${modrinthTypePath}/${slug}`);
-		}
+		openUrl(`https://modrinth.com/${modrinthTypePath}/${slug}`);
 	}
 </script>
 

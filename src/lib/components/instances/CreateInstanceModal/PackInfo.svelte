@@ -49,19 +49,22 @@
 			{#if getPackSummary(packInfo)}
 				<div class="info-row">
 					<span class="info-label">Descripción</span>
-					<span class="info-value summary">{getPackSummary(packInfo)}</span>
+					<span class="info-value summary"
+						>{getPackSummary(packInfo)}</span
+					>
 				</div>
 			{/if}
 			<div class="info-row">
 				<span class="info-label">Minecraft</span>
-				<span class="info-value">{getPackMcVersion(packInfo) ?? "—"}</span>
+				<span class="info-value"
+					>{getPackMcVersion(packInfo) ?? "—"}</span
+				>
 			</div>
 			<div class="info-row">
 				<span class="info-label">Loader</span>
 				<span class="info-value"
-					>{getPackLoader(packInfo) ?? "Vanilla"}{getPackLoaderVersion(
-						packInfo,
-					)
+					>{getPackLoader(packInfo) ??
+						"Vanilla"}{getPackLoaderVersion(packInfo)
 						? " " + getPackLoaderVersion(packInfo)
 						: ""}</span
 				>

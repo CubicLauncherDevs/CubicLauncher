@@ -34,7 +34,9 @@
 				{/if}
 			</div>
 			{#if labels[i]}
-				<span class="step-label" class:active class:done>{labels[i]}</span>
+				<span class="step-label" class:active class:done
+					>{labels[i]}</span
+				>
 			{/if}
 		</div>
 		{#if i < totalSteps - 1}

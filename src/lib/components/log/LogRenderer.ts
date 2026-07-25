@@ -65,7 +65,10 @@ export class LogRenderer {
 		const txt = document.createElement("span");
 		txt.className = "line-text";
 		if (this.state.normalizedQuery) {
-			txt.innerHTML = highlightText(line.text, this.state.normalizedQuery);
+			txt.innerHTML = highlightText(
+				line.text,
+				this.state.normalizedQuery,
+			);
 		} else {
 			txt.textContent = line.text;
 		}
@@ -196,9 +199,11 @@ export class LogRenderer {
 		if (!this.viewport || this.state.matchCount === 0) return;
 		const list =
 			matches ??
-			(Array.from(
-				this.viewport.querySelectorAll(".log-line:not(.hidden)"),
-			) as HTMLElement[]).filter((el) =>
+			(
+				Array.from(
+					this.viewport.querySelectorAll(".log-line:not(.hidden)"),
+				) as HTMLElement[]
+			).filter((el) =>
 				el
 					.querySelector(".line-text")
 					?.textContent?.toLowerCase()
