@@ -64,7 +64,6 @@
 			<MarketFilterPanel
 				filters={state.filters}
 				{contentType}
-				loading={state.loading}
 				onSourceChange={state.setSource}
 				onQueryChange={state.setQuery}
 				onSortChange={state.setSort}

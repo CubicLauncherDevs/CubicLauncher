@@ -104,6 +104,8 @@
 		"yourInstances": "Tus Instancias",
 		"rename": "Renombrar",
 		"delete": "Eliminar",
+		"edit": "Editar",
+		"openFolder": "Abrir carpeta",
 		"noInstances": "Sin instancias",
 		"createInstance": "Crear Instancia",
 		"refreshInstances": "Refrescar Instancias",

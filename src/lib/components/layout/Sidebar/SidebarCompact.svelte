@@ -5,6 +5,8 @@
 	import type { InstanceDto } from "$lib/types/types";
 	import UserMenu from "../UserMenu/UserMenu.svelte";
 	import { t } from "$lib/i18n";
+	import { tick } from "svelte";
+	import type { Component, Snippet } from "svelte";
 	import { getDisplayIconSrc } from "$lib/icons/logos";
 	import DeleteInstanceModal from "./DeleteInstanceModal.svelte";
 	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
@@ -32,6 +34,126 @@
 	let showDeleteModal = $state(false);
 	let instanceToActOn = $state<InstanceDto | null>(null);
 	let activeUser = $derived(getActiveUser());
+
+	type SidebarContextMenuProps = {
+		onedit: (instance: InstanceDto) => void;
+		ondelete: (instance: InstanceDto) => void;
+	};
+
+	type SidebarContextMenuExports = {
+		openContextMenu: (e: MouseEvent) => Promise<void>;
+	};
+
+	interface TooltipProps {
+		open?: boolean;
+		x?: number;
+		y?: number;
+		placement?: "right" | "left" | "top" | "bottom";
+		children?: Snippet;
+	}
+
+	let ctxMenu = $state<SidebarContextMenuExports | undefined>();
+	let ContextMenu = $state<
+		Component<SidebarContextMenuProps, SidebarContextMenuExports> | null
+	>(null);
+	let Tooltip = $state<Component<TooltipProps, Record<string, never>> | null>(null);
+	let contextMenuLoadPromise: Promise<void> | null = null;
+	let tooltipLoadPromise: Promise<void> | null = null;
+	let loadingQueue: Promise<void> = Promise.resolve();
+
+	let tooltipInstance = $state<InstanceDto | null>(null);
+	let tooltipOpen = $state(false);
+	let tooltipX = $state(0);
+	let tooltipY = $state(0);
+
+	function queueLoad(load: () => Promise<void>): Promise<void> {
+		loadingQueue = loadingQueue.then(load).catch(() => {});
+		return loadingQueue;
+	}
+
+	function startContextMenuImport(): Promise<void> {
+		contextMenuLoadPromise = import("./SidebarContextMenu.svelte").then(
+			(mod) => {
+				ContextMenu = mod.default;
+			},
+		);
+		return contextMenuLoadPromise;
+	}
+
+	function startTooltipImport(): Promise<void> {
+		tooltipLoadPromise = import("$lib/components/ui/Tooltip.svelte").then(
+			(mod) => {
+				Tooltip = mod.default;
+			},
+		);
+		return tooltipLoadPromise;
+	}
+
+	async function loadContextMenu() {
+		return queueLoad(async () => {
+			if (ContextMenu) return;
+			if (contextMenuLoadPromise) {
+				await contextMenuLoadPromise;
+				return;
+			}
+			await startContextMenuImport();
+		});
+	}
+
+	async function loadTooltip() {
+		return queueLoad(async () => {
+			if (Tooltip) return;
+			if (tooltipLoadPromise) {
+				await tooltipLoadPromise;
+				return;
+			}
+			await startTooltipImport();
+		});
+	}
+
+	function prefetchCompactOverlays() {
+		if (typeof requestIdleCallback !== "undefined") {
+			requestIdleCallback(() => {
+				loadContextMenu().then(() => loadTooltip());
+			});
+		} else {
+			setTimeout(() => {
+				loadContextMenu().then(() => loadTooltip());
+			}, 200);
+		}
+	}
+
+	async function handleContextMenu(e: MouseEvent) {
+		e.preventDefault();
+		await loadContextMenu();
+
+		const deadline = Date.now() + 100;
+		while (!ctxMenu && Date.now() < deadline) {
+			await tick();
+		}
+
+		ctxMenu?.openContextMenu(e);
+	}
+
+	async function showTooltip(
+		e: MouseEvent | FocusEvent,
+		instance: InstanceDto,
+	) {
+		const target = e.currentTarget as HTMLElement;
+		const rect = target.getBoundingClientRect();
+		tooltipX = rect.right;
+		tooltipY = rect.top;
+		tooltipInstance = instance;
+		tooltipOpen = true;
+		await loadTooltip();
+	}
+
+	function hideTooltip() {
+		tooltipOpen = false;
+	}
+
+	prefetchCompactOverlays();
+
 	let username = $derived(activeUser?.username ?? "Steve");
 	let isYggdrasil = $derived(activeUser?.user_type === "Yggdrasil");
 
@@ -58,6 +180,11 @@
 			.catch(() => {});
 	});
 
+	function openDeleteModal(instance: InstanceDto) {
+		instanceToActOn = instance;
+		showDeleteModal = true;
+	}
+
 	async function handleDelete() {
 		if (!instanceToActOn) return;
 		const ok = await deleteInst(instanceToActOn.uuid);
@@ -74,7 +201,13 @@
 	</div>
 
 	<div class="sc-content">
-		<div class="sc-instance-list" data-tutorial="instance-list">
+		<div
+			class="sc-instance-list"
+			role="region"
+			aria-label={t("sidebar.yourInstances")}
+			data-tutorial="instance-list"
+			oncontextmenu={handleContextMenu}
+		>
 			{#if launcherStore.loadedInstances.length === 0}
 				<div class="sc-empty" title={t("sidebar.noInstances")}>—</div>
 			{:else}
@@ -83,16 +216,16 @@
 						type="button"
 						class="sc-instance-item"
 						class:active={selectedInstance?.uuid === instance.uuid}
-						title={instance.name}
+						data-instance-uuid={instance.uuid}
+						onmouseenter={(e) => showTooltip(e, instance)}
+						onmouseleave={hideTooltip}
+						onfocus={(e) => showTooltip(e, instance)}
+						onblur={hideTooltip}
 						onclick={() =>
 							(selectedInstance =
 								selectedInstance?.uuid === instance.uuid
 									? null
 									: instance)}
-						oncontextmenu={(e) => {
-							e.preventDefault();
-							onopeneditinstance?.(instance);
-						}}
 					>
 						<div class="sc-instance-icon">
 							{#if instance.icon}
@@ -187,6 +320,30 @@
 />
 
 <UserMenu bind:open={showUserMenu} />
+
+{#if ContextMenu}
+	<ContextMenu
+		bind:this={ctxMenu}
+		onedit={(instance) => onopeneditinstance?.(instance)}
+		ondelete={(instance) => openDeleteModal(instance)}
+	/>
+{/if}
+
+{#if Tooltip}
+	<Tooltip bind:open={tooltipOpen} x={tooltipX} y={tooltipY} placement="right">
+		{#if tooltipInstance}
+			<div class="instance-tooltip">
+				<span class="instance-tooltip-name">{tooltipInstance.name}</span>
+				<span class="instance-tooltip-detail">
+					{t("instanceView.details.version")}: {tooltipInstance.version}
+				</span>
+				<span class="instance-tooltip-detail">
+					{t("instanceView.details.loader")}: {tooltipInstance.loader}
+				</span>
+			</div>
+		{/if}
+	</Tooltip>
+{/if}
 
 <style>
 	.sidebar-compact {
@@ -380,5 +537,24 @@
 		height: 100%;
 		display: block;
 		border-radius: inherit;
+	}
+
+	.instance-tooltip {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.instance-tooltip-name {
+		font-size: 0.82rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		white-space: nowrap;
+	}
+
+	.instance-tooltip-detail {
+		font-size: 0.72rem;
+		color: var(--text-secondary);
+		white-space: nowrap;
 	}
 </style>

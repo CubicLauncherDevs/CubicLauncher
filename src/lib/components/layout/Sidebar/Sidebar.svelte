@@ -1,16 +1,19 @@
 <script lang="ts">
-	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
+	import {
+		deleteInst,
+		getActiveUser,
+	} from "$lib/api/launcherService";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { getAvatar, setAvatar } from "$lib/state/avatarCache";
 	import type { InstanceDto } from "$lib/types/types";
+	import { t } from "$lib/i18n";
 	import UserMenu from "../UserMenu/UserMenu.svelte";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import DownloadQueue from "../DownloadQueue/DownloadQueue.svelte";
-	import { t } from "$lib/i18n";
-	import ContextMenu from "../ContextMenu.svelte";
 	import InstanceItem from "./InstanceItem.svelte";
 	import UserProfile from "./UserProfile.svelte";
 	import DeleteInstanceModal from "./DeleteInstanceModal.svelte";
+	import SidebarContextMenu from "./SidebarContextMenu.svelte";
 
 	interface Props {
 		selectedInstance: InstanceDto | null;
@@ -31,11 +34,10 @@
 	}: Props = $props();
 
 	let showUserMenu = $state(false);
-	let ctxOpen = $state(false);
-	let ctxX = $state(0);
-	let ctxY = $state(0);
 	let showDeleteModal = $state(false);
 	let instanceToActOn = $state<InstanceDto | null>(null);
+	let ctxMenu = $state<ReturnType<typeof SidebarContextMenu> | undefined>();
+
 	let activeUser = $derived(getActiveUser());
 	let username = $derived(activeUser?.username ?? "Steve");
 	let isPremium = $derived(activeUser?.user_type === "Microsoft");
@@ -95,12 +97,7 @@
 		<div
 			role="region"
 			aria-label={t("sidebar.yourInstances")}
-			oncontextmenu={(e) => {
-				e.preventDefault();
-				ctxX = e.clientX;
-				ctxY = e.clientY;
-				ctxOpen = true;
-			}}
+			oncontextmenu={(e) => ctxMenu?.openContextMenu(e)}
 		>
 			<span class="section-label">{t("sidebar.yourInstances")}</span>
 			<div class="instance-list" data-tutorial="instance-list">
@@ -221,16 +218,10 @@
 
 <UserMenu bind:open={showUserMenu} />
 
-<ContextMenu
-	bind:open={ctxOpen}
-	x={ctxX}
-	y={ctxY}
-	items={[
-		{
-			label: t("sidebar.createInstance"),
-			action: () => onopencreateinstance?.(),
-		},
-	]}
+<SidebarContextMenu
+	bind:this={ctxMenu}
+	onedit={(instance) => onopeneditinstance?.(instance)}
+	ondelete={(instance) => openDeleteModal(instance)}
 />
 
 <style>

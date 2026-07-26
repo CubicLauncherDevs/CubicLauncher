@@ -4,7 +4,10 @@
 
 	export interface ContextMenuItem {
 		label: string;
-		action: () => void;
+		action?: () => void;
+		variant?: "default" | "danger";
+		separator?: boolean;
+		disabled?: boolean;
 	}
 
 	let {
@@ -12,14 +15,28 @@
 		x = 0,
 		y = 0,
 		items = [] as ContextMenuItem[],
-	} = $props<{
+	}: {
 		open: boolean;
 		x: number;
 		y: number;
 		items: ContextMenuItem[];
-	}>();
+	} = $props();
 
 	let containerEl = $state<HTMLDivElement>();
+	let adjustedX = $state(0);
+	let adjustedY = $state(0);
+
+	$effect(() => {
+		if (!open || !containerEl) return;
+
+		const rect = containerEl.getBoundingClientRect();
+		const padding = 8;
+		const maxX = window.innerWidth - rect.width - padding;
+		const maxY = window.innerHeight - rect.height - padding;
+
+		adjustedX = Math.max(padding, Math.min(x, maxX));
+		adjustedY = Math.max(padding, Math.min(y, maxY));
+	});
 
 	function portal(el: HTMLElement) {
 		document.body.appendChild(el);
@@ -31,6 +48,7 @@
 	}
 
 	function handleClickOutside(event: MouseEvent) {
+		if (event.defaultPrevented) return;
 		if (containerEl && !containerEl.contains(event.target as Node)) {
 			open = false;
 		}
@@ -44,9 +62,11 @@
 
 	onMount(() => {
 		window.addEventListener("click", handleClickOutside);
+		window.addEventListener("contextmenu", handleClickOutside);
 		window.addEventListener("keydown", handleKeydown);
 		return () => {
 			window.removeEventListener("click", handleClickOutside);
+			window.removeEventListener("contextmenu", handleClickOutside);
 			window.removeEventListener("keydown", handleKeydown);
 		};
 	});
@@ -57,20 +77,29 @@
 		<div
 			bind:this={containerEl}
 			class="ctx-menu"
-			style="left: {x}px; top: {y}px;"
+			style="left: {adjustedX}px; top: {adjustedY}px;"
 			transition:fly={{ y: -4, duration: 120 }}
+			role="menu"
 		>
-			{#each items as item (item.label)}
-				<button
-					type="button"
-					class="ctx-item"
-					onclick={() => {
-						item.action();
-						open = false;
-					}}
-				>
-					{item.label}
-				</button>
+			{#each items as item, index (item.label + index)}
+				{#if item.separator}
+					<div class="ctx-separator"></div>
+				{:else}
+					<button
+						type="button"
+						class="ctx-item"
+						class:danger={item.variant === "danger"}
+						class:disabled={item.disabled}
+						disabled={item.disabled}
+						role="menuitem"
+						onclick={() => {
+							item.action?.();
+							open = false;
+						}}
+					>
+						{item.label}
+					</button>
+				{/if}
 			{/each}
 		</div>
 	</div>
@@ -81,11 +110,13 @@
 		position: fixed;
 		z-index: 9999;
 		min-width: 180px;
+		max-width: 260px;
 		background: var(--bg-surface, #1e1e1e);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm, 6px);
-		padding: 4px;
+		padding: 5px;
 		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+		backdrop-filter: blur(var(--backdrop-blur-dropdown, 4px));
 	}
 
 	.ctx-item {
@@ -95,19 +126,38 @@
 		background: transparent;
 		border: none;
 		color: var(--text-primary);
-		font-size: 0.8rem;
+		font-size: 0.82rem;
 		font-weight: 500;
 		text-align: left;
 		cursor: pointer;
 		border-radius: 4px;
-		transition: background 0.1s ease;
+		transition:
+			background 0.12s ease,
+			color 0.12s ease;
 	}
 
-	.ctx-item:hover {
+	.ctx-item:hover:not(:disabled) {
 		background: var(--surface-active);
 	}
 
-	.ctx-item:not(:last-child) {
-		margin-bottom: 2px;
+	.ctx-item.danger {
+		color: var(--color-error, #ef4444);
+	}
+
+	.ctx-item.danger:hover:not(:disabled) {
+		background: rgba(var(--color-error-rgb), 0.12);
+	}
+
+	.ctx-item:disabled,
+	.ctx-item.disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
+	}
+
+	.ctx-separator {
+		height: 1px;
+		background: var(--border);
+		margin: 4px 7px;
+		opacity: 0.55;
 	}
 </style>

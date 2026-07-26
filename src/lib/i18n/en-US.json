@@ -104,6 +104,8 @@
 		"yourInstances": "Your Instances",
 		"rename": "Rename",
 		"delete": "Delete",
+		"edit": "Edit",
+		"openFolder": "Open Folder",
 		"noInstances": "No instances",
 		"createInstance": "Create Instance",
 		"refreshInstances": "Refresh Instances",

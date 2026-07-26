@@ -22,6 +22,7 @@
 <div
 	class="instance-item"
 	class:active={selected}
+	data-instance-uuid={instance.uuid}
 	onclick={onselect}
 	onkeydown={(e) => {
 		if (e.key === "Enter" || e.key === " ") onselect();

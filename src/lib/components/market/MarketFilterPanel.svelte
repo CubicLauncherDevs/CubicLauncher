@@ -16,7 +16,6 @@
 	interface Props {
 		filters: MarketFilters;
 		contentType: ContentType;
-		loading: boolean;
 		onSourceChange: (source: MarketSource) => void;
 		onQueryChange: (query: string) => void;
 		onSortChange: (sort: MarketSort) => void;
@@ -27,7 +26,6 @@
 	let {
 		filters,
 		contentType = "mods",
-		loading,
 		onSourceChange,
 		onQueryChange,
 		onSortChange,
