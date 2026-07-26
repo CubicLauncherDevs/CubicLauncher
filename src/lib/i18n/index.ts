@@ -1,7 +1,7 @@
 import { launcherStore } from "$lib/state/state.svelte";
 import es from "./es-ES.json";
 import en from "./en-US.json";
-import { i18nLoader } from "./loader.svelte";
+import { i18nLoader, locales, type LocaleEntry } from "./loader.svelte";
 import { invoke } from "@tauri-apps/api/core";
 
 type NestedKeys<T, Prefix extends string = ""> = {
@@ -59,14 +59,13 @@ function flatten(
 function getFlat(lang: string): Record<string, string> {
 	if (lang === "en" && enFlat) return enFlat;
 
-	void i18nLoader.version;
-
 	let cached = flatCache.get(lang);
 	if (!cached) {
 		if (isBundled(lang)) {
 			const dict = bundled[lang];
 			cached = dict && typeof dict === "object" ? flatten(dict) : {};
 		} else {
+			void (i18nLoader.dictVersion[lang] ?? 0);
 			const dict = fetchedDicts.get(lang);
 			if (dict) {
 				cached = flatten(dict);
@@ -86,19 +85,20 @@ function getFlat(lang: string): Record<string, string> {
 // Pre-cache English for fallback
 getFlat("en");
 
-async function loadCachedLocales(): Promise<void> {
-	const toLoad = locales.filter((loc) => !isBundled(loc.code));
+async function loadCachedLocales(codes?: string[]): Promise<void> {
+	const toLoad = codes ?? locales.filter((loc) => !isBundled(loc.code)).map(l => l.code);
 
 	const results = await Promise.allSettled(
-		toLoad.map(async (loc) => {
+		toLoad.map(async (code) => {
 			const dataStr = await invoke<string | null>("load_locale", {
-				lang: loc.code,
+				lang: code,
 			});
 			if (dataStr) {
 				const data = JSON.parse(dataStr) as LocaleDict;
-				fetchedDicts.set(loc.code, data);
-				flatCache.set(loc.code, flatten(data));
-				i18nLoader.fetched.add(loc.code);
+				fetchedDicts.set(code, data);
+				flatCache.set(code, flatten(data));
+				i18nLoader.fetched.add(code);
+				i18nLoader.dictVersion[code] = (i18nLoader.dictVersion[code] ?? 0) + 1;
 			}
 		}),
 	);
@@ -110,10 +110,6 @@ async function loadCachedLocales(): Promise<void> {
 				result.reason,
 			);
 		}
-	}
-
-	if (fetchedDicts.size > 0) {
-		i18nLoader.version++;
 	}
 }
 
@@ -133,7 +129,7 @@ export async function downloadLocale(lang: string): Promise<void> {
 			fetchedDicts.set(lang, data);
 			flatCache.set(lang, flatten(data));
 			i18nLoader.fetched.add(lang);
-			i18nLoader.version++;
+			i18nLoader.dictVersion[lang] = (i18nLoader.dictVersion[lang] ?? 0) + 1;
 			invoke("save_locale", { lang, data: JSON.stringify(data) }).catch(
 				(e) => console.error("[i18n] Failed to persist locale:", e),
 			);
@@ -190,12 +186,27 @@ export function t(
 	return key;
 }
 
-export const locales = [
-	{ code: "es", label: "Español", flag: "🇪🇸" },
-	{ code: "en", label: "English", flag: "🇬🇧" },
-	{ code: "fr", label: "Français", flag: "🇫🇷" },
-	{ code: "de", label: "Deutsch", flag: "🇩🇪" },
-	{ code: "uk", label: "Українська", flag: "🇺🇦" },
-] as const;
+async function fetchAvailableLocales(): Promise<void> {
+	try {
+		const res = await fetch(`${API_BASE}/locales`);
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const data = (await res.json()) as LocaleEntry[];
+
+		locales.length = 0;
+		locales.push(...data);
+
+		const newCodes = data
+			.map((l) => l.code)
+			.filter((c) => !isBundled(c));
+		if (newCodes.length > 0) {
+			await loadCachedLocales(newCodes);
+		}
+	} catch (err) {
+		console.error("[i18n] Failed to fetch available locales:", err);
+	}
+}
+
+export { locales };
 
 loadCachedLocales();
+fetchAvailableLocales();
