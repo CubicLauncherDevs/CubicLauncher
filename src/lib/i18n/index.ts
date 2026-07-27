@@ -93,7 +93,7 @@ async function loadCachedLocales(codes?: string[]): Promise<void> {
 			const dataStr = await invoke<string | null>("load_locale", {
 				lang: code,
 			});
-			if (dataStr) {
+			if (dataStr && !fetchedDicts.has(code)) {
 				const data = JSON.parse(dataStr) as LocaleDict;
 				fetchedDicts.set(code, data);
 				flatCache.set(code, flatten(data));
