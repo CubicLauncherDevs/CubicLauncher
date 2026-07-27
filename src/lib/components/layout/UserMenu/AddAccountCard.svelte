@@ -46,7 +46,7 @@
 			class="add-toggle-btn ygg"
 			onclick={onOpenYggdrasil}
 		>
-			Authlib
+			{t("userMenu.authInjector")}
 		</button>
 	</div>
 	{#if addingOffline}

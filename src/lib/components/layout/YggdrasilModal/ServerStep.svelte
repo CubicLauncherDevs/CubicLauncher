@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
+
 	let {
 		serverUrl = $bindable(""),
 		onconnect,
@@ -14,15 +16,15 @@
 
 <div class="form-step">
 	<p class="instruction-text">
-		Ingresa la URL del servidor de autenticación Yggdrasil.
+		{t("userMenu.yggdrasilModal.serverInstruction")}
 	</p>
 	<div class="form-group">
-		<label class="form-label" for="ygg-server-url">Servidor</label>
+		<label class="form-label" for="ygg-server-url">{t("userMenu.yggdrasilModal.serverLabel")}</label>
 		<input
 			id="ygg-server-url"
 			type="text"
 			class="form-input"
-			placeholder="ej: littlesk.in"
+			placeholder={t("userMenu.yggdrasilModal.serverPlaceholder")}
 			bind:value={serverUrl}
 			onkeydown={handleKeydown}
 		/>
@@ -33,7 +35,7 @@
 		onclick={onconnect}
 		disabled={!serverUrl.trim()}
 	>
-		Conectar
+		{t("userMenu.yggdrasilModal.connect")}
 	</button>
 </div>
 

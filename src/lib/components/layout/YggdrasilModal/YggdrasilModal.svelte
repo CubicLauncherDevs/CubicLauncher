@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import {
 		getYggdrasilServerInfo,
 		yggdrasilAuthenticate,
@@ -88,7 +89,7 @@
 	}
 </script>
 
-<ModalBase bind:open title="Authlib Injector">
+<ModalBase bind:open title={t("userMenu.yggdrasilModal.title")}>
 	<div class="ygg-container">
 		<div class="ygg-logo-wrapper">
 			<svg
@@ -107,18 +108,24 @@
 		</div>
 
 		{#if step === "loading"}
-			<AuthLoading subtitle={serverInfo?.server_name} />
+			<AuthLoading
+				title={t("userMenu.yggdrasilModal.loading")}
+				subtitle={serverInfo?.server_name}
+			/>
 		{:else if step === "error"}
 			<AuthError
-				title="Error"
-				message={error ?? "Error desconocido"}
+				title={t("userMenu.yggdrasilModal.errorTitle")}
+				message={error ?? t("userMenu.yggdrasilModal.errorUnknown")}
 				onRetry={() => {
 					step = "server";
 					error = null;
 				}}
 			/>
 		{:else if step === "success"}
-			<AuthSuccess />
+			<AuthSuccess
+				title={t("userMenu.yggdrasilModal.successTitle")}
+				subtitle={t("userMenu.yggdrasilModal.successSubtitle")}
+			/>
 		{:else if step === "server"}
 			<ServerStep bind:serverUrl onconnect={handleConnectServer} />
 		{:else if step === "login"}

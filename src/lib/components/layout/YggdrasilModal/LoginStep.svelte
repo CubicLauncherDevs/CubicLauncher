@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	import type { YggdrasilServerInfo } from "$lib/types/types";
 
 	let {
@@ -27,25 +28,25 @@
 		</div>
 	{/if}
 	<p class="instruction-text">
-		Ingresa tus credenciales para iniciar sesión.
+		{t("userMenu.yggdrasilModal.loginInstruction")}
 	</p>
 	<div class="form-group">
 		<label class="form-label" for="ygg-username">
-			{serverInfo?.non_email_login ? "Usuario" : "Correo electrónico"}
+			{serverInfo?.non_email_login ? t("userMenu.yggdrasilModal.usernameLabel") : t("userMenu.yggdrasilModal.emailLabel")}
 		</label>
 		<input
 			id="ygg-username"
 			type={serverInfo?.non_email_login ? "text" : "email"}
 			class="form-input"
 			placeholder={serverInfo?.non_email_login
-				? "Tu usuario"
-				: "correo@ejemplo.com"}
+				? t("userMenu.yggdrasilModal.usernamePlaceholder")
+				: t("userMenu.yggdrasilModal.emailPlaceholder")}
 			bind:value={username}
 			onkeydown={handleKeydown}
 		/>
 	</div>
 	<div class="form-group">
-		<label class="form-label" for="ygg-password">Contraseña</label>
+		<label class="form-label" for="ygg-password">{t("userMenu.yggdrasilModal.passwordLabel")}</label>
 		<input
 			id="ygg-password"
 			type="password"
@@ -57,7 +58,7 @@
 	</div>
 	<div class="form-actions">
 		<button type="button" class="action-btn secondary" onclick={onback}>
-			Atrás
+			{t("userMenu.yggdrasilModal.back")}
 		</button>
 		<button
 			type="button"
@@ -65,7 +66,7 @@
 			onclick={onlogin}
 			disabled={!username.trim() || !password}
 		>
-			Iniciar sesión
+			{t("userMenu.yggdrasilModal.login")}
 		</button>
 	</div>
 </div>

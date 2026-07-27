@@ -158,6 +158,26 @@
 			"waiting": "Waiting for authentication...",
 			"success": "Logged in successfully!",
 			"error": "Failed to login: {error}"
+		},
+		"yggdrasilModal": {
+			"title": "Authlib Injector",
+			"serverInstruction": "Enter the Yggdrasil authentication server URL.",
+			"serverLabel": "Server",
+			"serverPlaceholder": "e.g. littlesk.in",
+			"connect": "Connect",
+			"loginInstruction": "Enter your credentials to log in.",
+			"usernameLabel": "Username",
+			"emailLabel": "Email",
+			"usernamePlaceholder": "Your username",
+			"emailPlaceholder": "email@example.com",
+			"passwordLabel": "Password",
+			"back": "Back",
+			"login": "Log in",
+			"loading": "Connecting...",
+			"errorTitle": "Error",
+			"errorUnknown": "Unknown error",
+			"successTitle": "Connected!",
+			"successSubtitle": "Your account has been linked."
 		}
 	},
 	"launch": {

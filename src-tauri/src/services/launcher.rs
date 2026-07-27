@@ -180,20 +180,20 @@ impl SensitiveFilter {
             add(&user.access_token, "access_token");
         }
         if user.user_type != AccountType::Cracked {
-            if let Some(ref token) = user.refresh_token {
-                if token.len() >= 8 {
-                    add(token, "refresh_token");
-                }
+            if let Some(ref token) = user.refresh_token
+                && token.len() >= 8
+            {
+                add(token, "refresh_token");
             }
-            if let Some(ref token) = user.client_token {
-                if token.len() >= 8 {
-                    add(token, "client_token");
-                }
+            if let Some(ref token) = user.client_token
+                && token.len() >= 8
+            {
+                add(token, "client_token");
             }
         }
 
         // Replace longest needles first to avoid partial matches shadowing longer values.
-        patterns.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+        patterns.sort_by_key(|b| std::cmp::Reverse(b.0.len()));
 
         Self { patterns }
     }

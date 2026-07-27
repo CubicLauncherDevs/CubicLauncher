@@ -158,6 +158,26 @@
 			"waiting": "Esperando autenticación...",
 			"success": "¡Sesión iniciada correctamente!",
 			"error": "Error al iniciar sesión: {error}"
+		},
+		"yggdrasilModal": {
+			"title": "Authlib Injector",
+			"serverInstruction": "Ingresa la URL del servidor de autenticación Yggdrasil.",
+			"serverLabel": "Servidor",
+			"serverPlaceholder": "ej: littlesk.in",
+			"connect": "Conectar",
+			"loginInstruction": "Ingresa tus credenciales para iniciar sesión.",
+			"usernameLabel": "Usuario",
+			"emailLabel": "Correo electrónico",
+			"usernamePlaceholder": "Tu usuario",
+			"emailPlaceholder": "correo@ejemplo.com",
+			"passwordLabel": "Contraseña",
+			"back": "Atrás",
+			"login": "Iniciar sesión",
+			"loading": "Conectando...",
+			"errorTitle": "Error",
+			"errorUnknown": "Error desconocido",
+			"successTitle": "¡Conectado!",
+			"successSubtitle": "Tu cuenta ha sido vinculada."
 		}
 	},
 	"launch": {
