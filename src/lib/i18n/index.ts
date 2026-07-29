@@ -16,6 +16,14 @@ export type TranslationKey = Exclude<NestedKeys<typeof es>, "id">;
 
 type DictValue = string | { [key: string]: DictValue };
 type LocaleDict = Record<string, DictValue>;
+type LocaleVersion = {
+	version: string;
+};
+type StoredLocale = {
+	code: string;
+	id: string;
+	data: string;
+};
 
 const API_BASE = "https://i18n.cubiclauncher.org";
 
@@ -27,16 +35,56 @@ const failedLocales = new Set<string>();
 
 let enFlat: Record<string, string> | null = null;
 
-// Init reactive state for bundled locales
-i18nLoader.fetched.add("es");
-i18nLoader.fetched.add("en");
-
 export function isBundled(lang: string): boolean {
 	return lang === "es" || lang === "en";
 }
 
 export function isFetched(lang: string): boolean {
-	return isBundled(lang) || fetchedDicts.has(lang);
+	return i18nLoader.fetched.has(lang);
+}
+
+function localeFlag(id: string): string {
+	const region = id
+		.split("-")
+		.slice(1)
+		.find((part) => /^[a-z]{2}$/i.test(part));
+	if (!region) return "";
+
+	return String.fromCodePoint(
+		...region
+			.toUpperCase()
+			.split("")
+			.map((char) => char.charCodeAt(0) + 127397),
+	);
+}
+
+function localeEntryFromDict(
+	code: string,
+	id: string,
+	dict: LocaleDict,
+): LocaleEntry {
+	const languages = dict.languages;
+	const ownLabel =
+		typeof languages === "object" && typeof languages[code] === "string"
+			? languages[code]
+			: id;
+
+	return { code, id, label: ownLabel, flag: localeFlag(id) };
+}
+
+function addStoredLocale(entry: LocaleEntry): void {
+	if (!locales.some((locale) => locale.id === entry.id)) {
+		locales.push(entry);
+	}
+}
+
+function activateLocale(code: string, id: string, dict: LocaleDict): void {
+	fetchedDicts.set(code, dict);
+	flatCache.set(code, flatten(dict));
+	i18nLoader.fetched.add(code);
+	i18nLoader.dictVersion[code] = (i18nLoader.dictVersion[code] ?? 0) + 1;
+	failedLocales.delete(code);
+	addStoredLocale(localeEntryFromDict(code, id, dict));
 }
 
 function flatten(
@@ -45,7 +93,7 @@ function flatten(
 ): Record<string, string> {
 	const result: Record<string, string> = {};
 	for (const key in obj) {
-		if (key === "id") continue;
+		if (key === "id" || (!prefix && key === "version")) continue;
 		const val = obj[key];
 		if (typeof val === "string") {
 			result[prefix + key] = val;
@@ -58,6 +106,9 @@ function flatten(
 
 function getFlat(lang: string): Record<string, string> {
 	if (lang === "en" && enFlat) return enFlat;
+	if (!isBundled(lang)) {
+		void (i18nLoader.dictVersion[lang] ?? 0);
+	}
 
 	let cached = flatCache.get(lang);
 	if (!cached) {
@@ -65,7 +116,6 @@ function getFlat(lang: string): Record<string, string> {
 			const dict = bundled[lang];
 			cached = dict && typeof dict === "object" ? flatten(dict) : {};
 		} else {
-			void (i18nLoader.dictVersion[lang] ?? 0);
 			const dict = fetchedDicts.get(lang);
 			if (dict) {
 				cached = flatten(dict);
@@ -85,65 +135,85 @@ function getFlat(lang: string): Record<string, string> {
 // Pre-cache English for fallback
 getFlat("en");
 
-async function loadCachedLocales(codes?: string[]): Promise<void> {
-	const toLoad = codes ?? locales.filter((loc) => !isBundled(loc.code)).map(l => l.code);
+async function loadStoredLocales(): Promise<void> {
+	try {
+		const storedLocales = await invoke<StoredLocale[]>("load_locales");
 
-	const results = await Promise.allSettled(
-		toLoad.map(async (code) => {
-			const dataStr = await invoke<string | null>("load_locale", {
-				lang: code,
-			});
-			if (dataStr && !fetchedDicts.has(code)) {
-				const data = JSON.parse(dataStr) as LocaleDict;
-				fetchedDicts.set(code, data);
-				flatCache.set(code, flatten(data));
-				i18nLoader.fetched.add(code);
-				i18nLoader.dictVersion[code] = (i18nLoader.dictVersion[code] ?? 0) + 1;
+		for (const stored of storedLocales) {
+			try {
+				const data = JSON.parse(stored.data) as LocaleDict;
+				activateLocale(stored.code, stored.id, data);
+				if (!isBundled(stored.code)) {
+					void downloadLocale(stored.code);
+				}
+			} catch (error) {
+				console.error(
+					`[i18n] Failed to parse stored locale "${stored.id}":`,
+					error,
+				);
 			}
-		}),
-	);
-
-	for (const result of results) {
-		if (result.status === "rejected") {
-			console.error(
-				"[i18n] Failed to load cached locale:",
-				result.reason,
-			);
 		}
+	} catch (error) {
+		console.error("[i18n] Failed to load stored locales:", error);
 	}
 }
 
 export async function downloadLocale(lang: string): Promise<void> {
 	if (isBundled(lang)) return;
-	if (pendingFetches.has(lang)) return pendingFetches.get(lang)!;
-	if (fetchedDicts.has(lang)) return;
+	const pending = pendingFetches.get(lang);
+	if (pending) return pending;
 
-	i18nLoader.loading = lang;
+	const cached = fetchedDicts.get(lang);
+	const promise = (async () => {
+		const cachedVersion = cached?.version;
+		if (typeof cachedVersion === "string") {
+			try {
+				const res = await fetch(`${API_BASE}/${lang}/version`);
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-	const promise = fetch(`${API_BASE}/${lang}`)
-		.then((res) => {
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			return res.json() as Promise<LocaleDict>;
-		})
-		.then((data) => {
-			fetchedDicts.set(lang, data);
-			flatCache.set(lang, flatten(data));
-			i18nLoader.fetched.add(lang);
-			i18nLoader.dictVersion[lang] = (i18nLoader.dictVersion[lang] ?? 0) + 1;
-			invoke("save_locale", { lang, data: JSON.stringify(data) }).catch(
-				(e) => console.error("[i18n] Failed to persist locale:", e),
-			);
-		})
-		.catch((err) => {
-			failedLocales.add(lang);
-			console.error(`[i18n] Failed to fetch locale "${lang}":`, err);
-		})
-		.finally(() => {
-			pendingFetches.delete(lang);
-			if (i18nLoader.loading === lang) {
-				i18nLoader.loading = null;
+				const remote = (await res.json()) as LocaleVersion;
+				if (typeof remote.version !== "string") {
+					throw new Error("Invalid version response");
+				}
+				if (remote.version === cachedVersion) {
+					failedLocales.delete(lang);
+					return;
+				}
+			} catch (error) {
+				console.error(
+					`[i18n] Failed to check locale "${lang}" version:`,
+					error,
+				);
+				return;
 			}
-		});
+		}
+
+		i18nLoader.loading = lang;
+		try {
+			const res = await fetch(`${API_BASE}/${lang}`);
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+			const data = (await res.json()) as LocaleDict;
+			const id = data.id;
+			if (typeof id !== "string") {
+				throw new Error("Invalid locale response");
+			}
+
+			activateLocale(lang, id, data);
+			invoke("save_locale", { data: JSON.stringify(data) }).catch(
+				(error) =>
+					console.error("[i18n] Failed to persist locale:", error),
+			);
+		} catch (error) {
+			failedLocales.add(lang);
+			console.error(`[i18n] Failed to fetch locale "${lang}":`, error);
+		}
+	})().finally(() => {
+		pendingFetches.delete(lang);
+		if (i18nLoader.loading === lang) {
+			i18nLoader.loading = null;
+		}
+	});
 
 	pendingFetches.set(lang, promise);
 	return promise;
@@ -190,23 +260,23 @@ async function fetchAvailableLocales(): Promise<void> {
 	try {
 		const res = await fetch(`${API_BASE}/locales`);
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const data = (await res.json()) as LocaleEntry[];
+		const remoteLocales = (await res.json()) as LocaleEntry[];
+		const remoteIds = new Set(remoteLocales.map((locale) => locale.id));
+		const storedOnly = locales.filter(
+			(locale) => !remoteIds.has(locale.id),
+		);
 
-		locales.length = 0;
-		locales.push(...data);
-
-		const newCodes = data
-			.map((l) => l.code)
-			.filter((c) => !isBundled(c));
-		if (newCodes.length > 0) {
-			await loadCachedLocales(newCodes);
-		}
-	} catch (err) {
-		console.error("[i18n] Failed to fetch available locales:", err);
+		locales.splice(0, locales.length, ...remoteLocales, ...storedOnly);
+	} catch (error) {
+		console.error("[i18n] Failed to fetch available locales:", error);
 	}
+}
+
+async function initializeI18n(): Promise<void> {
+	await loadStoredLocales();
+	await fetchAvailableLocales();
 }
 
 export { locales };
 
-loadCachedLocales();
-fetchAvailableLocales();
+void initializeI18n();

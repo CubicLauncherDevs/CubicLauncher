@@ -12,10 +12,12 @@
 		isFirstStep: boolean;
 	} = $props();
 
-	const languageOptions = locales.map((l) => ({
-		value: l.code,
-		label: l.label,
-	}));
+	const languageOptions = $derived(
+		locales.map((l) => ({
+			value: l.code,
+			label: l.label,
+		})),
+	);
 
 	async function onLanguageChange() {
 		downloadLocale(launcherStore.settings.language);
