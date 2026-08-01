@@ -15,6 +15,7 @@
 	} from "$lib/types/types";
 	import { renderMarkdown } from "$lib/util/markdown";
 	import Select from "$lib/components/layout/Select.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
 
 	let {
@@ -312,19 +313,7 @@
 	{#if selectedPack}
 		<div class="detail-view">
 			<button type="button" class="back-btn" onclick={goBack}>
-				<svg
-					width="16"
-					height="16"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<line x1="19" y1="12" x2="5" y2="12"></line>
-					<polyline points="12 19 5 12 12 5"></polyline>
-				</svg>
+				<Icon src="/images/icons/ui/chevron-left.svg" size={16} />
 				Volver
 			</button>
 

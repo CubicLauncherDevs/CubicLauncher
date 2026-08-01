@@ -5,6 +5,7 @@
 	import { launcherStore } from "$lib/state/state.svelte";
 	import InfoHeader from "./InfoHeader.svelte";
 	import ActionChips from "./ActionChips.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 
 	let { instance } = $props<{ instance: InstanceDto }>();
 
@@ -80,20 +81,7 @@
 	/>
 
 	<div class="last-played-row">
-		<svg
-			width="14"
-			height="14"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<circle cx="12" cy="12" r="10" /><polyline
-				points="12 6 12 12 16 14"
-			/>
-		</svg>
+		<Icon src="/images/icons/instance/clock.svg" size={14} />
 		<span>{t("instanceView.lastPlayed", { date: lastPlayedLabel })}</span>
 	</div>
 
@@ -115,7 +103,7 @@
 		color: var(--text-secondary);
 	}
 
-	.last-played-row svg {
+	.last-played-row :global(.icon-svg) {
 		flex-shrink: 0;
 	}
 </style>

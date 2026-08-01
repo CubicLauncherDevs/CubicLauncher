@@ -199,7 +199,7 @@
 		>
 			<img
 				class="jump-icon"
-				src="/images/icons/log-arrow-down.svg"
+				src="/images/icons/log/arrow-down.svg"
 				alt=""
 			/>
 			{unseenCount} líneas nuevas

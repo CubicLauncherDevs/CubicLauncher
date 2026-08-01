@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from "$lib/icons/Icon.svelte";
+
 	let {
 		title = "¡Conectado!",
 		subtitle = "Tu cuenta ha sido vinculada." as string | undefined,
@@ -10,15 +12,7 @@
 
 <div class="state-container">
 	<div class="icon-wrapper success">
-		<svg
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-		>
-			<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-			<polyline points="22 4 12 14.01 9 11.01"></polyline>
-		</svg>
+		<Icon src="/images/icons/ui/check-circle.svg" size={32} />
 	</div>
 	<h3 class="state-title">{title}</h3>
 	{#if subtitle}
@@ -71,7 +65,7 @@
 		transition: opacity 0.15s;
 	}
 
-	.icon-wrapper svg {
+	.icon-wrapper :global(.icon-svg) {
 		width: 32px;
 		height: 32px;
 	}

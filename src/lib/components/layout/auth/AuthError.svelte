@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
+	import Icon from "$lib/icons/Icon.svelte";
 
 	let {
 		title,
@@ -14,16 +15,7 @@
 
 <div class="state-container">
 	<div class="icon-wrapper error">
-		<svg
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-		>
-			<circle cx="12" cy="12" r="10"></circle>
-			<line x1="15" y1="9" x2="9" y2="15"></line>
-			<line x1="9" y1="9" x2="15" y2="15"></line>
-		</svg>
+		<Icon src="/images/icons/ui/error.svg" size={32} />
 	</div>
 	<h3 class="state-title">{title}</h3>
 	<p class="state-subtitle error-text">{message}</p>
@@ -83,7 +75,7 @@
 		transition: opacity 0.15s;
 	}
 
-	.icon-wrapper svg {
+	.icon-wrapper :global(.icon-svg) {
 		width: 32px;
 		height: 32px;
 	}

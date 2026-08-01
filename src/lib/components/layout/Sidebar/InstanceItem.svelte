@@ -57,7 +57,7 @@
 			title={t("sidebar.rename")}
 		>
 			<img
-				src="/images/icons/edit.svg"
+				src="/images/icons/nav/edit.svg"
 				alt={t("sidebar.rename")}
 				width="12"
 				height="12"

@@ -263,7 +263,7 @@
 		align-items: center;
 	}
 
-	.search-bar :global(svg) {
+	.search-bar :global(.icon-svg) {
 		position: absolute;
 		left: 10px;
 		pointer-events: none;

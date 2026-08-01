@@ -5,6 +5,7 @@
 	import type { InstanceDto } from "$lib/types/types";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { getLoaderLogo, getDisplayIconSrc } from "$lib/icons/logos";
+	import Icon from "$lib/icons/Icon.svelte";
 
 	let {
 		instance,
@@ -121,20 +122,7 @@
 						class="action-btn"
 						onclick={() => openDir()}
 					>
-						<svg
-							width="15"
-							height="15"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path
-								d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
-							/>
-						</svg>
+						<Icon src="/images/icons/instance/folder.svg" size={15} />
 						<span class="action-label"
 							>{t("instanceView.options.folder")}</span
 						>
@@ -144,28 +132,7 @@
 						class="action-btn"
 						onclick={() => openDir("mods")}
 					>
-						<svg
-							width="15"
-							height="15"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<rect x="3" y="3" width="7" height="7" /><rect
-								x="14"
-								y="3"
-								width="7"
-								height="7"
-							/><rect x="14" y="14" width="7" height="7" /><rect
-								x="3"
-								y="14"
-								width="7"
-								height="7"
-							/>
-						</svg>
+						<Icon src="/images/icons/instance/grid.svg" size={15} />
 						<span class="action-label"
 							>{t("instanceView.tabs.mods")}</span
 						>
@@ -175,20 +142,7 @@
 						class="action-btn"
 						onclick={() => openDir("screenshots")}
 					>
-						<svg
-							width="15"
-							height="15"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path
-								d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-							/><circle cx="12" cy="13" r="4" />
-						</svg>
+						<Icon src="/images/icons/instance/image.svg" size={15} />
 						<span class="action-label"
 							>{t("instanceView.tabs.screenshots")}</span
 						>
@@ -198,20 +152,7 @@
 						class="action-btn"
 						onclick={() => openDir("resourcepacks")}
 					>
-						<svg
-							width="15"
-							height="15"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<ellipse cx="12" cy="5" rx="9" ry="3" /><path
-								d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"
-							/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-						</svg>
+						<Icon src="/images/icons/instance/database.svg" size={15} />
 						<span class="action-label"
 							>{t("instanceView.tabs.resources")}</span
 						>
@@ -221,20 +162,7 @@
 						class="action-btn"
 						onclick={() => openLogs()}
 					>
-						<svg
-							width="15"
-							height="15"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<polyline points="16 18 22 12 16 6" /><polyline
-								points="8 6 2 12 8 18"
-							/>
-						</svg>
+						<Icon src="/images/icons/instance/code.svg" size={15} />
 						<span class="action-label"
 							>{t("instanceView.tabs.logs")}</span
 						>
@@ -273,18 +201,7 @@
 								/>
 							</svg>
 						{:else if bannerState === "Started"}
-							<svg
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2.5"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							>
-								<polyline points="20 6 9 17 4 12" />
-							</svg>
+							<Icon src="/images/icons/ui/check.svg" size={12} />
 						{/if}
 						<span class="status-text">{statusLabel}</span>
 						{#if bannerState === "Idle" || bannerState === "Error"}
@@ -329,20 +246,7 @@
 
 			<div class="details-row">
 				<div class="path-row">
-					<svg
-						width="12"
-						height="12"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path
-							d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
-						/>
-					</svg>
+					<Icon src="/images/icons/instance/folder.svg" size={12} />
 					<span class="path-text" title={instance.path}
 						>{instance.path}</span
 					>
@@ -352,42 +256,14 @@
 						onclick={() => openDir()}
 						title={t("instanceView.details.location")}
 					>
-						<svg
-							width="13"
-							height="13"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path
-								d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
-							/><polyline points="15 3 21 3 21 9" /><line
-								x1="10"
-								y1="14"
-								x2="21"
-								y2="3"
-							/>
-						</svg>
+						<Icon
+							src="/images/icons/instance/external-link.svg"
+							size={13}
+						/>
 					</button>
 				</div>
 				<div class="last-played">
-					<svg
-						width="12"
-						height="12"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<circle cx="12" cy="12" r="10" /><polyline
-							points="12 6 12 12 16 14"
-						/>
-					</svg>
+					<Icon src="/images/icons/instance/clock.svg" size={12} />
 					<span
 						>{t("instanceView.lastPlayed", {
 							date: lastPlayedLabel,
@@ -406,20 +282,7 @@
 				aria-label={t("instanceView.tabs.details")}
 				onclick={() => (activeSection = "detalles")}
 			>
-				<svg
-					width="18"
-					height="18"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<line x1="19" y1="12" x2="5" y2="12" /><polyline
-						points="12 19 5 12 12 5"
-					/>
-				</svg>
+				<Icon src="/images/icons/ui/chevron-left.svg" size={18} />
 			</button>
 			<img
 				class="compact-icon"
@@ -743,7 +606,7 @@
 		white-space: nowrap;
 	}
 
-	.last-played svg {
+	.last-played :global(.icon-svg) {
 		flex-shrink: 0;
 	}
 
@@ -766,7 +629,7 @@
 		transition: all 0.15s ease;
 	}
 
-	.action-btn svg {
+	.action-btn :global(.icon-svg) {
 		flex-shrink: 0;
 	}
 

@@ -253,7 +253,7 @@
 			title={t("sidebar.createInstance")}
 		>
 			<img
-				src="/images/icons/create.svg"
+				src="/images/icons/nav/create.svg"
 				alt={t("sidebar.createInstance")}
 				width="16"
 				height="16"
@@ -266,7 +266,7 @@
 			title={t("sidebar.downloadVersions")}
 		>
 			<img
-				src="/images/icons/download.svg"
+				src="/images/icons/ui/download.svg"
 				alt={t("sidebar.downloadVersions")}
 				width="16"
 				height="16"
@@ -279,7 +279,7 @@
 			title={t("sidebar.settings")}
 		>
 			<img
-				src="/images/icons/settings.svg"
+				src="/images/icons/nav/settings.svg"
 				alt={t("sidebar.settings")}
 				width="16"
 				height="16"
@@ -371,7 +371,7 @@
 		width: 100%;
 	}
 
-	.sc-header :global(svg) {
+	.sc-header :global(.icon-svg) {
 		color: var(--text-secondary);
 	}
 

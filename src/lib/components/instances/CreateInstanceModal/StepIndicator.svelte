@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from "$lib/icons/Icon.svelte";
+
 	let {
 		currentStep = $bindable(0),
 		totalSteps = 2,
@@ -17,18 +19,7 @@
 		<div class="step-item">
 			<div class="step-dot" class:active class:done>
 				{#if done}
-					<svg
-						width="12"
-						height="12"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="3"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<polyline points="20 6 9 17 4 12"></polyline>
-					</svg>
+					<Icon src="/images/icons/ui/check.svg" size={12} />
 				{:else}
 					<span>{i + 1}</span>
 				{/if}

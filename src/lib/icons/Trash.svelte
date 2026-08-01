@@ -1,14 +1,23 @@
 <script lang="ts">
-	let { height, width } = $props();
+	import type { SvelteHTMLElements } from "svelte/elements";
+
+	type SpanProps = SvelteHTMLElements["span"];
+
+	let {
+		class: className = "",
+		width = "1em",
+		height = "1em",
+		...rest
+	}: {
+		class?: string;
+		width?: string | number;
+		height?: string | number;
+	} & SpanProps = $props();
 </script>
 
-<svg
-	xmlns="http://www.w3.org/2000/svg"
-	{width}
-	{height}
-	fill="currentColor"
-	viewBox="0 0 256 256"
-	><path
-		d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"
-	></path></svg
->
+<span
+	class={"icon-svg " + className}
+	style="width: {width}; height: {height}; background: currentColor; mask-image: url(/images/icons/ui/trash.svg); -webkit-mask-image: url(/images/icons/ui/trash.svg); mask-size: contain; -webkit-mask-size: contain; mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center;"
+	aria-hidden="true"
+	{...rest}
+></span>

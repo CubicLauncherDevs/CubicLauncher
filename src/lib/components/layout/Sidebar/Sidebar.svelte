@@ -7,6 +7,7 @@
 	import { getAvatar, setAvatar } from "$lib/state/avatarCache";
 	import type { InstanceDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
+	import Icon from "$lib/icons/Icon.svelte";
 	import UserMenu from "../UserMenu/UserMenu.svelte";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import DownloadQueue from "../DownloadQueue/DownloadQueue.svelte";
@@ -130,7 +131,7 @@
 		<div class="section-full">
 			<CollapsibleSection
 				title={t("sidebar.tools")}
-				iconSrc="/images/icons/sliders.svg"
+				iconSrc="/images/icons/nav/sliders.svg"
 				storageKey="sidebar-tools"
 			>
 				<div class="tools-group" data-tutorial="tools-group">
@@ -141,7 +142,7 @@
 						data-tutorial="create-instance"
 					>
 						<img
-							src="/images/icons/create.svg"
+							src="/images/icons/nav/create.svg"
 							alt=""
 							width="14"
 							height="14"
@@ -155,7 +156,7 @@
 						data-tutorial="download-versions"
 					>
 						<img
-							src="/images/icons/download.svg"
+							src="/images/icons/ui/download.svg"
 							alt=""
 							width="14"
 							height="14"
@@ -169,7 +170,7 @@
 						data-tutorial="settings"
 					>
 						<img
-							src="/images/icons/settings.svg"
+							src="/images/icons/nav/settings.svg"
 							alt=""
 							width="14"
 							height="14"
@@ -195,18 +196,7 @@
 		onclick={oncollapse}
 		title={t("sidebar.collapse")}
 	>
-		<svg
-			width="14"
-			height="14"
-			viewBox="0 0 16 16"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<path d="M10 4l-4 4 4 4" />
-		</svg>
+		<Icon src="/images/icons/ui/chevron-left.svg" size={14} />
 	</button>
 </aside>
 

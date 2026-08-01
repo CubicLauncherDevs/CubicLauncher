@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 
 	let {
 		user,
@@ -120,25 +121,11 @@
 						onlogout();
 					}}
 				>
-					<svg
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-						<polyline points="16 17 21 12 16 7" />
-						<line x1="21" y1="12" x2="9" y2="12" />
-					</svg>
+					<Icon src="/images/icons/ui/logout.svg" size={14} />
 				</button>
 			{/if}
 			{#if isConfirmingRemove}
 				<div class="confirm-group">
-					<!-- svelte-ignore a11y_consider_explicit_label -->
 					<button
 						type="button"
 						class="icon-btn confirm-yes"
@@ -147,16 +134,7 @@
 							onconfirmremove();
 						}}
 					>
-						<svg
-							width="12"
-							height="12"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="3"
-						>
-							<polyline points="20 6 9 17 4 12" />
-						</svg>
+						<Icon src="/images/icons/ui/check.svg" size={12} />
 					</button>
 					<button
 						type="button"
@@ -179,19 +157,7 @@
 						onstartremove();
 					}}
 				>
-					<svg
-						width="12"
-						height="12"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<polyline points="3 6 5 6 21 6" />
-						<path
-							d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-						/>
-					</svg>
+					<Icon src="/images/icons/ui/trash.svg" size={12} />
 				</button>
 			{/if}
 		</div>

@@ -36,7 +36,7 @@
 		<div class="search-group">
 			<img
 				class="search-icon"
-				src="/images/icons/log-search.svg"
+				src="/images/icons/log/search.svg"
 				alt=""
 			/>
 			<div class="input-wrap">
@@ -68,7 +68,7 @@
 			>
 				<img
 					class="nav-icon"
-					src="/images/icons/log-chevron-up.svg"
+					src="/images/icons/log/chevron-up.svg"
 					alt=""
 				/>
 			</button>
@@ -81,7 +81,7 @@
 			>
 				<img
 					class="nav-icon"
-					src="/images/icons/log-chevron-down.svg"
+					src="/images/icons/log/chevron-down.svg"
 					alt=""
 				/>
 			</button>

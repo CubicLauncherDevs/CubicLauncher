@@ -7,6 +7,7 @@
 	import Dropdown from "$lib/components/layout/Dropdown.svelte";
 	import VirtualList from "$lib/components/layout/VirtualList.svelte";
 	import { t } from "$lib/i18n";
+	import Icon from "$lib/icons/Icon.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
 	import type {
 		ModrinthFile,
@@ -308,16 +309,7 @@
 
 	<div class="rp-search-bar-wrap">
 		<span class="rp-search-icon">
-			<svg
-				width="15"
-				height="15"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-			>
-				<circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-			</svg>
+			<Icon src="/images/icons/ui/search.svg" size={15} />
 		</span>
 		<input
 			class="rp-search-input"
@@ -488,16 +480,7 @@
 				aria-label={t("instanceView.downloadMods.closeDetails")}
 				onclick={() => (selectedMod = null)}
 			>
-				<svg
-					width="14"
-					height="14"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.5"
-				>
-					<path d="M18 6 6 18M6 6l12 12" />
-				</svg>
+				<Icon src="/images/icons/ui/close.svg" size={14} />
 			</button>
 			<div class="rp-details-scroll">
 				<div class="rp-details-icon">

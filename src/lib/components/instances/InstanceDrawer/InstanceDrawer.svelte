@@ -171,7 +171,7 @@
 		<div class="section-group">
 			<CollapsibleSection
 				title={t("instanceEditor.generalTitle")}
-				iconSrc="/images/icons/settings.svg"
+				iconSrc="/images/icons/nav/settings.svg"
 				storageKey="instance_general"
 			>
 				<GeneralSection
@@ -182,7 +182,7 @@
 			</CollapsibleSection>
 			<CollapsibleSection
 				title="Installation"
-				iconSrc="/images/icons/download.svg"
+				iconSrc="/images/icons/ui/download.svg"
 				storageKey="instance_installation"
 			>
 				<InstallationSection
@@ -195,7 +195,7 @@
 			</CollapsibleSection>
 			<CollapsibleSection
 				title={t("settings.advanced")}
-				iconSrc="/images/icons/terminal.svg"
+				iconSrc="/images/icons/instance/terminal.svg"
 				storageKey="instance_advanced"
 			>
 				<AdvancedSection

@@ -140,7 +140,7 @@
 					? "⏳"
 					: i18nLoader.fetched.has(l.code)
 						? l.flag
-						: "/images/icons/download.svg",
+						: "/images/icons/ui/download.svg",
 		})),
 	);
 	let availableThemes = $state<ThemeEntry[]>([]);
@@ -233,7 +233,7 @@
 			<div class="section-group">
 				<CollapsibleSection
 					title={t("settings.launcher.activeInstancesTitle")}
-					iconSrc="/images/icons/play.svg"
+					iconSrc="/images/icons/ui/play.svg"
 					storageKey="section_instances"
 				>
 					{#each runningInstances as uuid (uuid)}
@@ -270,7 +270,7 @@
 
 				<CollapsibleSection
 					title={t("settings.launcher.updatesTitle")}
-					iconSrc="/images/icons/download.svg"
+					iconSrc="/images/icons/ui/download.svg"
 					storageKey="section_updates"
 				>
 					<UpdateSection
@@ -289,7 +289,7 @@
 
 				<CollapsibleSection
 					title={t("settings.launcher.themes")}
-					iconSrc="/images/icons/pencil.svg"
+					iconSrc="/images/icons/nav/pencil.svg"
 					storageKey="section_themes"
 				>
 					<ThemeSelector
@@ -308,7 +308,7 @@
 
 				<CollapsibleSection
 					title={t("settings.launcher.generalTitle")}
-					iconSrc="/images/icons/sliders.svg"
+					iconSrc="/images/icons/nav/sliders.svg"
 					storageKey="section_general"
 				>
 					<Select
@@ -378,7 +378,7 @@
 							}}
 						>
 							<img
-								src="/images/icons/discord.svg"
+								src="/images/icons/brand/discord.svg"
 								alt="Discord"
 								class="about-discord-icon"
 								tabindex="-1    "
@@ -414,7 +414,7 @@
 			<div class="section-group">
 				<CollapsibleSection
 					title={t("settings.minecraft.perfTitle")}
-					iconSrc="/images/icons/database.svg"
+					iconSrc="/images/icons/instance/database.svg"
 					storageKey="section_performance"
 				>
 					<div class="qm-field-group">
@@ -506,7 +506,7 @@
 
 				<CollapsibleSection
 					title={t("settings.minecraft.optionsTitle")}
-					iconSrc="/images/icons/check-square.svg"
+					iconSrc="/images/icons/instance/check-square.svg"
 					storageKey="section_options"
 				>
 					<div class="qm-field-checkbox">
@@ -539,7 +539,7 @@
 			<div class="section-group">
 				<CollapsibleSection
 					title={t("settings.java.runtimesTitle")}
-					iconSrc="/images/icons/terminal.svg"
+					iconSrc="/images/icons/instance/terminal.svg"
 					storageKey="section_runtimes"
 				>
 					<JreCard
@@ -630,7 +630,7 @@
 
 				<CollapsibleSection
 					title={t("settings.advanced")}
-					iconSrc="/images/icons/settings.svg"
+					iconSrc="/images/icons/nav/settings.svg"
 					storageKey="section_advanced"
 				>
 					<div class="qm-field">

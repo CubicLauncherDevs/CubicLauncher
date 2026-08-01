@@ -270,11 +270,11 @@
 		border-color: var(--accent);
 	}
 
-	.collapse-btn :global(svg) {
+	.collapse-btn :global(.icon-svg) {
 		transition: transform 0.2s ease;
 	}
 
-	.collapse-btn.collapsed :global(svg) {
+	.collapse-btn.collapsed :global(.icon-svg) {
 		transform: rotate(-90deg);
 	}
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { INSTANCE_LOGOS, getPreviewIconSrc } from "$lib/icons/logos";
+	import Icon from "$lib/icons/Icon.svelte";
 	import { t } from "$lib/i18n";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
@@ -46,53 +47,14 @@
 				title="Quitar icono"
 				{disabled}
 			>
-				<svg
-					width="10"
-					height="10"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="3"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<line x1="18" y1="6" x2="6" y2="18"></line>
-					<line x1="6" y1="6" x2="18" y2="18"></line>
-				</svg>
+				<Icon src="/images/icons/ui/close.svg" size={10} />
 			</button>
 		{:else}
-			<svg
-				width="28"
-				height="28"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				style="color: var(--text-secondary); opacity: 0.4;"
-			>
-				<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-				<circle cx="8.5" cy="8.5" r="1.5"></circle>
-				<polyline points="21 15 16 10 5 21"></polyline>
-			</svg>
+			<Icon src="/images/icons/instance/image.svg" size={28} />
 		{/if}
 	</div>
 	<button type="button" class="upload-btn" onclick={handleUpload} {disabled}>
-		<svg
-			width="12"
-			height="12"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2.5"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-			<polyline points="17 8 12 3 7 8" />
-			<line x1="12" y1="3" x2="12" y2="15" />
-		</svg>
+		<Icon src="/images/icons/ui/upload.svg" size={12} />
 		{t("createInstance.uploadIcon")}
 	</button>
 	<div class="icon-grid">
@@ -141,6 +103,11 @@
 		height: 56px;
 		object-fit: contain;
 		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+	}
+
+	.icon-preview :global(.icon-svg) {
+		color: var(--text-secondary);
+		opacity: 0.4;
 	}
 
 	.icon-clear {

@@ -32,7 +32,7 @@
 	<div class="header-main">
 		<img
 			class="log-icon"
-			src="/images/icons/logs.svg"
+			src="/images/icons/log/logs.svg"
 			alt=""
 			style="filter: var(--icon-filter);"
 		/>
@@ -59,7 +59,7 @@
 		>
 			<img
 				class="toolbar-icon"
-				src="/images/icons/log-clear.svg"
+				src="/images/icons/log/clear.svg"
 				alt=""
 			/>
 			<span class="btn-label">Limpiar</span>
@@ -72,7 +72,7 @@
 			title="Copiar log"
 			aria-label="Copiar log"
 		>
-			<img class="toolbar-icon" src="/images/icons/log-copy.svg" alt="" />
+			<img class="toolbar-icon" src="/images/icons/log/copy.svg" alt="" />
 			<span class="btn-label">Copiar</span>
 		</button>
 		<button
@@ -86,13 +86,13 @@
 			{#if uploading}
 				<img
 					class="toolbar-icon spin"
-					src="/images/icons/log-spinner.svg"
+					src="/images/icons/log/spinner.svg"
 					alt=""
 				/>
 			{:else}
 				<img
 					class="toolbar-icon"
-					src="/images/icons/log-upload.svg"
+					src="/images/icons/log/upload.svg"
 					alt=""
 				/>
 			{/if}
@@ -109,7 +109,7 @@
 		>
 			<img
 				class="toolbar-icon"
-				src="/images/icons/log-scroll-down.svg"
+				src="/images/icons/log/scroll-down.svg"
 				alt=""
 			/>
 			<span class="btn-label">Auto-scroll</span>
