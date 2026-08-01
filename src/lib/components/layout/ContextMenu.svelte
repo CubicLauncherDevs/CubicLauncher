@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { fly } from "svelte/transition";
 	import { onMount } from "svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 
 	export interface ContextMenuItem {
 		label: string;
+		icon?: string;
 		action?: () => void;
 		variant?: "default" | "danger";
 		separator?: boolean;
@@ -97,7 +99,10 @@
 							open = false;
 						}}
 					>
-						{item.label}
+						{#if item.icon}
+							<span class="ctx-icon"><Icon src={item.icon} size={14} /></span>
+						{/if}
+						<span class="ctx-label">{item.label}</span>
 					</button>
 				{/if}
 			{/each}
@@ -120,7 +125,9 @@
 	}
 
 	.ctx-item {
-		display: block;
+		display: flex;
+		align-items: center;
+		gap: 8px;
 		width: 100%;
 		padding: 8px 12px;
 		background: transparent;
@@ -134,6 +141,16 @@
 		transition:
 			background 0.12s ease,
 			color 0.12s ease;
+	}
+
+	.ctx-icon {
+		display: flex;
+		align-items: center;
+		flex-shrink: 0;
+	}
+
+	.ctx-label {
+		min-width: 0;
 	}
 
 	.ctx-item:hover:not(:disabled) {

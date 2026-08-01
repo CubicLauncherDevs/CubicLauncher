@@ -41,15 +41,18 @@
 		return [
 			{
 				label: t("sidebar.edit"),
+				icon: "/images/icons/nav/edit.svg",
 				action: () => onedit(instance),
 			},
 			{
 				label: t("sidebar.openFolder"),
+				icon: "/images/icons/instance/folder.svg",
 				action: () => openInstanceDir(instance.uuid),
 			},
 			{ separator: true, label: "" },
 			{
 				label: t("sidebar.delete"),
+				icon: "/images/icons/ui/trash.svg",
 				variant: "danger",
 				action: () => ondelete(instance),
 			},

@@ -13,11 +13,26 @@
 		width?: string | number;
 		height?: string | number;
 	} & SpanProps = $props();
+
+	const w = $derived(
+		typeof width === "number"
+			? `${width}px`
+			: /^\d+(\.\d+)?$/.test(width)
+				? `${width}px`
+				: width,
+	);
+	const h = $derived(
+		typeof height === "number"
+			? `${height}px`
+			: /^\d+(\.\d+)?$/.test(height)
+				? `${height}px`
+				: height,
+	);
 </script>
 
 <span
 	class={"icon-svg " + className}
-	style="width: {width}; height: {height}; background: currentColor; mask-image: url(/images/icons/ui/search.svg); -webkit-mask-image: url(/images/icons/ui/search.svg); mask-size: contain; -webkit-mask-size: contain; mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center;"
+	style="width: {w}; height: {h}; background: currentColor; mask-image: url(/images/icons/ui/search.svg); -webkit-mask-image: url(/images/icons/ui/search.svg); mask-size: contain; -webkit-mask-size: contain; mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center;"
 	aria-hidden="true"
 	{...rest}
 ></span>
