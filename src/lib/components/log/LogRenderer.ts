@@ -64,10 +64,11 @@ export class LogRenderer {
 
 		const txt = document.createElement("span");
 		txt.className = "line-text";
-		if (this.state.normalizedQuery) {
+		if (this.state.normalizedQuery && this.state.searchRegex) {
 			txt.innerHTML = highlightText(
 				line.text,
 				this.state.normalizedQuery,
+				this.state.searchRegex,
 			);
 		} else {
 			txt.textContent = line.text;
@@ -75,12 +76,6 @@ export class LogRenderer {
 
 		div.appendChild(ts);
 		div.appendChild(txt);
-	}
-
-	private removeNewClasses(container: Element) {
-		container.querySelectorAll(".log-line.new").forEach((el) => {
-			el.classList.remove("new");
-		});
 	}
 
 	private removeActiveMatch() {
@@ -124,19 +119,23 @@ export class LogRenderer {
 
 		const startIndex = this.state.lines.length - newLines.length;
 		const frag = document.createDocumentFragment();
+		const inserted: HTMLDivElement[] = [];
 		for (let i = 0; i < newLines.length; i++) {
 			const line = newLines[i];
 			if (this.state.lineVisible(line)) {
 				const div = this.acquireNode();
 				this.initLineNode(div, line, startIndex + i, true);
 				frag.appendChild(div);
+				inserted.push(div);
 			}
 		}
 		container.appendChild(frag);
 
 		requestAnimationFrame(() => {
 			if (!this.viewport) return;
-			this.removeNewClasses(container);
+			for (const div of inserted) {
+				div.classList.remove("new");
+			}
 			this.updateMatches(false);
 			if (this.isAtBottom()) {
 				viewport.scrollTop = viewport.scrollHeight;
@@ -163,52 +162,42 @@ export class LogRenderer {
 		this.state.currentMatchIndex = 0;
 	}
 
-	private updateMatches(scroll = false) {
+	private findMatches(): HTMLElement[] {
 		const q = this.state.normalizedQuery;
-		if (!q) {
-			this.state.matchCount = 0;
-			this.state.currentMatchIndex = 0;
-			this.removeActiveMatch();
-			return;
-		}
+		const container = this.getLinesContainer();
+		if (!q || !container) return [];
 
-		const all = Array.from(
-			this.viewport?.querySelectorAll(".log-line:not(.hidden)") ?? [],
-		);
-		const matches = all.filter((el) =>
-			el
-				.querySelector(".line-text")
-				?.textContent?.toLowerCase()
-				.includes(q),
-		) as HTMLElement[];
+		const matches: HTMLElement[] = [];
+		for (let i = 0; i < container.children.length; i++) {
+			const el = container.children[i] as HTMLElement;
+			if (el.classList.contains("hidden")) continue;
+			const text = el.querySelector(".line-text")?.textContent;
+			if (text && text.toLowerCase().includes(q)) {
+				matches.push(el);
+			}
+		}
+		return matches;
+	}
+
+	private updateMatches(scroll = false) {
+		const matches = this.findMatches();
 		this.state.matchCount = matches.length;
 
-		if (this.state.matchCount === 0) {
+		if (matches.length === 0) {
 			this.state.currentMatchIndex = 0;
 			this.removeActiveMatch();
 			return;
 		}
 
 		let idx = this.state.currentMatchIndex;
-		if (idx < 1 || idx > this.state.matchCount) idx = 1;
+		if (idx < 1 || idx > matches.length) idx = 1;
 		this.state.currentMatchIndex = idx;
 		this.goToMatch(idx, scroll, matches);
 	}
 
 	private goToMatch(index: number, scroll = true, matches?: HTMLElement[]) {
 		if (!this.viewport || this.state.matchCount === 0) return;
-		const list =
-			matches ??
-			(
-				Array.from(
-					this.viewport.querySelectorAll(".log-line:not(.hidden)"),
-				) as HTMLElement[]
-			).filter((el) =>
-				el
-					.querySelector(".line-text")
-					?.textContent?.toLowerCase()
-					.includes(this.state.normalizedQuery),
-			);
+		const list = matches ?? this.findMatches();
 		if (list.length === 0) return;
 		this.state.currentMatchIndex = Math.max(
 			1,

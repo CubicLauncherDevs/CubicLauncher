@@ -32,169 +32,233 @@
 </script>
 
 <div class="log-controls">
-	<div class="search-box">
-		<svg
-			class="search-icon"
-			width="12"
-			height="12"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<circle cx="11" cy="11" r="8" /><line
-				x1="21"
-				y1="21"
-				x2="16.65"
-				y2="16.65"
+	<div class="controls-row">
+		<div class="search-group">
+			<img
+				class="search-icon"
+				src="/images/icons/log-search.svg"
+				alt=""
 			/>
-		</svg>
-		<input
-			type="text"
-			id="log-search-input"
-			class="search-input"
-			value={query}
-			oninput={(e) => onQueryInput(e.currentTarget.value)}
-			onkeydown={onQueryKeydown}
-			placeholder="Buscar en logs..."
-		/>
-		{#if query}
-			<button type="button" class="search-clear" onclick={onClearQuery}>
-				×
-			</button>
-		{/if}
-		<button
-			type="button"
-			class="toolbar-btn"
-			onclick={onPrev}
-			disabled={matchCount === 0}
-			title="Anterior (Shift+Enter)"
-		>
-			↑
-		</button>
-		<button
-			type="button"
-			class="toolbar-btn"
-			onclick={onNext}
-			disabled={matchCount === 0}
-			title="Siguiente (Enter)"
-		>
-			↓
-		</button>
-		<span class="match-count">
-			{matchCount > 0 ? `${currentMatchIndex}/${matchCount}` : "0/0"}
-		</span>
-	</div>
-
-	<div class="level-chips">
-		<button
-			type="button"
-			class="chip all"
-			class:active={activeLevels.size === LEVEL_ORDER.length}
-			onclick={() =>
-				onSetAllLevels(activeLevels.size !== LEVEL_ORDER.length)}
-		>
-			ALL
-		</button>
-		{#each LEVEL_ORDER as level (level)}
+			<div class="input-wrap">
+				<input
+					type="text"
+					id="log-search-input"
+					class="search-input"
+					value={query}
+					oninput={(e) => onQueryInput(e.currentTarget.value)}
+					onkeydown={onQueryKeydown}
+					placeholder="Buscar en logs..."
+				/>
+				{#if query}
+					<button
+						type="button"
+						class="search-clear"
+						onclick={onClearQuery}
+					>
+						×
+					</button>
+				{/if}
+			</div>
 			<button
 				type="button"
-				class="chip {level}"
-				class:active={activeLevels.has(level)}
-				style="--chip-color: {levelColor(level)}"
-				onclick={() => onToggleLevel(level)}
+				class="nav-btn"
+				onclick={onPrev}
+				disabled={matchCount === 0}
+				title="Anterior (Shift+Enter)"
 			>
-				{level.toUpperCase()}
+				<img
+					class="nav-icon"
+					src="/images/icons/log-chevron-up.svg"
+					alt=""
+				/>
 			</button>
-		{/each}
+			<button
+				type="button"
+				class="nav-btn"
+				onclick={onNext}
+				disabled={matchCount === 0}
+				title="Siguiente (Enter)"
+			>
+				<img
+					class="nav-icon"
+					src="/images/icons/log-chevron-down.svg"
+					alt=""
+				/>
+			</button>
+			<span class="match-count">
+				{matchCount > 0 ? `${currentMatchIndex}/${matchCount}` : "0/0"}
+			</span>
+		</div>
+
+		<div class="level-group" role="group" aria-label="Niveles de log">
+			<button
+				type="button"
+				class="chip all"
+				class:active={activeLevels.size === LEVEL_ORDER.length}
+				aria-pressed={activeLevels.size === LEVEL_ORDER.length}
+				onclick={() =>
+					onSetAllLevels(activeLevels.size !== LEVEL_ORDER.length)}
+			>
+				ALL
+			</button>
+			{#each LEVEL_ORDER as level (level)}
+				{@const isActive = activeLevels.has(level)}
+				<button
+					type="button"
+					class="chip {level}"
+					class:active={isActive}
+					aria-pressed={isActive}
+					style="--chip-color: {levelColor(level)}"
+					onclick={() => onToggleLevel(level)}
+				>
+					{level.toUpperCase()}
+				</button>
+			{/each}
+		</div>
 	</div>
 </div>
 
 <style>
 	.log-controls {
+		padding: 14px 20px;
+		background: var(--bg-card);
+		border-bottom: 1px solid var(--border);
+		flex-shrink: 0;
+	}
+
+	.controls-row {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 12px;
-		padding: 6px 14px;
-		background: var(--bg-card, #111);
-		border-bottom: 1px solid var(--border, #222);
-		flex-shrink: 0;
+		gap: 14px;
 		flex-wrap: wrap;
 	}
 
-	.search-box {
+	.search-group {
 		display: flex;
 		align-items: center;
-		gap: 4px;
+		gap: 8px;
+		flex: 1;
+		min-width: 0;
+		max-width: 520px;
 	}
 
 	.search-icon {
-		color: var(--text-muted, #666);
+		width: 16px;
+		height: 16px;
 		flex-shrink: 0;
+		filter: var(--icon-filter);
+		opacity: 0.7;
+	}
+
+	.nav-icon {
+		width: 14px;
+		height: 14px;
+		flex-shrink: 0;
+		filter: var(--icon-filter);
+	}
+
+	.input-wrap {
+		position: relative;
+		display: flex;
+		align-items: center;
+		flex: 1;
+		min-width: 0;
 	}
 
 	.search-input {
-		background: var(--bg-input, #0a0a0a);
-		border: 1px solid var(--border, #333);
-		color: var(--text-primary, #ccc);
-		padding: 3px 8px;
-		border-radius: 4px;
-		font-size: 0.6rem;
+		width: 100%;
+		background: var(--surface-input);
+		border: 1px solid var(--border);
+		color: var(--text-primary);
+		padding: 8px 28px 8px 12px;
+		border-radius: var(--border-radius-sm);
+		font-size: 0.78rem;
 		font-family: inherit;
-		width: 160px;
 		outline: none;
+		transition: border-color 0.2s ease;
 	}
 
 	.search-input:focus {
-		border-color: var(--text-secondary, #666);
+		border-color: var(--accent);
 	}
 
 	.search-clear {
+		position: absolute;
+		right: 8px;
+		top: 50%;
+		transform: translateY(-50%);
 		background: transparent;
 		border: none;
-		color: var(--text-secondary, #999);
+		color: var(--text-secondary);
 		cursor: pointer;
-		font-size: 0.9rem;
+		font-size: 1rem;
 		line-height: 1;
 		padding: 0 2px;
 	}
 
 	.search-clear:hover {
-		color: var(--text-primary, #fff);
+		color: var(--text-primary);
+	}
+
+	.nav-btn {
+		width: 32px;
+		height: 32px;
+		border-radius: var(--border-radius-sm);
+		background: transparent;
+		border: 1px solid var(--border);
+		color: var(--text-tertiary);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.15s ease;
+		flex-shrink: 0;
+	}
+
+	.nav-btn:hover:not(:disabled) {
+		background: var(--surface-hover);
+		border-color: var(--text-tertiary);
+		color: var(--text-primary);
+	}
+
+	.nav-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
 	}
 
 	.match-count {
-		color: var(--text-tertiary, #888);
-		font-size: 0.55rem;
-		min-width: 34px;
+		color: var(--text-tertiary);
+		font-size: 0.72rem;
+		font-weight: 600;
+		min-width: 42px;
 		text-align: center;
+		flex-shrink: 0;
 	}
 
-	.level-chips {
+	.level-group {
 		display: flex;
 		align-items: center;
-		gap: 4px;
+		gap: 6px;
 		flex-wrap: wrap;
+		justify-content: flex-end;
 	}
 
 	.chip {
-		background: transparent;
-		border: 1px solid var(--border, #333);
-		color: var(--chip-color, var(--text-secondary, #888));
-		padding: 2px 6px;
-		border-radius: 4px;
-		font-size: 0.52rem;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		color: var(--text-secondary);
+		padding: 4px 9px;
+		border-radius: var(--border-radius-sm);
+		font-size: 0.6rem;
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
-		gap: 4px;
-		transition: all 0.12s ease;
+		gap: 5px;
+		transition: all 0.15s ease;
 	}
 
 	.chip::before {
@@ -202,45 +266,36 @@
 		width: 5px;
 		height: 5px;
 		border-radius: 50%;
-		background: currentColor;
-		opacity: 0.5;
+		background: var(--chip-color, currentColor);
+		opacity: 0.4;
 	}
 
 	.chip.active {
+		color: var(--chip-color, var(--text-primary));
 		background: color-mix(
 			in srgb,
-			var(--chip-color, var(--text-secondary, #888)) 15%,
-			transparent
+			var(--chip-color, var(--surface-active)) 12%,
+			var(--surface-active)
 		);
-		border-color: var(--chip-color, var(--text-secondary, #888));
+		border-color: var(--chip-color, var(--border));
 	}
 
 	.chip.active::before {
 		opacity: 1;
 	}
 
-	.toolbar-btn {
-		background: transparent;
-		border: none;
-		color: var(--text-secondary, #666);
-		width: 26px;
-		height: 26px;
-		border-radius: 4px;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.15s ease;
-		font-size: 0.75rem;
-	}
+	@media (max-width: 700px) {
+		.controls-row {
+			flex-direction: column;
+			align-items: stretch;
+		}
 
-	.toolbar-btn:hover:not(:disabled) {
-		background: rgba(255, 255, 255, 0.06);
-		color: var(--text-primary, #ccc);
-	}
+		.search-group {
+			max-width: none;
+		}
 
-	.toolbar-btn:disabled {
-		opacity: 0.3;
-		cursor: not-allowed;
+		.level-group {
+			justify-content: flex-start;
+		}
 	}
 </style>

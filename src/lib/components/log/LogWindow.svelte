@@ -156,38 +156,40 @@
 </script>
 
 <div class="log-window">
-	<LogHeader
-		{instanceName}
-		totalLines={log.totalLines}
-		{isAtBottom}
-		uploading={log.uploading}
-		{onClear}
-		onCopy={copyLog}
-		onUpload={uploadToMclogs}
-		onScrollBottom={() => renderer.scrollToBottom()}
-	/>
+	<div class="log-card">
+		<LogHeader
+			{instanceName}
+			totalLines={log.totalLines}
+			{isAtBottom}
+			uploading={log.uploading}
+			{onClear}
+			onCopy={copyLog}
+			onUpload={uploadToMclogs}
+			onScrollBottom={() => renderer.scrollToBottom()}
+		/>
 
-	<LogControls
-		activeLevels={log.activeLevels}
-		query={log.inputQuery}
-		matchCount={log.matchCount}
-		currentMatchIndex={log.currentMatchIndex}
-		onQueryInput={(v) => log.searchInput(v)}
-		onQueryKeydown={handleSearchKeydown}
-		onClearQuery={() => log.resetSearch()}
-		onPrev={() => {
-			log.flushSearch();
-			renderer.prevMatch();
-		}}
-		onNext={() => {
-			log.flushSearch();
-			renderer.nextMatch();
-		}}
-		onToggleLevel={(l) => log.toggleLevel(l)}
-		onSetAllLevels={(a) => log.setAllLevels(a)}
-	/>
+		<LogControls
+			activeLevels={log.activeLevels}
+			query={log.inputQuery}
+			matchCount={log.matchCount}
+			currentMatchIndex={log.currentMatchIndex}
+			onQueryInput={(v) => log.searchInput(v)}
+			onQueryKeydown={handleSearchKeydown}
+			onClearQuery={() => log.resetSearch()}
+			onPrev={() => {
+				log.flushSearch();
+				renderer.prevMatch();
+			}}
+			onNext={() => {
+				log.flushSearch();
+				renderer.nextMatch();
+			}}
+			onToggleLevel={(l) => log.toggleLevel(l)}
+			onSetAllLevels={(a) => log.setAllLevels(a)}
+		/>
 
-	<LogViewport {renderer} {onScrollState} />
+		<LogViewport {renderer} {onScrollState} />
+	</div>
 
 	{#if !isAtBottom && unseenCount > 0}
 		<button
@@ -195,7 +197,12 @@
 			class="jump-bottom"
 			onclick={() => renderer.scrollToBottom()}
 		>
-			↓ {unseenCount} líneas nuevas
+			<img
+				class="jump-icon"
+				src="/images/icons/log-arrow-down.svg"
+				alt=""
+			/>
+			{unseenCount} líneas nuevas
 		</button>
 	{/if}
 </div>
@@ -206,45 +213,70 @@
 		display: flex;
 		flex-direction: column;
 		height: 100vh;
-		margin: 0;
-		padding: 0;
-		background: var(--bg-input, #0a0a0a);
-		color: var(--text-primary, #c8c8c8);
-		font-size: 0.65rem;
+		padding: 16px;
+		box-sizing: border-box;
+		background: var(--bg-main);
+		color: var(--text-primary);
+		font-size: 0.8rem;
+	}
+
+	.log-card {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		background: var(--bg-card-gradient), var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius);
+		box-shadow: var(--shadow-sm);
+		overflow: hidden;
+		contain: layout paint;
 	}
 
 	.jump-bottom {
 		position: absolute;
-		bottom: 12px;
+		bottom: 28px;
 		left: 50%;
 		transform: translateX(-50%);
-		background: rgba(30, 30, 30, 0.9);
-		border: 1px solid var(--border, #444);
-		color: var(--text-primary, #ccc);
-		padding: 6px 16px;
+		background: var(--bg-card-gradient), var(--bg-card);
+		border: 1px solid var(--border);
+		color: var(--text-primary);
+		padding: 8px 18px;
 		border-radius: 20px;
-		font-size: 0.6rem;
+		font-size: 0.72rem;
 		font-family: inherit;
+		font-weight: 600;
 		cursor: pointer;
 		backdrop-filter: blur(var(--backdrop-blur-float, 4px));
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+		box-shadow: var(--shadow-md);
 		transition: all 0.2s ease;
 		z-index: 10;
 	}
 
 	.jump-bottom:hover {
-		background: rgba(50, 50, 50, 0.95);
-		border-color: var(--text-secondary, #666);
-		color: white;
+		background: var(--bg-card);
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+
+	.jump-icon {
+		width: 14px;
+		height: 14px;
+		flex-shrink: 0;
+		filter: var(--icon-filter);
 	}
 
 	:global(.log-line) {
 		display: flex;
-		gap: 10px;
-		padding: 0 14px;
-		min-height: 16px;
+		align-items: flex-start;
+		gap: 12px;
+		padding: 1px 18px;
+		min-height: 18px;
+		font-family:
+			ui-monospace, SFMono-Regular, "SF Mono", Consolas,
+			"Liberation Mono", Menlo, monospace;
 		content-visibility: auto;
-		contain-intrinsic-size: auto 16px;
+		contain-intrinsic-size: auto 18px;
 	}
 
 	:global(.log-line.hidden) {
@@ -252,7 +284,7 @@
 	}
 
 	:global(.log-line:hover) {
-		background: rgba(255, 255, 255, 0.02);
+		background: var(--surface-hover);
 	}
 
 	:global(.log-line.new) {
@@ -260,80 +292,83 @@
 	}
 
 	:global(.log-line.search-active) {
-		background: rgba(255, 235, 59, 0.1);
-		box-shadow: inset 2px 0 0 0 rgba(255, 235, 59, 0.8);
+		background: color-mix(in srgb, var(--accent) 10%, transparent);
+		box-shadow: inset 2px 0 0 0 var(--accent);
 	}
 
 	:global(.log-line.stderr) {
-		background: rgba(244, 67, 54, 0.03);
+		background: color-mix(in srgb, var(--color-error) 5%, transparent);
 	}
 
 	:global(.line-ts) {
-		color: var(--text-muted, #444);
-		font-size: 0.6rem;
+		color: var(--text-muted);
+		font-size: 0.65rem;
 		flex-shrink: 0;
-		width: 68px;
+		width: 72px;
 		text-align: right;
 		user-select: none;
-		opacity: 0.6;
+		opacity: 0.75;
 		padding-top: 1px;
+		line-height: 1.45;
 	}
 
 	:global(.line-text) {
-		color: var(--text-primary, #c8c8c8);
+		color: var(--text-primary);
 		white-space: pre-wrap;
 		word-break: break-all;
 		min-width: 0;
+		font-size: 0.72rem;
+		line-height: 1.45;
 	}
 
 	:global(.line-text mark) {
-		background: rgba(255, 235, 59, 0.28);
+		background: color-mix(in srgb, var(--accent) 28%, transparent);
 		color: inherit;
-		padding: 0 1px;
+		padding: 0 2px;
 		border-radius: 2px;
 	}
 
 	:global(.log-line.info .line-text) {
-		color: var(--color-success, #81c784);
+		color: var(--color-success);
 	}
 
 	:global(.log-line.warn .line-text) {
-		color: var(--color-warning, #ffd54f);
+		color: var(--color-warning);
 	}
 
 	:global(.log-line.error .line-text) {
-		color: var(--color-error, #e57373);
+		color: var(--color-error);
 	}
 
 	:global(.log-line.fatal .line-text) {
-		color: var(--color-error, #ef5350);
+		color: var(--color-error);
 		font-weight: 700;
 	}
 
 	:global(.log-line.stderr .line-text) {
-		color: #ff8a65;
+		color: var(--color-error);
 	}
 
 	:global(.log-line.launcher .line-text) {
-		color: #82b1ff;
+		color: var(--color-info);
 		font-style: italic;
 	}
 
 	:global(.log-line.trace .line-text),
 	:global(.log-line.debug .line-text) {
-		color: var(--text-muted, #888);
+		color: var(--text-muted);
 	}
 
 	:global(.log-line.trace .line-text) {
-		font-size: 0.58rem;
+		font-size: 0.65rem;
 	}
 
 	:global(.log-line.message .line-text) {
-		color: var(--text-primary, #c8c8c8);
+		color: var(--text-primary);
 	}
 
 	:global(.log-line.unknown .line-text) {
-		color: var(--text-tertiary, #888);
+		color: var(--text-tertiary);
 	}
 
 	@keyframes logSlideIn {
@@ -344,6 +379,16 @@
 		to {
 			opacity: 1;
 			transform: translateY(0);
+		}
+	}
+
+	@media (min-width: 1100px) {
+		.log-window {
+			padding: 24px;
+		}
+
+		.jump-bottom {
+			bottom: 36px;
 		}
 	}
 </style>

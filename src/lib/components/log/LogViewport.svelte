@@ -14,16 +14,18 @@
 	let viewport: HTMLDivElement | undefined = $state();
 
 	onMount(() => {
-		if (viewport) renderer.attach(viewport);
-		return () => renderer.detach();
+		if (!viewport) return;
+		renderer.attach(viewport);
+		const handler = () => renderer.handleScroll(onScrollState);
+		viewport.addEventListener("scroll", handler, { passive: true });
+		return () => {
+			renderer.detach();
+			viewport?.removeEventListener("scroll", handler);
+		};
 	});
 </script>
 
-<div
-	class="log-viewport"
-	bind:this={viewport}
-	onscroll={() => renderer.handleScroll(onScrollState)}
->
+<div class="log-viewport" bind:this={viewport}>
 	<div class="log-lines"></div>
 </div>
 
@@ -32,14 +34,20 @@
 		flex: 1;
 		overflow-y: auto;
 		contain: layout style;
+		background: var(--bg-input);
+		padding: 8px 0;
 	}
 
 	.log-viewport::-webkit-scrollbar {
-		width: 4px;
+		width: 5px;
+	}
+
+	.log-viewport::-webkit-scrollbar-track {
+		background: var(--scrollbar-track, transparent);
 	}
 
 	.log-viewport::-webkit-scrollbar-thumb {
-		background: var(--bg-item-active, #333);
-		border-radius: 4px;
+		background: var(--scrollbar-thumb);
+		border-radius: 10px;
 	}
 </style>

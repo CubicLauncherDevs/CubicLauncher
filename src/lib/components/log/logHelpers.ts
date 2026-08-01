@@ -113,10 +113,20 @@ export function escapeRegExp(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export function highlightText(text: string, q: string): string {
+export function buildQueryRegex(q: string): RegExp | null {
+	if (!q) return null;
+	return new RegExp(`(${escapeRegExp(q)})`, "gi");
+}
+
+export function highlightText(
+	text: string,
+	q: string,
+	regex?: RegExp | null,
+): string {
 	if (!q) return escapeHtml(text);
 	const needle = q.toLowerCase();
-	const parts = text.split(new RegExp(`(${escapeRegExp(q)})`, "gi"));
+	const re = regex ?? new RegExp(`(${escapeRegExp(q)})`, "gi");
+	const parts = text.split(re);
 	return parts
 		.map((part) =>
 			part.toLowerCase() === needle
@@ -126,26 +136,19 @@ export function highlightText(text: string, q: string): string {
 		.join("");
 }
 
+const LEVEL_COLORS: Record<string, string> = {
+	trace: "#888",
+	debug: "#888",
+	info: "#81c784",
+	message: "#c8c8c8",
+	warn: "#ffd54f",
+	error: "#e57373",
+	fatal: "#ef5350",
+	launcher: "#82b1ff",
+	stderr: "#ff8a65",
+	unknown: "#888",
+};
+
 export function levelColor(level: string): string {
-	switch (level) {
-		case "trace":
-		case "debug":
-			return "#888";
-		case "info":
-			return "#81c784";
-		case "message":
-			return "#c8c8c8";
-		case "warn":
-			return "#ffd54f";
-		case "error":
-			return "#e57373";
-		case "fatal":
-			return "#ef5350";
-		case "launcher":
-			return "#82b1ff";
-		case "stderr":
-			return "#ff8a65";
-		default:
-			return "#888";
-	}
+	return LEVEL_COLORS[level] ?? "#888";
 }

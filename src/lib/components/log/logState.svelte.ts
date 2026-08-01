@@ -3,6 +3,7 @@ import {
 	LEVEL_ORDER,
 	MAX_LINES,
 	SEARCH_DEBOUNCE_MS,
+	buildQueryRegex,
 	createLogLine,
 	type LogLine,
 	type RawLogEvent,
@@ -23,6 +24,7 @@ export class LogState {
 	inputQuery = $state("");
 	effectiveQuery = $state("");
 	normalizedQuery = $derived(this.effectiveQuery.trim().toLowerCase());
+	searchRegex = $derived(buildQueryRegex(this.normalizedQuery));
 	currentMatchIndex = $state(0);
 	matchCount = $state(0);
 	uploading = $state(false);
