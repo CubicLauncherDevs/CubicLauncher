@@ -10,3 +10,4 @@ result
 result-*
 target/
 bun.lock
+flake.lock
