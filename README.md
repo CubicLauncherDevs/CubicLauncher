@@ -95,6 +95,31 @@ makepkg -si
 
 > ⚠️ Compilar localmente es obligatorio. Los binarios de CI (Ubuntu) pueden no ser compatibles con Arch Linux por su modelo rolling release.
 
+### Nix / NixOS
+
+CubicLauncher puede instalarse desde el flake del repositorio.
+
+```bash
+# Instalar
+nix profile install github:CubicLauncherDevs/CubicLauncher
+
+# Probar sin instalar
+nix run github:CubicLauncherDevs/CubicLauncher
+```
+
+También podés entrar al entorno de desarrollo con:
+
+```bash
+nix develop
+bun install
+bun run tauri dev
+```
+
+Para más detalles ver [`dist/nix/README.md`](dist/nix/README.md).
+
+> ⚠️ Actualmente el flake se probó en `x86_64-linux`. Otras arquitecturas Linux
+> pueden necesitar ajustar el hash de `nodeModules` en `dist/nix/package.nix`.
+
 ## License
 
 Distribuido bajo [GNU General Public License v3.0](LICENSE).
