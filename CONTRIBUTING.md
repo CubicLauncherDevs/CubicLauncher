@@ -61,12 +61,32 @@ cd ..
 
 ### Internacionalización
 
-Si agregás textos nuevos en la UI, agregalos en:
+Las traducciones se manejan en el repositorio
+[CubicLauncherDevs/Translations](https://github.com/CubicLauncherDevs/Translations),
+que publica los idiomas en `https://i18n.cubiclauncher.org`. El launcher solo
+bundlea localmente `es-ES` y `en-US` como fallback:
 
-- `src/lib/i18n/es.json`
-- `src/lib/i18n/en.json`
-- `src/lib/i18n/de.json`
-- `src/lib/i18n/fr.json`
+- `src/lib/i18n/es-ES.json`
+- `src/lib/i18n/en-US.json`
+
+#### Agregar una clave nueva (es-ES / en-US)
+
+Si agregás un texto nuevo en la UI, agregá la clave en ambos archivos
+bundleados (`en-US.json` es la referencia de la que se deriva el tipado en
+`src/lib/i18n/index.ts`).
+
+#### Editar o agregar traducciones de otros idiomas
+
+En el repo [Translations](https://github.com/CubicLauncherDevs/Translations):
+
+1. Editá los archivos `src/locales/*.json` (por ejemplo `fr-FR.json`).
+2. Incrementá el campo `version` de cada idioma modificado.
+3. Añadí la entrada correspondiente a `src/changelog.json` (tipo
+   `locale.updated` o `locale.added`).
+4. Build y deploy del Worker: `bun run build && bun run deploy`.
+
+> Para rellenar claves faltantes respecto a `en-US`, podés usar
+> `bun run sync-locales` en el repo de Translations.
 
 ## Labels de Pull Request
 
