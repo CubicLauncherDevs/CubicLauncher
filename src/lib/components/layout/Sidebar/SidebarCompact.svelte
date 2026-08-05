@@ -53,10 +53,13 @@
 	}
 
 	let ctxMenu = $state<SidebarContextMenuExports | undefined>();
-	let ContextMenu = $state<
-		Component<SidebarContextMenuProps, SidebarContextMenuExports> | null
-	>(null);
-	let Tooltip = $state<Component<TooltipProps, Record<string, never>> | null>(null);
+	let ContextMenu = $state<Component<
+		SidebarContextMenuProps,
+		SidebarContextMenuExports
+	> | null>(null);
+	let Tooltip = $state<Component<TooltipProps, Record<string, never>> | null>(
+		null,
+	);
 	let contextMenuLoadPromise: Promise<void> | null = null;
 	let tooltipLoadPromise: Promise<void> | null = null;
 	let loadingQueue: Promise<void> = Promise.resolve();
@@ -330,10 +333,16 @@
 {/if}
 
 {#if Tooltip}
-	<Tooltip bind:open={tooltipOpen} x={tooltipX} y={tooltipY} placement="right">
+	<Tooltip
+		bind:open={tooltipOpen}
+		x={tooltipX}
+		y={tooltipY}
+		placement="right"
+	>
 		{#if tooltipInstance}
 			<div class="instance-tooltip">
-				<span class="instance-tooltip-name">{tooltipInstance.name}</span>
+				<span class="instance-tooltip-name">{tooltipInstance.name}</span
+				>
 				<span class="instance-tooltip-detail">
 					{t("instanceView.details.version")}: {tooltipInstance.version}
 				</span>

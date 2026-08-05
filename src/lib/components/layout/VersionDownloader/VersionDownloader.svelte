@@ -443,7 +443,9 @@
 							{#each vanillaDisplayList as vitem (vitem.id)}
 								{@const vid = vitem.id}
 								{@const isVanInstalled =
-									versionsState.mcVersions?.vanilla.has(vid) ?? false}
+									versionsState.mcVersions?.vanilla.has(
+										vid,
+									) ?? false}
 								{@const isVanDownloading =
 									isVersionDownloading(vid)}
 								<div class="version-card">
@@ -535,9 +537,10 @@
 							style="display: flex; flex-direction: column; gap: 6px;"
 						>
 							{#each filteredLoaderItems as item (item.version_id)}
-							{@const isInstalled = versionsState.mcVersions?.[
-								loaderTab as keyof typeof versionsState.mcVersions
-							].has(item.version_id) ?? false}
+								{@const isInstalled =
+									versionsState.mcVersions?.[
+										loaderTab as keyof typeof versionsState.mcVersions
+									].has(item.version_id) ?? false}
 								{@const isDownloading = isVersionDownloading(
 									item.version_id,
 								)}

@@ -122,7 +122,10 @@
 						class="action-btn"
 						onclick={() => openDir()}
 					>
-						<Icon src="/images/icons/instance/folder.svg" size={15} />
+						<Icon
+							src="/images/icons/instance/folder.svg"
+							size={15}
+						/>
 						<span class="action-label"
 							>{t("instanceView.options.folder")}</span
 						>
@@ -142,7 +145,10 @@
 						class="action-btn"
 						onclick={() => openDir("screenshots")}
 					>
-						<Icon src="/images/icons/instance/image.svg" size={15} />
+						<Icon
+							src="/images/icons/instance/image.svg"
+							size={15}
+						/>
 						<span class="action-label"
 							>{t("instanceView.tabs.screenshots")}</span
 						>
@@ -152,7 +158,10 @@
 						class="action-btn"
 						onclick={() => openDir("resourcepacks")}
 					>
-						<Icon src="/images/icons/instance/database.svg" size={15} />
+						<Icon
+							src="/images/icons/instance/database.svg"
+							size={15}
+						/>
 						<span class="action-label"
 							>{t("instanceView.tabs.resources")}</span
 						>

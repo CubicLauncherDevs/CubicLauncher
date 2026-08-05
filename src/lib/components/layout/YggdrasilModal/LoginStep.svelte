@@ -32,7 +32,9 @@
 	</p>
 	<div class="form-group">
 		<label class="form-label" for="ygg-username">
-			{serverInfo?.non_email_login ? t("userMenu.yggdrasilModal.usernameLabel") : t("userMenu.yggdrasilModal.emailLabel")}
+			{serverInfo?.non_email_login
+				? t("userMenu.yggdrasilModal.usernameLabel")
+				: t("userMenu.yggdrasilModal.emailLabel")}
 		</label>
 		<input
 			id="ygg-username"
@@ -46,7 +48,9 @@
 		/>
 	</div>
 	<div class="form-group">
-		<label class="form-label" for="ygg-password">{t("userMenu.yggdrasilModal.passwordLabel")}</label>
+		<label class="form-label" for="ygg-password"
+			>{t("userMenu.yggdrasilModal.passwordLabel")}</label
+		>
 		<input
 			id="ygg-password"
 			type="password"

@@ -81,7 +81,9 @@
 		return Array.from(new SvelteSet(baseVersions)).sort(compareVersions);
 	}
 
-	const availableMcVersions = $derived(getMcVersionsForLoader(selectedLoader));
+	const availableMcVersions = $derived(
+		getMcVersionsForLoader(selectedLoader),
+	);
 
 	const mcVersionOptions = $derived(
 		availableMcVersions.map((v) => ({ value: v, label: v })),
@@ -96,7 +98,8 @@
 	const availableLoaderVersions = $derived.by(() => {
 		if (!selectedMcVersion || selectedLoader === "vanilla") return [];
 		const key = `${selectedLoader}:${selectedMcVersion}`;
-		const installed = versionsState.loaderVersions?.get(key) ?? new Set<string>();
+		const installed =
+			versionsState.loaderVersions?.get(key) ?? new Set<string>();
 		return Array.from(installed).sort(compareVersions);
 	});
 

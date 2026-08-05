@@ -19,7 +19,9 @@
 		{t("userMenu.yggdrasilModal.serverInstruction")}
 	</p>
 	<div class="form-group">
-		<label class="form-label" for="ygg-server-url">{t("userMenu.yggdrasilModal.serverLabel")}</label>
+		<label class="form-label" for="ygg-server-url"
+			>{t("userMenu.yggdrasilModal.serverLabel")}</label
+		>
 		<input
 			id="ygg-server-url"
 			type="text"

@@ -114,7 +114,9 @@
 							class="nav-item priority"
 							onclick={() => (activeSection = "resources")}
 						>
-							<span class="nav-icon"><ResourcesIcon size={18} /></span>
+							<span class="nav-icon"
+								><ResourcesIcon size={18} /></span
+							>
 							<span class="nav-label"
 								>{t("instanceView.tabs.resources")}</span
 							>

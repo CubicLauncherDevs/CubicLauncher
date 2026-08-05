@@ -82,10 +82,5 @@
 </script>
 
 {#if MenuComponent}
-	<MenuComponent
-		bind:open={ctxOpen}
-		x={ctxX}
-		y={ctxY}
-		items={ctxItems}
-	/>
+	<MenuComponent bind:open={ctxOpen} x={ctxX} y={ctxY} items={ctxItems} />
 {/if}

@@ -399,7 +399,7 @@ impl AddonManager {
 
     /// Parse both metadata and icon from a ZIP in one pass (shaderpacks)
     pub fn get_shaderpack_info_full(path: &Path) -> (Option<AddonMetaNoIcon>, Option<Arc<String>>) {
-        if path.ends_with(".txt") {
+        if path.extension().is_some_and(|ext| ext == "txt") {
             return (None, None);
         }
         let mtime = match std::fs::metadata(path).and_then(|m| m.modified()) {

@@ -1,8 +1,5 @@
 <script lang="ts">
-	import {
-		deleteInst,
-		getActiveUser,
-	} from "$lib/api/launcherService";
+	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { getAvatar, setAvatar } from "$lib/state/avatarCache";
 	import type { InstanceDto } from "$lib/types/types";

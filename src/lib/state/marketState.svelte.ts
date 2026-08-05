@@ -232,7 +232,8 @@ export function createMarketState(
 			return true;
 
 		const curseId = project.curseforgeProjectId;
-		if (curseId != null && item.curseforgeProjectId === curseId) return true;
+		if (curseId != null && item.curseforgeProjectId === curseId)
+			return true;
 
 		const filename = project.installed?.filename;
 		if (

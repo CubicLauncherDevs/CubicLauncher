@@ -100,7 +100,9 @@
 						}}
 					>
 						{#if item.icon}
-							<span class="ctx-icon"><Icon src={item.icon} size={14} /></span>
+							<span class="ctx-icon"
+								><Icon src={item.icon} size={14} /></span
+							>
 						{/if}
 						<span class="ctx-label">{item.label}</span>
 					</button>

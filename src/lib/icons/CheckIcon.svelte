@@ -17,7 +17,8 @@
 
 <span
 	class={"icon-svg " + className}
-	style="width: {size}px; height: {size}px; background: currentColor; color: {color ?? ''}; mask-image: url(/images/icons/ui/check.svg); -webkit-mask-image: url(/images/icons/ui/check.svg); mask-size: contain; -webkit-mask-size: contain; mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center;"
+	style="width: {size}px; height: {size}px; background: currentColor; color: {color ??
+		''}; mask-image: url(/images/icons/ui/check.svg); -webkit-mask-image: url(/images/icons/ui/check.svg); mask-size: contain; -webkit-mask-size: contain; mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center;"
 	aria-hidden="true"
 	{...rest}
 ></span>
