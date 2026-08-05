@@ -322,7 +322,7 @@
 					<img
 						src="/images/cubic.svg"
 						alt="Cubic"
-						style="width: 120px; opacity: 0.1; filter: grayscale(1);"
+						style="width: 120px; opacity: 0.3; filter: grayscale(1);"
 					/>
 					<h2>{t("main.noInstanceTitle")}</h2>
 					<p>{t("main.noInstanceDesc")}</p>
