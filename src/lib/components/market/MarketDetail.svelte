@@ -3,6 +3,7 @@
 	import { openUrl } from "$lib/api/cubicApi";
 	import Icon from "$lib/icons/Icon.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
+	import CubicLogo from "./CubicLogo.svelte";
 	import Dropdown from "$lib/components/layout/Dropdown.svelte";
 	import { renderMarkdown } from "$lib/util/markdown";
 	import type { MarketDetailState } from "$lib/state/marketState.svelte";
@@ -124,7 +125,7 @@
 			{#if project.icon}
 				<img src={project.icon} alt={project.title} loading="lazy" />
 			{:else}
-				<span>📦</span>
+				<CubicLogo />
 			{/if}
 		</div>
 

@@ -7,9 +7,9 @@
 	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 	import InstanceHeader from "./InstanceHeader.svelte";
 	import GridIcon from "$lib/icons/GridIcon.svelte";
-	import BoxIcon from "$lib/icons/BoxIcon.svelte";
+	import ResourcesIcon from "$lib/icons/ResourcesIcon.svelte";
 	import ImageIcon from "$lib/icons/ImageIcon.svelte";
-	import ShaderIcon from "$lib/icons/ShaderIcon.svelte";
+	import ShadersIcon from "$lib/icons/ShadersIcon.svelte";
 	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
 
 	let { selectedInstance } = $props<{ selectedInstance: InstanceDto }>();
@@ -114,7 +114,7 @@
 							class="nav-item priority"
 							onclick={() => (activeSection = "resources")}
 						>
-							<span class="nav-icon"><BoxIcon size={18} /></span>
+							<span class="nav-icon"><ResourcesIcon size={18} /></span>
 							<span class="nav-label"
 								>{t("instanceView.tabs.resources")}</span
 							>
@@ -144,7 +144,7 @@
 								onclick={() => (activeSection = "shaderpacks")}
 							>
 								<span class="nav-icon"
-									><ShaderIcon size={18} /></span
+									><ShadersIcon size={18} /></span
 								>
 								<span class="nav-label"
 									>{t("instanceView.tabs.shaderpacks")}</span

@@ -2,6 +2,7 @@
 	import { t } from "$lib/i18n";
 	import type { MarketProject } from "$lib/types/market";
 	import Loading from "$lib/icons/Loading.svelte";
+	import CubicLogo from "./CubicLogo.svelte";
 
 	interface Props {
 		project: MarketProject;
@@ -64,7 +65,7 @@
 		{#if project.icon}
 			<img src={project.icon} alt={project.title} loading="lazy" />
 		{:else}
-			<span class="market-item-icon-fallback">📦</span>
+			<CubicLogo />
 		{/if}
 	</div>
 
@@ -183,11 +184,6 @@
 		height: 100%;
 		object-fit: cover;
 		image-rendering: pixelated;
-	}
-
-	.market-item-icon-fallback {
-		font-size: 1.3rem;
-		opacity: 0.6;
 	}
 
 	.market-item-body {

@@ -1,6 +1,9 @@
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 
@@ -33,6 +36,12 @@ export default defineConfig(async () => ({
 		watch: {
 			// 3. tell Vite to ignore watching `src-tauri`
 			ignored: ["**/src-tauri/**"],
+		},
+	},
+
+	resolve: {
+		alias: {
+			"@static": new URL("./static", import.meta.url).pathname,
 		},
 	},
 
