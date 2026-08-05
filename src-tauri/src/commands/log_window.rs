@@ -13,8 +13,8 @@ fn remove_log_window(instance_id: &str) {
 }
 
 #[tauri::command]
-pub fn get_log_history_cmd(instance_id: String) -> Vec<LogLine> {
-    get_log_history(&instance_id)
+pub fn get_log_history_cmd(instance_id: String, limit: Option<usize>) -> Vec<LogLine> {
+    get_log_history(&instance_id, limit)
 }
 
 /// Abre la ventana de logs de una instancia. Puede llamarse tanto desde

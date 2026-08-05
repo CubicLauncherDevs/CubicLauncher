@@ -11,6 +11,7 @@
 	import { openUrl } from "$lib/api/cubicApi";
 	import { LogState } from "./logState.svelte";
 	import { LogRenderer } from "./LogRenderer";
+	import { MAX_LINES } from "./logHelpers";
 	import LogHeader from "./LogHeader.svelte";
 	import LogControls from "./LogControls.svelte";
 	import LogViewport from "./LogViewport.svelte";
@@ -124,6 +125,7 @@
 				}[]
 			>("get_log_history_cmd", {
 				instanceId,
+				limit: MAX_LINES,
 			});
 			log.ingestHistory(raw);
 			renderer.rebuild();

@@ -149,16 +149,28 @@ fn session_id_regex() -> &'static Regex {
 /// no descarta la línea completa.
 fn sanitize_line(line: &str) -> String {
     let line = token_regex().replace_all(line, "${1}${2}***").into_owned();
-    session_id_regex()
-        .replace_all(&line, "${1}***")
-        .into_owned()
+    let line = session_id_regex().replace_all(&line, "${1}***").into_owned();
+    let line = email_regex().replace_all(&line, "<email>").into_owned();
+    ip_regex().replace_all(&line, "<ip>").into_owned()
+}
+
+fn ip_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r#"\b(?:\d{1,3}\.){3}\d{1,3}\b"#).unwrap())
+}
+
+fn email_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}"#).unwrap()
+    })
 }
 
 // ── User-aware Sensitive Data Filter ────────────────────────────────────────
 
 #[derive(Clone)]
 struct SensitiveFilter {
-    patterns: Vec<(String, String)>,
+    patterns: Vec<(Regex, String)>,
 }
 
 impl SensitiveFilter {
@@ -195,16 +207,23 @@ impl SensitiveFilter {
         // Replace longest needles first to avoid partial matches shadowing longer values.
         patterns.sort_by_key(|b| std::cmp::Reverse(b.0.len()));
 
-        Self { patterns }
+        let compiled = patterns
+            .into_iter()
+            .filter_map(|(needle, replacement)| {
+                let escaped = regex::escape(&needle);
+                Regex::new(&format!(r"(?i)\b{}\b", escaped))
+                    .ok()
+                    .map(|re| (re, replacement))
+            })
+            .collect();
+
+        Self { patterns: compiled }
     }
 
     fn apply(&self, line: &str) -> String {
         let mut out = line.to_string();
-        for (needle, replacement) in &self.patterns {
-            if needle.len() > out.len() {
-                continue;
-            }
-            out = out.replace(needle, replacement);
+        for (re, replacement) in &self.patterns {
+            out = re.replace_all(&out, replacement.as_str()).into_owned();
         }
         out
     }
@@ -283,10 +302,12 @@ impl LogRing {
         });
     }
 
-    pub fn snapshot(&self) -> Vec<LogLine> {
+    pub fn snapshot(&self, limit: Option<usize>) -> Vec<LogLine> {
         let guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        let to_skip = limit.and_then(|l| guard.len().checked_sub(l)).unwrap_or(0);
         guard
             .iter()
+            .skip(to_skip)
             .map(|raw| LogLine {
                 id: raw.id,
                 text: raw.text.clone(),
@@ -311,12 +332,12 @@ fn get_log_ring(id: &str) -> Arc<LogRing> {
         .clone()
 }
 
-pub fn get_log_history(id: &str) -> Vec<LogLine> {
+pub fn get_log_history(id: &str, limit: Option<usize>) -> Vec<LogLine> {
     let map = LOG_RINGS.get_or_init(DashMap::new);
     if let Some(entry) = map.get(id) {
-        entry.snapshot()
+        entry.snapshot(limit)
     } else {
-        get_crash_log_snapshot(id).unwrap_or_default()
+        get_crash_log_snapshot(id, limit).unwrap_or_default()
     }
 }
 
@@ -335,7 +356,7 @@ struct CrashLogSnapshot {
 /// anillo, para que la ventana de logs del crash siga teniendo historial.
 pub fn save_crash_log_snapshot(id: &str) {
     let snapshot = CrashLogSnapshot {
-        lines: get_log_ring(id).snapshot(),
+        lines: get_log_ring(id).snapshot(None),
         created: std::time::Instant::now(),
     };
     crash_log_snapshots().insert(Arc::from(id), snapshot);
@@ -346,10 +367,12 @@ pub fn clear_crash_log_snapshot(id: &str) {
     crash_log_snapshots().remove(id);
 }
 
-fn get_crash_log_snapshot(id: &str) -> Option<Vec<LogLine>> {
-    crash_log_snapshots()
-        .get(id)
-        .map(|entry| entry.value().lines.clone())
+fn get_crash_log_snapshot(id: &str, limit: Option<usize>) -> Option<Vec<LogLine>> {
+    crash_log_snapshots().get(id).map(|entry| {
+        let lines = &entry.value().lines;
+        let to_skip = limit.and_then(|l| lines.len().checked_sub(l)).unwrap_or(0);
+        lines.iter().skip(to_skip).cloned().collect()
+    })
 }
 
 fn crash_log_snapshots() -> &'static DashMap<Arc<str>, CrashLogSnapshot> {
