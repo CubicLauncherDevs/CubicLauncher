@@ -2,13 +2,11 @@
 	import { onMount } from "svelte";
 	import { SvelteSet } from "svelte/reactivity";
 	import {
-		getInstalledVersions,
-		getInstalledMcVersions,
-		getInstalledLoaderVersions,
-	} from "$lib/api/cubicApi";
+		versionsState,
+		loadInstalledVersions,
+	} from "$lib/state/versionsState.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
 	import { t } from "$lib/i18n";
-	import { showError } from "$lib/state/state.svelte";
 
 	let {
 		selectedLoader = $bindable<string>("vanilla"),
@@ -42,19 +40,6 @@
 		{ value: "quilt", label: "Quilt", icon: "/images/instances/quilt.png" },
 	];
 
-	let mcVersions = $state<string[]>([]);
-	let loaderVersions = $state<string[]>([]);
-	let loadingMinecraft = $state(false);
-	let loadingLoader = $state(false);
-
-	let cachedInstalledVersions: string[] | null = null;
-	let cachedParsedVersions: ReturnType<typeof getInstalledMcVersions> | null =
-		null;
-	let cachedInstalledLoaderVersions: Map<string, Set<string>> | null = null;
-
-	let mcLoadId = $state(0);
-	let loaderLoadId = $state(0);
-
 	function compareVersions(a: string, b: string): number {
 		const aParts = a.split(".").map((n) => parseInt(n, 10) || 0);
 		const bParts = b.split(".").map((n) => parseInt(n, 10) || 0);
@@ -66,124 +51,94 @@
 		return b.localeCompare(a, undefined, { numeric: true });
 	}
 
-	async function loadMcVersions(loader: string) {
-		selectedLoader = loader;
-		const currentLoadId = ++mcLoadId;
-		++loaderLoadId;
-		loadingMinecraft = true;
-		loadingLoader = true;
+	function getMcVersionsForLoader(loader: string): string[] {
+		const parsed = versionsState.mcVersions;
+		if (!parsed) return [];
 
-		try {
-			if (cachedInstalledVersions === null) {
-				cachedInstalledVersions = await getInstalledVersions();
-				cachedParsedVersions = getInstalledMcVersions(
-					cachedInstalledVersions,
-				);
-				cachedInstalledLoaderVersions = getInstalledLoaderVersions(
-					cachedInstalledVersions,
-				);
-			}
-			const parsed = cachedParsedVersions!;
-
-			let baseVersions: string[] = [];
-			if (loader === "vanilla") {
-				baseVersions = Array.from(parsed.vanilla);
-			} else if (loader === "fabric") {
-				baseVersions = Array.from(
-					new SvelteSet([...parsed.fabric, ...parsed.vanilla]),
-				);
-			} else if (loader === "quilt") {
-				baseVersions = Array.from(
-					new SvelteSet([...parsed.quilt, ...parsed.vanilla]),
-				);
-			} else if (loader === "forge") {
-				baseVersions = Array.from(parsed.forge).map((v) => {
-					const idx = v.indexOf("-forge-");
-					return idx >= 0 ? v.substring(0, idx) : v;
-				});
-			} else if (loader === "neoforge") {
-				baseVersions = Array.from(parsed.neoforge).map((v) => {
-					const idx = v.indexOf("-neoforge-");
-					return idx >= 0 ? v.substring(0, idx) : v;
-				});
-			}
-
-			const deduped = Array.from(new SvelteSet(baseVersions)).sort(
-				compareVersions,
+		let baseVersions: string[] = [];
+		if (loader === "vanilla") {
+			baseVersions = Array.from(parsed.vanilla);
+		} else if (loader === "fabric") {
+			baseVersions = Array.from(
+				new SvelteSet([...parsed.fabric, ...parsed.vanilla]),
 			);
-
-			if (currentLoadId !== mcLoadId) return;
-			mcVersions = deduped;
-			if (!selectedMcVersion || !deduped.includes(selectedMcVersion)) {
-				selectedMcVersion = deduped[0] ?? "";
-			}
-			await loadLoaderVersions(selectedMcVersion, loader);
-		} catch {
-			if (currentLoadId !== mcLoadId) return;
-			showError(
-				"Error",
-				"No se pudieron cargar las versiones de Minecraft",
+		} else if (loader === "quilt") {
+			baseVersions = Array.from(
+				new SvelteSet([...parsed.quilt, ...parsed.vanilla]),
 			);
-			loadingLoader = false;
-		} finally {
-			if (currentLoadId === mcLoadId) loadingMinecraft = false;
+		} else if (loader === "forge") {
+			baseVersions = Array.from(parsed.forge).map((v) => {
+				const idx = v.indexOf("-forge-");
+				return idx >= 0 ? v.substring(0, idx) : v;
+			});
+		} else if (loader === "neoforge") {
+			baseVersions = Array.from(parsed.neoforge).map((v) => {
+				const idx = v.indexOf("-neoforge-");
+				return idx >= 0 ? v.substring(0, idx) : v;
+			});
 		}
+
+		return Array.from(new SvelteSet(baseVersions)).sort(compareVersions);
 	}
 
-	async function loadLoaderVersions(mcVersion: string, loader: string) {
-		const currentLoadId = ++loaderLoadId;
-
-		if (!mcVersion || loader === "vanilla") {
-			loaderVersions = [];
-			selectedLoaderVersion = "";
-			loadingLoader = false;
-			return;
-		}
-
-		loadingLoader = true;
-		try {
-			const key = `${loader}:${mcVersion}`;
-			const installed =
-				cachedInstalledLoaderVersions?.get(key) ?? new Set<string>();
-			const list = Array.from(installed).sort(compareVersions);
-
-			if (currentLoadId !== loaderLoadId) return;
-			loaderVersions = list;
-			if (
-				!selectedLoaderVersion ||
-				!list.includes(selectedLoaderVersion)
-			) {
-				selectedLoaderVersion = list[0] ?? "";
-			}
-		} catch {
-			if (currentLoadId !== loaderLoadId) return;
-			showError(
-				"Error",
-				`No se pudieron cargar las versiones del loader para ${mcVersion}`,
-			);
-			loaderVersions = [];
-		} finally {
-			if (currentLoadId === loaderLoadId) loadingLoader = false;
-		}
-	}
-
-	onMount(() => {
-		loadMcVersions(selectedLoader);
-	});
+	const availableMcVersions = $derived(getMcVersionsForLoader(selectedLoader));
 
 	const mcVersionOptions = $derived(
-		mcVersions.map((v) => ({ value: v, label: v })),
+		availableMcVersions.map((v) => ({ value: v, label: v })),
 	);
 
 	const mcPlaceholder = $derived(
-		!loadingMinecraft && mcVersions.length === 0
+		!versionsState.loading && availableMcVersions.length === 0
 			? t("createInstance.noVersionsErr")
 			: t("createInstance.selectMcVersion"),
 	);
 
+	const availableLoaderVersions = $derived.by(() => {
+		if (!selectedMcVersion || selectedLoader === "vanilla") return [];
+		const key = `${selectedLoader}:${selectedMcVersion}`;
+		const installed = versionsState.loaderVersions?.get(key) ?? new Set<string>();
+		return Array.from(installed).sort(compareVersions);
+	});
+
 	const loaderVersionOptions = $derived(
-		loaderVersions.map((v) => ({ value: v, label: v })),
+		availableLoaderVersions.map((v) => ({ value: v, label: v })),
 	);
+
+	$effect(() => {
+		if (availableMcVersions.length === 0) {
+			selectedMcVersion = "";
+			return;
+		}
+		if (
+			!selectedMcVersion ||
+			!availableMcVersions.includes(selectedMcVersion)
+		) {
+			selectedMcVersion = availableMcVersions[0];
+		}
+	});
+
+	$effect(() => {
+		if (selectedLoader === "vanilla") {
+			selectedLoaderVersion = "";
+			return;
+		}
+		if (availableLoaderVersions.length === 0) {
+			selectedLoaderVersion = "";
+			return;
+		}
+		if (
+			!selectedLoaderVersion ||
+			!availableLoaderVersions.includes(selectedLoaderVersion)
+		) {
+			selectedLoaderVersion = availableLoaderVersions[0];
+		}
+	});
+
+	onMount(() => {
+		if (!versionsState.loaded && !versionsState.loading) {
+			loadInstalledVersions();
+		}
+	});
 </script>
 
 <div class="version-selector" class:compact>
@@ -193,7 +148,7 @@
 				type="button"
 				class="loader-btn"
 				class:active={selectedLoader === loader.value}
-				onclick={() => loadMcVersions(loader.value)}
+				onclick={() => (selectedLoader = loader.value)}
 			>
 				<img src={loader.icon} alt={loader.label} />
 				<span>{loader.label}</span>
@@ -206,10 +161,9 @@
 			bind:value={selectedMcVersion}
 			options={mcVersionOptions}
 			placeholder={mcPlaceholder}
-			loading={loadingMinecraft}
+			loading={versionsState.loading}
 			loadingPlaceholder={t("createInstance.loading")}
-			disabled={loadingMinecraft || mcVersionOptions.length === 0}
-			onchange={(value) => loadLoaderVersions(value, selectedLoader)}
+			disabled={versionsState.loading || mcVersionOptions.length === 0}
 		/>
 
 		<Select
@@ -218,10 +172,10 @@
 			placeholder={selectedLoader === "vanilla"
 				? t("createInstance.noLoader")
 				: t("createInstance.selectLoaderVersion")}
-			loading={loadingLoader}
+			loading={versionsState.loading}
 			loadingPlaceholder={t("createInstance.loading")}
 			disabled={selectedLoader === "vanilla" ||
-				loadingLoader ||
+				versionsState.loading ||
 				loaderVersionOptions.length === 0}
 		/>
 	</div>

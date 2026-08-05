@@ -30,6 +30,7 @@
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal/CreateInstanceModal.svelte";
 	import LogWindow from "$lib/components/log/LogWindow.svelte";
 	import InstanceDrawer from "$lib/components/instances/InstanceDrawer/InstanceDrawer.svelte";
+	import { loadInstalledVersions } from "$lib/state/versionsState.svelte";
 
 	const logParams = $derived.by(() => {
 		if (typeof window === "undefined") return null;
@@ -72,7 +73,11 @@
 		}
 		initEventListeners();
 
-		await Promise.all([syncSettings(), getVersions()]);
+		await Promise.all([
+			syncSettings(),
+			getVersions(),
+			loadInstalledVersions(),
+		]);
 
 		if (launcherStore.settings.show_tutorial) {
 			showTutorial = true;
@@ -322,7 +327,7 @@
 					<img
 						src="/images/cubic.svg"
 						alt="Cubic"
-						style="width: 120px; opacity: 0.3; filter: grayscale(1);"
+						style="width: 120px; opacity: 0.5;"
 					/>
 					<h2>{t("main.noInstanceTitle")}</h2>
 					<p>{t("main.noInstanceDesc")}</p>

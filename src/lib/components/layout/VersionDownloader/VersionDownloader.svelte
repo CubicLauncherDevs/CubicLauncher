@@ -2,8 +2,6 @@
 	import { onMount } from "svelte";
 
 	import {
-		getInstalledVersions,
-		getInstalledMcVersions,
 		getAvailableVersions,
 		addToQueue,
 		getFabricVersions,
@@ -20,6 +18,11 @@
 		refreshForgeVersions,
 		refreshNeoForgeVersions,
 	} from "$lib/api/cubicApi";
+	import {
+		versionsState,
+		loadInstalledVersions,
+		invalidateInstalledVersions,
+	} from "$lib/state/versionsState.svelte";
 	import type {
 		MinecraftVersion,
 		ForgeGameVersion,
@@ -59,19 +62,10 @@
 	let loaderTab = $state("vanilla");
 	let refreshing = $state(false);
 
-	// --- Installed versions (shared) ---
-	let installed = $state({
-		vanilla: new Set<string>(),
-		fabric: new Set<string>(),
-		forge: new Set<string>(),
-		neoforge: new Set<string>(),
-		quilt: new Set<string>(),
-	});
-
 	// --- Vanilla tab state ---
 	let vanillaSearch = $state("");
 	let loadingMojang = $state(false);
-	let loadingVanillaInstalled = $state(true);
+	let loadingVanillaInstalled = $derived(versionsState.loading);
 
 	// --- Loader tabs state (fabric, forge, neoforge, quilt) ---
 	let mcVersions = $state<string[]>([]);
@@ -127,9 +121,8 @@
 		loaderSearch = "";
 
 		try {
-			const raw = await getInstalledVersions();
+			await loadInstalledVersions();
 			if (currentLoadId !== mcLoadId) return;
-			installed = getInstalledMcVersions(raw);
 
 			let mcList: string[] = [];
 
@@ -253,13 +246,7 @@
 	// --- Vanilla tab ---
 
 	async function loadVanillaInstalled() {
-		loadingVanillaInstalled = true;
-		try {
-			const raw = await getInstalledVersions();
-			installed = getInstalledMcVersions(raw);
-		} finally {
-			loadingVanillaInstalled = false;
-		}
+		await loadInstalledVersions();
 	}
 
 	async function loadAllVanillaVersions() {
@@ -297,6 +284,7 @@
 
 	async function handleDownloadVanilla(versionId: string) {
 		await addToQueue(versionId);
+		invalidateInstalledVersions();
 	}
 
 	async function handleDownloadLoader(item: LoaderDisplayItem) {
@@ -311,6 +299,7 @@
 		} else if (loaderTab === "neoforge") {
 			await downloadNeoForge(mc, lv);
 		}
+		invalidateInstalledVersions();
 	}
 
 	const mcVersionOptions = $derived(
@@ -454,7 +443,7 @@
 							{#each vanillaDisplayList as vitem (vitem.id)}
 								{@const vid = vitem.id}
 								{@const isVanInstalled =
-									installed.vanilla.has(vid)}
+									versionsState.mcVersions?.vanilla.has(vid) ?? false}
 								{@const isVanDownloading =
 									isVersionDownloading(vid)}
 								<div class="version-card">
@@ -546,9 +535,9 @@
 							style="display: flex; flex-direction: column; gap: 6px;"
 						>
 							{#each filteredLoaderItems as item (item.version_id)}
-								{@const isInstalled = installed[
-									loaderTab as keyof typeof installed
-								].has(item.version_id)}
+							{@const isInstalled = versionsState.mcVersions?.[
+								loaderTab as keyof typeof versionsState.mcVersions
+							].has(item.version_id) ?? false}
 								{@const isDownloading = isVersionDownloading(
 									item.version_id,
 								)}

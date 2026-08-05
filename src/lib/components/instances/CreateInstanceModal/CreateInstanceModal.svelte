@@ -3,7 +3,6 @@
 		createInstance,
 		uploadCustomIcon,
 		fetchAll,
-		getInstalledVersions,
 		parseMrpack,
 		installMrpack,
 		searchModrinth,
@@ -13,6 +12,11 @@
 		downloadNeoForge,
 		downloadQuilt,
 	} from "$lib/api/cubicApi";
+	import {
+		isVersionInstalled,
+		loadInstalledVersions,
+		invalidateInstalledVersions,
+	} from "$lib/state/versionsState.svelte";
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import { t } from "$lib/i18n";
 	import type { MrpackInfo } from "$lib/types/types";
@@ -271,8 +275,8 @@
 	}
 
 	async function enqueueSelectedVersion() {
-		const installed = await getInstalledVersions();
-		if (installed.includes(finalVersionId)) return;
+		await loadInstalledVersions();
+		if (isVersionInstalled(finalVersionId)) return;
 
 		if (selectedLoader === "vanilla") {
 			await addToQueue(finalVersionId);
@@ -285,6 +289,8 @@
 		} else if (selectedLoader === "neoforge") {
 			await downloadNeoForge(selectedMcVersion, selectedLoaderVersion);
 		}
+
+		invalidateInstalledVersions();
 	}
 
 	async function handleImport() {
