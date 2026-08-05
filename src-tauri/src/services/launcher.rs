@@ -149,7 +149,9 @@ fn session_id_regex() -> &'static Regex {
 /// no descarta la línea completa.
 fn sanitize_line(line: &str) -> String {
     let line = token_regex().replace_all(line, "${1}${2}***").into_owned();
-    let line = session_id_regex().replace_all(&line, "${1}***").into_owned();
+    let line = session_id_regex()
+        .replace_all(&line, "${1}***")
+        .into_owned();
     let line = email_regex().replace_all(&line, "<email>").into_owned();
     ip_regex().replace_all(&line, "<ip>").into_owned()
 }
@@ -161,9 +163,7 @@ fn ip_regex() -> &'static Regex {
 
 fn email_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r#"(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}"#).unwrap()
-    })
+    RE.get_or_init(|| Regex::new(r#"(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}"#).unwrap())
 }
 
 // ── User-aware Sensitive Data Filter ────────────────────────────────────────
