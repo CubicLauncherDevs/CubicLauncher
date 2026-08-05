@@ -717,6 +717,12 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
                     if is_hidden_or_crep(&filename) {
                         return None;
                     }
+                    let file_name_lower = filename.to_lowercase();
+                    if !(file_name_lower.ends_with(".zip")
+                        || file_name_lower.ends_with(".zip.disabled"))
+                    {
+                        return None;
+                    }
                     let meta = std::fs::metadata(&path).ok()?;
                     let mtime = meta.modified().ok()?;
                     let size = meta.len();
