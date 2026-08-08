@@ -1,8 +1,8 @@
+import { getInstalledVersions } from "$lib/api/cubicApi";
 import {
-	getInstalledVersions,
 	getInstalledMcVersions,
 	getInstalledLoaderVersions,
-} from "$lib/api/cubicApi";
+} from "$lib/utils/versionUtils";
 
 export interface McVersions {
 	vanilla: Set<string>;
