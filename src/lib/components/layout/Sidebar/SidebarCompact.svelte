@@ -7,7 +7,7 @@
 	import { t } from "$lib/i18n";
 	import { tick } from "svelte";
 	import type { Component, Snippet } from "svelte";
-	import { getDisplayIconSrc } from "$lib/icons/logos";
+	import InstanceIcon from "$lib/components/instances/InstanceIcon.svelte";
 	import DeleteInstanceModal from "./DeleteInstanceModal.svelte";
 	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
 	import CubicIcon from "$lib/icons/Cubic.svelte";
@@ -231,16 +231,10 @@
 									: instance)}
 					>
 						<div class="sc-instance-icon">
-							{#if instance.icon}
-								<img
-									src={getDisplayIconSrc(instance.icon)}
-									alt={instance.name}
-									width="18"
-									height="18"
-								/>
-							{:else}
-								{instance.name.charAt(0).toUpperCase()}
-							{/if}
+							<InstanceIcon
+								icon={instance.icon}
+								alt={instance.name}
+							/>
 						</div>
 					</button>
 				{/each}
@@ -468,17 +462,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.7rem;
 		flex-shrink: 0;
-		color: var(--text-primary);
 		overflow: hidden;
-	}
-
-	.sc-instance-icon img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		display: block;
 	}
 
 	.sc-tools {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { INSTANCE_LOGOS, getPreviewIconSrc } from "$lib/icons/logos";
+	import InstanceIcon from "$lib/components/instances/InstanceIcon.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
 	import { t } from "$lib/i18n";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -50,7 +51,7 @@
 				<Icon src="/images/icons/ui/close.svg" size={10} />
 			</button>
 		{:else}
-			<Icon src="/images/icons/instance/image.svg" size={28} />
+			<InstanceIcon icon={null} alt="Logo por defecto" size={56} />
 		{/if}
 	</div>
 	<button type="button" class="upload-btn" onclick={handleUpload} {disabled}>

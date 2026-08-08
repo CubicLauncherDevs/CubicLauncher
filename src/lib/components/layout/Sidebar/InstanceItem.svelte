@@ -2,7 +2,7 @@
 	import type { InstanceDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
 	import Trash from "$lib/icons/Trash.svelte";
-	import { getDisplayIconSrc } from "$lib/icons/logos";
+	import InstanceIcon from "$lib/components/instances/InstanceIcon.svelte";
 
 	let {
 		instance,
@@ -33,16 +33,7 @@
 >
 	<div class="instance-info-container">
 		<div class="instance-icon">
-			{#if instance.icon}
-				<img
-					src={getDisplayIconSrc(instance.icon)}
-					alt={instance.name}
-					width="16"
-					height="16"
-				/>
-			{:else}
-				{instance.name.charAt(0).toUpperCase()}
-			{/if}
+			<InstanceIcon icon={instance.icon} alt={instance.name} />
 		</div>
 		<span class="instance-name">{instance.name}</span>
 	</div>
@@ -115,8 +106,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.7rem;
 		flex-shrink: 0;
+		overflow: hidden;
 	}
 
 	.instance-info-container {
