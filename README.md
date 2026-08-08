@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/images/cubic.svg" width="120" alt="CubicLauncher" />
+  <img src="static/images/cubic-white.svg" width="120" alt="CubicLauncher" />
   <h1 align="center">CubicLauncher</h1>
 </p>
 
