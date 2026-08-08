@@ -4,8 +4,7 @@
 	import { listen } from "@tauri-apps/api/event";
 	import type { InstanceDto } from "$lib/types/types";
 	import { launcherStore } from "$lib/state/state.svelte";
-	import { getLoaderLogo } from "$lib/icons/logos";
-	import InstanceIcon from "$lib/components/instances/InstanceIcon.svelte";
+	import { getLoaderLogo, getDisplayIconSrc } from "$lib/icons/logos";
 	import Icon from "$lib/icons/Icon.svelte";
 
 	let {
@@ -110,10 +109,10 @@
 		>
 			<div class="title-row">
 				<div class="title-left">
-					<InstanceIcon
-						icon={instance.icon}
-						alt={instance.name}
+					<img
 						class="instance-icon"
+						src={getDisplayIconSrc(instance.icon)}
+						alt={instance.name}
 					/>
 					<h1 class="instance-title">{instance.name}</h1>
 				</div>
@@ -294,10 +293,10 @@
 			>
 				<Icon src="/images/icons/ui/chevron-left.svg" size={18} />
 			</button>
-			<InstanceIcon
-				icon={instance.icon}
-				alt={instance.name}
+			<img
 				class="compact-icon"
+				src={getDisplayIconSrc(instance.icon)}
+				alt={instance.name}
 			/>
 			<div class="compact-title-area">
 				<span class="compact-title">{instance.name}</span>
