@@ -36,8 +36,28 @@
 	import Select from "../Select.svelte";
 	import ModalBase from "../ModalBase.svelte";
 	import VersionDownloaderTabs from "./VersionDownloaderTabs.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
+	import Tooltip from "$lib/components/ui/Tooltip.svelte";
 
 	let { open = $bindable(false) }: { open: boolean } = $props();
+
+	let tooltipOpen = $state(false);
+	let tooltipX = $state(0);
+	let tooltipY = $state(0);
+	let tooltipText = $state("");
+
+	function showStableTooltip(e: MouseEvent | FocusEvent, text: string) {
+		const target = e.currentTarget as HTMLElement;
+		const rect = target.getBoundingClientRect();
+		tooltipX = rect.right;
+		tooltipY = rect.top;
+		tooltipText = text;
+		tooltipOpen = true;
+	}
+
+	function hideStableTooltip() {
+		tooltipOpen = false;
+	}
 
 	const LOADERS = [
 		{
@@ -186,54 +206,66 @@
 		try {
 			let items: LoaderDisplayItem[] = [];
 
+			const showUnstable = launcherStore.settings.show_unstable_loaders;
+
 			if (loader === "fabric") {
 				const list = await getFabricLoaderVersions(mcVersion);
-				for (const lv of list.filter((v) => v.stable)) {
+				for (const lv of list.filter((v) => showUnstable || v.stable)) {
 					const vid = `fabric-loader-${lv.version}-${mcVersion}`;
 					items.push({
 						version_id: vid,
 						display_version: lv.version,
 						game_version: mcVersion,
-						stable: true,
+						stable: lv.stable,
 					});
 				}
 			} else if (loader === "quilt") {
 				const list = await getQuiltLoaderVersions(mcVersion);
-				for (const lv of list.filter((v) => v.stable)) {
+				for (const lv of list.filter((v) => showUnstable || v.stable)) {
 					const vid = `quilt-loader-${lv.version}-${mcVersion}`;
 					items.push({
 						version_id: vid,
 						display_version: lv.version,
 						game_version: mcVersion,
-						stable: true,
+						stable: lv.stable,
 					});
 				}
 			} else if (loader === "forge") {
 				for (const v of forgeCache) {
-					if (v.game_version !== mcVersion || !v.stable) continue;
+					if (
+						v.game_version !== mcVersion ||
+						!(showUnstable || v.stable)
+					)
+						continue;
 					items.push({
 						version_id: v.version_id,
 						display_version: v.forge_version,
 						game_version: mcVersion,
-						stable: true,
+						stable: v.stable,
 					});
 				}
 			} else if (loader === "neoforge") {
 				for (const v of neoForgeCache) {
-					if (v.game_version !== mcVersion || !v.stable) continue;
+					if (
+						v.game_version !== mcVersion ||
+						!(showUnstable || v.stable)
+					)
+						continue;
 					items.push({
 						version_id: v.version_id,
 						display_version: v.neoforge_version,
 						game_version: mcVersion,
-						stable: true,
+						stable: v.stable,
 					});
 				}
 			}
 
 			if (currentLoadId !== loaderLoadId) return;
 
-			items.sort((a, b) =>
-				compareVersions(a.display_version, b.display_version),
+			items.sort(
+				(a, b) =>
+					Number(b.stable) - Number(a.stable) ||
+					compareVersions(a.display_version, b.display_version),
 			);
 			loaderItems = items;
 		} catch {
@@ -547,6 +579,33 @@
 								<div class="version-card">
 									<div class="version-card-info">
 										<div class="version-card-name">
+											{#if item.stable}
+												{@const tooltipText = t(
+													"versionDownloader.stableTooltip",
+												)}
+												<span
+													class="stable-icon"
+													role="img"
+													aria-label={tooltipText}
+													onmouseenter={(e) =>
+														showStableTooltip(
+															e,
+															tooltipText,
+														)}
+													onmouseleave={hideStableTooltip}
+													onfocus={(e) =>
+														showStableTooltip(
+															e,
+															tooltipText,
+														)}
+													onblur={hideStableTooltip}
+												>
+													<Icon
+														src="/images/icons/ui/check-circle.svg"
+														size={14}
+													/>
+												</span>
+											{/if}
 											{item.display_version}
 										</div>
 										<div class="version-card-type">
@@ -589,6 +648,10 @@
 		</div>
 	</div>
 </ModalBase>
+
+<Tooltip bind:open={tooltipOpen} x={tooltipX} y={tooltipY} placement="right">
+	{tooltipText}
+</Tooltip>
 
 <style>
 	.version-downloader-body {
@@ -651,6 +714,16 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	.stable-icon {
+		color: var(--accent);
+		display: inline-flex;
+		align-items: center;
+		vertical-align: middle;
+		margin-right: 4px;
+		flex-shrink: 0;
+		cursor: help;
 	}
 
 	.inst-icon {

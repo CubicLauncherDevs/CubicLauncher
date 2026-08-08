@@ -3,10 +3,12 @@
 	import { invoke } from "@tauri-apps/api/core";
 	import type { ThemeEntry } from "$lib/types/types";
 	import { t } from "$lib/i18n";
+	import { openUrl } from "$lib/api/cubicApi";
 	import { SvelteMap } from "svelte/reactivity";
 	import CheckIcon from "$lib/icons/CheckIcon.svelte";
 	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
 	import Trash from "$lib/icons/Trash.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 
 	let {
 		themes = $bindable(),
@@ -36,6 +38,10 @@
 		}
 		return map;
 	});
+
+	function handleBrowse() {
+		openUrl("https://www.cubiclauncher.org/themes");
+	}
 
 	async function handleImport() {
 		const selected = await open({
@@ -115,16 +121,22 @@
 </script>
 
 <div class="theme-selector">
-	<button
-		type="button"
-		class="import-btn"
-		onclick={handleImport}
-		disabled={importing}
-	>
-		{importing
-			? t("settings.launcher.themesImporting")
-			: t("settings.launcher.themesImport")}
-	</button>
+	<div class="theme-header-actions">
+		<button
+			type="button"
+			class="import-btn"
+			onclick={handleImport}
+			disabled={importing}
+		>
+			{importing
+				? t("settings.launcher.themesImporting")
+				: t("settings.launcher.themesImport")}
+		</button>
+		<button type="button" class="browse-btn" onclick={handleBrowse}>
+			<span>{t("settings.launcher.themesBrowse")}</span>
+			<Icon src="/images/icons/instance/external-link.svg" size={14} />
+		</button>
+	</div>
 
 	{#each [...groups.entries()] as [author, themes] (author)}
 		<div class="group">
@@ -222,6 +234,16 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
+	}
+
+	.theme-header-actions {
+		display: flex;
+		gap: 8px;
+	}
+
+	.theme-header-actions .import-btn,
+	.theme-header-actions .browse-btn {
+		flex: 1;
 	}
 
 	.import-btn {
@@ -364,5 +386,29 @@
 	.icon-btn.danger:hover {
 		color: var(--color-error);
 		background: rgba(var(--color-error-rgb), 0.1);
+	}
+
+	.browse-btn {
+		background: rgba(var(--accent-rgb), 0.08);
+		border: 1px solid rgba(var(--accent-rgb), 0.3);
+		color: var(--accent);
+		padding: 8px 14px;
+		border-radius: var(--border-radius-sm);
+		cursor: pointer;
+		font-family: inherit;
+		font-size: 0.8rem;
+		font-weight: 600;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		transition:
+			background 0.2s,
+			border-color 0.2s;
+	}
+
+	.browse-btn:hover {
+		background: rgba(var(--accent-rgb), 0.15);
+		border-color: var(--accent);
 	}
 </style>

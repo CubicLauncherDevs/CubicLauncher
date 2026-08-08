@@ -2,7 +2,8 @@ use crate::core::errors::CoreError;
 use crate::services::SettingsManager;
 use serde::Serialize;
 use std::path::Path;
-use sysinfo::System;
+use std::sync::OnceLock;
+use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 use tauri::command;
 use tracing::{info, warn};
 
@@ -167,10 +168,11 @@ pub fn detect_java_paths() -> Result<JavaPaths, String> {
     Ok(paths)
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Copy, Clone)]
 pub struct RecommendedRam {
     pub total_gb: u32,
-    pub recommended_gb: u32,
+    pub min_gb: u32,
+    pub max_gb: u32,
 }
 
 fn calculate_recommended_gb(total_gb: u32) -> u32 {
@@ -183,20 +185,27 @@ fn calculate_recommended_gb(total_gb: u32) -> u32 {
     }
 }
 
+static RECOMMENDED_RAM: OnceLock<RecommendedRam> = OnceLock::new();
+
 #[command]
 pub fn get_recommended_ram() -> Result<RecommendedRam, String> {
-    let mut sys = System::new_all();
-    sys.refresh_memory();
-    let total_gb = (sys.total_memory() / 1024 / 1024).max(1) as u32;
-    let recommended_gb = calculate_recommended_gb(total_gb);
+    Ok(*RECOMMENDED_RAM.get_or_init(|| {
+        let sys = System::new_with_specifics(
+            RefreshKind::new().with_memory(MemoryRefreshKind::new().with_ram()),
+        );
+        let total_gb = (sys.total_memory() / 1024 / 1024).max(1) as u32;
+        let max_gb = calculate_recommended_gb(total_gb);
+        let min_gb = (max_gb / 2).max(1);
 
-    info!(
-        "RAM detectada: {} GB, recomendada: {} GB",
-        total_gb, recommended_gb
-    );
+        info!(
+            "RAM detectada: {} GB, min: {} GB, max: {} GB",
+            total_gb, min_gb, max_gb
+        );
 
-    Ok(RecommendedRam {
-        total_gb,
-        recommended_gb,
-    })
+        RecommendedRam {
+            total_gb,
+            min_gb,
+            max_gb,
+        }
+    }))
 }

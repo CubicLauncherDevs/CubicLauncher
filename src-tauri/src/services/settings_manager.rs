@@ -103,6 +103,8 @@ pub struct SettingsManager {
     #[serde(default)]
     pub show_alpha: bool,
     #[serde(default)]
+    pub show_unstable_loaders: bool,
+    #[serde(default)]
     pub jvm_args: CompactString,
     #[serde(default)]
     pub env_vars: HashMap<CompactString, String>,
@@ -177,6 +179,7 @@ impl Default for SettingsManager {
             hide_on_launch: false,
             show_snapshots: false,
             show_alpha: false,
+            show_unstable_loaders: false,
             jvm_args: CompactString::default(),
             env_vars: HashMap::new(),
             theme: CompactString::from("dark"),
@@ -406,8 +409,8 @@ mod tests {
     /// `SettingsManager::default()` debe inicializar todos los campos con
     /// los valores por defecto definidos en las funciones `default_*`.
     /// Verifica: username, min_memory, max_memory, language, auto_updates,
-    /// close_launcher_on_play, show_snapshots, show_alpha, theme, dirty,
-    /// env_vars y jvm_args.
+    /// close_launcher_on_play, show_snapshots, show_alpha, show_unstable_loaders,
+    /// theme, dirty, env_vars y jvm_args.
     #[test]
     fn test_default_values() {
         let s = SettingsManager::default();
@@ -420,6 +423,7 @@ mod tests {
         assert!(s.close_launcher_on_play);
         assert!(!s.show_snapshots);
         assert!(!s.show_alpha);
+        assert!(!s.show_unstable_loaders);
         assert_eq!(s.theme, "dark");
         assert!(s.dirty);
         assert!(s.env_vars.is_empty());

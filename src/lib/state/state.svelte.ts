@@ -55,6 +55,7 @@ export const launcherStore = $state<LauncherState>({
 		hide_on_launch: false,
 		show_snapshots: false,
 		show_alpha: false,
+		show_unstable_loaders: false,
 		jvm_args: "",
 		env_vars: {},
 		theme: "dark",

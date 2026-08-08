@@ -97,15 +97,16 @@ export async function updateSettings(settings: Settings): Promise<void> {
 
 export async function getRecommendedRam(): Promise<{
 	total_gb: number;
-	recommended_gb: number;
+	min_gb: number;
+	max_gb: number;
 }> {
-	const fallback = { total_gb: 8, recommended_gb: 2 };
+	const fallback = { total_gb: 8, min_gb: 1, max_gb: 2 };
 	return (
-		(await invokeWithFallback<{ total_gb: number; recommended_gb: number }>(
-			"get_recommended_ram",
-			null,
-			fallback,
-		)) ?? fallback
+		(await invokeWithFallback<{
+			total_gb: number;
+			min_gb: number;
+			max_gb: number;
+		}>("get_recommended_ram", null, fallback)) ?? fallback
 	);
 }
 

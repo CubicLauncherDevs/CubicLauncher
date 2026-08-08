@@ -91,21 +91,28 @@
 
 	let recommendedRam = $state<{
 		total_gb: number;
-		recommended_gb: number;
+		min_gb: number;
+		max_gb: number;
 	} | null>(null);
+	let ramLoading = $state(false);
 
 	async function loadRecommendedRam() {
-		recommendedRam = await getRecommendedRam();
+		ramLoading = true;
+		try {
+			recommendedRam = await getRecommendedRam();
+		} finally {
+			ramLoading = false;
+		}
 	}
 
 	async function applyRecommendedRam() {
 		if (!recommendedRam) {
+			if (ramLoading) return;
 			await loadRecommendedRam();
 		}
 		if (recommendedRam) {
-			const mb = recommendedRam.recommended_gb * 1024;
-			launcherStore.settings.min_memory = mb;
-			launcherStore.settings.max_memory = mb;
+			launcherStore.settings.min_memory = recommendedRam.min_gb * 1024;
+			launcherStore.settings.max_memory = recommendedRam.max_gb * 1024;
 			await handleSave();
 		}
 	}
@@ -527,20 +534,21 @@
 							type="button"
 							class="qm-recommended-ram-btn"
 							onclick={applyRecommendedRam}
-							disabled={!recommendedRam}
+							disabled={ramLoading || !recommendedRam}
 						>
 							{t("settings.minecraft.recommendedRamButton")}
 						</button>
-						{#if recommendedRam}
-							<span class="qm-recommended-ram-hint">
-								{t("settings.minecraft.recommendedRamHint", {
-									recommended: recommendedRam.recommended_gb,
-									total: recommendedRam.total_gb,
-								})}
-							</span>
-						{:else}
+						{#if ramLoading}
 							<span class="qm-recommended-ram-hint">
 								{t("settings.minecraft.loadingRecommendedRam")}
+							</span>
+						{:else if recommendedRam}
+							<span class="qm-recommended-ram-hint">
+								{t("settings.minecraft.recommendedRamHint", {
+									min: recommendedRam.min_gb,
+									max: recommendedRam.max_gb,
+									total: recommendedRam.total_gb,
+								})}
 							</span>
 						{/if}
 					</div>
@@ -574,6 +582,21 @@
 						/>
 						<label for="show-alpha"
 							>{t("settings.minecraft.showAlpha")}</label
+						>
+					</div>
+					<div class="qm-field-checkbox">
+						<input
+							type="checkbox"
+							id="show-unstable-loaders"
+							bind:checked={
+								launcherStore.settings.show_unstable_loaders
+							}
+							onchange={handleSave}
+						/>
+						<label for="show-unstable-loaders"
+							>{t(
+								"settings.minecraft.showUnstableLoaders",
+							)}</label
 						>
 					</div>
 				</CollapsibleSection>

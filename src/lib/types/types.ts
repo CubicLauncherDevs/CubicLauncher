@@ -66,6 +66,7 @@ export interface Settings {
 	hide_on_launch: boolean;
 	show_snapshots: boolean;
 	show_alpha: boolean;
+	show_unstable_loaders: boolean;
 	jvm_args: string;
 	env_vars: Record<string, string>;
 	theme: string;

@@ -42,6 +42,7 @@
 			"themesActive": "Tema activo",
 			"themesImport": "Importar tema",
 			"themesImporting": "Importando...",
+			"themesBrowse": "Explorar temas",
 			"themesExport": "Exportar",
 			"themesDelete": "Eliminar",
 			"themesUnknownAuthor": "Temas de usuario",
@@ -59,11 +60,12 @@
 			"maxRam": "Máxima (GB)",
 			"ramHint": "La memoria mínima es lo que Java reserva al inicio, la máxima es el límite que puede usar. Se usan dos valores para que Java pueda ajustar su uso entre ambos.",
 			"recommendedRamButton": "Usar RAM recomendada",
-			"recommendedRamHint": "{recommended} GB recomendados · {total} GB detectados",
+			"recommendedRamHint": "{min}-{max} GB recomendados · {total} GB detectados",
 			"loadingRecommendedRam": "Detectando RAM del sistema...",
 			"optionsTitle": "Opciones de Minecraft",
 			"showSnapshots": "Mostrar versiones Snapshots",
-			"showAlpha": "Mostrar versiones Alpha"
+			"showAlpha": "Mostrar versiones Alpha",
+			"showUnstableLoaders": "Mostrar versiones inestables de los loaders"
 		},
 		"about": {
 			"title": "Sobre Nosotros",
@@ -491,6 +493,7 @@
 		"loading": "Cargando versiones...",
 		"notFound": "No se encontraron versiones",
 		"installedTag": "Instalado",
+		"stableTooltip": "Versión estable recomendada",
 		"downloadBtn": "Descargar",
 		"refreshBtn": "Actualizar caché",
 		"showAll": "Mostrar todas las versiones",

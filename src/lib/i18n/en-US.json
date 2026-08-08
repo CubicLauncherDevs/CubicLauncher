@@ -42,6 +42,7 @@
 			"themesActive": "Active theme",
 			"themesImport": "Import Theme",
 			"themesImporting": "Importing...",
+			"themesBrowse": "Browse themes",
 			"themesExport": "Export",
 			"themesDelete": "Delete",
 			"themesUnknownAuthor": "User Themes",
@@ -59,11 +60,12 @@
 			"maxRam": "Maximum (GB)",
 			"ramHint": "Minimum memory is what Java reserves at startup, maximum is the cap it can use. Two values allow Java to adjust its usage between both.",
 			"recommendedRamButton": "Use recommended RAM",
-			"recommendedRamHint": "{recommended} GB recommended · {total} GB detected",
+			"recommendedRamHint": "{min}-{max} GB recommended · {total} GB detected",
 			"loadingRecommendedRam": "Detecting system RAM...",
 			"optionsTitle": "Minecraft Options",
 			"showSnapshots": "Show Snapshot versions",
-			"showAlpha": "Show Alpha versions"
+			"showAlpha": "Show Alpha versions",
+			"showUnstableLoaders": "Show unstable loader versions"
 		},
 		"about": {
 			"title": "About",
@@ -491,6 +493,7 @@
 		"loading": "Loading versions...",
 		"notFound": "No versions found",
 		"installedTag": "Installed",
+		"stableTooltip": "Recommended stable version",
 		"downloadBtn": "Download",
 		"refreshBtn": "Refresh cache",
 		"showAll": "Show all versions",
