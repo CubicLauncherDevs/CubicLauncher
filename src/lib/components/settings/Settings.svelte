@@ -22,6 +22,7 @@
 		getJreVersions,
 		installJre,
 		uninstallJre,
+		getRecommendedRam,
 	} from "$lib/api/cubicApi";
 	import type { JreStatus, ThemeEntry } from "$lib/types/types";
 	import UpdateSection from "./UpdateSection.svelte";
@@ -88,6 +89,27 @@
 		}, 1000);
 	}
 
+	let recommendedRam = $state<{
+		total_gb: number;
+		recommended_gb: number;
+	} | null>(null);
+
+	async function loadRecommendedRam() {
+		recommendedRam = await getRecommendedRam();
+	}
+
+	async function applyRecommendedRam() {
+		if (!recommendedRam) {
+			await loadRecommendedRam();
+		}
+		if (recommendedRam) {
+			const mb = recommendedRam.recommended_gb * 1024;
+			launcherStore.settings.min_memory = mb;
+			launcherStore.settings.max_memory = mb;
+			await handleSave();
+		}
+	}
+
 	async function autoDetectJava() {
 		try {
 			const paths: Record<string, string> =
@@ -152,6 +174,7 @@
 	onMount(() => {
 		loadThemes();
 		refreshJreStatus();
+		loadRecommendedRam();
 
 		const unsubEnqueue = onAppEvent("DEnqueue", (payload) => {
 			const v = (payload.data as { version: string }).version;
@@ -499,6 +522,28 @@
 							</div>
 						</div>
 					</div>
+					<div class="qm-recommended-ram-wrapper">
+						<button
+							type="button"
+							class="qm-recommended-ram-btn"
+							onclick={applyRecommendedRam}
+							disabled={!recommendedRam}
+						>
+							{t("settings.minecraft.recommendedRamButton")}
+						</button>
+						{#if recommendedRam}
+							<span class="qm-recommended-ram-hint">
+								{t("settings.minecraft.recommendedRamHint", {
+									recommended: recommendedRam.recommended_gb,
+									total: recommendedRam.total_gb,
+								})}
+							</span>
+						{:else}
+							<span class="qm-recommended-ram-hint">
+								{t("settings.minecraft.loadingRecommendedRam")}
+							</span>
+						{/if}
+					</div>
 					<span class="qm-ram-hint"
 						>{t("settings.minecraft.ramHint")}</span
 					>
@@ -803,6 +848,41 @@
 		color: var(--text-muted);
 		line-height: 1.5;
 		padding: 0 4px;
+	}
+
+	.qm-recommended-ram-wrapper {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 4px;
+		margin-top: 10px;
+	}
+
+	.qm-recommended-ram-btn {
+		background: rgba(var(--accent-rgb), 0.08);
+		color: var(--accent);
+		border: 1px solid rgba(var(--accent-rgb), 0.3);
+		padding: 6px 12px;
+		border-radius: var(--border-radius-sm);
+		font-family: var(--font-family);
+		font-size: 0.78rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.15s;
+	}
+
+	.qm-recommended-ram-btn:hover:not(:disabled) {
+		background: rgba(var(--accent-rgb), 0.15);
+	}
+
+	.qm-recommended-ram-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.qm-recommended-ram-hint {
+		font-size: 0.7rem;
+		color: var(--text-muted);
 	}
 
 	.qm-save-btn {

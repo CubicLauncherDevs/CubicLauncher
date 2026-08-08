@@ -55,6 +55,7 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::detect_java_paths,
+            commands::settings::get_recommended_ram,
             commands::i18n::save_locale,
             commands::i18n::load_locales,
             commands::auth::get_device_code,

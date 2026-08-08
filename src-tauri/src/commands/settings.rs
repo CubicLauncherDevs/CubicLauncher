@@ -2,6 +2,7 @@ use crate::core::errors::CoreError;
 use crate::services::SettingsManager;
 use serde::Serialize;
 use std::path::Path;
+use sysinfo::System;
 use tauri::command;
 use tracing::{info, warn};
 
@@ -164,4 +165,38 @@ pub fn detect_java_paths() -> Result<JavaPaths, String> {
         paths.jre8, paths.jre17, paths.jre21, paths.jre25
     );
     Ok(paths)
+}
+
+#[derive(Serialize)]
+pub struct RecommendedRam {
+    pub total_gb: u32,
+    pub recommended_gb: u32,
+}
+
+fn calculate_recommended_gb(total_gb: u32) -> u32 {
+    if total_gb <= 4 {
+        2
+    } else if total_gb <= 8 {
+        (((total_gb as f64 / 3.0 * 2.0).round() / 2.0).clamp(2.0, 3.0)) as u32
+    } else {
+        (((total_gb as f64 / 4.0 * 2.0).round() / 2.0).clamp(3.0, 8.0)) as u32
+    }
+}
+
+#[command]
+pub fn get_recommended_ram() -> Result<RecommendedRam, String> {
+    let mut sys = System::new_all();
+    sys.refresh_memory();
+    let total_gb = (sys.total_memory() / 1024 / 1024).max(1) as u32;
+    let recommended_gb = calculate_recommended_gb(total_gb);
+
+    info!(
+        "RAM detectada: {} GB, recomendada: {} GB",
+        total_gb, recommended_gb
+    );
+
+    Ok(RecommendedRam {
+        total_gb,
+        recommended_gb,
+    })
 }
