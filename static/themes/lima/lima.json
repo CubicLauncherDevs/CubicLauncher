@@ -47,6 +47,8 @@
 		"--color-status-started": "#97C459",
 		"--icon-filter": "invert(0.8) sepia(1) saturate(0.5) hue-rotate(60deg)",
 		"--icon-filter-error": "invert(16%) sepia(89%) saturate(4668%) hue-rotate(0deg) brightness(96%) contrast(112%)",
+		"--cubic-logo": "url(\"/images/cubic-white.svg\")",
+		"--cubic-logo-fallback": "url(\"/images/cubic-white.svg\")",
 
 		"--clr-loader-vanilla": "#78909c",
 		"--clr-loader-fabric": "#66bb6a",

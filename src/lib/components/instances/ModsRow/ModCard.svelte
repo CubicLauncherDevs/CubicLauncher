@@ -28,7 +28,7 @@
 		{#if mod.icon}
 			<img src={mod.icon} alt={mod.name} />
 		{:else}
-			<img src="/images/cubic.svg" alt={mod.name} />
+			<div class="mod-icon-fallback" aria-label={mod.name}></div>
 		{/if}
 	</div>
 	<div class="mod-info">
@@ -106,6 +106,16 @@
 		height: 100%;
 		object-fit: contain;
 		image-rendering: pixelated;
+	}
+
+	.mod-icon-fallback {
+		width: 80%;
+		height: 80%;
+		background: var(--cubic-logo);
+		background-size: contain;
+		background-repeat: no-repeat;
+		background-position: center;
+		opacity: 0.6;
 	}
 
 	.mod-info {

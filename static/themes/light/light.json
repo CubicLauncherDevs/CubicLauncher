@@ -53,6 +53,8 @@
 
 		"--icon-filter": "none",
 		"--icon-filter-error": "none",
+		"--cubic-logo": "url(\"/images/cubic.svg\")",
+		"--cubic-logo-fallback": "url(\"/images/cubic.svg\")",
 
 		"--clr-loader-vanilla": "#78909c",
 		"--clr-loader-fabric": "#66bb6a",

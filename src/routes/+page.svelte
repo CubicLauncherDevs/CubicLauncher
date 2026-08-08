@@ -324,11 +324,7 @@
 				<InstanceView {selectedInstance} />
 			{:else}
 				<div class="empty-state">
-					<img
-						src="/images/cubic.svg"
-						alt="Cubic"
-						style="width: 120px; opacity: 0.5;"
-					/>
+					<div class="empty-logo" aria-label="Cubic"></div>
 					<h2>{t("main.noInstanceTitle")}</h2>
 					<p>{t("main.noInstanceDesc")}</p>
 				</div>
@@ -426,5 +422,15 @@
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
+	}
+
+	.empty-logo {
+		width: 120px;
+		height: 120px;
+		opacity: 0.5;
+		background: var(--cubic-logo);
+		background-size: contain;
+		background-repeat: no-repeat;
+		background-position: center;
 	}
 </style>

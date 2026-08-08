@@ -201,7 +201,7 @@
 		border-radius: var(--border-radius-sm);
 		border: 1px solid var(--border-color);
 		flex-shrink: 0;
-		background: url("/images/cubic.svg") center/60% no-repeat;
+		background: var(--cubic-logo) center/60% no-repeat;
 		overflow: hidden;
 		display: flex;
 		align-items: center;
