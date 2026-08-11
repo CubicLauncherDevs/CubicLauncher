@@ -240,27 +240,6 @@
 	border-radius: 10px;
 }
 
-.mod-icon-placeholder {
-	font-size: 0.65rem;
-	font-weight: 700;
-	letter-spacing: 1.5px;
-	text-transform: uppercase;
-	color: var(--text-secondary);
-	margin-bottom: 18px;
-	display: block;
-}
-
-.mod-icon-placeholder {
-	width: 100%;
-	height: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 1.2rem;
-	color: var(--text-secondary);
-	background: var(--surface-hover);
-}
-
 .icon-selector {
 	display: flex;
 	gap: 12px;
