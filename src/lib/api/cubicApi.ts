@@ -18,6 +18,7 @@ import {
 	type CurseForgeFile,
 	type JreStatus,
 	type MrpackInfo,
+	type InstanceImportPlan,
 	type YggdrasilServerInfo,
 } from "../types/types";
 
@@ -859,6 +860,40 @@ export async function initDiscordPresence(): Promise<void> {
 
 export async function shutdownDiscordPresence(): Promise<void> {
 	return invokeVoid("shutdown_discord_presence");
+}
+
+// ─────────────────────────────────────────────────────────────
+// Instance archive import (MultiMC/Prism, extensible)
+// ─────────────────────────────────────────────────────────────
+
+export async function detectInstanceZip(
+	path: string,
+): Promise<InstanceImportPlan | null> {
+	return (
+		(await invokeWithFallback<InstanceImportPlan>("detect_instance_zip", {
+			path,
+		})) ?? null
+	);
+}
+
+export async function importInstanceZip(
+	path: string,
+	name: string,
+	callback?: () => void,
+	onError?: (err: unknown) => void,
+): Promise<InstanceDto | null> {
+	try {
+		const result = await invoke<InstanceDto>("import_instance_zip", {
+			path,
+			name,
+		});
+		callback?.();
+		return result;
+	} catch (err) {
+		showErrorParsed(err);
+		onError?.(err);
+		return null;
+	}
 }
 
 // ─────────────────────────────────────────────────────────────

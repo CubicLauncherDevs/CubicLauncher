@@ -51,6 +51,7 @@
 	let versionDownloaderOpen = $state(false);
 	let openCreateModal = $state(false);
 	let droppedMrpackPath = $state<string | null>(null);
+	let droppedInstanceZipPath = $state<string | null>(null);
 	let isDragOver = $state(false);
 	let dragPaths = $state<string[]>([]);
 	let editingInstance = $state<InstanceDto | null>(null);
@@ -161,6 +162,7 @@
 						handleZipDrop(zipFile);
 					} else if (mrpackFile) {
 						droppedMrpackPath = mrpackFile;
+						droppedInstanceZipPath = null;
 						openCreateModal = true;
 					} else if (cbth) {
 						handleCbthDrop(cbth);
@@ -188,7 +190,8 @@
 				msg.includes("no theme.json") ||
 				msg.includes("no se encontró Meta.toml")
 			) {
-				droppedMrpackPath = zipPath;
+				droppedMrpackPath = null;
+				droppedInstanceZipPath = zipPath;
 				openCreateModal = true;
 			} else {
 				showError(t("themes.importError"), msg);
@@ -357,6 +360,7 @@
 	<CreateInstanceModal
 		bind:open={openCreateModal}
 		bind:mrpackPath={droppedMrpackPath}
+		bind:instanceZipPath={droppedInstanceZipPath}
 	/>
 
 	<Tutorial

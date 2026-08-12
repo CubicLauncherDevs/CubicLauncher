@@ -485,6 +485,19 @@ export interface MrpackInfo {
 	icon: string | null;
 }
 
+export interface InstanceImportPlan {
+	format_id: string;
+	format_name: string;
+	archive_path: string;
+	preview_dir: string;
+	original_name: string;
+	sanitized_name: string;
+	minecraft_version: string | null;
+	loader: string | null;
+	loader_version: string | null;
+	warnings: string[];
+}
+
 export interface CurseForgeGameVersion {
 	id: number;
 	name: string;

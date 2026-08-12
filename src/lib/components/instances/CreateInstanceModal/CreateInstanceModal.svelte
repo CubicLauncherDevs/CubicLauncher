@@ -25,19 +25,22 @@
 	import StepIndicator from "./StepIndicator.svelte";
 	import PackInfo from "./PackInfo.svelte";
 	import ModrinthModpackBrowser from "./ModrinthModpackBrowser.svelte";
+	import InstanceImportStep from "./InstanceImportStep.svelte";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 	let {
 		open = $bindable(),
 		mrpackPath = $bindable<string | null>(null),
+		instanceZipPath = $bindable<string | null>(null),
 		oncreated,
 	} = $props<{
 		open: boolean;
 		mrpackPath?: string | null;
+		instanceZipPath?: string | null;
 		oncreated?: () => void;
 	}>();
 
-	type Tab = "manual" | "import" | "modrinth";
+	type Tab = "manual" | "import" | "modrinth" | "instanceImport";
 	let tab = $state<Tab>("manual");
 	let manualStep = $state(0);
 
@@ -136,7 +139,13 @@
 	$effect(() => {
 		if (open) {
 			nameMsg = null;
-			tab = mrpackPath ? "import" : "manual";
+			if (mrpackPath) {
+				tab = "import";
+			} else if (instanceZipPath) {
+				tab = "instanceImport";
+			} else {
+				tab = "manual";
+			}
 			if (!namesCache) fetchInstances();
 		}
 	});
@@ -350,6 +359,7 @@
 		packInfo = null;
 		loading = false;
 		mrpackPath = null;
+		instanceZipPath = null;
 		tab = "manual";
 		manualStep = 0;
 	}
@@ -357,6 +367,7 @@
 	function reset() {
 		open = false;
 		mrpackPath = null;
+		instanceZipPath = null;
 		resetState();
 	}
 
@@ -402,11 +413,21 @@
 		>
 			Modrinth
 		</button>
+		<button
+			type="button"
+			class="tab-btn"
+			class:active={tab === "instanceImport"}
+			onclick={() => (tab = "instanceImport")}
+		>
+			{t("createInstance.importInstanceTab")}
+		</button>
 	</div>
 
 	<div class="step-content">
 		{#if tab === "modrinth"}
 			<ModrinthModpackBrowser onInstalled={reset} />
+		{:else if tab === "instanceImport"}
+			<InstanceImportStep onImported={reset} initialPath={instanceZipPath} />
 		{:else if tab === "import"}
 			{#if packInfo}
 				<div class="modpack-summary">
@@ -569,6 +590,8 @@
 							? t("createInstance.importingBtn")
 							: t("createInstance.importBtn")}
 					</button>
+				{:else if tab === "instanceImport"}
+					<!-- InstanceImportStep gestiona sus propios botones -->
 				{/if}
 			</div>
 		</div>
