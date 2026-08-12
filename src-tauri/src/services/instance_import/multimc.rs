@@ -313,7 +313,7 @@ async fn migrate_game_data(source: &Path, target: &Path) -> Result<(), ImportErr
             if let Some(parent) = dst.parent() {
                 tokio::fs::create_dir_all(parent)
                     .await
-					.map_err(ImportError::Io)?;
+                    .map_err(ImportError::Io)?;
             }
             tokio::fs::copy(&src, &dst)
                 .await
