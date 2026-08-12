@@ -33,6 +33,8 @@ pub fn run() {
             commands::instance::delete_instance_file,
             commands::instance::add_instance_file,
             commands::instance::reinstall_version,
+            commands::instance::instance_import::detect_instance_zip,
+            commands::instance::instance_import::import_instance_zip,
             commands::instance::upload_custom_icon,
             commands::instance::reset_instance_icon,
             commands::download::add_to_queue,
