@@ -427,7 +427,10 @@
 		{#if tab === "modrinth"}
 			<ModrinthModpackBrowser onInstalled={reset} />
 		{:else if tab === "instanceImport"}
-			<InstanceImportStep onImported={reset} initialPath={instanceZipPath} />
+			<InstanceImportStep
+				onImported={reset}
+				initialPath={instanceZipPath}
+			/>
 		{:else if tab === "import"}
 			{#if packInfo}
 				<div class="modpack-summary">

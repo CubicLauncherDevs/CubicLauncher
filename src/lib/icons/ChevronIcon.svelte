@@ -1,21 +1,18 @@
 <script lang="ts">
-	import type { SvelteHTMLElements } from "svelte/elements";
-
-	type SpanProps = SvelteHTMLElements["span"];
+	import Icon from "./Icon.svelte";
 
 	let {
 		class: className = "",
 		size = 16,
-		...rest
 	}: {
 		class?: string;
 		size?: number;
-	} & SpanProps = $props();
+	} = $props();
 </script>
 
-<span
-	class={"icon-svg " + className}
-	style="width: {size}px; height: {size}px; background: currentColor; mask-image: url(/images/icons/ui/chevron-down.svg); -webkit-mask-image: url(/images/icons/ui/chevron-down.svg); mask-size: contain; -webkit-mask-size: contain; mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; mask-position: center; -webkit-mask-position: center;"
-	aria-hidden="true"
-	{...rest}
-></span>
+<Icon
+	name="ui:chevron-down"
+	src="/images/icons/ui/chevron-down.svg"
+	{size}
+	class={className}
+/>

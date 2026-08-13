@@ -2,6 +2,7 @@ use super::FontFace;
 use super::{Theme, ZipImportable};
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 /// Estructura que representa la primera version del sistema de Themes
@@ -46,6 +47,8 @@ pub struct ThemeEntry {
     pub r#type: CompactString,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview: Option<ThemePreview>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 impl Theme for ThemeFile {
@@ -74,6 +77,7 @@ impl Theme for ThemeFile {
                 .and_then(|s| s.parse::<f64>().ok()),
             bg_image_opacity: self.bg_image_opacity,
             fonts: self.fonts.clone(),
+            icons: HashMap::new(),
             inject_css: None, // Not implemented
         }
     }

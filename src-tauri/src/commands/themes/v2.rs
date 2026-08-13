@@ -44,6 +44,8 @@ pub struct ThemeDef {
     #[serde(default)]
     pub fonts: Vec<FontFace>,
     #[serde(default)]
+    pub icons: Icons,
+    #[serde(default)]
     pub layout: HashMap<String, String>,
     #[serde(default)]
     pub borders: HashMap<String, String>,
@@ -65,6 +67,14 @@ pub struct Background {
     pub image_blur: Option<f64>,
     #[serde(default)]
     pub image_opacity: Option<f64>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+pub struct Icons {
+    #[serde(default)]
+    pub preview: Option<String>,
+    #[serde(default, flatten)]
+    pub groups: HashMap<String, HashMap<String, String>>,
 }
 
 impl ZipImportable for ThemeMeta {
@@ -99,6 +109,17 @@ impl Theme for V2Theme {
     }
     fn to_theme_res(&self) -> super::ThemeResponse {
         let vars = flatten_variables(&self.theme);
+
+        let mut icons = HashMap::new();
+        if let Some(ref preview) = self.theme.icons.preview {
+            icons.insert("preview".to_string(), preview.clone());
+        }
+        for (group, items) in &self.theme.icons.groups {
+            for (name, path) in items {
+                icons.insert(format!("{group}:{name}"), path.clone());
+            }
+        }
+
         super::ThemeResponse {
             name: self.get_name().to_string(),
             author: self.get_author().to_string(),
@@ -109,6 +130,7 @@ impl Theme for V2Theme {
             bg_image_blur: self.theme.background.image_blur,
             bg_image_opacity: self.theme.background.image_opacity,
             fonts: self.theme.fonts.clone(),
+            icons,
             inject_css: None, // Not Implemented
         }
     }
@@ -191,6 +213,12 @@ mod tests {
         let mut others = HashMap::new();
         others.insert("icon-filter".into(), "invert(1)".into());
 
+        let mut icons = Icons::default();
+        icons.preview = Some("preview.png".into());
+        let mut ui = HashMap::new();
+        ui.insert("play".into(), "ui/play.svg".into());
+        icons.groups.insert("ui".into(), ui);
+
         ThemeDef {
             colors,
             background: Background {
@@ -200,6 +228,7 @@ mod tests {
             },
             text,
             fonts: vec![],
+            icons,
             layout: HashMap::new(),
             borders,
             shadows,
@@ -229,6 +258,12 @@ mod tests {
 
             [theme.text]
             primary = "#000000"
+
+            [theme.icons]
+            preview = "preview.png"
+
+            [theme.icons.ui]
+            play = "ui/play.svg"
         "##;
 
         let theme: V2Theme = toml::from_str(toml_str).expect("failed to parse TOML");
@@ -240,6 +275,17 @@ mod tests {
         assert_eq!(
             theme.theme.background.reference_path.as_deref(),
             Some("image.png")
+        );
+        assert_eq!(theme.theme.icons.preview.as_deref(), Some("preview.png"));
+        assert_eq!(
+            theme
+                .theme
+                .icons
+                .groups
+                .get("ui")
+                .and_then(|g| g.get("play"))
+                .map(String::as_str),
+            Some("ui/play.svg")
         );
     }
 
@@ -399,6 +445,7 @@ mod tests {
             },
             text: HashMap::new(),
             fonts: vec![],
+            icons: Icons::default(),
             layout: HashMap::new(),
             borders: HashMap::new(),
             shadows: HashMap::new(),
@@ -439,6 +486,14 @@ mod tests {
         assert_eq!(res.bg_image.as_deref(), Some("bg.webp"));
         assert_eq!(res.bg_image_blur, Some(10.0));
         assert_eq!(res.bg_image_opacity, Some(0.5));
+        assert_eq!(
+            res.icons.get("preview").map(String::as_str),
+            Some("preview.png")
+        );
+        assert_eq!(
+            res.icons.get("ui:play").map(String::as_str),
+            Some("ui/play.svg")
+        );
         assert!(res.inject_css.is_none());
     }
 }

@@ -290,6 +290,7 @@ export interface ThemeEntry {
 	version: string;
 	type: string;
 	preview?: ThemePreview | null;
+	icon?: string | null;
 }
 
 export interface ModrinthFile {

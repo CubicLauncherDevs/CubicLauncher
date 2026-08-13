@@ -37,6 +37,7 @@ pub struct ThemeResponse {
     pub bg_image_blur: Option<f64>,
     pub bg_image_opacity: Option<f64>,
     pub fonts: Vec<FontFace>,
+    pub icons: HashMap<String, String>,
     pub inject_css: Option<String>,
 }
 
@@ -71,6 +72,46 @@ fn extract_preview(vars: &HashMap<String, String>) -> ThemePreview {
             .get("--text-primary")
             .cloned()
             .unwrap_or_else(|| "#d8d8d8".into()),
+    }
+}
+
+const MAX_ICON_SIZE: u64 = 2 * 1024 * 1024;
+
+fn validate_theme_icon(path: &str) -> bool {
+    if path.is_empty() {
+        return false;
+    }
+    let ext = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase());
+
+    match ext.as_deref() {
+        Some("svg") => std::fs::metadata(path).is_ok(),
+        Some("png" | "webp" | "jpg" | "jpeg") => {
+            if let Ok(meta) = std::fs::metadata(path)
+                && meta.len() > MAX_ICON_SIZE
+            {
+                warn!("Icono demasiado grande ({} bytes): {}", meta.len(), path);
+                return false;
+            }
+            let is_image = std::fs::File::open(path)
+                .ok()
+                .and_then(|mut f| {
+                    let mut buf = [0u8; 16];
+                    f.read_exact(&mut buf).ok()?;
+                    Some(infer::is_image(&buf))
+                })
+                .unwrap_or(false);
+            if !is_image {
+                warn!("Icono no es una imagen válida: {}", path);
+            }
+            is_image
+        }
+        _ => {
+            warn!("Extensión de icono no soportada: {}", path);
+            false
+        }
     }
 }
 
@@ -241,6 +282,7 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
         version: version_str.into(),
         r#type: "user".into(),
         preview: None,
+        icon: None,
     }))
 }
 
@@ -282,16 +324,27 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
                 Ok(t) => t,
                 Err(_) => continue,
             };
-            let preview = path
+            let (preview, icon) = path
                 .join("Definition.toml")
                 .exists()
-                .then(|| -> Option<ThemePreview> {
+                .then(|| -> Option<(Option<ThemePreview>, Option<String>)> {
                     let def_content = std::fs::read_to_string(path.join("Definition.toml")).ok()?;
                     let definitions: ThemeDef = toml::from_str(&def_content).ok()?;
                     let vars = flatten_variables(&definitions);
-                    Some(extract_preview(&vars))
+                    let preview = Some(extract_preview(&vars));
+                    let icon = definitions.icons.preview.as_ref().and_then(|icon_path| {
+                        let abs = path.join(icon_path);
+                        let abs_str = abs.to_string_lossy().to_string();
+                        if validate_theme_icon(&abs_str) {
+                            Some(abs_str)
+                        } else {
+                            None
+                        }
+                    });
+                    Some((preview, icon))
                 })
-                .flatten();
+                .flatten()
+                .unwrap_or((None, None));
             ThemeEntry {
                 id: id.into(),
                 name: theme.name,
@@ -299,6 +352,7 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
                 version: theme.version,
                 r#type: "v2".into(),
                 preview,
+                icon,
             }
         } else {
             let theme: ThemeFile = match serde_json::from_str(&content) {
@@ -313,6 +367,7 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
                 version: theme.version,
                 r#type: theme.r#type,
                 preview,
+                icon: None,
             }
         };
         themes.push(entry);
@@ -388,6 +443,43 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
                 definitions.background.reference_path = None;
             }
         }
+
+        // Resolver y validar iconos del theme
+        if let Some(ref preview) = definitions.icons.preview
+            && !preview.starts_with('/')
+            && !preview.starts_with("file:")
+        {
+            definitions.icons.preview =
+                Some(theme_base.join(preview).to_string_lossy().to_string());
+        }
+        if let Some(ref preview) = definitions.icons.preview
+            && !validate_theme_icon(preview)
+        {
+            warn!("Theme '{}': preview icon inválido, ignorando", id);
+            definitions.icons.preview = None;
+        }
+
+        for items in definitions.icons.groups.values_mut() {
+            for path in items.values_mut() {
+                if !path.starts_with('/') && !path.starts_with("file:") {
+                    *path = theme_base.join(&path).to_string_lossy().to_string();
+                }
+            }
+        }
+        definitions.icons.groups.retain(|group, items| {
+            items.retain(|name, path| {
+                let valid = validate_theme_icon(path);
+                if !valid {
+                    warn!(
+                        "Theme '{}': icon '{}:{}' inválido, ignorando",
+                        id, group, name
+                    );
+                }
+                valid
+            });
+            !items.is_empty()
+        });
+
         for font in &mut definitions.fonts {
             if !font.src.starts_with('/') && !font.src.starts_with("file:") {
                 let abs_path = theme_base.join(&font.src);
@@ -610,6 +702,7 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
         version: theme_file.version,
         r#type: "user".into(),
         preview,
+        icon: None,
     })
 }
 

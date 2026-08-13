@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { SvelteMap } from "svelte/reactivity";
 import type { ThemeEntry } from "../types/types";
 
 const builtinThemes: ThemeEntry[] = [
@@ -46,6 +47,7 @@ export interface ThemeResponse {
 	bg_image_blur?: number | null;
 	bg_image_opacity?: number | null;
 	fonts: ThemeFontFace[];
+	icons: Record<string, string>;
 	inject_css?: string | null;
 }
 
@@ -58,6 +60,8 @@ let currentImage: HTMLImageElement | null = null;
 let currentGeneration = 0;
 let currentBlobUrl: string | null = null;
 const addedFonts: Set<globalThis.FontFace> = new Set();
+
+export const themeIcons = new SvelteMap<string, string>();
 
 const defaultFontsCSS = `
 @font-face {
@@ -204,6 +208,8 @@ function clearThemeResources() {
 		document.fonts.delete(face);
 	}
 	addedFonts.clear();
+
+	themeIcons.clear();
 }
 
 export async function applyTheme(themeId: string) {
@@ -233,6 +239,14 @@ export async function applyTheme(themeId: string) {
 	if (gen !== currentGeneration) return;
 
 	setThemeStyle(buildThemeCSS(theme));
+
+	if (theme.icons) {
+		for (const [key, val] of Object.entries(theme.icons)) {
+			if (!val) continue;
+			const url = themeId.startsWith("user:") ? convertFileSrc(val) : val;
+			themeIcons.set(key, url);
+		}
+	}
 
 	const root = document.documentElement;
 

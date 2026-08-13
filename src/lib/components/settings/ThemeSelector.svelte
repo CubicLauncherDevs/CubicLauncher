@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { open, save } from "@tauri-apps/plugin-dialog";
 	import { invoke } from "@tauri-apps/api/core";
+	import { convertFileSrc } from "@tauri-apps/api/core";
 	import type { ThemeEntry } from "$lib/types/types";
 	import { t } from "$lib/i18n";
 	import { openUrl } from "$lib/api/cubicApi";
@@ -151,7 +152,13 @@
 					onkeydown={(e) =>
 						e.key === "Enter" && selectTheme(theme.id)}
 				>
-					{#if theme.preview}
+					{#if theme.icon}
+						<img
+							class="theme-icon"
+							src={convertFileSrc(theme.icon)}
+							alt={theme.name}
+						/>
+					{:else if theme.preview}
 						<div class="swatch">
 							<div
 								class="swatch-bar"
@@ -326,6 +333,14 @@
 
 	.swatch-missing {
 		opacity: 0.4;
+	}
+
+	.theme-icon {
+		width: 28px;
+		height: 28px;
+		object-fit: contain;
+		border-radius: var(--border-radius-sm);
+		flex-shrink: 0;
 	}
 
 	.theme-info {

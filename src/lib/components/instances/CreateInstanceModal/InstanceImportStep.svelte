@@ -1,8 +1,5 @@
 <script lang="ts">
-	import {
-		detectInstanceZip,
-		importInstanceZip,
-	} from "$lib/api/cubicApi";
+	import { detectInstanceZip, importInstanceZip } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
 	import { showSuccess } from "$lib/state/state.svelte";
 	import type { InstanceImportPlan } from "$lib/types/types";
@@ -32,7 +29,8 @@
 		if (trimmed.length > MAX_NAME_LEN) return false;
 		if (!/[\x20-\x7E]*/.test(trimmed)) return false;
 		if (trimmed.includes("..")) return false;
-		if (trimmed.split("").some((c) => FORBIDDEN_CHARS.includes(c))) return false;
+		if (trimmed.split("").some((c) => FORBIDDEN_CHARS.includes(c)))
+			return false;
 		return true;
 	}
 
@@ -168,11 +166,17 @@
 
 			<div class="info-grid">
 				<div class="info-row">
-					<span class="info-label">{t("createInstance.mcVersionLabel")}</span>
-					<span class="info-value">{plan.minecraft_version ?? "—"}</span>
+					<span class="info-label"
+						>{t("createInstance.mcVersionLabel")}</span
+					>
+					<span class="info-value"
+						>{plan.minecraft_version ?? "—"}</span
+					>
 				</div>
 				<div class="info-row">
-					<span class="info-label">{t("createInstance.versionLabel")}</span>
+					<span class="info-label"
+						>{t("createInstance.versionLabel")}</span
+					>
 					<span class="info-value">
 						{plan.loader ?? "Vanilla"}
 						{plan.loader_version ? ` ${plan.loader_version}` : ""}
