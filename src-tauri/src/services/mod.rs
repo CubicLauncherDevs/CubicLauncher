@@ -9,7 +9,9 @@ pub(crate) mod settings_manager;
 
 pub use addon_manager::*;
 pub use download_queue::{DownloadQueue, DownloadState};
-pub use instance_import::{InstanceImportPlan, detect_instance_zip, import_instance_zip};
+pub use instance_import::{
+    InstanceImportPlan, cancel_preview, detect_instance_zip, import_instance_zip,
+};
 pub use instance_manager::{
     InstOverrides, InstanceDto, InstanceManager, InstanceStatus, signal_kill,
 };

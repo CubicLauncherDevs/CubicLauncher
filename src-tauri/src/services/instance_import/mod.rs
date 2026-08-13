@@ -5,11 +5,13 @@
 //! y registrarlo en `IMPORTERS`.
 
 mod extractor;
-mod multimc;
+mod launchers;
+mod preview;
 pub mod types;
 
 pub use extractor::extract_instance_archive;
-pub use types::{ImportError, InstanceImportPlan};
+pub use preview::cancel_preview;
+pub use types::{ImportError, InstanceImportPlan, sanitize_instance_name};
 
 use crate::services::InstanceDto;
 use std::future::Future;
@@ -40,7 +42,7 @@ pub trait InstanceImporter: Send + Sync {
 }
 
 /// Registro global de providers, ordenado por prioridad.
-static IMPORTERS: &[&dyn InstanceImporter] = &[&multimc::MultimcProvider];
+static IMPORTERS: &[&dyn InstanceImporter] = &[&launchers::MultimcProvider];
 
 /// Detecta el formato de un archivo ZIP y devuelve un plan de importación.
 pub async fn detect_instance_zip(archive_path: &Path) -> Result<InstanceImportPlan, ImportError> {
@@ -54,7 +56,7 @@ pub async fn detect_instance_zip(archive_path: &Path) -> Result<InstanceImportPl
                 archive_path
             );
             let mut plan = importer.preview(&preview_dir)?;
-            plan.archive_path = archive_path.to_path_buf();
+            plan.preview_token = preview::register_preview(preview_dir);
             return Ok(plan);
         }
     }
@@ -63,21 +65,44 @@ pub async fn detect_instance_zip(archive_path: &Path) -> Result<InstanceImportPl
         "Ningún provider reconoció el archivo ZIP {:?}",
         archive_path
     );
+
+    // Si nadie reconoció el formato, limpiamos el directorio temporal inmediatamente.
+    cleanup_preview_dir(&preview_dir).await;
     Err(ImportError::FormatUnknown)
 }
 
-/// Importa una instancia desde un archivo ZIP ya previeweado.
+/// Importa una instancia desde una sesión de preview previamente creada por
+/// `detect_instance_zip`.
 pub async fn import_instance_zip(
-    archive_path: &Path,
+    preview_token: &str,
     target_name: &str,
 ) -> Result<InstanceDto, ImportError> {
-    let preview_dir = extract_instance_archive(archive_path)?;
+    let session = preview::take_preview(preview_token).ok_or(ImportError::UnknownPreviewSession)?;
+    let preview_dir = session.preview_dir().to_path_buf();
 
-    for importer in IMPORTERS {
-        if importer.detect(&preview_dir) {
-            return importer.import(&preview_dir, target_name).await;
+    let result = async {
+        for importer in IMPORTERS {
+            if importer.detect(&preview_dir) {
+                return importer.import(&preview_dir, target_name).await;
+            }
         }
+        Err(ImportError::FormatUnknown)
     }
+    .await;
 
-    Err(ImportError::FormatUnknown)
+    // Borramos el directorio preview en cualquier caso (éxito o fallo).
+    session.cleanup().await;
+
+    result
+}
+
+async fn cleanup_preview_dir(preview_dir: &Path) {
+    if preview_dir.exists()
+        && let Err(e) = tokio::fs::remove_dir_all(preview_dir).await
+    {
+        warn!(
+            "No se pudo borrar el directorio temporal de preview {:?}: {}",
+            preview_dir, e
+        );
+    }
 }

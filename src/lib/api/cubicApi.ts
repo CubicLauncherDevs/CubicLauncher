@@ -877,14 +877,14 @@ export async function detectInstanceZip(
 }
 
 export async function importInstanceZip(
-	path: string,
+	previewToken: string,
 	name: string,
 	callback?: () => void,
 	onError?: (err: unknown) => void,
 ): Promise<InstanceDto | null> {
 	try {
 		const result = await invoke<InstanceDto>("import_instance_zip", {
-			path,
+			previewToken,
 			name,
 		});
 		callback?.();
@@ -893,6 +893,16 @@ export async function importInstanceZip(
 		showErrorParsed(err);
 		onError?.(err);
 		return null;
+	}
+}
+
+export async function cancelInstanceImport(
+	previewToken: string,
+): Promise<void> {
+	try {
+		await invoke("cancel_instance_import", { previewToken });
+	} catch (err) {
+		console.error("Error cancelando preview de importación:", err);
 	}
 }
 

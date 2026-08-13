@@ -47,6 +47,9 @@ pub enum InstanceError {
     #[error("No se pudo determinar la versión de Minecraft")]
     ImportInstanceUnknownMinecraftVersion,
 
+    #[error("Sesión de preview de importación inválida o expirada")]
+    ImportInstanceUnknownPreviewSession,
+
     #[error("Loader no soportado en la instancia: {0}")]
     ImportInstanceUnsupportedLoader(String),
 
@@ -75,6 +78,7 @@ impl InstanceError {
             Self::ImportInstanceArchiveInvalid(_) => "INST_IMPORT_ARCHIVE_INVALID",
             Self::ImportInstanceExtractionFailed(_) => "INST_IMPORT_EXTRACTION_FAILED",
             Self::ImportInstanceUnknownMinecraftVersion => "INST_IMPORT_UNKNOWN_MINECRAFT_VERSION",
+            Self::ImportInstanceUnknownPreviewSession => "INST_IMPORT_PREVIEW_EXPIRED",
             Self::ImportInstanceUnsupportedLoader(_) => "INST_IMPORT_UNSUPPORTED_LOADER",
             Self::ImportInstanceProviderError { .. } => "INST_IMPORT_PROVIDER_ERROR",
             Self::Fs(e) => e.code(),

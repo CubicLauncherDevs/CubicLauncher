@@ -1,21 +1,22 @@
 //! Tipos compartidos del sistema genérico de importación de instancias.
 
 use serde::Serialize;
-use std::path::PathBuf;
 
 /// Información de preview de un archivo de instancia detectado.
+///
+/// Los campos `preview_token` identifica la sesión de preview en el backend; no incluye
+/// rutas locales del sistema para evitar filtrar información interna al frontend.
 #[derive(Debug, Clone, Serialize)]
 pub struct InstanceImportPlan {
     pub format_id: &'static str,
     pub format_name: &'static str,
-    pub archive_path: PathBuf,
-    pub preview_dir: PathBuf,
     pub original_name: String,
     pub sanitized_name: String,
     pub minecraft_version: Option<String>,
     pub loader: Option<String>,
     pub loader_version: Option<String>,
     pub warnings: Vec<String>,
+    pub preview_token: String,
 }
 
 /// Errores específicos del sistema de importación de instancias.
@@ -32,6 +33,9 @@ pub enum ImportError {
 
     #[error("No se pudo determinar la versión de Minecraft")]
     UnknownMinecraftVersion,
+
+    #[error("Sesión de preview inválida o expirada")]
+    UnknownPreviewSession,
 
     #[error("Loader no soportado: {0}")]
     UnsupportedLoader(String),
@@ -62,6 +66,7 @@ impl From<ImportError> for crate::core::errors::instance::InstanceError {
             ImportError::InvalidArchive(msg) => Self::ImportInstanceArchiveInvalid(msg),
             ImportError::ExtractionFailed(msg) => Self::ImportInstanceExtractionFailed(msg),
             ImportError::UnknownMinecraftVersion => Self::ImportInstanceUnknownMinecraftVersion,
+            ImportError::UnknownPreviewSession => Self::ImportInstanceUnknownPreviewSession,
             ImportError::UnsupportedLoader(l) => Self::ImportInstanceUnsupportedLoader(l),
             ImportError::ProviderError { provider, message } => {
                 Self::ImportInstanceProviderError { provider, message }

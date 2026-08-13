@@ -14,6 +14,11 @@
 		ModrinthVersion,
 	} from "$lib/types/types";
 	import { renderMarkdown } from "$lib/util/markdown";
+	import {
+		MAX_INSTANCE_NAME_LEN,
+		isValidInstanceName,
+		sanitizeInstanceName,
+	} from "$lib/utils/instanceName";
 	import Select from "$lib/components/layout/Select.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
@@ -223,34 +228,6 @@
 		return String(n);
 	}
 
-	const FORBIDDEN_CHARS = ["/", "\\", "<", ">", ":", '"', "|", "?", "*"];
-	const MAX_NAME_LEN = 16;
-
-	function isValidInstanceName(name: string): boolean {
-		const trimmed = name.trim();
-		if (!trimmed) return false;
-		if (trimmed.length > MAX_NAME_LEN) return false;
-		if (!/^[\0-\x7F]*$/.test(trimmed)) return false;
-		if (trimmed.includes("..")) return false;
-		if (trimmed.split("").some((c) => FORBIDDEN_CHARS.includes(c)))
-			return false;
-		return true;
-	}
-
-	function sanitizeInstanceName(name: string): string {
-		let clean = name
-			.normalize("NFD")
-			.replace(/[\u0300-\u036f]/g, "")
-			.replace(/[^\x20-\x7E]/g, "")
-			.replace(/[\\/<>:"|?*]/g, "")
-			.replace(/\.\./g, "")
-			.replace(/\s+/g, " ")
-			.trim();
-		if (!clean) clean = "modpack";
-		if (clean.length > MAX_NAME_LEN) clean = clean.slice(0, MAX_NAME_LEN);
-		return clean;
-	}
-
 	$effect(() => {
 		if (!initialized) {
 			initialized = true;
@@ -381,7 +358,7 @@
 							class="text-input"
 							class:error={customNameError}
 							bind:value={customName}
-							maxlength={16}
+							maxlength={MAX_INSTANCE_NAME_LEN}
 							disabled={installing}
 							oninput={() => (customNameError = null)}
 							onkeydown={(e) =>

@@ -1,9 +1,18 @@
 <script lang="ts">
-	import { detectInstanceZip, importInstanceZip } from "$lib/api/cubicApi";
+	import {
+		cancelInstanceImport,
+		detectInstanceZip,
+		importInstanceZip,
+	} from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
 	import { showSuccess } from "$lib/state/state.svelte";
 	import type { InstanceImportPlan } from "$lib/types/types";
+	import {
+		MAX_INSTANCE_NAME_LEN,
+		isValidInstanceName,
+	} from "$lib/utils/instanceName";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
+	import { onDestroy } from "svelte";
 
 	let {
 		onImported,
@@ -15,24 +24,11 @@
 
 	let filePath = $state<string | null>(null);
 	let plan = $state<InstanceImportPlan | null>(null);
+	let previewToken = $state("");
 	let targetName = $state("");
 	let loading = $state(false);
 	let importing = $state(false);
 	let error = $state<string | null>(null);
-
-	const FORBIDDEN_CHARS = ["/", "\\", "<", ">", ":", '"', "|", "?", "*"];
-	const MAX_NAME_LEN = 16;
-
-	function isValidName(name: string): boolean {
-		const trimmed = name.trim();
-		if (!trimmed) return false;
-		if (trimmed.length > MAX_NAME_LEN) return false;
-		if (!/[\x20-\x7E]*/.test(trimmed)) return false;
-		if (trimmed.includes("..")) return false;
-		if (trimmed.split("").some((c) => FORBIDDEN_CHARS.includes(c)))
-			return false;
-		return true;
-	}
 
 	async function selectFile() {
 		try {
@@ -52,14 +48,19 @@
 
 	async function detectArchive() {
 		if (!filePath) return;
+		if (previewToken) {
+			void cancelInstanceImport(previewToken);
+		}
 		loading = true;
 		error = null;
 		plan = null;
+		previewToken = "";
 		targetName = "";
 		try {
 			const detected = await detectInstanceZip(filePath);
 			if (detected) {
 				plan = detected;
+				previewToken = detected.preview_token;
 				targetName = detected.sanitized_name;
 			} else {
 				error = t("createInstance.importInstanceDetectErr");
@@ -73,11 +74,20 @@
 	}
 
 	async function handleImport() {
-		if (!filePath || !plan || !isValidName(targetName)) return;
+		if (
+			!filePath ||
+			!plan ||
+			!previewToken ||
+			!isValidInstanceName(targetName)
+		)
+			return;
 		importing = true;
 		error = null;
 		try {
-			const result = await importInstanceZip(filePath, targetName.trim());
+			const result = await importInstanceZip(
+				previewToken,
+				targetName.trim(),
+			);
 			if (result) {
 				showSuccess(
 					t("createInstance.importInstanceSuccessTitle"),
@@ -97,13 +107,23 @@
 	}
 
 	function reset() {
+		if (previewToken) {
+			void cancelInstanceImport(previewToken);
+		}
 		filePath = null;
 		plan = null;
+		previewToken = "";
 		targetName = "";
 		error = null;
 		loading = false;
 		importing = false;
 	}
+
+	onDestroy(() => {
+		if (previewToken) {
+			void cancelInstanceImport(previewToken);
+		}
+	});
 
 	$effect(() => {
 		if (initialPath && filePath !== initialPath) {
@@ -157,8 +177,8 @@
 				<input
 					type="text"
 					class="text-input"
-					class:error={!isValidName(targetName)}
-					maxlength={16}
+					class:error={!isValidInstanceName(targetName)}
+					maxlength={MAX_INSTANCE_NAME_LEN}
 					bind:value={targetName}
 					disabled={importing}
 				/>
@@ -206,7 +226,7 @@
 				type="button"
 				class="btn-primary"
 				onclick={handleImport}
-				disabled={importing || !isValidName(targetName)}
+				disabled={importing || !isValidInstanceName(targetName)}
 			>
 				{importing
 					? t("createInstance.importInstanceImporting")
@@ -387,7 +407,7 @@
 
 	.btn-primary {
 		background: var(--accent);
-		color: white;
+		color: var(--accent-text);
 		border: 1px solid var(--accent);
 	}
 
