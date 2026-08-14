@@ -411,10 +411,7 @@
 		"nextBtn": "Siguiente",
 		"backBtn": "Volver",
 		"stepInfo": "Información",
-		"stepVersion": "Versión",
-		"curseForgeTitle": "CurseForge",
-		"curseForgeText": "Próximamente podrás buscar e instalar modpacks desde CurseForge.",
-		"curseForgeSearchPlaceholder": "Buscar modpacks en CurseForge..."
+		"stepVersion": "Versión"
 	},
 	"themes": {
 		"importSuccess": "Theme importado",

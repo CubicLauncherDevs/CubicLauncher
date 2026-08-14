@@ -21,7 +21,6 @@
 	import VersionSelectorStep from "./VersionSelectorStep.svelte";
 	import StepIndicator from "./StepIndicator.svelte";
 	import ModrinthModpackBrowser from "./ModrinthModpackBrowser.svelte";
-	import CurseForgeModpackBrowser from "./CurseForgeModpackBrowser.svelte";
 	import LocalImportStep from "./LocalImportStep.svelte";
 	import {
 		MAX_INSTANCE_NAME_LEN,
@@ -40,7 +39,7 @@
 		oncreated?: () => void;
 	}>();
 
-	type Tab = "manual" | "modrinth" | "curseforge" | "local";
+	type Tab = "manual" | "modrinth" | "local";
 	let tab = $state<Tab>("manual");
 	let manualStep = $state(0);
 
@@ -54,11 +53,6 @@
 			id: "modrinth",
 			label: "Modrinth",
 			icon: "/images/instances/modth.png",
-		},
-		{
-			id: "curseforge",
-			label: "CurseForge",
-			icon: "/images/instances/forge.png",
 		},
 		{
 			id: "local",
@@ -269,7 +263,7 @@
 <ModalBase
 	bind:open
 	title={t("createInstance.title")}
-	width={tab === "modrinth" || tab === "curseforge" ? "800px" : "700px"}
+	width={tab === "modrinth" ? "800px" : "700px"}
 	onclose={reset}
 >
 	{#if error}
@@ -295,8 +289,6 @@
 	<div class="step-content">
 		{#if tab === "modrinth"}
 			<ModrinthModpackBrowser onInstalled={reset} />
-		{:else if tab === "curseforge"}
-			<CurseForgeModpackBrowser onInstalled={reset} />
 		{:else if tab === "local"}
 			<LocalImportStep
 				bind:name
@@ -399,8 +391,8 @@
 							? t("createInstance.creatingBtn")
 							: t("createInstance.createBtn")}
 					</button>
-				{:else if tab === "local" || tab === "curseforge"}
-					<!-- LocalImportStep y CurseForge gestionan su propio contenido -->
+				{:else if tab === "local"}
+					<!-- LocalImportStep gestiona su propio contenido -->
 				{/if}
 			</div>
 		</div>
