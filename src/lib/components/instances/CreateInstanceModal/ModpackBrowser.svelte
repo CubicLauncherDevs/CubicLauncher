@@ -171,6 +171,13 @@
 						src={selectedItem.iconUrl}
 						alt=""
 						class="detail-icon"
+						loading="lazy"
+						decoding="async"
+						onerror={(e) => {
+							(
+								e.currentTarget as HTMLImageElement
+							).style.display = "none";
+						}}
 					/>
 				{/if}
 				<div class="detail-title-group">
@@ -284,6 +291,13 @@
 										src={item.iconUrl}
 										alt=""
 										class="pack-icon"
+										loading="lazy"
+										decoding="async"
+										onerror={(e) => {
+											(
+												e.currentTarget as HTMLImageElement
+											).style.display = "none";
+										}}
 									/>
 								{/if}
 							</div>

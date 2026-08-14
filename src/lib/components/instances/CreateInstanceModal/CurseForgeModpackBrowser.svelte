@@ -40,6 +40,8 @@
 	let customName = $state("");
 	let customNameError = $state<string | null>(null);
 
+	let searchGen = 0;
+
 	const selectedFile = $derived(
 		files.find((f) => String(f.id) === selectedVersionId) ?? null,
 	);
@@ -68,6 +70,8 @@
 	async function doSearch(reset?: boolean) {
 		if (!reset && (searching || loadingMore)) return;
 
+		const gen = ++searchGen;
+
 		if (reset) {
 			searching = true;
 		} else {
@@ -86,6 +90,7 @@
 				limit,
 				reset ? 0 : offset,
 			);
+			if (gen !== searchGen) return;
 			if (result) {
 				projects = reset ? result.data : [...projects, ...result.data];
 				items = projects.map(projectToItem);
@@ -93,8 +98,10 @@
 				offset = reset ? limit : offset + limit;
 			}
 		} finally {
-			searching = false;
-			loadingMore = false;
+			if (gen === searchGen) {
+				searching = false;
+				loadingMore = false;
+			}
 		}
 	}
 

@@ -9,7 +9,7 @@
 		openUrl,
 	} from "$lib/api/cubicApi";
 	import type { ModrinthProject, ModrinthVersion } from "$lib/types/types";
-	import { renderMarkdown } from "$lib/util/markdown";
+	import MarkdownRenderer from "$lib/components/ui/MarkdownRenderer.svelte";
 	import {
 		isValidInstanceName,
 		sanitizeInstanceName,
@@ -47,6 +47,8 @@
 	let fullProject = $state<string>("");
 	let loadingFullProject = $state(false);
 
+	let searchGen = 0;
+
 	const versionOptions = $derived(
 		versions.map((v) => ({
 			value: v.id,
@@ -57,7 +59,11 @@
 		})),
 	);
 
-	const readmeHtml = $derived(fullProject ? renderMarkdown(fullProject) : "");
+	const readmeBaseUrl = $derived(
+		selectedPack?.slug
+			? `https://modrinth.com/modpack/${selectedPack.slug}`
+			: undefined,
+	);
 
 	function projectToItem(pack: ModrinthProject): ModpackItem {
 		return {
@@ -72,6 +78,8 @@
 
 	async function doSearch(reset?: boolean) {
 		if (!reset && (searching || loadingMore)) return;
+
+		const gen = ++searchGen;
 
 		if (reset) {
 			searching = true;
@@ -96,6 +104,7 @@
 				reset ? 0 : offset,
 				"modpack",
 			);
+			if (gen !== searchGen) return;
 			if (result) {
 				projects = reset ? result.hits : [...projects, ...result.hits];
 				items = projects.map(projectToItem);
@@ -103,8 +112,10 @@
 				offset = reset ? result.limit : offset + result.limit;
 			}
 		} finally {
-			searching = false;
-			loadingMore = false;
+			if (gen === searchGen) {
+				searching = false;
+				loadingMore = false;
+			}
 		}
 	}
 
@@ -274,21 +285,16 @@
 			<div class="readme-loading">
 				<Loading />
 			</div>
-		{:else if readmeHtml}
+		{:else if fullProject}
 			<div class="detail-readme">
 				<span class="readme-label">README</span>
-				<div
-					class="readme-content markdown-body"
-					role="presentation"
-					onclick={(e) => {
-						const a = (e.target as HTMLElement).closest("a");
-						if (a?.href && !a.href.startsWith("#")) {
-							e.preventDefault();
-							openUrl(a.href);
-						}
-					}}
-				>
-					{@html readmeHtml}
+				<div class="readme-content">
+					<MarkdownRenderer
+						source={fullProject}
+						baseUrl={readmeBaseUrl}
+						class="markdown-body"
+						onLinkClick={openUrl}
+					/>
 				</div>
 			</div>
 		{/if}
@@ -323,83 +329,5 @@
 		font-size: 0.78rem;
 		line-height: 1.5;
 		color: var(--text-primary);
-	}
-
-	:global(.markdown-body h1),
-	:global(.markdown-body h2),
-	:global(.markdown-body h3),
-	:global(.markdown-body h4) {
-		margin: 14px 0 6px;
-		font-weight: 700;
-		line-height: 1.3;
-	}
-
-	:global(.markdown-body h1) {
-		font-size: 1.05rem;
-	}
-	:global(.markdown-body h2) {
-		font-size: 0.95rem;
-	}
-	:global(.markdown-body h3) {
-		font-size: 0.85rem;
-	}
-
-	:global(.markdown-body p) {
-		margin: 8px 0;
-	}
-
-	:global(.markdown-body a) {
-		color: var(--accent);
-		text-decoration: none;
-	}
-
-	:global(.markdown-body a:hover) {
-		text-decoration: underline;
-	}
-
-	:global(.markdown-body code) {
-		font-size: 0.72rem;
-		padding: 1px 4px;
-		border-radius: 3px;
-		background: rgba(var(--accent-rgb), 0.08);
-		font-family: monospace;
-	}
-
-	:global(.markdown-body pre) {
-		padding: 10px;
-		border-radius: var(--border-radius-sm);
-		background: rgba(var(--accent-rgb), 0.04);
-		border: 1px solid var(--border);
-		overflow-x: auto;
-		font-size: 0.72rem;
-	}
-
-	:global(.markdown-body pre code) {
-		background: none;
-		padding: 0;
-	}
-
-	:global(.markdown-body ul),
-	:global(.markdown-body ol) {
-		padding-left: 20px;
-		margin: 8px 0;
-	}
-
-	:global(.markdown-body img) {
-		max-width: 100%;
-		border-radius: var(--border-radius-sm);
-	}
-
-	:global(.markdown-body blockquote) {
-		border-left: 3px solid var(--accent);
-		padding-left: 10px;
-		margin: 8px 0;
-		color: var(--text-secondary);
-	}
-
-	:global(.markdown-body hr) {
-		border: none;
-		border-top: 1px solid var(--border);
-		margin: 14px 0;
 	}
 </style>

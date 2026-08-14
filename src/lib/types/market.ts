@@ -61,7 +61,6 @@ export interface MarketDetailData {
 	fullProject?: ModrinthProjectFull;
 	versions: MarketVersion[];
 	selectedVersion: MarketVersion | null;
-	readmeHtml: string;
 	loading: boolean;
 	error: string | null;
 }

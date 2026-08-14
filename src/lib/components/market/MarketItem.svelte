@@ -21,6 +21,7 @@
 	}: Props = $props();
 
 	let installing = $state(false);
+	let iconError = $state(false);
 
 	function formatNumber(num: number): string {
 		if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
@@ -62,8 +63,14 @@
 	onclick={onSelect}
 >
 	<div class="market-item-icon">
-		{#if project.icon}
-			<img src={project.icon} alt={project.title} loading="lazy" />
+		{#if project.icon && !iconError}
+			<img
+				src={project.icon}
+				alt={project.title}
+				loading="lazy"
+				decoding="async"
+				onerror={() => (iconError = true)}
+			/>
 		{:else}
 			<CubicLogo />
 		{/if}

@@ -5,7 +5,7 @@
 	import Loading from "$lib/icons/Loading.svelte";
 	import CubicLogo from "./CubicLogo.svelte";
 	import Dropdown from "$lib/components/layout/Dropdown.svelte";
-	import { renderMarkdown } from "$lib/util/markdown";
+	import MarkdownRenderer from "$lib/components/ui/MarkdownRenderer.svelte";
 	import type { MarketDetailState } from "$lib/state/marketState.svelte";
 	import type {
 		MarketProject,
@@ -45,13 +45,23 @@
 
 	let installing = $state(false);
 	let actionError = $state<string | null>(null);
+	let iconError = $state(false);
 
-	const readmeHtml = $derived(
-		project.source !== "curseforge" &&
-			(detail.fullProject as ModrinthProjectFull | undefined)?.body
-			? renderMarkdown((detail.fullProject as ModrinthProjectFull).body!)
+	const bodySource = $derived(
+		project.source !== "curseforge"
+			? ((detail.fullProject as ModrinthProjectFull | undefined)?.body ??
+					"")
 			: "",
 	);
+
+	const readmeBaseUrl = $derived.by(() => {
+		if (project.source === "curseforge") return undefined;
+		const slug =
+			(detail.fullProject as ModrinthProjectFull | undefined)?.slug ??
+			project.slug;
+		if (!slug) return undefined;
+		return `https://modrinth.com/${modrinthTypePath}/${slug}`;
+	});
 
 	const versionOptions = $derived.by(() => {
 		const compatible = detail.versions.filter((v) =>
@@ -122,8 +132,14 @@
 
 	<div class="market-detail-scroll">
 		<div class="market-detail-icon">
-			{#if project.icon}
-				<img src={project.icon} alt={project.title} loading="lazy" />
+			{#if project.icon && !iconError}
+				<img
+					src={project.icon}
+					alt={project.title}
+					loading="lazy"
+					decoding="async"
+					onerror={() => (iconError = true)}
+				/>
 			{:else}
 				<CubicLogo />
 			{/if}
@@ -240,24 +256,16 @@
 			<p class="market-detail-description">{project.description}</p>
 		{/if}
 
-		{#if readmeHtml}
+		{#if bodySource}
 			<div class="market-detail-readme">
 				<h4 class="market-detail-section-title">
 					{t("market.detail.readme")}
 				</h4>
-				<div
-					class="markdown-body"
-					role="presentation"
-					onclick={(e) => {
-						const a = (e.target as HTMLElement).closest("a");
-						if (a?.href && !a.href.startsWith("#")) {
-							e.preventDefault();
-							openUrl(a.href);
-						}
-					}}
-				>
-					{@html readmeHtml}
-				</div>
+				<MarkdownRenderer
+					source={bodySource}
+					baseUrl={readmeBaseUrl}
+					onLinkClick={openUrl}
+				/>
 			</div>
 		{/if}
 
@@ -543,76 +551,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
-	}
-
-	:global(.markdown-body) {
-		font-size: 0.82rem;
-		line-height: 1.6;
-		color: var(--text-secondary);
-		word-break: break-word;
-	}
-
-	:global(.markdown-body h1),
-	:global(.markdown-body h2),
-	:global(.markdown-body h3),
-	:global(.markdown-body h4) {
-		color: var(--text-primary);
-		margin: 1.2em 0 0.6em;
-	}
-
-	:global(.markdown-body p) {
-		margin: 0.6em 0;
-	}
-
-	:global(.markdown-body a) {
-		color: var(--accent);
-		text-decoration: none;
-	}
-
-	:global(.markdown-body a:hover) {
-		text-decoration: underline;
-	}
-
-	:global(.markdown-body img) {
-		max-width: 100%;
-		height: auto;
-		border-radius: var(--border-radius-sm);
-	}
-
-	:global(.markdown-body code) {
-		background: rgba(255, 255, 255, 0.06);
-		padding: 2px 5px;
-		border-radius: 4px;
-		font-size: 0.78rem;
-	}
-
-	:global(.markdown-body pre) {
-		background: rgba(255, 255, 255, 0.04);
-		padding: 10px;
-		border-radius: var(--border-radius-sm);
-		overflow-x: auto;
-	}
-
-	:global(.markdown-body ul),
-	:global(.markdown-body ol) {
-		padding-left: 20px;
-	}
-
-	:global(.markdown-body table) {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 0.75rem;
-	}
-
-	:global(.markdown-body th),
-	:global(.markdown-body td) {
-		border: 1px solid var(--border);
-		padding: 6px 8px;
-		text-align: left;
-	}
-
-	:global(.markdown-body th) {
-		background: rgba(255, 255, 255, 0.04);
 	}
 
 	.market-detail-open-link {
