@@ -310,6 +310,7 @@ async fn get_json_cf(url: &str) -> Result<Value, String> {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn search_curseforge(
     query: String,
     loader: String,
@@ -318,6 +319,7 @@ pub async fn search_curseforge(
     index: String,
     limit: u32,
     offset: u32,
+    class_id: Option<u32>,
 ) -> Result<Value, String> {
     let mut url = format!("{}/mods/search", CURSEFORGE_API_BASE);
     let mut first = true;
@@ -342,10 +344,10 @@ pub async fn search_curseforge(
 
     append(&mut url, "pageSize", &limit.min(50).to_string());
     append(&mut url, "index", &offset.to_string());
-    append(&mut url, "classId", "6");
+    append(&mut url, "classId", &class_id.unwrap_or(6).to_string());
 
     let loader_lower = loader.to_lowercase();
-    if loader_lower != "vanilla" {
+    if loader_lower != "vanilla" && class_id != Some(4471) {
         append(
             &mut url,
             "modLoaderType",
@@ -354,6 +356,7 @@ pub async fn search_curseforge(
     }
     if let Some(gv) = &game_version
         && !gv.is_empty()
+        && class_id != Some(4471)
     {
         append(&mut url, "gameVersion", gv);
     }

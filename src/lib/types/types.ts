@@ -486,6 +486,17 @@ export interface MrpackInfo {
 	icon: string | null;
 }
 
+export interface CfpackInfo {
+	name: string;
+	version_id: string;
+	summary: string | null;
+	minecraft_version: string | null;
+	loader: string | null;
+	loader_version: string | null;
+	file_count: number;
+	icon: string | null;
+}
+
 export interface InstanceImportPlan {
 	format_id: string;
 	format_name: string;

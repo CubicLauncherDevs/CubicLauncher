@@ -3,9 +3,6 @@
 		createInstance,
 		uploadCustomIcon,
 		fetchAll,
-		parseMrpack,
-		installMrpack,
-		searchModrinth,
 		addToQueue,
 		downloadFabric,
 		downloadForge,
@@ -19,19 +16,17 @@
 	} from "$lib/state/versionsState.svelte";
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import { t } from "$lib/i18n";
-	import type { MrpackInfo } from "$lib/types/types";
+	import Icon from "$lib/icons/Icon.svelte";
 	import IconPicker from "./IconPicker.svelte";
 	import VersionSelectorStep from "./VersionSelectorStep.svelte";
 	import StepIndicator from "./StepIndicator.svelte";
-	import PackInfo from "./PackInfo.svelte";
 	import ModrinthModpackBrowser from "./ModrinthModpackBrowser.svelte";
-	import InstanceImportStep from "./InstanceImportStep.svelte";
+	import CurseForgeModpackBrowser from "./CurseForgeModpackBrowser.svelte";
+	import LocalImportStep from "./LocalImportStep.svelte";
 	import {
 		MAX_INSTANCE_NAME_LEN,
 		isValidInstanceName,
-		sanitizeInstanceName,
 	} from "$lib/utils/instanceName";
-	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 	let {
 		open = $bindable(),
@@ -45,9 +40,32 @@
 		oncreated?: () => void;
 	}>();
 
-	type Tab = "manual" | "import" | "modrinth" | "instanceImport";
+	type Tab = "manual" | "modrinth" | "curseforge" | "local";
 	let tab = $state<Tab>("manual");
 	let manualStep = $state(0);
+
+	const TABS: { id: Tab; label: string; icon: string }[] = [
+		{
+			id: "manual",
+			label: t("createInstance.manualTab"),
+			icon: "/images/icons/nav/create.svg",
+		},
+		{
+			id: "modrinth",
+			label: "Modrinth",
+			icon: "/images/instances/modth.png",
+		},
+		{
+			id: "curseforge",
+			label: "CurseForge",
+			icon: "/images/instances/forge.png",
+		},
+		{
+			id: "local",
+			label: t("createInstance.localTab"),
+			icon: "/images/icons/instance/folder.svg",
+		},
+	];
 
 	// ── Instance fields ─────────────────────────────────────────────────────────
 	let name = $state("");
@@ -77,10 +95,6 @@
 		}
 		return "";
 	});
-
-	// ── Modpack (import) ──────────────────────────────────────────────────────
-	let packInfo = $state<MrpackInfo | null>(null);
-	let parsing = $state(false);
 
 	// ── Common ──────────────────────────────────────────────────────────────────
 	let loading = $state(false);
@@ -116,20 +130,12 @@
 	$effect(() => {
 		if (open) {
 			nameMsg = null;
-			if (mrpackPath) {
-				tab = "import";
-			} else if (instanceZipPath) {
-				tab = "instanceImport";
+			if (mrpackPath || instanceZipPath) {
+				tab = "local";
 			} else {
 				tab = "manual";
 			}
 			if (!namesCache) fetchInstances();
-		}
-	});
-
-	$effect(() => {
-		if (open && mrpackPath) {
-			loadPackInfo();
 		}
 	});
 
@@ -147,30 +153,6 @@
 		const instances = await fetchAll();
 		namesCache = instances.map((i) => i.name);
 		existingNames = namesCache;
-	}
-
-	// ── Load pack info ─────────────────────────────────────────────────────────
-	async function loadPackInfo() {
-		if (!mrpackPath) return;
-		parsing = true;
-		error = null;
-		try {
-			const info = await parseMrpack(mrpackPath);
-			if (info) {
-				packInfo = info;
-				if (!name.trim()) {
-					name = isValidInstanceName(info.name)
-						? info.name
-						: sanitizeInstanceName(info.name);
-				}
-				const loaderIcon = selectIconForLoader(info.loader);
-				if (loaderIcon) selectedIcon = loaderIcon;
-			} else {
-				error = "No se pudo leer el archivo .mrpack";
-			}
-		} finally {
-			parsing = false;
-		}
 	}
 
 	// ── Helpers ─────────────────────────────────────────────────────────────────
@@ -192,35 +174,10 @@
 		}
 	}
 
-	// ── Import modpack (local) ─────────────────────────────────────────────────
-	async function selectMrpackFile() {
-		try {
-			const selected = await openDialog({
-				multiple: false,
-				filters: [{ name: "Modpacks", extensions: ["mrpack"] }],
-			});
-			if (selected) {
-				mrpackPath = selected;
-				await loadPackInfo();
-			}
-		} catch (e) {
-			console.error("Error selecting file:", e);
-		}
-	}
-
 	// ── Step navigation ─────────────────────────────────────────────────────────
 	function handleNext() {
 		if (!validateName()) return;
 		manualStep = 1;
-	}
-
-	// ── Create / Import ─────────────────────────────────────────────────────────
-	async function handleFinalAction() {
-		if (tab === "import" && mrpackPath && packInfo) {
-			await handleImport();
-		} else if (tab === "manual") {
-			await handleManualCreate();
-		}
 	}
 
 	function handleIconUpload(filePath: string) {
@@ -279,50 +236,6 @@
 		invalidateInstalledVersions();
 	}
 
-	async function handleImport() {
-		if (!mrpackPath || !name.trim()) return;
-		loading = true;
-		error = null;
-		try {
-			let iconUrl: string | undefined;
-			try {
-				const searchResult = await searchModrinth(
-					name.trim(),
-					"",
-					undefined,
-					null,
-					"downloads",
-					1,
-					0,
-					"modpack",
-				);
-				if (searchResult && searchResult.hits.length > 0) {
-					iconUrl = searchResult.hits[0].icon_url ?? undefined;
-				}
-			} catch {
-				/* ignore search errors */
-			}
-
-			const result = await installMrpack(
-				mrpackPath,
-				name.trim(),
-				iconUrl,
-				() => {
-					open = false;
-					mrpackPath = null;
-					resetState();
-					oncreated?.();
-				},
-				(err: unknown) => {
-					error = `Error al importar: ${err}`;
-				},
-			);
-			if (!result) error = "Error al importar el modpack";
-		} finally {
-			loading = false;
-		}
-	}
-
 	// ── Reset ───────────────────────────────────────────────────────────────────
 	function resetState() {
 		name = "";
@@ -332,8 +245,6 @@
 		selectedIcon = null;
 		customIconPath = null;
 		error = null;
-		parsing = false;
-		packInfo = null;
 		loading = false;
 		mrpackPath = null;
 		instanceZipPath = null;
@@ -358,104 +269,41 @@
 <ModalBase
 	bind:open
 	title={t("createInstance.title")}
-	width={tab === "modrinth" ? "800px" : "700px"}
+	width={tab === "modrinth" || tab === "curseforge" ? "800px" : "700px"}
 	onclose={reset}
 >
 	{#if error}
 		<div class="step-error">{error}</div>
 	{/if}
 
-	<div class="tab-bar">
-		<button
-			type="button"
-			class="tab-btn"
-			class:active={tab === "manual"}
-			onclick={() => (tab = "manual")}
-		>
-			{t("createInstance.manualTab")}
-		</button>
-		<button
-			type="button"
-			class="tab-btn"
-			class:active={tab === "import"}
-			onclick={() => (tab = "import")}
-		>
-			{t("createInstance.importTab")}
-		</button>
-		<button
-			type="button"
-			class="tab-btn"
-			class:active={tab === "modrinth"}
-			onclick={() => (tab = "modrinth")}
-		>
-			Modrinth
-		</button>
-		<button
-			type="button"
-			class="tab-btn"
-			class:active={tab === "instanceImport"}
-			onclick={() => (tab = "instanceImport")}
-		>
-			{t("createInstance.importInstanceTab")}
-		</button>
+	<div class="tab-bar" role="tablist">
+		{#each TABS as tabItem (tabItem.id)}
+			<button
+				type="button"
+				class="tab-btn"
+				role="tab"
+				aria-selected={tab === tabItem.id}
+				class:active={tab === tabItem.id}
+				onclick={() => (tab = tabItem.id)}
+			>
+				<Icon src={tabItem.icon} size={18} />
+				<span>{tabItem.label}</span>
+			</button>
+		{/each}
 	</div>
 
 	<div class="step-content">
 		{#if tab === "modrinth"}
 			<ModrinthModpackBrowser onInstalled={reset} />
-		{:else if tab === "instanceImport"}
-			<InstanceImportStep
+		{:else if tab === "curseforge"}
+			<CurseForgeModpackBrowser onInstalled={reset} />
+		{:else if tab === "local"}
+			<LocalImportStep
+				bind:name
 				onImported={reset}
-				initialPath={instanceZipPath}
+				initialMrpackPath={mrpackPath}
+				initialInstanceZipPath={instanceZipPath}
 			/>
-		{:else if tab === "import"}
-			{#if packInfo}
-				<div class="modpack-summary">
-					{#if parsing}
-						<div class="parsing-state">
-							<p>{t("createInstance.parsingPack")}</p>
-						</div>
-					{:else}
-						<div class="import-name-section">
-							<div class="input-group">
-								<span class="input-label">
-									{t("createInstance.nameLabel")}
-								</span>
-								<input
-									type="text"
-									class="text-input"
-									class:error={nameMsg}
-									maxlength={MAX_INSTANCE_NAME_LEN}
-									bind:value={name}
-									disabled={loading}
-									oninput={() => (nameMsg = null)}
-									onkeydown={(e) =>
-										e.key === "Enter" &&
-										handleFinalAction()}
-								/>
-								{#if nameMsg}
-									<span class="input-error">{t(nameMsg)}</span
-									>
-								{/if}
-							</div>
-						</div>
-						<PackInfo {packInfo} onChangeFile={selectMrpackFile} />
-					{/if}
-				</div>
-			{:else}
-				<div class="import-layout">
-					<div class="import-empty">
-						<p>{t("createInstance.selectFile")}</p>
-						<button
-							type="button"
-							class="btn-primary"
-							onclick={selectMrpackFile}
-						>
-							{t("createInstance.selectMrpackBtn")}
-						</button>
-					</div>
-				</div>
-			{/if}
 		{:else}
 			<div class="create-layout">
 				<StepIndicator
@@ -551,27 +399,8 @@
 							? t("createInstance.creatingBtn")
 							: t("createInstance.createBtn")}
 					</button>
-				{:else if tab === "import"}
-					<button
-						type="button"
-						class="btn-secondary"
-						onclick={reset}
-						disabled={loading}
-					>
-						{t("createInstance.cancel")}
-					</button>
-					<button
-						type="button"
-						class="btn-primary"
-						onclick={handleFinalAction}
-						disabled={loading || !mrpackPath || !name.trim()}
-					>
-						{loading
-							? t("createInstance.importingBtn")
-							: t("createInstance.importBtn")}
-					</button>
-				{:else if tab === "instanceImport"}
-					<!-- InstanceImportStep gestiona sus propios botones -->
+				{:else if tab === "local" || tab === "curseforge"}
+					<!-- LocalImportStep y CurseForge gestionan su propio contenido -->
 				{/if}
 			</div>
 		</div>
@@ -592,14 +421,18 @@
 
 	.tab-bar {
 		display: flex;
-		gap: 4px;
+		gap: 6px;
 		margin-bottom: 8px;
 		border-bottom: 1px solid var(--border);
 		padding-bottom: 8px;
 	}
 
 	.tab-btn {
-		padding: 6px 16px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		padding: 7px 14px;
 		border: 1px solid transparent;
 		border-radius: var(--border-radius-sm);
 		background: transparent;
@@ -621,7 +454,7 @@
 	.tab-btn.active {
 		color: var(--text-primary);
 		border-color: var(--accent);
-		background: rgba(var(--accent-rgb), 0.08);
+		background: rgba(var(--accent-rgb), 0.1);
 	}
 
 	.step-content {
@@ -688,61 +521,5 @@
 	.footer-right {
 		display: flex;
 		gap: 10px;
-	}
-
-	.modpack-summary {
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-	}
-
-	.parsing-state {
-		padding: 28px 16px;
-		text-align: center;
-		color: var(--text-secondary);
-		font-size: 0.9rem;
-	}
-
-	.import-layout {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		min-height: 250px;
-	}
-
-	.import-empty {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 16px;
-		color: var(--text-secondary);
-		font-size: 0.85rem;
-	}
-
-	.import-name-section {
-		margin-bottom: 8px;
-	}
-
-	.import-name-section :global(.text-input) {
-		width: 100%;
-		padding: 8px 12px;
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		background: var(--bg-input);
-		color: var(--text-primary);
-		font-size: 0.82rem;
-		font-family: inherit;
-		outline: none;
-		box-sizing: border-box;
-	}
-
-	.import-name-section :global(.text-input:focus) {
-		border-color: var(--accent);
-	}
-
-	.import-name-section :global(.text-input.error) {
-		border-color: var(--color-error) !important;
-		box-shadow: 0 0 0 1px var(--color-error) !important;
 	}
 </style>

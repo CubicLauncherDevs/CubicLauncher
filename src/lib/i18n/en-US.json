@@ -365,6 +365,9 @@
 		"createBtn": "Create",
 		"creatingBtn": "Creating...",
 		"manualTab": "Manual",
+		"localTab": "Local",
+		"localModpackTab": "Modpack",
+		"localInstanceTab": "Instance",
 		"importTab": "From Modpack",
 		"importBtn": "Import Modpack",
 		"importingBtn": "Importing...",
@@ -408,7 +411,10 @@
 		"nextBtn": "Next",
 		"backBtn": "Back",
 		"stepInfo": "Info",
-		"stepVersion": "Version"
+		"stepVersion": "Version",
+		"curseForgeTitle": "CurseForge",
+		"curseForgeText": "Soon you'll be able to search and install modpacks from CurseForge.",
+		"curseForgeSearchPlaceholder": "Search CurseForge modpacks..."
 	},
 	"themes": {
 		"importSuccess": "Theme imported",

@@ -18,6 +18,7 @@ import {
 	type CurseForgeFile,
 	type JreStatus,
 	type MrpackInfo,
+	type CfpackInfo,
 	type InstanceImportPlan,
 	type YggdrasilServerInfo,
 } from "../types/types";
@@ -745,6 +746,77 @@ export async function getCurseForgeFileDownloadUrl(
 			fileId,
 		})) ?? null
 	);
+}
+
+export async function searchCurseForgeModpacks(
+	query: string,
+	index = "popularity",
+	limit = 10,
+	offset = 0,
+): Promise<CurseForgeSearchResult | null> {
+	return (
+		(await invokeWithFallback<CurseForgeSearchResult>("search_curseforge", {
+			query,
+			loader: "",
+			gameVersion: null,
+			category: null,
+			index,
+			limit,
+			offset,
+			classId: 4471,
+		})) ?? null
+	);
+}
+
+export async function downloadCurseForgeFile(
+	modId: number,
+	fileId: number,
+): Promise<string | null> {
+	return (
+		(await invokeWithFallback<string>("download_curseforge_file", {
+			modId,
+			fileId,
+		})) ?? null
+	);
+}
+
+export async function parseCurseForgeModpack(
+	path: string,
+): Promise<CfpackInfo | null> {
+	return (
+		(await invokeWithFallback<CfpackInfo>("parse_curseforge_modpack_cmd", {
+			path,
+		})) ?? null
+	);
+}
+
+export async function installCurseForgeModpack(
+	path: string,
+	name: string,
+	projectId?: string,
+	fileId?: string,
+	iconUrl?: string,
+	onInstalled?: () => void,
+	onError?: (err: unknown) => void,
+): Promise<boolean> {
+	const result = await invokeWithFallback<CfpackInfo>(
+		"install_curseforge_modpack",
+		{
+			path,
+			instanceName: name,
+			projectId: projectId ?? null,
+			fileId: fileId ?? null,
+			iconUrl: iconUrl ?? null,
+		},
+	);
+	if (result) {
+		onInstalled?.();
+		return true;
+	}
+	if (onError) {
+		onError("install_curseforge_modpack returned no result");
+	}
+	return false;
 }
 
 // ─────────────────────────────────────────────────────────────

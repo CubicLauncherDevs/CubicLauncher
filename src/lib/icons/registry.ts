@@ -51,6 +51,7 @@ export const ICON_REGISTRY: Record<string, string> = {
 
 	"brand:discord": "/images/icons/brand/discord.svg",
 	"brand:microsoft": "/images/icons/brand/microsoft.svg",
+	"brand:modrinth": "/images/instances/modth.png",
 
 	"ui:shaders": "/images/icons/ui/shaders.svg",
 	"ui:resources": "/images/icons/ui/resources.svg",
