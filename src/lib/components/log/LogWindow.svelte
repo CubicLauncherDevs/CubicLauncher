@@ -31,16 +31,9 @@
 	const activeUsername = $derived(activeUser?.username ?? null);
 
 	function buildPrivacyTerms(username: string | null): string[] {
-		const terms = [
-			"access_token",
-			"refresh_token",
-			"client_token",
-			"bearer",
-			"msa",
-			"microsoft",
-		];
-		if (username) terms.push(username.toLowerCase());
-		return terms;
+		// El backend ya sanitiza tokens, session ids, correos e IPs.
+		// Aquí solo ocultamos líneas que contengan el nombre de usuario activo.
+		return username ? [username.toLowerCase()] : [];
 	}
 
 	$effect(() => {

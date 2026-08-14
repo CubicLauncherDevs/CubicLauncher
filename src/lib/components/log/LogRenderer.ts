@@ -236,12 +236,16 @@ export class LogRenderer {
 	private computeUnseenCount(): number {
 		if (!this.viewport) return 0;
 		const container = this.getLinesContainer();
-		if (!container) return 0;
+		if (!container?.lastElementChild) return 0;
+
+		const last = container.lastElementChild as HTMLElement;
+		const lastBottom = last.getBoundingClientRect().bottom;
+		const viewportBottom = this.viewport.getBoundingClientRect().bottom;
+		const lineHeight = last.offsetHeight || 20;
+
 		return Math.max(
 			0,
-			container.children.length -
-				Math.floor(this.viewport.scrollTop / 20) -
-				Math.floor(this.viewport.clientHeight / 20),
+			Math.ceil((lastBottom - viewportBottom) / lineHeight),
 		);
 	}
 

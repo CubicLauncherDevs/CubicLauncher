@@ -274,18 +274,18 @@ struct LogLineRaw {
 }
 
 pub struct LogRing {
-    inner: std::sync::Mutex<VecDeque<LogLineRaw>>,
+    inner: tokio::sync::Mutex<VecDeque<LogLineRaw>>,
 }
 
 impl LogRing {
     fn new() -> Self {
         Self {
-            inner: std::sync::Mutex::new(VecDeque::with_capacity(LOG_RING_CAPACITY)),
+            inner: tokio::sync::Mutex::new(VecDeque::with_capacity(LOG_RING_CAPACITY)),
         }
     }
 
-    pub fn push(&self, text: Arc<str>, level: LogLevel, stream: u8) {
-        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+    pub async fn push(&self, text: Arc<str>, level: LogLevel, stream: u8) {
+        let mut guard = self.inner.lock().await;
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as u64)
@@ -302,8 +302,8 @@ impl LogRing {
         });
     }
 
-    pub fn snapshot(&self, limit: Option<usize>) -> Vec<LogLine> {
-        let guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+    pub async fn snapshot(&self, limit: Option<usize>) -> Vec<LogLine> {
+        let guard = self.inner.lock().await;
         let to_skip = limit.and_then(|l| guard.len().checked_sub(l)).unwrap_or(0);
         guard
             .iter()
@@ -332,12 +332,16 @@ fn get_log_ring(id: &str) -> Arc<LogRing> {
         .clone()
 }
 
-pub fn get_log_history(id: &str, limit: Option<usize>) -> Vec<LogLine> {
-    let map = LOG_RINGS.get_or_init(DashMap::new);
-    if let Some(entry) = map.get(id) {
-        entry.snapshot(limit)
+pub async fn get_log_history(id: &str, limit: Option<usize>) -> Vec<LogLine> {
+    let ring = {
+        let map = LOG_RINGS.get_or_init(DashMap::new);
+        map.get(id).map(|entry| entry.clone())
+    };
+
+    if let Some(ring) = ring {
+        ring.snapshot(limit).await
     } else {
-        get_crash_log_snapshot(id, limit).unwrap_or_default()
+        get_crash_log_snapshot(id, limit).await.unwrap_or_default()
     }
 }
 
@@ -354,9 +358,9 @@ struct CrashLogSnapshot {
 
 /// Guarda un snapshot de los logs de una instancia antes de descartar el
 /// anillo, para que la ventana de logs del crash siga teniendo historial.
-pub fn save_crash_log_snapshot(id: &str) {
+pub async fn save_crash_log_snapshot(id: &str) {
     let snapshot = CrashLogSnapshot {
-        lines: get_log_ring(id).snapshot(None),
+        lines: get_log_ring(id).snapshot(None).await,
         created: std::time::Instant::now(),
     };
     crash_log_snapshots().insert(Arc::from(id), snapshot);
@@ -367,7 +371,7 @@ pub fn clear_crash_log_snapshot(id: &str) {
     crash_log_snapshots().remove(id);
 }
 
-fn get_crash_log_snapshot(id: &str, limit: Option<usize>) -> Option<Vec<LogLine>> {
+async fn get_crash_log_snapshot(id: &str, limit: Option<usize>) -> Option<Vec<LogLine>> {
     crash_log_snapshots().get(id).map(|entry| {
         let lines = &entry.value().lines;
         let to_skip = limit.and_then(|l| lines.len().checked_sub(l)).unwrap_or(0);
@@ -390,9 +394,11 @@ fn cleanup_crash_log_snapshots() {
 
 /// Añade un mensaje del launcher al anillo de logs de una instancia.
 /// Sanitiza el contenido para evitar fugas de datos de la cuenta activa.
-pub fn push_launcher_message(id: &str, message: impl Into<String>) {
+pub async fn push_launcher_message(id: &str, message: impl Into<String>) {
     let sanitized = sanitize_with_user(&message.into());
-    get_log_ring(id).push(Arc::from(sanitized), LogLevel::Launcher, 2);
+    get_log_ring(id)
+        .push(Arc::from(sanitized), LogLevel::Launcher, 2)
+        .await;
 }
 
 // ── Log Event Payloads ──────────────────────────────────────────────────────
@@ -713,15 +719,18 @@ impl Launcher {
                 "Iniciando instancia \"{}\" ({})",
                 instance_name, instance_version
             ),
-        );
+        )
+        .await;
         push_launcher_message(
             &handle.uuid,
             format!("Java: {} (versión {})", java_path_str, java_version),
-        );
+        )
+        .await;
         push_launcher_message(
             &handle.uuid,
             format!("Memoria: {} / {}", min_mem_str, max_mem_str),
-        );
+        )
+        .await;
 
         let options = builder.build();
 
@@ -748,7 +757,7 @@ impl Launcher {
                     .clone();
                 if let Some(ref app) = app_handle {
                     let id = handle.uuid.clone();
-                    push_launcher_message(&id, "Proceso iniciado");
+                    push_launcher_message(&id, "Proceso iniciado").await;
                     let stdout_rx = lw_handle.subscribe_stdout();
                     let stderr_rx = lw_handle.subscribe_stderr();
                     spawn_io_forwarding(app.clone(), id.clone(), stdout_rx, "stdout");
@@ -785,13 +794,14 @@ impl Launcher {
                         }
                     };
                     unregister_kill_sender(&uuid);
-                    push_launcher_message(&uuid, format!("El proceso terminó: {:?}", result));
+                    push_launcher_message(&uuid, format!("El proceso terminó: {:?}", result)).await;
 
                     let crashed = matches!(result, Some(code) if code != 0);
                     if crashed {
                         let code = result.unwrap_or(-1);
-                        push_launcher_message(&uuid, format!("Crash detectado (código {})", code));
-                        save_crash_log_snapshot(&uuid);
+                        push_launcher_message(&uuid, format!("Crash detectado (código {})", code))
+                            .await;
+                        save_crash_log_snapshot(&uuid).await;
                         emit(AppEvent::InstanceCrashed {
                             id: uuid.to_compact_string(),
                             name: inst_name.to_compact_string(),
@@ -841,7 +851,7 @@ impl Launcher {
             Err(e) => {
                 let msg = e.to_string();
                 error!("{}", msg);
-                push_launcher_message(&handle.uuid, format!("Error al iniciar: {}", msg));
+                push_launcher_message(&handle.uuid, format!("Error al iniciar: {}", msg)).await;
                 handle.set_status(InstanceStatus::Error(msg.clone()));
                 emit(AppEvent::InstanceCrashed {
                     id: handle.uuid.to_compact_string(),
@@ -1025,7 +1035,7 @@ fn spawn_io_forwarding(
                                 .unwrap_or(0);
                             let text: Arc<str> = Arc::from(cleaned);
                             let id_for_line = LINE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-                            ring.push(text.clone(), level, stream_id);
+                            ring.push(text.clone(), level, stream_id).await;
                             batch.push(LogEntryEvent {
                                 id: id_for_line,
                                 line: text,

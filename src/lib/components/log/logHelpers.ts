@@ -16,7 +16,7 @@ export type RawLogEvent = {
 	timestamp: number;
 };
 
-export const MAX_LINES = 2000;
+export const MAX_LINES = 3000;
 export const SCROLL_THRESHOLD = 60;
 export const SEARCH_DEBOUNCE_MS = 180;
 
@@ -39,33 +39,6 @@ export function normalizeLevel(level: string | undefined): string {
 	if (!level) return "message";
 	const l = level.toLowerCase();
 	return LEVELS.has(l) ? l : "message";
-}
-
-export function computeLevel(text: string): string {
-	const m = text.match(/\[.*?\/(\w+)\]/);
-	if (m) {
-		const lv = m[1].toUpperCase();
-		if (["FATAL", "SEVERE"].includes(lv)) return "fatal";
-		if (lv === "ERROR") return "error";
-		if (["WARN", "WARNING"].includes(lv)) return "warn";
-		if (
-			[
-				"INFO",
-				"CONFIG",
-				"FINE",
-				"FINER",
-				"FINEST",
-				"DEBUG",
-				"TRACE",
-			].includes(lv)
-		)
-			return "info";
-	}
-	const u = text.toUpperCase();
-	if (/\b(FATAL|SEVERE)\b/.test(u)) return "fatal";
-	if (/\bERROR\b/.test(u)) return "error";
-	if (/\bWARN(ING)?\b/.test(u)) return "warn";
-	return "message";
 }
 
 export function computeDisplayClass(level: string, stream: string): string {

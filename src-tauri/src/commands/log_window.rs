@@ -1,5 +1,5 @@
 use crate::core::http_client::HTTP;
-use crate::services::launcher::{LogLine, get_log_history, sanitize_with_user};
+use crate::services::launcher::{LogLine, get_log_history};
 use dashmap::DashMap;
 use std::sync::OnceLock;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -13,8 +13,8 @@ fn remove_log_window(instance_id: &str) {
 }
 
 #[tauri::command]
-pub fn get_log_history_cmd(instance_id: String, limit: Option<usize>) -> Vec<LogLine> {
-    get_log_history(&instance_id, limit)
+pub async fn get_log_history_cmd(instance_id: String, limit: Option<usize>) -> Vec<LogLine> {
+    get_log_history(&instance_id, limit).await
 }
 
 /// Abre la ventana de logs de una instancia. Puede llamarse tanto desde
@@ -69,7 +69,8 @@ pub async fn open_log_window(
 
 #[tauri::command]
 pub async fn upload_log_to_mclogs(content: String) -> Result<String, String> {
-    let content = sanitize_with_user(&content);
+    // El contenido ya fue sanitizado al entrar al LogRing; no es necesario
+    // volver a limpiarlo aquí.
     let resp = HTTP
         .post("https://api.mclo.gs/1/log")
         .form(&[("content", content.as_str())])
