@@ -20,6 +20,7 @@ import {
 	type MrpackInfo,
 	type InstanceImportPlan,
 	type YggdrasilServerInfo,
+	type MinecraftProfileResponse,
 } from "../types/types";
 
 import { invoke } from "@tauri-apps/api/core";
@@ -799,6 +800,49 @@ export async function getUserList(): Promise<MinecraftUser[]> {
 	return (
 		(await invokeWithFallback<MinecraftUser[]>("get_user_list", null)) ?? []
 	);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Profile (skins & capes)
+// ─────────────────────────────────────────────────────────────
+
+export async function getMinecraftProfile(
+	uuid: string,
+): Promise<MinecraftProfileResponse | null> {
+	return (
+		(await invokeWithFallback<MinecraftProfileResponse>(
+			"get_minecraft_profile",
+			{ uuid },
+		)) ?? null
+	);
+}
+
+export async function uploadSkinFile(
+	uuid: string,
+	filePath: string,
+	model: "slim" | "classic",
+): Promise<void> {
+	return invokeVoid("upload_skin_file", {
+		uuid,
+		filePath,
+		model,
+	});
+}
+
+export async function uploadSkinUrl(
+	uuid: string,
+	skinUrl: string,
+	variant: "CLASSIC" | "SLIM",
+): Promise<void> {
+	return invokeVoid("upload_skin_url", { uuid, skinUrl, variant });
+}
+
+export async function equipCape(uuid: string, capeId: string): Promise<void> {
+	return invokeVoid("equip_cape", { uuid, capeId });
+}
+
+export async function unequipCape(uuid: string): Promise<void> {
+	return invokeVoid("unequip_cape", { uuid });
 }
 
 // ─────────────────────────────────────────────────────────────

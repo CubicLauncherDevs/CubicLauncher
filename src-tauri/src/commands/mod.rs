@@ -11,5 +11,6 @@ pub mod modrinth;
 pub mod neoforge;
 pub mod others;
 pub mod pack;
+pub mod profile;
 pub mod settings;
 pub mod themes;

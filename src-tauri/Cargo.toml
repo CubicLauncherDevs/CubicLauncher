@@ -27,7 +27,7 @@ directories = "6.0.0"
 tokio = {version = "1.52.3", features = ["sync", "rt-multi-thread", "macros"] }
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
-reqwest = { version = "0.13", features = ["json"] }
+reqwest = { version = "0.13", features = ["json", "multipart"] }
 sysinfo = "0.30"
 uuid = { version = "1.23.1", features = ["v4"] }
 tauri-plugin-updater = "2.10.1"

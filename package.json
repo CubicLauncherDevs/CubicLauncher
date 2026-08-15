@@ -31,7 +31,8 @@
 		"@tauri-apps/plugin-process": "~2.3.1",
 		"@tauri-apps/plugin-updater": "~2.10.1",
 		"dompurify": "^3.4.12",
-		"marked": "^18.0.6"
+		"marked": "^18.0.6",
+		"skin3d": "^0.2.0"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
@@ -41,6 +42,7 @@
 		"@tauri-apps/cli": "^2.11.4",
 		"@types/dompurify": "^3.2.0",
 		"@types/node": "^26.1.1",
+		"@types/three": "0.156.0",
 		"eslint": "^10.7.0",
 		"eslint-plugin-svelte": "^3.20.0",
 		"globals": "^17.7.0",
