@@ -53,6 +53,7 @@ export const launcherStore = $state<LauncherState>({
 		auto_updates: true,
 		close_launcher_on_play: true,
 		hide_on_launch: false,
+		open_console_on_launch: false,
 		show_snapshots: false,
 		show_alpha: false,
 		show_unstable_loaders: false,

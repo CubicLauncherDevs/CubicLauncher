@@ -30,6 +30,7 @@
 			"autoUpdates": "Automatic Updates",
 			"discordPresence": "Discord Rich Presence",
 			"hideOnLaunch": "Hide launcher while playing",
+			"openConsoleOnLaunch": "Open console when launching instances",
 			"updatesTitle": "Launcher Updates",
 			"currentVersion": "Current Version",
 			"available": "Update Available",

@@ -18,7 +18,7 @@
 
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "cubiclauncher";
-  version = "32.0.0";
+  version = "33.0.0";
 
   src = lib.cleanSource ./../..;
 

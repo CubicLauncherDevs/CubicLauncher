@@ -99,6 +99,8 @@ pub struct SettingsManager {
     #[serde(default)]
     pub hide_on_launch: bool,
     #[serde(default)]
+    pub open_console_on_launch: bool,
+    #[serde(default)]
     pub show_snapshots: bool,
     #[serde(default)]
     pub show_alpha: bool,
@@ -137,6 +139,7 @@ pub struct SettingsSnapshot {
     pub jre17_path: Box<Path>,
     pub jre21_path: Box<Path>,
     pub jre25_path: Box<Path>,
+    pub open_console_on_launch: bool,
 }
 
 impl SettingsSnapshot {
@@ -177,6 +180,7 @@ impl Default for SettingsManager {
             show_error_console: false,
             close_launcher_on_play: true,
             hide_on_launch: false,
+            open_console_on_launch: false,
             show_snapshots: false,
             show_alpha: false,
             show_unstable_loaders: false,
@@ -225,6 +229,7 @@ impl SettingsManager {
             jre17_path: s.jre17_path.clone().into_boxed_path(),
             jre21_path: s.jre21_path.clone().into_boxed_path(),
             jre25_path: s.jre25_path.clone().into_boxed_path(),
+            open_console_on_launch: s.open_console_on_launch,
         }
     }
 
@@ -424,6 +429,7 @@ mod tests {
         assert!(!s.show_snapshots);
         assert!(!s.show_alpha);
         assert!(!s.show_unstable_loaders);
+        assert!(!s.open_console_on_launch);
         assert_eq!(s.theme, "dark");
         assert!(s.dirty);
         assert!(s.env_vars.is_empty());

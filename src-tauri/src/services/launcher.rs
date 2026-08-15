@@ -592,17 +592,7 @@ impl Launcher {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .clone();
-            if let Some(app) = app_handle {
-                let instance_id = handle.uuid.to_compact_string().to_string();
-                let instance_name = name.to_compact_string().to_string();
-                tokio::spawn(async move {
-                    if let Err(err) =
-                        open_log_window_for_instance(app, instance_id, instance_name).await
-                    {
-                        warn!("No se pudo abrir ventana de logs: {}", err);
-                    }
-                });
-            }
+            spawn_open_log_window(app_handle, handle.uuid.to_string(), name.to_string());
             Err(AppError::Instance(InstanceError::JreNotFound(
                 java_version.to_string(),
             )))?;
@@ -757,6 +747,13 @@ impl Launcher {
                     .clone();
                 if let Some(ref app) = app_handle {
                     let id = handle.uuid.clone();
+                    if settings_m.open_console_on_launch {
+                        spawn_open_log_window(
+                            app_handle.clone(),
+                            id.to_string(),
+                            instance_name.to_string(),
+                        );
+                    }
                     push_launcher_message(&id, "Proceso iniciado").await;
                     let stdout_rx = lw_handle.subscribe_stdout();
                     let stderr_rx = lw_handle.subscribe_stderr();
@@ -811,18 +808,11 @@ impl Launcher {
                                 code
                             ))),
                         });
-                        if let Some(app) = app_for_show.clone() {
-                            let instance_id = uuid.to_compact_string().to_string();
-                            let instance_name = inst_name.to_compact_string().to_string();
-                            tokio::spawn(async move {
-                                if let Err(err) =
-                                    open_log_window_for_instance(app, instance_id, instance_name)
-                                        .await
-                                {
-                                    warn!("No se pudo abrir ventana de logs: {}", err);
-                                }
-                            });
-                        }
+                        spawn_open_log_window(
+                            app_for_show.clone(),
+                            uuid.to_string(),
+                            inst_name.to_string(),
+                        );
                     }
 
                     discord_presence::on_instance_stop(&inst_name).await;
@@ -837,7 +827,7 @@ impl Launcher {
                                 "main",
                                 WebviewUrl::App("index.html".into()),
                             )
-                            .title("CubicLauncher @32")
+                            .title("CubicLauncher @33")
                             .inner_size(800.0, 600.0)
                             .min_inner_size(800.0, 600.0)
                             .build();
@@ -864,17 +854,7 @@ impl Launcher {
                     .lock()
                     .unwrap_or_else(|e| e.into_inner())
                     .clone();
-                if let Some(app) = app_handle {
-                    let instance_id = handle.uuid.to_compact_string().to_string();
-                    let instance_name = name.to_compact_string().to_string();
-                    tokio::spawn(async move {
-                        if let Err(err) =
-                            open_log_window_for_instance(app, instance_id, instance_name).await
-                        {
-                            warn!("No se pudo abrir ventana de logs: {}", err);
-                        }
-                    });
-                }
+                spawn_open_log_window(app_handle, handle.uuid.to_string(), name.to_string());
             }
         }
         Ok(())
@@ -1001,6 +981,20 @@ async fn refresh_yggdrasil_token(mut user: MinecraftUser) -> Result<MinecraftUse
                 e
             ))))
         }
+    }
+}
+
+fn spawn_open_log_window(
+    app: Option<tauri::AppHandle>,
+    instance_id: String,
+    instance_name: String,
+) {
+    if let Some(app) = app {
+        tokio::spawn(async move {
+            if let Err(err) = open_log_window_for_instance(app, instance_id, instance_name).await {
+                warn!("No se pudo abrir ventana de logs: {}", err);
+            }
+        });
     }
 }
 

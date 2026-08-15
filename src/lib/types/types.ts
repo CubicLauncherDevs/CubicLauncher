@@ -64,6 +64,7 @@ export interface Settings {
 	auto_updates: boolean;
 	close_launcher_on_play: boolean;
 	hide_on_launch: boolean;
+	open_console_on_launch: boolean;
 	show_snapshots: boolean;
 	show_alpha: boolean;
 	show_unstable_loaders: boolean;

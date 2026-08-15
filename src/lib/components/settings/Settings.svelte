@@ -386,6 +386,19 @@
 							>{t("settings.launcher.hideOnLaunch")}</label
 						>
 					</div>
+					<div class="qm-field-checkbox">
+						<input
+							type="checkbox"
+							id="open-console-on-launch"
+							bind:checked={
+								launcherStore.settings.open_console_on_launch
+							}
+							onchange={handleSave}
+						/>
+						<label for="open-console-on-launch"
+							>{t("settings.launcher.openConsoleOnLaunch")}</label
+						>
+					</div>
 				</CollapsibleSection>
 
 				<CollapsibleSection

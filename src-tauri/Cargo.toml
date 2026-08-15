@@ -1,6 +1,6 @@
 [package]
 name = "cubiclauncher"
-version = "32.0.0"
+version = "33.0.0"
 description = "The open source Minecraft Launcher."
 authors = ["Mitkomm (Santiagolxx)", "Not_staff"]
 edition = "2024"
