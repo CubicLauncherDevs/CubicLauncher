@@ -172,6 +172,8 @@
 			"loading": "Cargando perfil de Minecraft...",
 			"currentSkin": "Skin actual",
 			"uploadSkin": "Subir skin (.png)",
+			"dropSkinHere": "Suelta la skin aquí",
+			"invalidSkinFile": "Solo se permiten archivos .png",
 			"skinUrlPlaceholder": "URL de imagen .png",
 			"useUrl": "Usar URL",
 			"classic": "Clásico",

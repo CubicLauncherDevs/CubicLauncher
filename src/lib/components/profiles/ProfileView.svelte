@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { launcherStore, showError } from "$lib/state/state.svelte";
-	import { getAvatar, setAvatar } from "$lib/state/avatarCache";
+	import {
+		getAvatar,
+		setAvatar,
+		buildAvatarUrl,
+	} from "$lib/state/avatarCache.svelte";
 	import { SvelteMap } from "svelte/reactivity";
+	import { fade, fly } from "svelte/transition";
 	import {
 		saveSettings,
 		markLocalSettingsChange,
@@ -30,6 +35,13 @@
 	let offlineName = $state("");
 	let removingUserUuid = $state<string | null>(null);
 	let selectedIdx = $state(launcherStore.settings.active_user_idx ?? 0);
+	let closing = $state(false);
+
+	function handleClose() {
+		if (closing) return;
+		closing = true;
+		onclose();
+	}
 
 	async function handleSaveName(idx: number) {
 		const regex = /^[a-zA-Z0-9_]{3,16}$/;
@@ -126,8 +138,7 @@
 		user_type: string;
 	}): Promise<void> {
 		const key = userKey(u);
-		const endpoint = u.user_type === "Yggdrasil" ? "elyby" : "mojang";
-		const url = `https://skins.cubiclauncher.org/api/${endpoint}/head/${u.username}`;
+		const url = buildAvatarUrl(u.uuid, u.username, u.user_type);
 
 		const cached = getAvatar(url);
 		if (cached !== undefined) {
@@ -176,7 +187,7 @@
 	}
 
 	function onKeydown(e: KeyboardEvent) {
-		if (e.key === "Escape") onclose();
+		if (e.key === "Escape") handleClose();
 	}
 
 	function startEditingName() {
@@ -200,13 +211,13 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<div class="profile-view">
+<div class="profile-view" transition:fly={{ y: 16, duration: 200 }}>
 	<header class="profile-header">
 		<h2 class="profile-title">{t("userMenu.title")}</h2>
 		<button
 			type="button"
 			class="close-btn"
-			onclick={onclose}
+			onclick={handleClose}
 			title={t("userMenu.close")}
 			aria-label={t("userMenu.close")}
 		>
@@ -373,11 +384,16 @@
 						{/if}
 					</div>
 
-					{#if selectedUser.user_type === "Microsoft"}
-						<div class="hero-skin-cape">
-							<SkinCapeManager uuid={selectedUser.uuid} />
-						</div>
-					{/if}
+					{#key selectedUserKey}
+						{#if selectedUser.user_type === "Microsoft"}
+							<div
+								class="hero-skin-cape"
+								in:fade={{ duration: 150 }}
+							>
+								<SkinCapeManager uuid={selectedUser.uuid} />
+							</div>
+						{/if}
+					{/key}
 				</div>
 			{:else}
 				<div class="hero-empty">
@@ -675,7 +691,7 @@
 
 	.hero-skin-cape {
 		width: 100%;
-		max-width: 560px;
+		max-width: 640px;
 		border-top: 1px solid var(--border);
 		padding-top: 20px;
 	}

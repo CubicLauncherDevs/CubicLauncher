@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
 	import { launcherStore } from "$lib/state/state.svelte";
-	import { getAvatar, setAvatar } from "$lib/state/avatarCache";
+	import {
+		getAvatar,
+		setAvatar,
+		buildAvatarUrl,
+	} from "$lib/state/avatarCache.svelte";
 	import type { InstanceDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
 	import Icon from "$lib/icons/Icon.svelte";
@@ -51,10 +55,10 @@
 	let avatarSvg = $state("");
 
 	$effect(() => {
-		if (!username) return;
-		const url = isYggdrasil
-			? `https://skins.cubiclauncher.org/api/elyby/head/${username}`
-			: `https://skins.cubiclauncher.org/api/mojang/head/${username}`;
+		const user = activeUser;
+		if (!user) return;
+
+		const url = buildAvatarUrl(user.uuid, user.username, user.user_type);
 
 		const cached = getAvatar(url);
 		if (cached !== undefined) {

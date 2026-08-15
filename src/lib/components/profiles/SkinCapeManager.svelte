@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import { t } from "$lib/i18n";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	import {
@@ -9,6 +10,8 @@
 		unequipCape,
 	} from "$lib/api/cubicApi";
 	import { showError, showSuccess } from "$lib/state/state.svelte";
+	import { bumpAvatarVersion } from "$lib/state/avatarCache.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 	import Skin3dViewer from "./Skin3dViewer.svelte";
 	import type {
 		MinecraftProfileCape,
@@ -27,6 +30,9 @@
 	let skinModel = $state<"classic" | "slim">("classic");
 	let skinUrlInput = $state("");
 	let processing = $state(false);
+	let showUrl = $state(false);
+	let draggingPng = $state(false);
+	let dropTargetActive = $state(false);
 
 	async function loadProfile(silent = false) {
 		if (!silent) loading = true;
@@ -43,25 +49,16 @@
 		if (!silent) loading = false;
 	}
 
-	async function handleFileUpload() {
-		const selected = await openDialog({
-			multiple: false,
-			filters: [
-				{
-					name: "Minecraft Skin",
-					extensions: ["png"],
-				},
-			],
-		});
-		if (!selected || Array.isArray(selected)) return;
+	async function applySkinUpload(upload: () => Promise<void>) {
 		processing = true;
 		try {
-			await uploadSkinFile(uuid, selected, skinModel);
+			await upload();
 			showSuccess(
 				t("userMenu.skinCape.skinUpdated"),
 				t("userMenu.skinCape.skinUpdatedDesc"),
 			);
 			await loadProfile(true);
+			bumpAvatarVersion(uuid);
 		} catch (e) {
 			showError(t("errors.title"), String(e));
 		} finally {
@@ -69,27 +66,43 @@
 		}
 	}
 
+	async function handleFileUpload(filePath?: string) {
+		let selected = filePath;
+		if (!selected) {
+			const dialogResult = await openDialog({
+				multiple: false,
+				filters: [
+					{
+						name: "Minecraft Skin",
+						extensions: ["png"],
+					},
+				],
+			});
+			if (!dialogResult || Array.isArray(dialogResult)) return;
+			selected = dialogResult;
+		}
+		await applySkinUpload(() => uploadSkinFile(uuid, selected, skinModel));
+	}
+
 	async function handleUrlUpload() {
 		const url = skinUrlInput.trim();
 		if (!url) return;
-		processing = true;
-		try {
-			await uploadSkinUrl(
-				uuid,
-				url,
-				skinModel === "slim" ? "SLIM" : "CLASSIC",
+		await applySkinUpload(() =>
+			uploadSkinUrl(uuid, url, skinModel === "slim" ? "SLIM" : "CLASSIC"),
+		);
+		skinUrlInput = "";
+	}
+
+	async function handleDroppedSkinFile(paths: string[]) {
+		const png = paths.find((p) => p.toLowerCase().endsWith(".png"));
+		if (!png) {
+			showError(
+				t("errors.title"),
+				t("userMenu.skinCape.invalidSkinFile"),
 			);
-			showSuccess(
-				t("userMenu.skinCape.skinUpdated"),
-				t("userMenu.skinCape.skinUpdatedDesc"),
-			);
-			skinUrlInput = "";
-			await loadProfile(true);
-		} catch (e) {
-			showError(t("errors.title"), String(e));
-		} finally {
-			processing = false;
+			return;
 		}
+		await handleFileUpload(png);
 	}
 
 	async function handleEquipCape(capeId: string) {
@@ -134,27 +147,79 @@
 		activeSkin?.variant === "SLIM" ? "slim" : "default",
 	);
 	const hasCapes = $derived((profile?.capes.length ?? 0) > 0);
+	const inactiveCapes = $derived(
+		profile?.capes.filter(
+			(c: MinecraftProfileCape) => c.state !== "ACTIVE",
+		) ?? [],
+	);
 
 	$effect(() => {
 		loadProfile();
+	});
+
+	onMount(() => {
+		let mounted = true;
+		let unlisten: (() => void) | null = null;
+
+		async function setupDragDrop() {
+			try {
+				const { getCurrentWebview } =
+					await import("@tauri-apps/api/webview");
+				const webview = getCurrentWebview();
+				unlisten = await webview.onDragDropEvent((event) => {
+					if (!mounted) return;
+					const payload = event.payload as {
+						type: string;
+						paths?: string[];
+					};
+
+					if (payload.type === "enter" || payload.type === "over") {
+						const paths = payload.paths ?? [];
+						draggingPng = paths.some((p) =>
+							p.toLowerCase().endsWith(".png"),
+						);
+					} else if (payload.type === "leave") {
+						draggingPng = false;
+						dropTargetActive = false;
+					} else if (payload.type === "drop") {
+						const paths = payload.paths ?? [];
+						if (dropTargetActive) {
+							void handleDroppedSkinFile(paths);
+						}
+						draggingPng = false;
+						dropTargetActive = false;
+					}
+				});
+			} catch (e) {
+				console.warn("Drag-drop not available:", e);
+			}
+		}
+
+		setupDragDrop();
+
+		return () => {
+			mounted = false;
+			unlisten?.();
+		};
 	});
 </script>
 
 <div class="skin-cape-manager">
 	<div class="section-header">
 		<h4 class="section-title">{t("userMenu.skinCape.title")}</h4>
-		{#if loading}
-			<span class="spinner"></span>
-		{:else}
-			<button
-				type="button"
-				class="refresh-btn"
-				onclick={() => loadProfile(true)}
-				disabled={processing}
-			>
-				↻
-			</button>
-		{/if}
+		<button
+			type="button"
+			class="icon-btn"
+			onclick={() => loadProfile(true)}
+			disabled={processing || loading}
+			aria-label={t("userMenu.skinCape.loading")}
+		>
+			{#if loading}
+				<span class="spinner"></span>
+			{:else}
+				<Icon src="/images/icons/ui/refresh.svg" size={16} />
+			{/if}
+		</button>
 	</div>
 
 	{#if loading && !profile}
@@ -163,58 +228,95 @@
 			<span>{t("userMenu.skinCape.loading")}</span>
 		</div>
 	{:else if profile}
-		<div class="preview-zone">
-			<div class="preview-card">
-				<div class="preview-meta">
-					<span class="preview-label">
-						{t("userMenu.skinCape.currentSkin")}
-					</span>
-					<span class="preview-variant">
-						{activeSkin?.variant ?? "CLASSIC"}
-					</span>
-				</div>
-			</div>
-
+		<div
+			class="preview-zone"
+			class:drop-ready={draggingPng && dropTargetActive}
+			role="button"
+			tabindex="0"
+			ondragenter={(e) => {
+				e.preventDefault();
+				dropTargetActive = true;
+			}}
+			ondragleave={(e) => {
+				e.preventDefault();
+				dropTargetActive = false;
+			}}
+			ondragover={(e) => e.preventDefault()}
+		>
 			{#if activeSkin}
-				<div class="skin-3d-preview">
-					<Skin3dViewer
-						skinUrl={activeSkin.url}
-						capeUrl={activeCape?.url}
-						model={viewerModel}
-					/>
+				<span class="model-badge">
+					{activeSkin.variant}
+				</span>
+
+				<Skin3dViewer
+					skinUrl={activeSkin.url}
+					capeUrl={activeCape?.url}
+					model={viewerModel}
+				/>
+
+				{#if draggingPng && dropTargetActive}
+					<div class="drop-overlay">
+						<Icon src="/images/icons/ui/upload.svg" size={32} />
+						<span>{t("userMenu.skinCape.dropSkinHere")}</span>
+					</div>
+				{/if}
+			{:else}
+				<div class="empty-preview">
+					<span>No hay skin activa</span>
 				</div>
 			{/if}
 		</div>
 
-		<div class="skin-controls">
-			<div class="model-toggle">
-				<button
-					type="button"
-					class="model-btn"
-					class:active={skinModel === "classic"}
-					onclick={() => (skinModel = "classic")}
-				>
-					{t("userMenu.skinCape.classic")}
-				</button>
-				<button
-					type="button"
-					class="model-btn"
-					class:active={skinModel === "slim"}
-					onclick={() => (skinModel = "slim")}
-				>
-					{t("userMenu.skinCape.slim")}
-				</button>
-			</div>
-
+		<div class="model-selector">
 			<button
 				type="button"
-				class="btn-primary"
-				onclick={handleFileUpload}
+				class="model-btn"
+				class:active={skinModel === "classic"}
+				onclick={() => (skinModel = "classic")}
 				disabled={processing}
 			>
-				{t("userMenu.skinCape.uploadSkin")}
+				<span class="model-label">{t("userMenu.skinCape.classic")}</span
+				>
+				{#if skinModel === "classic"}
+					<Icon src="/images/icons/ui/check.svg" size={14} />
+				{/if}
 			</button>
+			<button
+				type="button"
+				class="model-btn"
+				class:active={skinModel === "slim"}
+				onclick={() => (skinModel = "slim")}
+				disabled={processing}
+			>
+				<span class="model-label">{t("userMenu.skinCape.slim")}</span>
+				{#if skinModel === "slim"}
+					<Icon src="/images/icons/ui/check.svg" size={14} />
+				{/if}
+			</button>
+		</div>
 
+		<div class="skin-actions">
+			<button
+				type="button"
+				class="btn-primary upload-btn"
+				onclick={() => handleFileUpload()}
+				disabled={processing}
+			>
+				<Icon src="/images/icons/ui/upload.svg" size={16} />
+				<span>{t("userMenu.skinCape.uploadSkin")}</span>
+			</button>
+			<button
+				type="button"
+				class="btn-secondary url-toggle"
+				onclick={() => (showUrl = !showUrl)}
+				disabled={processing}
+				aria-expanded={showUrl}
+			>
+				{t("userMenu.skinCape.useUrl")}
+			</button>
+		</div>
+
+		{#if showUrl}
 			<div class="url-row">
 				<input
 					type="text"
@@ -222,38 +324,43 @@
 					placeholder={t("userMenu.skinCape.skinUrlPlaceholder")}
 					class="url-input"
 					onkeydown={(e) => e.key === "Enter" && handleUrlUpload()}
+					disabled={processing}
 				/>
 				<button
 					type="button"
-					class="btn-secondary"
+					class="btn-primary"
 					onclick={handleUrlUpload}
 					disabled={processing || !skinUrlInput.trim()}
 				>
 					{t("userMenu.skinCape.useUrl")}
 				</button>
 			</div>
-		</div>
+		{/if}
 
 		<div class="capes-section">
-			<h5 class="subsection-title">{t("userMenu.skinCape.capes")}</h5>
+			<h5 class="subsection-title">
+				{t("userMenu.skinCape.capes")}
+				{#if hasCapes}
+					<span class="cape-count">{profile?.capes.length}</span>
+				{/if}
+			</h5>
+
 			{#if !hasCapes}
 				<p class="empty-text">{t("userMenu.skinCape.noCapes")}</p>
 			{:else}
 				{#if activeCape}
 					<div class="active-cape-card">
-						<div class="active-cape-preview">
-							{#if activeCape.url}
-								<img
-									src={activeCape.url}
-									alt={activeCape.alias}
-									class="active-cape-img"
-								/>
-							{:else}
-								<div
-									class="active-cape-img active-cape-img-fallback"
-								></div>
-							{/if}
-						</div>
+						{#if activeCape.url}
+							<img
+								src={activeCape.url}
+								alt={activeCape.alias}
+								class="active-cape-img"
+							/>
+						{:else}
+							<div
+								class="active-cape-img active-cape-img-fallback"
+							></div>
+						{/if}
 						<div class="active-cape-meta">
 							<span class="active-cape-name">
 								{activeCape.alias ||
@@ -265,7 +372,7 @@
 						</div>
 						<button
 							type="button"
-							class="btn-secondary"
+							class="btn-secondary unequip-btn"
 							onclick={handleUnequipCape}
 							disabled={processing}
 						>
@@ -274,36 +381,39 @@
 					</div>
 				{/if}
 
-				<div class="cape-list">
-					{#each profile.capes.filter((c: MinecraftProfileCape) => c.state !== "ACTIVE") as cape (cape.id)}
-						<div class="cape-item">
-							{#if cape.url}
-								<img
-									src={cape.url}
-									alt={cape.alias}
-									class="cape-thumb"
-								/>
-							{:else}
-								<div
-									class="cape-thumb cape-thumb-fallback"
-								></div>
-							{/if}
-							<div class="cape-info">
-								<span class="cape-name">
-									{cape.alias || t("userMenu.skinCape.cape")}
-								</span>
+				{#if inactiveCapes.length > 0}
+					<div class="cape-grid">
+						{#each inactiveCapes as cape (cape.id)}
+							<div class="cape-card">
+								{#if cape.url}
+									<img
+										src={cape.url}
+										alt={cape.alias}
+										class="cape-thumb"
+									/>
+								{:else}
+									<div
+										class="cape-thumb cape-thumb-fallback"
+									></div>
+								{/if}
+								<div class="cape-info">
+									<span class="cape-name">
+										{cape.alias ||
+											t("userMenu.skinCape.cape")}
+									</span>
+								</div>
+								<button
+									type="button"
+									class="btn-primary cape-action"
+									onclick={() => handleEquipCape(cape.id)}
+									disabled={processing}
+								>
+									{t("userMenu.skinCape.equip")}
+								</button>
 							</div>
-							<button
-								type="button"
-								class="btn-primary cape-action"
-								onclick={() => handleEquipCape(cape.id)}
-								disabled={processing}
-							>
-								{t("userMenu.skinCape.equip")}
-							</button>
-						</div>
-					{/each}
-				</div>
+						{/each}
+					</div>
+				{/if}
 			{/if}
 		</div>
 	{/if}
@@ -313,7 +423,7 @@
 	.skin-cape-manager {
 		display: flex;
 		flex-direction: column;
-		gap: 18px;
+		gap: 14px;
 		width: 100%;
 	}
 
@@ -333,7 +443,7 @@
 		letter-spacing: 0.6px;
 	}
 
-	.refresh-btn {
+	.icon-btn {
 		background: transparent;
 		border: 1px solid var(--border);
 		color: var(--text-secondary);
@@ -344,16 +454,15 @@
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
-		font-size: 0.9rem;
 		transition: all 0.15s ease;
 	}
 
-	.refresh-btn:hover:not(:disabled) {
+	.icon-btn:hover:not(:disabled) {
 		background: var(--surface-selected);
 		color: var(--text-primary);
 	}
 
-	.refresh-btn:disabled {
+	.icon-btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
@@ -368,111 +477,169 @@
 		padding: 24px;
 	}
 
-	.preview-zone {
-		display: flex;
-		gap: 16px;
-		align-items: flex-start;
-		flex-wrap: wrap;
+	.spinner {
+		width: 16px;
+		height: 16px;
+		border: 2px solid var(--border);
+		border-top-color: var(--accent);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
 	}
 
-	.preview-card {
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.preview-zone {
+		position: relative;
 		background: var(--bg-card);
-		border: 1px solid var(--border);
+		border: 2px solid var(--border);
 		border-radius: var(--border-radius);
-		padding: 16px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 10px;
+		overflow: hidden;
+		min-height: 280px;
+		height: 320px;
+		transition:
+			border-color 0.15s ease,
+			background 0.15s ease;
 		box-shadow:
 			var(--shadow-sm),
 			inset 0 1px 0 var(--surface-selected);
-		min-width: 160px;
+		outline: none;
 	}
 
-	.preview-meta {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 2px;
+	.preview-zone:focus-visible {
+		border-color: var(--accent);
 	}
 
-	.preview-label {
-		font-size: 0.72rem;
+	.preview-zone.drop-ready {
+		border-color: var(--accent);
+		background: rgba(var(--accent-rgb), 0.04);
+	}
+
+	.model-badge {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		z-index: 3;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		padding: 3px 8px;
+		font-size: 0.62rem;
 		font-weight: 700;
-		color: var(--text-secondary);
+		color: var(--accent);
 		text-transform: uppercase;
 		letter-spacing: 0.4px;
 	}
 
-	.preview-variant {
-		font-size: 0.75rem;
+	.drop-overlay {
+		position: absolute;
+		inset: 0;
+		z-index: 4;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 10px;
+		background: var(--bg-overlay);
+		backdrop-filter: blur(var(--backdrop-blur-modal));
+		color: var(--text-primary);
+		font-size: 0.85rem;
 		font-weight: 600;
-		color: var(--accent);
 	}
 
-	.skin-3d-preview {
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius);
-		padding: 12px;
+	.empty-preview {
+		width: 100%;
+		height: 100%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		min-width: 180px;
-		min-height: 260px;
-		flex: 1;
-		box-shadow:
-			var(--shadow-sm),
-			inset 0 1px 0 var(--surface-selected);
+		color: var(--text-muted);
+		font-size: 0.85rem;
 	}
 
-	.skin-controls {
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-	}
-
-	.model-toggle {
-		display: flex;
-		gap: 0;
-		border-radius: var(--border-radius-sm);
-		overflow: hidden;
-		border: 1px solid var(--border);
-		width: fit-content;
+	.model-selector {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 10px;
 	}
 
 	.model-btn {
-		background: var(--bg-input);
-		border: none;
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		padding: 10px 12px;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
 		color: var(--text-secondary);
-		padding: 8px 16px;
 		font-family: inherit;
-		font-size: 0.78rem;
+		font-size: 0.8rem;
 		font-weight: 600;
 		cursor: pointer;
 		transition: all 0.15s ease;
-		min-width: 80px;
 	}
 
-	.model-btn:first-child {
-		border-right: 1px solid var(--border);
+	.model-btn:hover:not(:disabled, .active) {
+		background: var(--surface-selected);
+		color: var(--text-primary);
 	}
 
 	.model-btn.active {
-		background: var(--accent);
-		color: var(--accent-text);
+		background: rgba(var(--accent-rgb), 0.12);
+		border-color: rgba(var(--accent-rgb), 0.45);
+		color: var(--accent);
 	}
 
-	.model-btn:hover:not(.active) {
-		background: var(--surface-selected);
-		color: var(--text-primary);
+	.model-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.model-label {
+		text-transform: capitalize;
+	}
+
+	.skin-actions {
+		display: flex;
+		gap: 10px;
+	}
+
+	.upload-btn {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		padding: 10px 16px;
+		font-size: 0.8rem;
+	}
+
+	.url-toggle {
+		padding: 10px 14px;
+		font-size: 0.78rem;
 	}
 
 	.url-row {
 		display: flex;
 		gap: 8px;
 		align-items: center;
+		animation: slideDown 0.15s ease;
+	}
+
+	@keyframes slideDown {
+		from {
+			opacity: 0;
+			transform: translateY(-4px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	.url-input {
@@ -492,12 +659,164 @@
 		border-color: var(--text-muted);
 	}
 
+	.capes-section {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding-top: 8px;
+		border-top: 1px solid var(--border);
+	}
+
+	.subsection-title {
+		margin: 0;
+		font-size: 0.75rem;
+		font-weight: 700;
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.cape-count {
+		background: var(--surface-selected);
+		color: var(--text-secondary);
+		padding: 1px 6px;
+		border-radius: 999px;
+		font-size: 0.65rem;
+	}
+
+	.empty-text {
+		margin: 0;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
+
+	.active-cape-card {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-left: 3px solid var(--accent);
+		border-radius: var(--border-radius);
+		padding: 12px;
+		box-shadow:
+			var(--shadow-sm),
+			inset 0 1px 0 var(--surface-selected);
+	}
+
+	.active-cape-img {
+		width: 70px;
+		height: 35px;
+		object-fit: contain;
+		image-rendering: pixelated;
+		border-radius: var(--border-radius-sm);
+		background: var(--bg-input);
+		border: 1px solid var(--border);
+		flex-shrink: 0;
+	}
+
+	.active-cape-img-fallback {
+		background: var(--cubic-logo) center/30% no-repeat;
+	}
+
+	.active-cape-meta {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+		flex: 1;
+	}
+
+	.active-cape-name {
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: var(--text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.active-cape-status {
+		font-size: 0.62rem;
+		font-weight: 700;
+		color: var(--accent);
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+
+	.unequip-btn {
+		flex-shrink: 0;
+		font-size: 0.75rem;
+		padding: 6px 12px;
+	}
+
+	.cape-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 10px;
+	}
+
+	.cape-card {
+		display: flex;
+		flex-direction: column;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius);
+		overflow: hidden;
+		transition: background 0.15s ease;
+		box-shadow:
+			var(--shadow-sm),
+			inset 0 1px 0 var(--surface-selected);
+	}
+
+	.cape-card:hover {
+		background: var(--surface-selected);
+	}
+
+	.cape-thumb {
+		width: 100%;
+		height: 70px;
+		object-fit: contain;
+		image-rendering: pixelated;
+		background: var(--bg-input);
+		border-bottom: 1px solid var(--border);
+		padding: 6px;
+	}
+
+	.cape-thumb-fallback {
+		background: var(--cubic-logo) center/30% no-repeat;
+	}
+
+	.cape-info {
+		padding: 10px;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+	}
+
+	.cape-name {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.cape-action {
+		margin: 0 10px 10px;
+		font-size: 0.75rem;
+		padding: 6px 10px;
+	}
+
 	.btn-primary,
 	.btn-secondary {
 		font-family: inherit;
-		font-size: 0.78rem;
 		font-weight: 600;
-		padding: 8px 16px;
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
 		transition: all 0.15s ease;
@@ -508,7 +827,6 @@
 	.btn-primary {
 		background: var(--accent);
 		color: var(--accent-text);
-		width: fit-content;
 	}
 
 	.btn-primary:hover:not(:disabled) {
@@ -532,164 +850,9 @@
 		cursor: not-allowed;
 	}
 
-	.capes-section {
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-		padding-top: 8px;
-		border-top: 1px solid var(--border);
-	}
-
-	.subsection-title {
-		margin: 0;
-		font-size: 0.75rem;
-		font-weight: 700;
-		color: var(--text-secondary);
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
-
-	.empty-text {
-		margin: 0;
-		font-size: 0.8rem;
-		color: var(--text-muted);
-	}
-
-	.active-cape-card {
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius);
-		padding: 14px;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 12px;
-		box-shadow:
-			var(--shadow-sm),
-			inset 0 1px 0 var(--surface-selected);
-	}
-
-	.active-cape-preview {
-		width: 100%;
-		max-width: 320px;
-		aspect-ratio: 2 / 1;
-		background: var(--bg-input);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		overflow: hidden;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.active-cape-img {
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-		image-rendering: pixelated;
-	}
-
-	.active-cape-img-fallback {
-		background: var(--cubic-logo) center/25% no-repeat;
-	}
-
-	.active-cape-meta {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 2px;
-	}
-
-	.active-cape-name {
-		font-size: 0.9rem;
-		font-weight: 600;
-		color: var(--text-primary);
-		text-align: center;
-		word-break: break-word;
-	}
-
-	.active-cape-status {
-		font-size: 0.62rem;
-		font-weight: 700;
-		color: var(--accent);
-		text-transform: uppercase;
-		letter-spacing: 0.3px;
-	}
-
-	.cape-list {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
-	.cape-item {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		padding: 10px 12px;
-		transition: background 0.15s ease;
-	}
-
-	.cape-item:hover {
-		background: var(--surface-selected);
-	}
-
-	.cape-thumb {
-		width: 80px;
-		height: 40px;
-		object-fit: contain;
-		image-rendering: pixelated;
-		border-radius: 4px;
-		background: var(--bg-input);
-		border: 1px solid var(--border);
-		flex-shrink: 0;
-		transition: transform 0.15s ease;
-	}
-
-	.cape-item:hover .cape-thumb {
-		transform: scale(1.05);
-	}
-
-	.cape-thumb-fallback {
-		background: var(--cubic-logo) center/35% no-repeat;
-	}
-
-	.cape-info {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		min-width: 0;
-		flex: 1;
-	}
-
-	.cape-name {
-		font-size: 0.82rem;
-		font-weight: 600;
-		color: var(--text-primary);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.cape-action {
-		flex-shrink: 0;
-	}
-
-	.spinner {
-		width: 16px;
-		height: 16px;
-		border: 2px solid var(--border);
-		border-top-color: var(--accent);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
+	@media (max-width: 520px) {
+		.cape-grid {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>
