@@ -480,7 +480,10 @@ impl SortOrder {
 
 impl CurseForgeClient {
     #[allow(clippy::too_many_arguments)]
-    pub async fn search(&self, params: SearchParams<'_>) -> Result<CurseForgeSearchResponse, CurseForgeError> {
+    pub async fn search(
+        &self,
+        params: SearchParams<'_>,
+    ) -> Result<CurseForgeSearchResponse, CurseForgeError> {
         let mut url = format!("{}/mods/search", CURSEFORGE_API_BASE);
         let mut first = true;
 
@@ -597,7 +600,10 @@ impl CurseForgeClient {
         Ok(serde_json::from_value(data)?)
     }
 
-    pub async fn get_projects(&self, mod_ids: &[u32]) -> Result<Vec<CurseForgeProject>, CurseForgeError> {
+    pub async fn get_projects(
+        &self,
+        mod_ids: &[u32],
+    ) -> Result<Vec<CurseForgeProject>, CurseForgeError> {
         if mod_ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -627,11 +633,7 @@ impl CurseForgeClient {
         Ok(serde_json::from_value(data)?)
     }
 
-    fn make_files_url(
-        mod_id: u32,
-        loader: Option<&str>,
-        game_version: Option<&str>,
-    ) -> String {
+    fn make_files_url(mod_id: u32, loader: Option<&str>, game_version: Option<&str>) -> String {
         let mut url = format!("{}/mods/{}/files", CURSEFORGE_API_BASE, mod_id);
         let mut first = true;
 
@@ -673,18 +675,15 @@ impl CurseForgeClient {
         let url = Self::make_files_url(mod_id, loader, game_version);
         let resp: serde_json::Value = self.get_json(&url).await?;
         let data = resp.get("data").cloned().unwrap_or_else(|| resp.clone());
-        let pagination = resp
-            .get("pagination")
-            .cloned()
-            .unwrap_or_else(|| {
-                serde_json::to_value(CurseForgePagination {
-                    index: 0,
-                    page_size: 0,
-                    result_count: 0,
-                    total_count: 0,
-                })
-                .unwrap_or_default()
-            });
+        let pagination = resp.get("pagination").cloned().unwrap_or_else(|| {
+            serde_json::to_value(CurseForgePagination {
+                index: 0,
+                page_size: 0,
+                result_count: 0,
+                total_count: 0,
+            })
+            .unwrap_or_default()
+        });
         Ok(CurseForgeFilesResponse {
             data: serde_json::from_value(data)?,
             pagination: serde_json::from_value(pagination)?,
@@ -779,7 +778,10 @@ mod tests {
         assert!(!first.categories.is_empty());
         assert!(!first.authors.is_empty());
 
-        let logo = first.logo.as_ref().expect("first project should have a logo");
+        let logo = first
+            .logo
+            .as_ref()
+            .expect("first project should have a logo");
         assert_eq!(logo.mod_id, Some(285109));
 
         assert!(!first.latest_files.is_empty());
@@ -857,4 +859,3 @@ pub fn curseforge_cdn_url(file_id: u32, file_name: &str) -> String {
         )
     }
 }
-

@@ -76,7 +76,11 @@ async fn get_json(url: &str) -> Result<serde_json::Value, String> {
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
-        return Err(format!("API error {}: {}", status, body.chars().take(200).collect::<String>()));
+        return Err(format!(
+            "API error {}: {}",
+            status,
+            body.chars().take(200).collect::<String>()
+        ));
     }
 
     let data: Value = resp
@@ -289,7 +293,9 @@ pub async fn search_curseforge_modpacks(
 }
 
 #[tauri::command]
-pub async fn get_curseforge_project(mod_id: u32) -> Result<crate::services::curseforge_api::CurseForgeProject, String> {
+pub async fn get_curseforge_project(
+    mod_id: u32,
+) -> Result<crate::services::curseforge_api::CurseForgeProject, String> {
     let client = CurseForgeClient::from_settings_or_default();
     client.get_project(mod_id).await.map_err(|e| e.to_string())
 }
@@ -335,6 +341,8 @@ pub async fn get_curseforge_file_download_url(
                 error = %e,
                 "CurseForge official download URL failed, falling back to CDN"
             );
-            Ok(crate::services::curseforge_api::curseforge_cdn_url(file_id, &file_name))
+            Ok(crate::services::curseforge_api::curseforge_cdn_url(
+                file_id, &file_name,
+            ))
         })
 }

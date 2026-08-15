@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::services::curseforge_api::{
-    curseforge_cdn_url, CurseForgeClient, CurseForgeFile, MODPACKS_CLASS_ID, MODS_CLASS_ID,
-    RESOURCE_PACKS_CLASS_ID, SHADERS_CLASS_ID,
+    CurseForgeClient, CurseForgeFile, MODPACKS_CLASS_ID, MODS_CLASS_ID, RESOURCE_PACKS_CLASS_ID,
+    SHADERS_CLASS_ID, curseforge_cdn_url,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -88,7 +88,9 @@ pub struct CurseForgeModpackMetadata {
     pub file_count: usize,
 }
 
-pub fn parse_curseforge_modpack(path: &Path) -> Result<CurseForgeModpackMetadata, CurseForgeModpackError> {
+pub fn parse_curseforge_modpack(
+    path: &Path,
+) -> Result<CurseForgeModpackMetadata, CurseForgeModpackError> {
     let file = std::fs::File::open(path)?;
     let mut archive = zip::ZipArchive::new(file)?;
 
@@ -96,11 +98,15 @@ pub fn parse_curseforge_modpack(path: &Path) -> Result<CurseForgeModpackMetadata
         .file_names()
         .position(|name| name == "manifest.json")
         .ok_or_else(|| {
-            CurseForgeModpackError::Invalid("No manifest.json found in CurseForge modpack".to_string())
+            CurseForgeModpackError::Invalid(
+                "No manifest.json found in CurseForge modpack".to_string(),
+            )
         })?;
 
     let mut content = String::new();
-    archive.by_index(manifest_idx)?.read_to_string(&mut content)?;
+    archive
+        .by_index(manifest_idx)?
+        .read_to_string(&mut content)?;
 
     let manifest: CurseForgeModpackManifest = serde_json::from_str(&content)?;
 
@@ -178,22 +184,23 @@ pub async fn install_curseforge_modpack(
         .file_names()
         .position(|name| name == "manifest.json")
         .ok_or_else(|| {
-            CurseForgeModpackError::Invalid("No manifest.json found in CurseForge modpack".to_string())
+            CurseForgeModpackError::Invalid(
+                "No manifest.json found in CurseForge modpack".to_string(),
+            )
         })?;
 
     let mut content = String::new();
-    archive.by_index(manifest_idx)?.read_to_string(&mut content)?;
+    archive
+        .by_index(manifest_idx)?
+        .read_to_string(&mut content)?;
 
     let manifest: CurseForgeModpackManifest = serde_json::from_str(&content)?;
     let metadata = metadata_from_manifest(&manifest);
 
     let client = CurseForgeClient::from_settings_or_default();
 
-    let required_files: Vec<&CurseForgeModpackFile> = manifest
-        .files
-        .iter()
-        .filter(|f| f.required)
-        .collect();
+    let required_files: Vec<&CurseForgeModpackFile> =
+        manifest.files.iter().filter(|f| f.required).collect();
 
     if required_files.is_empty() {
         extract_overrides(&mut archive, instance_dir, &manifest.overrides).await?;
@@ -208,7 +215,12 @@ pub async fn install_curseforge_modpack(
 
     let mod_ids: Vec<u32> = required_files.iter().map(|f| f.project_id).collect();
     // Deduplicate to avoid unnecessary work.
-    let unique_mod_ids: Vec<u32> = mod_ids.iter().copied().collect::<HashSet<_>>().into_iter().collect();
+    let unique_mod_ids: Vec<u32> = mod_ids
+        .iter()
+        .copied()
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
     let projects = client.get_projects(&unique_mod_ids).await?;
     let class_by_mod_id: HashMap<u32, u32> = projects
         .into_iter()
@@ -326,7 +338,13 @@ fn sub_dir_for_class(class_id: u32) -> &'static str {
 
 fn sanitize_for_label(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect()
 }
 
@@ -410,10 +428,7 @@ mod tests {
         assert_eq!(manifest.name, "Test Modpack");
         assert_eq!(manifest.version, "1.0.0");
         assert_eq!(manifest.author, "Author");
-        assert_eq!(
-            manifest.description,
-            Some("A test modpack".to_string())
-        );
+        assert_eq!(manifest.description, Some("A test modpack".to_string()));
         assert_eq!(manifest.overrides, "overrides");
         assert_eq!(manifest.files.len(), 2);
 

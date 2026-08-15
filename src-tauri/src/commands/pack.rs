@@ -262,10 +262,9 @@ pub async fn download_curseforge_modpack(url: String, file_id: u32) -> Result<St
 pub async fn parse_curseforge_modpack(path: String) -> Result<CurseForgeModpackInfo, String> {
     info!("Parsing CurseForge modpack: {}", path);
 
-    let metadata = crate::services::curseforge_modpack::parse_curseforge_modpack(
-        std::path::Path::new(&path),
-    )
-    .map_err(|e| format!("Failed to parse CurseForge modpack: {}", e))?;
+    let metadata =
+        crate::services::curseforge_modpack::parse_curseforge_modpack(std::path::Path::new(&path))
+            .map_err(|e| format!("Failed to parse CurseForge modpack: {}", e))?;
 
     let version_id_for_instance = metadata.game_version.as_ref().map(|gv| gv.to_version_id());
 
@@ -307,10 +306,9 @@ pub async fn install_curseforge_modpack(
         path, instance_name, project_id, file_id, icon_url
     );
 
-    let metadata = crate::services::curseforge_modpack::parse_curseforge_modpack(
-        std::path::Path::new(&path),
-    )
-    .map_err(|e| format!("Failed to parse CurseForge modpack: {}", e))?;
+    let metadata =
+        crate::services::curseforge_modpack::parse_curseforge_modpack(std::path::Path::new(&path))
+            .map_err(|e| format!("Failed to parse CurseForge modpack: {}", e))?;
 
     let game_version = metadata
         .game_version
