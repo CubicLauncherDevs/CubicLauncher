@@ -98,6 +98,29 @@ export interface YggdrasilServerInfo {
 	non_email_login: boolean;
 }
 
+export interface MinecraftProfileSkin {
+	id: string;
+	state: string;
+	url: string;
+	variant: string;
+	alias: string;
+}
+
+export interface MinecraftProfileCape {
+	id: string;
+	url: string;
+	alias: string;
+	state: string;
+}
+
+export interface MinecraftProfileResponse {
+	id: string;
+	name: string;
+	skins: MinecraftProfileSkin[];
+	capes: MinecraftProfileCape[];
+	profileActions: string[];
+}
+
 export interface JreInstallPrompt {
 	version: number;
 	instance: InstanceDto;

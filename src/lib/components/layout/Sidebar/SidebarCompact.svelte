@@ -3,7 +3,6 @@
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { getAvatar, setAvatar } from "$lib/state/avatarCache";
 	import type { InstanceDto } from "$lib/types/types";
-	import UserMenu from "../UserMenu/UserMenu.svelte";
 	import { t } from "$lib/i18n";
 	import { tick } from "svelte";
 	import type { Component, Snippet } from "svelte";
@@ -15,6 +14,7 @@
 	interface Props {
 		selectedInstance: InstanceDto | null;
 		onopenquickmenu?: () => void;
+		onopenprofileview?: () => void;
 		onopeneditinstance: (instance: InstanceDto) => void;
 		onopencreateinstance?: () => void;
 		onopenversiondownloader?: () => void;
@@ -24,13 +24,13 @@
 	let {
 		selectedInstance = $bindable(),
 		onopenquickmenu,
+		onopenprofileview,
 		onopeneditinstance,
 		onopencreateinstance,
 		onopenversiondownloader,
 		onexpand,
 	}: Props = $props();
 
-	let showUserMenu = $state(false);
 	let showDeleteModal = $state(false);
 	let instanceToActOn = $state<InstanceDto | null>(null);
 	let activeUser = $derived(getActiveUser());
@@ -295,9 +295,9 @@
 		role="button"
 		tabindex="0"
 		title={username}
-		onclick={() => (showUserMenu = true)}
+		onclick={() => onopenprofileview?.()}
 		onkeydown={(e) =>
-			(e.key === "Enter" || e.key === " ") && (showUserMenu = true)}
+			(e.key === "Enter" || e.key === " ") && onopenprofileview?.()}
 	>
 		<div class="sc-avatar-wrapper">
 			{#if avatarSvg}
@@ -321,8 +321,6 @@
 	instanceName={instanceToActOn?.name ?? ""}
 	onconfirm={handleDelete}
 />
-
-<UserMenu bind:open={showUserMenu} />
 
 {#if ContextMenu}
 	<ContextMenu

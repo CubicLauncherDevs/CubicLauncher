@@ -30,6 +30,7 @@
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal/CreateInstanceModal.svelte";
 	import LogWindow from "$lib/components/log/LogWindow.svelte";
 	import InstanceDrawer from "$lib/components/instances/InstanceDrawer/InstanceDrawer.svelte";
+	import ProfileView from "$lib/components/profiles/ProfileView.svelte";
 	import { loadInstalledVersions } from "$lib/state/versionsState.svelte";
 
 	const logParams = $derived.by(() => {
@@ -50,6 +51,7 @@
 	let instanceEditorOpen = $state(false);
 	let versionDownloaderOpen = $state(false);
 	let openCreateModal = $state(false);
+	let showProfileView = $state(false);
 	let droppedMrpackPath = $state<string | null>(null);
 	let droppedInstanceZipPath = $state<string | null>(null);
 	let isDragOver = $state(false);
@@ -295,6 +297,7 @@
 				<Sidebar
 					bind:selectedInstance
 					onopenquickmenu={() => (quickMenuOpen = true)}
+					onopenprofileview={() => (showProfileView = true)}
 					onopenversiondownloader={() =>
 						(versionDownloaderOpen = true)}
 					onopencreateinstance={() => (openCreateModal = true)}
@@ -308,6 +311,7 @@
 				<SidebarCompact
 					bind:selectedInstance
 					onopenquickmenu={() => (quickMenuOpen = true)}
+					onopenprofileview={() => (showProfileView = true)}
 					onopenversiondownloader={() =>
 						(versionDownloaderOpen = true)}
 					onopencreateinstance={() => (openCreateModal = true)}
@@ -323,7 +327,9 @@
 		<main class="main-content">
 			<div class="background-overlay"></div>
 
-			{#if selectedInstance}
+			{#if showProfileView}
+				<ProfileView onclose={() => (showProfileView = false)} />
+			{:else if selectedInstance}
 				<InstanceView {selectedInstance} />
 			{:else}
 				<div class="empty-state">

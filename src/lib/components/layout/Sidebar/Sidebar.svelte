@@ -5,7 +5,6 @@
 	import type { InstanceDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
 	import Icon from "$lib/icons/Icon.svelte";
-	import UserMenu from "../UserMenu/UserMenu.svelte";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import DownloadQueue from "../DownloadQueue/DownloadQueue.svelte";
 	import InstanceItem from "./InstanceItem.svelte";
@@ -16,6 +15,7 @@
 	interface Props {
 		selectedInstance: InstanceDto | null;
 		onopenquickmenu?: () => void;
+		onopenprofileview?: () => void;
 		onopeneditinstance: (instance: InstanceDto) => void;
 		onopencreateinstance?: () => void;
 		onopenversiondownloader?: () => void;
@@ -25,13 +25,13 @@
 	let {
 		selectedInstance = $bindable(),
 		onopenquickmenu,
+		onopenprofileview,
 		onopeneditinstance,
 		onopencreateinstance,
 		onopenversiondownloader,
 		oncollapse,
 	}: Props = $props();
 
-	let showUserMenu = $state(false);
 	let showDeleteModal = $state(false);
 	let instanceToActOn = $state<InstanceDto | null>(null);
 	let ctxMenu = $state<ReturnType<typeof SidebarContextMenu> | undefined>();
@@ -183,7 +183,7 @@
 			{avatarSvg}
 			{isPremium}
 			{userTypeLabel}
-			onclick={() => (showUserMenu = true)}
+			onclick={() => onopenprofileview?.()}
 		/>
 	</div>
 
@@ -202,8 +202,6 @@
 	instanceName={instanceToActOn?.name ?? ""}
 	onconfirm={handleDelete}
 />
-
-<UserMenu bind:open={showUserMenu} />
 
 <SidebarContextMenu
 	bind:this={ctxMenu}
