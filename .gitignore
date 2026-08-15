@@ -6,8 +6,7 @@ build/
 *.lock
 !Cargo.lock
 !flake.lock
+!bun.lock
 result
 result-*
 target/
-bun.lock
-flake.lock
