@@ -318,10 +318,10 @@ async fn resolve_mod_download_url(
     _project_id: u32,
     file: &CurseForgeFile,
 ) -> String {
-    if let Some(url) = &file.download_url {
-        if !url.is_empty() {
-            return url.clone();
-        }
+    if let Some(url) = &file.download_url
+        && !url.is_empty()
+    {
+        return url.clone();
     }
     curseforge_cdn_url(file.id, &file.file_name)
 }
