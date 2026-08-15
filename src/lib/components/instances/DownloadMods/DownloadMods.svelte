@@ -7,7 +7,7 @@
 		getCurseForgeFileDownloadUrl,
 		downloadMods,
 		getInstanceMods,
-		CURSEFORGE_HEADERS,
+
 		type ModDownloadInfo,
 	} from "$lib/api/cubicApi";
 	import type {
@@ -355,7 +355,6 @@
 								filename: targetFile.fileName,
 								projectTitle: cfProject.name,
 								iconUrl: cfProject.logo?.url || undefined,
-								headers: CURSEFORGE_HEADERS,
 							});
 						}
 					} else {
@@ -374,19 +373,19 @@
 						getCurseForgeFileDownloadUrl(
 							cfProject.id,
 							file.id,
+							file.fileName,
 						).then((url) => ({ cfProject, file, url })),
 				);
 				const resolvedCf = await Promise.all(urlFetches);
 				for (const { cfProject, file, url } of resolvedCf) {
 					if (!url) continue;
 					if (!queue.find((q) => q.filename === file.fileName)) {
-						queue.push({
-							url,
-							filename: file.fileName,
-							projectTitle: cfProject.name,
-							iconUrl: cfProject.logo?.url || undefined,
-							headers: CURSEFORGE_HEADERS,
-						});
+					queue.push({
+						url,
+						filename: file.fileName,
+						projectTitle: cfProject.name,
+						iconUrl: cfProject.logo?.url || undefined,
+					});
 					}
 				}
 			}

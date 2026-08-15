@@ -1,81 +1,17 @@
-use std::collections::HashMap;
-use std::sync::LazyLock;
-use std::sync::Mutex;
-use std::time::Instant;
+use crate::services::curseforge_api::{
+    CurseForgeClient, CurseForgeFile, CurseForgeSearchResponse, CurseForgeSortField,
+};
 
-use serde_json::Value;
-
-use crate::core::http_client::HTTP;
+// ── Modrinth commands ─────────────────────────────────────────────────────────
 
 const MODRINTH_API_BASE: &str = "https://api.modrinth.com/v2";
-const CURSEFORGE_API_BASE: &str = "https://api.curseforge.com/v1";
-const CURSEFORGE_API_KEY: &str = "$2a$10$v4G8m2LV2QhjUu5l.G24Ieqdp4JTEEQ6bRsZjvpa0YncCVaDaqBP6";
-const MINECRAFT_GAME_ID: u32 = 432;
-
-const CACHE_TTL: u64 = 300;
-const CACHE_MAX: usize = 200;
-
-struct CacheEntry {
-    data: Value,
-    fetched_at: Instant,
-}
-
-struct ApiCache {
-    entries: Mutex<HashMap<String, CacheEntry>>,
-}
-
-impl ApiCache {
-    fn get(&self, key: &str) -> Option<Value> {
-        let mut map = self.entries.lock().unwrap();
-        if let Some(entry) = map.get(key) {
-            if entry.fetched_at.elapsed().as_secs() < CACHE_TTL {
-                return Some(entry.data.clone());
-            }
-            map.remove(key);
-        }
-        None
-    }
-
-    fn set(&self, key: String, data: Value) {
-        let mut map = self.entries.lock().unwrap();
-        if map.len() >= CACHE_MAX
-            && let Some(oldest) = map
-                .iter()
-                .min_by_key(|(_, e)| e.fetched_at)
-                .map(|(k, _)| k.clone())
-        {
-            map.remove(&oldest);
-        }
-        map.insert(
-            key,
-            CacheEntry {
-                data,
-                fetched_at: Instant::now(),
-            },
-        );
-    }
-}
-
-static CACHE: LazyLock<ApiCache> = LazyLock::new(|| ApiCache {
-    entries: Mutex::new(HashMap::new()),
-});
-
-fn curseforge_loader_id(loader: &str) -> u32 {
-    match loader.to_lowercase().as_str() {
-        "fabric" => 4,
-        "forge" => 1,
-        "neoforge" => 6,
-        "quilt" => 5,
-        _ => 4,
-    }
-}
 
 fn build_modrinth_facets(
     loader: &str,
     game_version: &Option<String>,
     category: &Option<String>,
     project_type: &str,
-) -> Value {
+) -> serde_json::Value {
     let mut facets: Vec<Vec<String>> = Vec::new();
 
     let loader_lower = loader.to_lowercase();
@@ -97,9 +33,38 @@ fn build_modrinth_facets(
     serde_json::to_value(facets).unwrap_or_default()
 }
 
-async fn get_json(url: &str) -> Result<Value, String> {
-    if let Some(cached) = CACHE.get(url) {
-        return Ok(cached);
+async fn get_json(url: &str) -> Result<serde_json::Value, String> {
+    use crate::core::http_client::HTTP;
+    use serde_json::Value;
+    use std::collections::HashMap;
+    use std::sync::LazyLock;
+    use std::sync::Mutex;
+    use std::time::Instant;
+
+    const CACHE_TTL: u64 = 300;
+    const CACHE_MAX: usize = 200;
+
+    struct CacheEntry {
+        data: Value,
+        fetched_at: Instant,
+    }
+
+    struct ApiCache {
+        entries: Mutex<HashMap<String, CacheEntry>>,
+    }
+
+    static CACHE: LazyLock<ApiCache> = LazyLock::new(|| ApiCache {
+        entries: Mutex::new(HashMap::new()),
+    });
+
+    {
+        let mut map = CACHE.entries.lock().unwrap();
+        if let Some(entry) = map.get(url) {
+            if entry.fetched_at.elapsed().as_secs() < CACHE_TTL {
+                return Ok(entry.data.clone());
+            }
+            map.remove(url);
+        }
     }
 
     let resp = HTTP
@@ -111,10 +76,7 @@ async fn get_json(url: &str) -> Result<Value, String> {
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
-        if body.len() > 200 {
-            return Err(format!("API error {}: {}...", status, &body[..200]));
-        }
-        return Err(format!("API error {}: {}", status, body));
+        return Err(format!("API error {}: {}", status, body.chars().take(200).collect::<String>()));
     }
 
     let data: Value = resp
@@ -122,11 +84,27 @@ async fn get_json(url: &str) -> Result<Value, String> {
         .await
         .map_err(|e| format!("Failed to parse response: {}", e))?;
 
-    CACHE.set(url.to_string(), data.clone());
+    {
+        let mut map = CACHE.entries.lock().unwrap();
+        if map.len() >= CACHE_MAX
+            && let Some(oldest) = map
+                .iter()
+                .min_by_key(|(_, e)| e.fetched_at)
+                .map(|(k, _)| k.clone())
+        {
+            map.remove(&oldest);
+        }
+        map.insert(
+            url.to_string(),
+            CacheEntry {
+                data: data.clone(),
+                fetched_at: Instant::now(),
+            },
+        );
+    }
+
     Ok(data)
 }
-
-// ── Modrinth commands ──
 
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
@@ -139,7 +117,7 @@ pub async fn search_modrinth(
     limit: u32,
     offset: u32,
     project_type: String,
-) -> Result<Value, String> {
+) -> Result<serde_json::Value, String> {
     let facets = build_modrinth_facets(&loader, &game_version, &category, &project_type);
 
     let facets_str = facets.to_string();
@@ -157,7 +135,7 @@ pub async fn search_modrinth(
 }
 
 #[tauri::command]
-pub async fn get_modrinth_project(project_id: String) -> Result<Value, String> {
+pub async fn get_modrinth_project(project_id: String) -> Result<serde_json::Value, String> {
     let url = format!("{}/project/{}", MODRINTH_API_BASE, project_id);
     get_json(&url).await
 }
@@ -167,7 +145,7 @@ pub async fn get_modrinth_project_versions(
     project_id: String,
     loader: Option<String>,
     game_version: Option<String>,
-) -> Result<Value, String> {
+) -> Result<serde_json::Value, String> {
     let mut url = format!("{}/project/{}/version", MODRINTH_API_BASE, project_id);
     let mut first = true;
 
@@ -209,7 +187,7 @@ pub async fn get_modrinth_project_versions(
 }
 
 #[tauri::command]
-pub async fn get_modrinth_version(version_id: String) -> Result<Value, String> {
+pub async fn get_modrinth_version(version_id: String) -> Result<serde_json::Value, String> {
     let url = format!("{}/version/{}", MODRINTH_API_BASE, version_id);
     get_json(&url).await
 }
@@ -220,22 +198,8 @@ pub async fn get_modrinth_latest_versions(
     algorithm: String,
     loaders: Vec<String>,
     game_versions: Vec<String>,
-) -> Result<Value, String> {
+) -> Result<serde_json::Value, String> {
     let url = format!("{}/version_files/update", MODRINTH_API_BASE);
-
-    let cache_key = format!(
-        "POST {} {} {} {} {}",
-        url,
-        serde_json::to_string(&hashes).unwrap_or_default(),
-        algorithm,
-        serde_json::to_string(&loaders).unwrap_or_default(),
-        serde_json::to_string(&game_versions).unwrap_or_default(),
-    );
-
-    if let Some(cached) = CACHE.get(&cache_key) {
-        return Ok(cached);
-    }
-
     let body = serde_json::json!({
         "hashes": hashes,
         "algorithm": algorithm,
@@ -243,7 +207,7 @@ pub async fn get_modrinth_latest_versions(
         "game_versions": game_versions,
     });
 
-    let resp = HTTP
+    let resp = crate::core::http_client::HTTP
         .post(&url)
         .json(&body)
         .send()
@@ -253,61 +217,19 @@ pub async fn get_modrinth_latest_versions(
     let status = resp.status();
     if !status.is_success() {
         let text = resp.text().await.unwrap_or_default();
-        if text.len() > 200 {
-            return Err(format!(
-                "Modrinth update error {}: {}...",
-                status,
-                &text[..200]
-            ));
-        }
-        return Err(format!("Modrinth update error {}: {}", status, text));
+        return Err(format!(
+            "Modrinth update error {}: {}",
+            status,
+            text.chars().take(200).collect::<String>()
+        ));
     }
 
-    let data: Value = resp
-        .json()
+    resp.json::<serde_json::Value>()
         .await
-        .map_err(|e| format!("Failed to parse Modrinth update response: {}", e))?;
-
-    CACHE.set(cache_key, data.clone());
-    Ok(data)
+        .map_err(|e| format!("Failed to parse Modrinth update response: {}", e))
 }
 
-// ── CurseForge commands ──
-
-async fn get_json_cf(url: &str) -> Result<Value, String> {
-    if let Some(cached) = CACHE.get(url) {
-        return Ok(cached);
-    }
-
-    let resp = HTTP
-        .get(url)
-        .header("x-api-key", CURSEFORGE_API_KEY)
-        .header("Accept", "application/json")
-        .send()
-        .await
-        .map_err(|e| format!("CurseForge request failed: {}", e))?;
-
-    let status = resp.status();
-    if !status.is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        if body.len() > 200 {
-            return Err(format!(
-                "CurseForge API error {}: {}...",
-                status,
-                &body[..200]
-            ));
-        }
-        return Err(format!("CurseForge API error {}: {}", status, body));
-    }
-
-    let data: Value = resp
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse CurseForge response: {}", e))?;
-
-    CACHE.set(url.to_string(), data.clone());
-    Ok(data)
-}
+// ── CurseForge commands ───────────────────────────────────────────────────────
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
@@ -320,107 +242,65 @@ pub async fn search_curseforge(
     limit: u32,
     offset: u32,
     class_id: Option<u32>,
-) -> Result<Value, String> {
-    let mut url = format!("{}/mods/search", CURSEFORGE_API_BASE);
-    let mut first = true;
+) -> Result<CurseForgeSearchResponse, String> {
+    let client = CurseForgeClient::from_settings_or_default();
+    let sort_field = CurseForgeSortField::from_index(&index);
+    let category_id = category.and_then(|c| c.parse::<u32>().ok());
 
-    let mut append = |url: &mut String, name: &str, value: &str| {
-        if first {
-            url.push('?');
-            first = false;
-        } else {
-            url.push('&');
-        }
-        url.push_str(name);
-        url.push('=');
-        url.push_str(&urlencoding::encode(value));
-    };
-
-    append(&mut url, "gameId", &MINECRAFT_GAME_ID.to_string());
-
-    if !query.is_empty() {
-        append(&mut url, "searchFilter", &query);
-    }
-
-    append(&mut url, "pageSize", &limit.min(50).to_string());
-    append(&mut url, "index", &offset.to_string());
-    append(&mut url, "classId", &class_id.unwrap_or(6).to_string());
-
-    let loader_lower = loader.to_lowercase();
-    if loader_lower != "vanilla" && class_id != Some(4471) {
-        append(
-            &mut url,
-            "modLoaderType",
-            &curseforge_loader_id(&loader).to_string(),
-        );
-    }
-    if let Some(gv) = &game_version
-        && !gv.is_empty()
-        && class_id != Some(4471)
-    {
-        append(&mut url, "gameVersion", gv);
-    }
-    if let Some(cat) = &category
-        && !cat.is_empty()
-    {
-        append(&mut url, "categoryId", cat);
-    }
-
-    match index.as_str() {
-        "downloads" => {
-            append(&mut url, "sortField", "6");
-            append(&mut url, "sortOrder", "desc");
-        }
-        "newest" => {
-            append(&mut url, "sortField", "3");
-            append(&mut url, "sortOrder", "desc");
-        }
-        _ => {
-            append(&mut url, "sortOrder", "desc");
-        }
-    }
-
-    get_json_cf(&url).await
+    client
+        .search(crate::services::curseforge_api::SearchParams {
+            query: &query,
+            loader: Some(&loader),
+            game_version: game_version.as_deref(),
+            category_id,
+            sort_field,
+            sort_order: crate::services::curseforge_api::SortOrder::Desc,
+            index: offset,
+            page_size: limit,
+            class_id: class_id.unwrap_or(crate::services::curseforge_api::MODS_CLASS_ID),
+        })
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_curseforge_project(mod_id: u32) -> Result<Value, String> {
-    let url = format!("{}/mods/{}", CURSEFORGE_API_BASE, mod_id);
+pub async fn search_curseforge_modpacks(
+    query: String,
+    loader: String,
+    game_version: Option<String>,
+    index: String,
+    limit: u32,
+    offset: u32,
+) -> Result<CurseForgeSearchResponse, String> {
+    let client = CurseForgeClient::from_settings_or_default();
+    let sort_field = CurseForgeSortField::from_index(&index);
 
-    if let Some(cached) = CACHE.get(&url) {
-        return Ok(cached);
-    }
-
-    let resp = HTTP
-        .get(&url)
-        .header("x-api-key", CURSEFORGE_API_KEY)
-        .header("Accept", "application/json")
-        .send()
+    client
+        .search_modpacks(
+            &query,
+            Some(&loader),
+            game_version.as_deref(),
+            sort_field,
+            offset,
+            limit,
+        )
         .await
-        .map_err(|e| format!("CurseForge request failed: {}", e))?;
+        .map_err(|e| e.to_string())
+}
 
-    let status = resp.status();
-    if !status.is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        if body.len() > 200 {
-            return Err(format!(
-                "CurseForge API error {}: {}...",
-                status,
-                &body[..200]
-            ));
-        }
-        return Err(format!("CurseForge API error {}: {}", status, body));
-    }
+#[tauri::command]
+pub async fn get_curseforge_project(mod_id: u32) -> Result<crate::services::curseforge_api::CurseForgeProject, String> {
+    let client = CurseForgeClient::from_settings_or_default();
+    client.get_project(mod_id).await.map_err(|e| e.to_string())
+}
 
-    let raw: Value = resp
-        .json()
+#[tauri::command]
+pub async fn get_curseforge_project_description(mod_id: u32) -> Result<String, String> {
+    let client = CurseForgeClient::from_settings_or_default();
+    client
+        .get_project_description(mod_id)
         .await
-        .map_err(|e| format!("Failed to parse CurseForge response: {}", e))?;
-
-    let data = raw.get("data").cloned().unwrap_or(raw);
-
-    CACHE.set(url, data.clone());
-    Ok(data)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -428,125 +308,33 @@ pub async fn get_curseforge_project_files(
     mod_id: u32,
     loader: Option<String>,
     game_version: Option<String>,
-) -> Result<Value, String> {
-    let mut url = format!("{}/mods/{}/files", CURSEFORGE_API_BASE, mod_id);
-    let mut first = true;
-
-    let mut append = |url: &mut String, name: &str, value: &str| {
-        if first {
-            url.push('?');
-            first = false;
-        } else {
-            url.push('&');
-        }
-        url.push_str(name);
-        url.push('=');
-        url.push_str(&urlencoding::encode(value));
-    };
-
-    append(&mut url, "pageSize", "100");
-
-    if let Some(gv) = &game_version
-        && !gv.is_empty()
-    {
-        append(&mut url, "gameVersion", gv);
-    }
-    if let Some(l) = &loader {
-        let l_lower = l.to_lowercase();
-        if l_lower != "vanilla" {
-            append(
-                &mut url,
-                "modLoaderType",
-                &curseforge_loader_id(l).to_string(),
-            );
-        }
-    }
-
-    if let Some(cached) = CACHE.get(&url) {
-        return Ok(cached);
-    }
-
-    let resp = HTTP
-        .get(&url)
-        .header("x-api-key", CURSEFORGE_API_KEY)
-        .header("Accept", "application/json")
-        .send()
+) -> Result<Vec<CurseForgeFile>, String> {
+    let client = CurseForgeClient::from_settings_or_default();
+    client
+        .get_project_files(mod_id, loader.as_deref(), game_version.as_deref())
         .await
-        .map_err(|e| format!("CurseForge request failed: {}", e))?;
-
-    let status = resp.status();
-    if !status.is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        if body.len() > 200 {
-            return Err(format!(
-                "CurseForge API error {}: {}...",
-                status,
-                &body[..200]
-            ));
-        }
-        return Err(format!("CurseForge API error {}: {}", status, body));
-    }
-
-    let raw: Value = resp
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse CurseForge response: {}", e))?;
-
-    let data = raw.get("data").cloned().unwrap_or(raw);
-
-    CACHE.set(url, data.clone());
-    Ok(data)
+        .map(|response| response.data)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_curseforge_file_download_url(mod_id: u32, file_id: u32) -> Result<String, String> {
-    let url = format!(
-        "{}/mods/{}/files/{}/download-url",
-        CURSEFORGE_API_BASE, mod_id, file_id
-    );
-
-    let cache_key = format!("download-url-{}-{}", mod_id, file_id);
-    if let Some(cached) = CACHE.get(&cache_key)
-        && let Some(s) = cached.as_str()
-    {
-        return Ok(s.to_string());
-    }
-
-    let resp = HTTP
-        .get(&url)
-        .header("x-api-key", CURSEFORGE_API_KEY)
-        .header("Accept", "application/json")
-        .send()
+pub async fn get_curseforge_file_download_url(
+    mod_id: u32,
+    file_id: u32,
+    file_name: String,
+) -> Result<String, String> {
+    let client = CurseForgeClient::from_settings_or_default();
+    client
+        .get_file_download_url(mod_id, file_id)
         .await
-        .map_err(|e| format!("CurseForge request failed: {}", e))?;
-
-    let status = resp.status();
-    if !status.is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        if body.len() > 200 {
-            return Err(format!(
-                "CurseForge API error {}: {}...",
-                status,
-                &body[..200]
-            ));
-        }
-        return Err(format!("CurseForge API error {}: {}", status, body));
-    }
-
-    let raw: Value = resp
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse CurseForge response: {}", e))?;
-
-    let download_url = raw
-        .pointer("/data/downloadUrl")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    if !download_url.is_empty() {
-        CACHE.set(cache_key, Value::String(download_url.clone()));
-    }
-
-    Ok(download_url)
+        .or_else(|e| {
+            tracing::warn!(
+                mod_id,
+                file_id,
+                file_name = %file_name,
+                error = %e,
+                "CurseForge official download URL failed, falling back to CDN"
+            );
+            Ok(crate::services::curseforge_api::curseforge_cdn_url(file_id, &file_name))
+        })
 }

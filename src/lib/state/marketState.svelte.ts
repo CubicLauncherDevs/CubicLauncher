@@ -15,7 +15,6 @@ import {
 	downloadMods,
 	downloadResourcePacks,
 	downloadShaderPacks,
-	CURSEFORGE_HEADERS,
 } from "$lib/api/cubicApi";
 import { registerModsRefreshCallback } from "$lib/api/launcherService";
 import {
@@ -614,7 +613,6 @@ export function createMarketState(
 						filename: version.primaryFileName,
 						project_id: cfProjectId,
 						version_id: version.id,
-						headers: CURSEFORGE_HEADERS,
 					},
 				]);
 

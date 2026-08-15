@@ -1,4 +1,6 @@
 mod addon_manager;
+pub(crate) mod curseforge_api;
+pub(crate) mod curseforge_modpack;
 pub(crate) mod discord_presence;
 pub(crate) mod download_queue;
 pub mod instance_import;

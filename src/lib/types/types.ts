@@ -74,6 +74,7 @@ export interface Settings {
 	discord_presence: boolean;
 	show_tutorial: boolean;
 	market_filter_collapsed: boolean;
+	curseforge_api_key: string | null;
 }
 
 export interface JreStatus {
@@ -427,13 +428,19 @@ export interface CurseForgeAuthor {
 }
 
 export interface CurseForgeLogo {
+	id: number;
+	modId?: number;
 	url: string;
+	thumbnailUrl?: string;
 }
 
 export interface CurseForgeCategory {
 	id: number;
+	gameId?: number;
 	name: string;
 	slug: string;
+	url?: string;
+	iconUrl?: string;
 }
 
 export interface CurseForgeProject {
@@ -445,7 +452,7 @@ export interface CurseForgeProject {
 	categories: CurseForgeCategory[];
 	authors: CurseForgeAuthor[];
 	downloadCount: number;
-	gameId: number;
+	gameId?: number;
 	dateCreated: string;
 	dateModified: string;
 	isAvailable: boolean;
@@ -471,7 +478,7 @@ export interface CurseForgeSearchResult {
 
 export interface CurseForgeFile {
 	id: number;
-	modId: number;
+	modId?: number;
 	fileName: string;
 	fileDate: string;
 	downloadUrl: string | null;
@@ -526,4 +533,16 @@ export interface CurseForgeGameVersion {
 	id: number;
 	name: string;
 	slug: string;
+}
+
+export interface CurseForgeModpackInfo {
+	name: string;
+	version: string;
+	summary: string | null;
+	minecraft_version: string | null;
+	loader: string | null;
+	loader_version: string | null;
+	file_count: number;
+	version_id_for_instance?: string | null;
+	icon: string | null;
 }

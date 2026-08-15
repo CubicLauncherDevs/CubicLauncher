@@ -715,9 +715,19 @@
 					storageKey="section_advanced"
 				>
 					<div class="qm-field">
-						<label for="jvm-args"
-							>{t("settings.java.jvmArgs")}</label
+						<label for="curseforge-api-key"
+							>{t("settings.curseforgeApiKey")}</label
 						>
+						<input
+							id="curseforge-api-key"
+							type="password"
+							bind:value={launcherStore.settings.curseforge_api_key}
+							placeholder={t("settings.curseforgeApiKeyPlaceholder")}
+							class="qm-text-input"
+						/>
+					</div>
+					<div class="qm-field">
+						<label for="jvm-args">{t("settings.java.jvmArgs")}</label>
 						<textarea
 							id="jvm-args"
 							bind:value={launcherStore.settings.jvm_args}

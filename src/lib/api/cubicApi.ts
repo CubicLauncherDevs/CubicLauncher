@@ -16,6 +16,7 @@ import {
 	type CurseForgeSearchResult,
 	type CurseForgeProject,
 	type CurseForgeFile,
+	type CurseForgeModpackInfo,
 	type JreStatus,
 	type MrpackInfo,
 	type InstanceImportPlan,
@@ -683,10 +684,6 @@ export async function downloadMrpack(
 // Market — CurseForge
 // ─────────────────────────────────────────────────────────────
 
-export const CURSEFORGE_HEADERS = {
-	"x-api-key": "$2a$10$v4G8m2LV2QhjUu5l.G24Ieqdp4JTEEQ6bRsZjvpa0YncCVaDaqBP6",
-};
-
 export async function searchCurseForge(
 	query: string,
 	loader: string,
@@ -719,6 +716,17 @@ export async function getCurseForgeProject(
 	);
 }
 
+export async function getCurseForgeProjectDescription(
+	modId: number,
+): Promise<string | null> {
+	return (
+		(await invokeWithFallback<string>(
+			"get_curseforge_project_description",
+			{ modId },
+		)) ?? null
+	);
+}
+
 export async function getCurseForgeProjectFiles(
 	modId: number,
 	loader?: string,
@@ -739,13 +747,90 @@ export async function getCurseForgeProjectFiles(
 export async function getCurseForgeFileDownloadUrl(
 	modId: number,
 	fileId: number,
+	fileName?: string,
 ): Promise<string | null> {
 	return (
 		(await invokeWithFallback<string>("get_curseforge_file_download_url", {
 			modId,
 			fileId,
+			fileName,
 		})) ?? null
 	);
+}
+
+export async function searchCurseForgeModpacks(
+	query: string,
+	loader: string,
+	gameVersion?: string,
+	index: string = "popularity",
+	limit: number = 10,
+	offset: number = 0,
+): Promise<CurseForgeSearchResult | null> {
+	return (
+		(await invokeWithFallback<CurseForgeSearchResult>(
+			"search_curseforge_modpacks",
+			{
+				query,
+				loader,
+				gameVersion: gameVersion || null,
+				index,
+				limit,
+				offset,
+			},
+		)) ?? null
+	);
+}
+
+export async function downloadCurseForgeModpack(
+	url: string,
+	fileId: number,
+): Promise<string | null> {
+	return (
+		(await invokeWithFallback<string>("download_curseforge_modpack", {
+			url,
+			fileId,
+		})) ?? null
+	);
+}
+
+export async function parseCurseForgeModpack(
+	path: string,
+): Promise<CurseForgeModpackInfo | null> {
+	return (
+		(await invokeWithFallback<CurseForgeModpackInfo>(
+			"parse_curseforge_modpack",
+			{ path },
+		)) ?? null
+	);
+}
+
+export async function installCurseForgeModpack(
+	path: string,
+	instanceName: string,
+	projectId?: number,
+	fileId?: number,
+	iconUrl?: string,
+	callback?: () => void,
+	onError?: (err: unknown) => void,
+): Promise<CurseForgeModpackInfo | null> {
+	try {
+		const result = await invoke<CurseForgeModpackInfo>(
+			"install_curseforge_modpack",
+			{
+				path,
+				instanceName,
+				projectId: projectId ?? null,
+				fileId: fileId ?? null,
+				iconUrl: iconUrl ?? null,
+			},
+		);
+		callback?.();
+		return result;
+	} catch (err) {
+		showErrorParsed(err);
+		onError?.(err);
+		return null;
+	}
 }
 
 // ─────────────────────────────────────────────────────────────

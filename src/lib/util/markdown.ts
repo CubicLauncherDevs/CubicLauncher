@@ -210,3 +210,73 @@ export function renderMarkdown(
 		return "";
 	}
 }
+
+const HTML_MAX_SOURCE_LENGTH = 120_000;
+
+const SANITIZE_HTML_CONFIG: Config = {
+	USE_PROFILES: { html: true },
+	ALLOWED_TAGS: [
+		"p",
+		"br",
+		"hr",
+		"h1",
+		"h2",
+		"h3",
+		"h4",
+		"h5",
+		"h6",
+		"strong",
+		"em",
+		"u",
+		"s",
+		"b",
+		"i",
+		"a",
+		"img",
+		"ul",
+		"ol",
+		"li",
+		"blockquote",
+		"code",
+		"pre",
+		"table",
+		"thead",
+		"tbody",
+		"tr",
+		"th",
+		"td",
+		"div",
+		"span",
+		"figure",
+		"figcaption",
+	],
+	ALLOWED_ATTR: [
+		"href",
+		"src",
+		"alt",
+		"title",
+		"class",
+		"target",
+		"rel",
+		"loading",
+		"decoding",
+	],
+	FORCE_BODY: true,
+	ALLOW_DATA_ATTR: false,
+};
+
+export function sanitizeHtml(source: string | null | undefined): string {
+	if (!source) return "";
+
+	const truncated =
+		source.length > HTML_MAX_SOURCE_LENGTH
+			? `${source.slice(0, HTML_MAX_SOURCE_LENGTH)}\n<!-- README truncated because it is too long. -->`
+			: source;
+
+	try {
+		return sanitizer.sanitize(truncated, SANITIZE_HTML_CONFIG) as string;
+	} catch (e) {
+		console.error("[sanitizeHtml] failed to sanitize HTML:", e);
+		return "";
+	}
+}

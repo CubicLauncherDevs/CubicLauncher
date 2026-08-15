@@ -63,6 +63,7 @@ export const launcherStore = $state<LauncherState>({
 		discord_presence: true,
 		show_tutorial: true,
 		market_filter_collapsed: true,
+		curseforge_api_key: null,
 	},
 });
 
