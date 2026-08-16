@@ -902,6 +902,10 @@ export async function getMinecraftProfile(
 	);
 }
 
+export async function getSkinPreviewData(filePath: string): Promise<string> {
+	return invoke<string>("read_skin_preview_data", { filePath });
+}
+
 export async function uploadSkinFile(
 	uuid: string,
 	filePath: string,

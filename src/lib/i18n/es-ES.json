@@ -190,7 +190,13 @@
 			"skinUpdated": "Skin actualizada",
 			"skinUpdatedDesc": "La skin se aplicó correctamente a tu cuenta.",
 			"capeUpdated": "Capa actualizada",
-			"capeUpdatedDesc": "La capa se aplicó correctamente a tu cuenta."
+			"capeUpdatedDesc": "La capa se aplicó correctamente a tu cuenta.",
+			"saveChanges": "Guardar cambios",
+			"discardChanges": "Descartar",
+			"pendingChanges": "Cambios sin guardar",
+			"changesSaved": "Cambios guardados",
+			"changesSavedDesc": "Tus cambios se aplicaron correctamente a tu cuenta.",
+			"unequipPending": "Capa desequipada (pendiente de guardar)"
 		},
 		"authModal": {
 			"title": "Inicio de Sesión Microsoft",

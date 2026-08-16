@@ -861,7 +861,9 @@ impl Launcher {
     }
 }
 
-async fn refresh_microsoft_token(mut user: MinecraftUser) -> Result<MinecraftUser, AppError> {
+pub(crate) async fn refresh_microsoft_token(
+    mut user: MinecraftUser,
+) -> Result<MinecraftUser, AppError> {
     if user.user_type != AccountType::Microsoft {
         return Ok(user);
     }

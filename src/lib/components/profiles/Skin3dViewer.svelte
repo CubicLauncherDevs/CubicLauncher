@@ -16,6 +16,7 @@
 	let error = $state<string | null>(null);
 
 	function bustCache(url: string): string {
+		if (url.startsWith("data:")) return url;
 		const sep = url.includes("?") ? "&" : "?";
 		return `${url}${sep}_skin3d=${Date.now()}`;
 	}

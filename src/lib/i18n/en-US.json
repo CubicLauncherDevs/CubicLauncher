@@ -190,7 +190,13 @@
 			"skinUpdated": "Skin updated",
 			"skinUpdatedDesc": "Your skin was applied successfully.",
 			"capeUpdated": "Cape updated",
-			"capeUpdatedDesc": "Your cape was applied successfully."
+			"capeUpdatedDesc": "Your cape was applied successfully.",
+			"saveChanges": "Save changes",
+			"discardChanges": "Discard",
+			"pendingChanges": "Unsaved changes",
+			"changesSaved": "Changes saved",
+			"changesSavedDesc": "Your changes were applied successfully.",
+			"unequipPending": "Cape unequipped (pending save)"
 		},
 		"authModal": {
 			"title": "Microsoft Login",
