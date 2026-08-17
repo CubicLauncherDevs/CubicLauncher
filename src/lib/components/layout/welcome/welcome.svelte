@@ -25,13 +25,18 @@
 
 	const steps: Step[] = [
 		{ sel: "[data-tutorial='sidebar-header']", key: "slide1" },
-		{ sel: "[data-tutorial='instance-list']", key: "slide2" },
-		{ sel: "[data-tutorial='create-instance']", key: "slide3" },
-		{ sel: "[data-tutorial='download-versions']", key: "slide4" },
-		{ sel: "[data-tutorial='settings']", key: "slide5" },
+		{
+			sel: "[data-tutorial='user-profile']",
+			key: "slide2",
+			pos: "right",
+		},
+		{ sel: "[data-tutorial='instance-list']", key: "slide3" },
+		{ sel: "[data-tutorial='create-instance']", key: "slide4" },
+		{ sel: "[data-tutorial='download-versions']", key: "slide5" },
+		{ sel: "[data-tutorial='settings']", key: "slide6" },
 		{
 			sel: "[data-tutorial='settings-tabs']",
-			key: "slide6",
+			key: "slide7",
 			measureDelay: 400,
 			onEnter: () => {
 				onopensettings?.();
@@ -39,7 +44,7 @@
 		},
 		{
 			sel: "[data-tutorial='settings-scroll']",
-			key: "slide7",
+			key: "slide8",
 			measureDelay: 400,
 			onEnter: () => {
 				const javaTab = document.querySelector(

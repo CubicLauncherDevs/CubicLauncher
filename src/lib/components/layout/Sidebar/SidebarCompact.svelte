@@ -298,6 +298,7 @@
 		role="button"
 		tabindex="0"
 		title={username}
+		data-tutorial="user-profile"
 		onclick={() => onopenprofileview?.()}
 		onkeydown={(e) =>
 			(e.key === "Enter" || e.key === " ") && onopenprofileview?.()}

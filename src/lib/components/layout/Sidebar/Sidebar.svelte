@@ -182,13 +182,15 @@
 			</CollapsibleSection>
 		</div>
 
-		<UserProfile
-			{username}
-			{avatarSvg}
-			{isPremium}
-			{userTypeLabel}
-			onclick={() => onopenprofileview?.()}
-		/>
+		<div data-tutorial="user-profile">
+			<UserProfile
+				{username}
+				{avatarSvg}
+				{isPremium}
+				{userTypeLabel}
+				onclick={() => onopenprofileview?.()}
+			/>
+		</div>
 	</div>
 
 	<button

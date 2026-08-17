@@ -7,7 +7,6 @@
 		getCurseForgeFileDownloadUrl,
 		downloadMods,
 		getInstanceMods,
-
 		type ModDownloadInfo,
 	} from "$lib/api/cubicApi";
 	import type {
@@ -380,12 +379,12 @@
 				for (const { cfProject, file, url } of resolvedCf) {
 					if (!url) continue;
 					if (!queue.find((q) => q.filename === file.fileName)) {
-					queue.push({
-						url,
-						filename: file.fileName,
-						projectTitle: cfProject.name,
-						iconUrl: cfProject.logo?.url || undefined,
-					});
+						queue.push({
+							url,
+							filename: file.fileName,
+							projectTitle: cfProject.name,
+							iconUrl: cfProject.logo?.url || undefined,
+						});
 					}
 				}
 			}

@@ -495,26 +495,30 @@
 			"desc": "A modern, fast Minecraft launcher. Manage multiple instances, mods, Java configurations and more. Let's take a quick tour!"
 		},
 		"slide2": {
+			"title": "Your Accounts",
+			"desc": "Manage your Minecraft accounts here. Add Microsoft accounts, offline accounts or custom servers, and switch between them easily."
+		},
+		"slide3": {
 			"title": "Your Instances",
 			"desc": "Instances are separate Minecraft installations. View and select your instances here. Each one can have its own version, mods and configuration."
 		},
-		"slide3": {
+		"slide4": {
 			"title": "Create Instance",
 			"desc": "Use this button to create a new instance. Choose a name, version, loader (Fabric, Forge, NeoForge) and a custom icon."
 		},
-		"slide4": {
+		"slide5": {
 			"title": "Download Versions",
 			"desc": "Download Minecraft versions here. Get official releases, snapshots, alphas and Fabric versions to use in your instances."
 		},
-		"slide5": {
+		"slide6": {
 			"title": "Settings",
 			"desc": "The Settings panel has three sections: Launcher, Minecraft and Java. Let's look at each one."
 		},
-		"slide6": {
+		"slide7": {
 			"title": "Settings Sections",
 			"desc": "Use the tabs to navigate between Launcher (language, themes, updates), Minecraft (RAM, versions) and Java (runtimes, arguments)."
 		},
-		"slide7": {
+		"slide8": {
 			"title": "Java Configuration",
 			"desc": "Manage Java 8, 17, 21 and 25 runtimes here. Install Java automatically from the launcher or use an existing installation. You can also configure JVM arguments and environment variables."
 		}

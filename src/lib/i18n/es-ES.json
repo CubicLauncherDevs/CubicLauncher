@@ -495,26 +495,30 @@
 			"desc": "Es un launcher moderno y rápido para Minecraft. Te permite gestionar múltiples instancias, mods, configuraciones de Java y mucho más. ¡Hagamos un recorrido rápido!"
 		},
 		"slide2": {
+			"title": "Tus Cuentas",
+			"desc": "Aquí puedes gestionar tus cuentas de Minecraft. Añade cuentas de Microsoft, cuentas offline o servidores personalizados, y cambia entre ellas fácilmente."
+		},
+		"slide3": {
 			"title": "Tus Instancias",
 			"desc": "Las instancias son instalaciones separadas de Minecraft. Aquí puedes ver y seleccionar tus instancias. Cada una puede tener su propia versión, mods y configuración."
 		},
-		"slide3": {
+		"slide4": {
 			"title": "Crear Instancia",
 			"desc": "Usa este botón para crear una nueva instancia. Puedes elegir nombre, versión, loader (Fabric, Forge, NeoForge) y un icono personalizado."
 		},
-		"slide4": {
+		"slide5": {
 			"title": "Descargar Versiones",
 			"desc": "Descarga versiones de Minecraft aquí. Puedes obtener lanzamientos oficiales, snapshots, alphas y versiones de Fabric para usar en tus instancias."
 		},
-		"slide5": {
+		"slide6": {
 			"title": "Ajustes",
 			"desc": "El panel de Ajustes tiene tres secciones: Launcher, Minecraft y Java. Veamos cada una."
 		},
-		"slide6": {
+		"slide7": {
 			"title": "Secciones de Ajustes",
 			"desc": "Usa las pestañas para navegar entre Launcher (idioma, temas, actualizaciones), Minecraft (RAM, versiones) y Java (rutas, argumentos)."
 		},
-		"slide7": {
+		"slide8": {
 			"title": "Configuración de Java",
 			"desc": "Aquí puedes gestionar las versiones de Java 8, 17, 21 y 25. Puedes instalar Java automáticamente desde el launcher o usar una instalación externa. También puedes configurar argumentos JVM y variables de entorno."
 		}
