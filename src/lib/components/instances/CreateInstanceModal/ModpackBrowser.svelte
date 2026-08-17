@@ -16,6 +16,14 @@
 		author?: string;
 	};
 
+	export type ModpackSort = "relevance" | "downloads" | "newest";
+
+	export interface ModpackFilters {
+		sort: ModpackSort;
+		category: string | null;
+		gameVersion: string | null;
+	}
+
 	let {
 		query = $bindable(""),
 		items = [],
@@ -35,8 +43,16 @@
 		searchPlaceholder = "",
 		emptySearchingText = "",
 		emptyNoResultsText = "",
+		filters = $bindable<ModpackFilters>({
+			sort: "downloads",
+			category: null,
+			gameVersion: null,
+		}),
+		categoryOptions = [] as { value: string; label: string }[],
+		gameVersionOptions = [] as { value: string; label: string }[],
 		onSearch,
 		onLoadMore,
+		onFilterChange,
 		onSelect,
 		onBack,
 		onInstall,
@@ -62,8 +78,12 @@
 		searchPlaceholder?: string;
 		emptySearchingText?: string;
 		emptyNoResultsText?: string;
+		filters?: ModpackFilters;
+		categoryOptions?: { value: string; label: string }[];
+		gameVersionOptions?: { value: string; label: string }[];
 		onSearch?: () => void;
 		onLoadMore?: () => void;
+		onFilterChange?: () => void;
 		onSelect?: (item: ModpackItem) => void;
 		onBack?: () => void;
 		onInstall?: () => void;
@@ -93,6 +113,26 @@
 	function handleSearch() {
 		clearSearchDebounce();
 		onSearch?.();
+	}
+
+	function handleFilterChange() {
+		clearSearchDebounce();
+		onFilterChange?.();
+	}
+
+	function setSort(sort: ModpackSort) {
+		filters.sort = sort;
+		handleFilterChange();
+	}
+
+	function setCategory(category: string | null) {
+		filters.category = category;
+		handleFilterChange();
+	}
+
+	function setGameVersion(version: string | null) {
+		filters.gameVersion = version;
+		handleFilterChange();
 	}
 
 	function formatDownloads(n: number): string {
@@ -145,6 +185,66 @@
 			{/if}
 			{t("createInstance.searchBtn")}
 		</button>
+	</div>
+
+	<div class="filter-bar">
+		<div class="filter-group">
+			<span class="filter-label"
+				>{t("createInstance.filterSortLabel")}</span
+			>
+			<div class="filter-chips">
+				<button
+					type="button"
+					class="filter-chip"
+					class:active={filters.sort === "relevance"}
+					onclick={() => setSort("relevance")}
+				>
+					{t("createInstance.sortRelevance")}
+				</button>
+				<button
+					type="button"
+					class="filter-chip"
+					class:active={filters.sort === "downloads"}
+					onclick={() => setSort("downloads")}
+				>
+					{t("createInstance.sortDownloads")}
+				</button>
+				<button
+					type="button"
+					class="filter-chip"
+					class:active={filters.sort === "newest"}
+					onclick={() => setSort("newest")}
+				>
+					{t("createInstance.sortNewest")}
+				</button>
+			</div>
+		</div>
+
+		<div class="filter-selects">
+			<Select
+				value={filters.category ?? ""}
+				options={[
+					{
+						value: "",
+						label: t("createInstance.filterAllCategories"),
+					},
+					...categoryOptions,
+				]}
+				placeholder={t("createInstance.filterCategoryLabel")}
+				label={t("createInstance.filterCategoryLabel")}
+				onchange={(value) => setCategory(value || null)}
+			/>
+			<Select
+				value={filters.gameVersion ?? ""}
+				options={[
+					{ value: "", label: t("createInstance.filterAllVersions") },
+					...gameVersionOptions,
+				]}
+				placeholder={t("createInstance.filterVersionLabel")}
+				label={t("createInstance.filterVersionLabel")}
+				onchange={(value) => setGameVersion(value || null)}
+			/>
+		</div>
 	</div>
 
 	{#if installError}
@@ -362,6 +462,69 @@
 		display: flex;
 		align-items: center;
 		gap: 6px;
+	}
+
+	.filter-bar {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		padding: 8px;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+	}
+
+	.filter-group {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.filter-label {
+		font-size: 0.65rem;
+		font-weight: 700;
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.8px;
+	}
+
+	.filter-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+
+	.filter-chip {
+		padding: 4px 11px;
+		background: var(--surface-card);
+		border: 1px solid var(--border);
+		border-radius: 20px;
+		color: var(--text-secondary);
+		font-size: 0.7rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.15s ease;
+		font-family: inherit;
+		text-transform: capitalize;
+	}
+
+	.filter-chip:hover {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+		border-color: var(--text-tertiary);
+	}
+
+	.filter-chip.active {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-text);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.filter-selects {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 8px;
 	}
 
 	.error-msg {

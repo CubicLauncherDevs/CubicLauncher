@@ -4,18 +4,26 @@
 		searchModrinth,
 		getModrinthProjectVersions,
 		getModrinthProject,
+		getAvailableVersions,
 		downloadMrpack,
 		installMrpackWithUpstream,
 		openUrl,
 	} from "$lib/api/cubicApi";
-	import type { ModrinthProject, ModrinthVersion } from "$lib/types/types";
+	import type {
+		ModrinthProject,
+		ModrinthVersion,
+		MinecraftVersion,
+	} from "$lib/types/types";
 	import MarkdownRenderer from "$lib/components/ui/MarkdownRenderer.svelte";
 	import {
 		isValidInstanceName,
 		sanitizeInstanceName,
 	} from "$lib/utils/instanceName";
 	import Loading from "$lib/icons/Loading.svelte";
-	import ModpackBrowser, { type ModpackItem } from "./ModpackBrowser.svelte";
+	import ModpackBrowser, {
+		type ModpackItem,
+		type ModpackFilters,
+	} from "./ModpackBrowser.svelte";
 
 	let {
 		onInstalled,
@@ -25,6 +33,25 @@
 
 	const limit = 10;
 
+	const categories = [
+		{ value: "adventure", label: "Adventure" },
+		{ value: "magic", label: "Magic" },
+		{ value: "utility", label: "Utility" },
+		{ value: "optimization", label: "Optimization" },
+		{ value: "equipment", label: "Equipment" },
+		{ value: "worldgen", label: "Worldgen" },
+		{ value: "food", label: "Food" },
+		{ value: "library", label: "Library" },
+		{ value: "decoration", label: "Decoration" },
+		{ value: "storage", label: "Storage" },
+	];
+
+	let filters = $state<ModpackFilters>({
+		sort: "downloads",
+		category: null,
+		gameVersion: null,
+	});
+	let gameVersions = $state<MinecraftVersion[]>([]);
 	let query = $state("");
 	let projects = $state<ModrinthProject[]>([]);
 	let items = $state<ModpackItem[]>([]);
@@ -65,6 +92,28 @@
 			: undefined,
 	);
 
+	const gameVersionOptions = $derived(
+		gameVersions
+			.filter((v) => v.type === "release")
+			.map((v) => ({ value: v.id, label: v.id })),
+	);
+
+	async function loadGameVersions() {
+		try {
+			gameVersions = await getAvailableVersions();
+		} catch {
+			gameVersions = [];
+		}
+	}
+
+	function handleFilterChange() {
+		selectedItem = null;
+		selectedPack = null;
+		versions = [];
+		selectedVersion = "";
+		doSearch(true);
+	}
+
 	function projectToItem(pack: ModrinthProject): ModpackItem {
 		return {
 			id: pack.project_id,
@@ -97,9 +146,9 @@
 			const result = await searchModrinth(
 				query,
 				"",
-				undefined,
-				null,
-				"downloads",
+				filters.gameVersion ?? undefined,
+				filters.category,
+				filters.sort,
 				limit,
 				reset ? 0 : offset,
 				"modpack",
@@ -249,6 +298,7 @@
 	}
 
 	$effect(() => {
+		loadGameVersions();
 		doSearch(true);
 	});
 </script>
@@ -269,11 +319,15 @@
 	{needsCustomName}
 	bind:customName
 	{customNameError}
+	bind:filters
+	categoryOptions={categories}
+	{gameVersionOptions}
 	searchPlaceholder={t("createInstance.modpackSearchPlaceholder")}
 	emptySearchingText={t("createInstance.searchingModpacks")}
 	emptyNoResultsText={t("createInstance.noModpacksFound")}
 	onSearch={handleSearch}
 	onLoadMore={handleLoadMore}
+	onFilterChange={handleFilterChange}
 	onSelect={handleSelect}
 	onBack={handleBack}
 	onInstall={handleInstall}

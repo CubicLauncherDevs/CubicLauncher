@@ -268,22 +268,26 @@ pub async fn search_curseforge(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn search_curseforge_modpacks(
     query: String,
     loader: String,
     game_version: Option<String>,
+    category: Option<String>,
     index: String,
     limit: u32,
     offset: u32,
 ) -> Result<CurseForgeSearchResponse, String> {
     let client = CurseForgeClient::from_settings_or_default();
     let sort_field = CurseForgeSortField::from_index(&index);
+    let category_id = category.and_then(|c| c.parse::<u32>().ok());
 
     client
         .search_modpacks(
             &query,
             Some(&loader),
             game_version.as_deref(),
+            category_id,
             sort_field,
             offset,
             limit,

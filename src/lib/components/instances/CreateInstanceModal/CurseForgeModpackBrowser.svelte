@@ -5,18 +5,26 @@
 		getCurseForgeProjectFiles,
 		getCurseForgeProjectDescription,
 		getCurseForgeFileDownloadUrl,
+		getAvailableVersions,
 		downloadCurseForgeModpack,
 		installCurseForgeModpack,
 		openUrl,
 	} from "$lib/api/cubicApi";
-	import type { CurseForgeProject, CurseForgeFile } from "$lib/types/types";
+	import type {
+		CurseForgeProject,
+		CurseForgeFile,
+		MinecraftVersion,
+	} from "$lib/types/types";
 	import HtmlRenderer from "$lib/components/ui/HtmlRenderer.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
 	import {
 		isValidInstanceName,
 		sanitizeInstanceName,
 	} from "$lib/utils/instanceName";
-	import ModpackBrowser, { type ModpackItem } from "./ModpackBrowser.svelte";
+	import ModpackBrowser, {
+		type ModpackItem,
+		type ModpackFilters,
+	} from "./ModpackBrowser.svelte";
 
 	let {
 		onInstalled,
@@ -26,6 +34,25 @@
 
 	const limit = 10;
 
+	const categories = [
+		{ value: "422", label: "Adventure" },
+		{ value: "419", label: "Magic" },
+		{ value: "5191", label: "Utility" },
+		{ value: "6814", label: "Optimization" },
+		{ value: "434", label: "Equipment" },
+		{ value: "406", label: "Worldgen" },
+		{ value: "436", label: "Food" },
+		{ value: "421", label: "Library" },
+		{ value: "424", label: "Decoration" },
+		{ value: "420", label: "Storage" },
+	];
+
+	let filters = $state<ModpackFilters>({
+		sort: "downloads",
+		category: null,
+		gameVersion: null,
+	});
+	let gameVersions = $state<MinecraftVersion[]>([]);
 	let query = $state("");
 	let projects = $state<CurseForgeProject[]>([]);
 	let items = $state<ModpackItem[]>([]);
@@ -60,6 +87,29 @@
 		})),
 	);
 
+	const gameVersionOptions = $derived(
+		gameVersions
+			.filter((v) => v.type === "release")
+			.map((v) => ({ value: v.id, label: v.id })),
+	);
+
+	async function loadGameVersions() {
+		try {
+			gameVersions = await getAvailableVersions();
+		} catch {
+			gameVersions = [];
+		}
+	}
+
+	function handleFilterChange() {
+		selectedItem = null;
+		selectedPack = null;
+		versions = [];
+		selectedVersion = "";
+		description = "";
+		doSearch(true);
+	}
+
 	function projectToItem(pack: CurseForgeProject): ModpackItem {
 		return {
 			id: pack.id,
@@ -92,8 +142,9 @@
 			const result = await searchCurseForgeModpacks(
 				query,
 				"",
-				undefined,
-				"downloads",
+				filters.gameVersion ?? undefined,
+				filters.category,
+				filters.sort,
 				limit,
 				reset ? 0 : offset,
 			);
@@ -102,7 +153,9 @@
 				projects = reset ? result.data : [...projects, ...result.data];
 				items = projects.map(projectToItem);
 				totalHits = Number(result.pagination.totalCount);
-				offset = reset ? result.pagination.pageSize : offset + result.pagination.pageSize;
+				offset = reset
+					? result.pagination.pageSize
+					: offset + result.pagination.pageSize;
 			}
 		} finally {
 			if (gen === searchGen) {
@@ -142,11 +195,7 @@
 
 		try {
 			const [fetchedVersions, fetchedDescription] = await Promise.all([
-				getCurseForgeProjectFiles(
-					selectedPack.id,
-					"",
-					undefined,
-				),
+				getCurseForgeProjectFiles(selectedPack.id, "", undefined),
 				getCurseForgeProjectDescription(selectedPack.id),
 			]);
 			versions = fetchedVersions;
@@ -251,6 +300,7 @@
 	}
 
 	$effect(() => {
+		loadGameVersions();
 		doSearch(true);
 	});
 </script>
@@ -271,11 +321,15 @@
 	{needsCustomName}
 	bind:customName
 	{customNameError}
+	bind:filters
+	categoryOptions={categories}
+	{gameVersionOptions}
 	searchPlaceholder={t("createInstance.curseforgeModpackSearchPlaceholder")}
 	emptySearchingText={t("createInstance.searchingModpacks")}
 	emptyNoResultsText={t("createInstance.noModpacksFound")}
 	onSearch={handleSearch}
 	onLoadMore={handleLoadMore}
+	onFilterChange={handleFilterChange}
 	onSelect={handleSelect}
 	onBack={handleBack}
 	onInstall={handleInstall}
