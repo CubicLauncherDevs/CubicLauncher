@@ -117,9 +117,9 @@ pub struct SettingsManager {
     #[serde(default = "default_true")]
     pub show_tutorial: bool,
     #[serde(default)]
-    pub market_filter_collapsed: bool,
+    pub license_accepted: bool,
     #[serde(default)]
-    pub curseforge_api_key: Option<CompactString>,
+    pub market_filter_collapsed: bool,
     #[serde(skip)]
     pub dirty: bool,
 }
@@ -191,8 +191,8 @@ impl Default for SettingsManager {
             theme: CompactString::from("dark"),
             discord_presence: true,
             show_tutorial: true,
+            license_accepted: false,
             market_filter_collapsed: true,
-            curseforge_api_key: None,
             dirty: true,
         }
     }
@@ -244,11 +244,6 @@ impl SettingsManager {
     pub fn get_max_memory(&self) -> u32 {
         self.max_memory
     }
-    #[allow(dead_code)]
-    pub fn get_curseforge_api_key(&self) -> Option<&str> {
-        self.curseforge_api_key.as_deref()
-    }
-
     pub fn add_user(&mut self, user: MinecraftUser) {
         self.user.push(user);
     }
@@ -441,7 +436,6 @@ mod tests {
         assert!(s.dirty);
         assert!(s.env_vars.is_empty());
         assert!(s.jvm_args.is_empty());
-        assert!(s.curseforge_api_key.is_none());
     }
 
     /// Valores en GB (min=2, max=4) deben convertirse a MB (2048, 4096)

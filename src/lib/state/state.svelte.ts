@@ -62,8 +62,8 @@ export const launcherStore = $state<LauncherState>({
 		theme: "dark",
 		discord_presence: true,
 		show_tutorial: true,
+		license_accepted: false,
 		market_filter_collapsed: true,
-		curseforge_api_key: null,
 	},
 });
 

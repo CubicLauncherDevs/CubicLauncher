@@ -238,13 +238,19 @@
 								<img
 									src={getDisplayIconSrc(instance.icon)}
 									alt={instance.name}
-									width="18"
-									height="18"
+									width="20"
+									height="20"
 								/>
 							{:else}
 								{instance.name.charAt(0).toUpperCase()}
 							{/if}
 						</div>
+						{#if launcherStore.runningInstances.includes(instance.uuid)}
+							<span
+								class="sc-instance-running"
+								aria-label={t("instanceView.status.started")}
+							></span>
+						{/if}
 					</button>
 				{/each}
 			{/if}
@@ -426,7 +432,7 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 4px;
+		gap: 8px;
 		padding: 0 8px;
 	}
 
@@ -437,11 +443,12 @@
 	}
 
 	.sc-instance-item {
-		width: 36px;
-		height: 36px;
+		position: relative;
+		width: 42px;
+		height: 42px;
 		background: transparent;
 		border: 1px solid transparent;
-		border-radius: var(--border-radius-sm);
+		border-radius: 10px;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
@@ -449,28 +456,31 @@
 		padding: 0;
 		transition:
 			background 0.15s ease,
-			border-color 0.15s ease;
+			border-color 0.15s ease,
+			box-shadow 0.15s ease;
 	}
 
 	.sc-instance-item:hover {
-		background: var(--surface-selected);
+		background: var(--surface-hover);
 	}
 
 	.sc-instance-item.active {
 		background: var(--bg-item-active);
-		border-color: var(--border);
+		border-color: var(--accent);
+		box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.08);
 	}
 
 	.sc-instance-icon {
-		width: 28px;
-		height: 28px;
+		width: 30px;
+		height: 30px;
 		background: rgba(var(--surface-rgb), 0.04);
 		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
+		border-radius: 8px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.7rem;
+		font-size: 0.8rem;
+		font-weight: 600;
 		flex-shrink: 0;
 		color: var(--text-primary);
 		overflow: hidden;
@@ -481,6 +491,18 @@
 		height: 100%;
 		object-fit: cover;
 		display: block;
+	}
+
+	.sc-instance-running {
+		position: absolute;
+		bottom: 3px;
+		right: 3px;
+		width: 8px;
+		height: 8px;
+		background: var(--color-status-started);
+		border: 1.5px solid var(--bg-sidebar);
+		border-radius: 50%;
+		box-shadow: 0 0 4px rgba(var(--color-success-rgb), 0.5);
 	}
 
 	.sc-tools {

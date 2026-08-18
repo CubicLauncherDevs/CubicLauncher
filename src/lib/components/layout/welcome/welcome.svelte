@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from "svelte";
 	import { t } from "$lib/i18n";
+	import { launcherStore } from "$lib/state/state.svelte";
+	import { saveSettings } from "$lib/api/launcherService";
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
 	import TutorialTipContent from "./TutorialTipContent.svelte";
 	import TutorialTipFooter from "./TutorialTipFooter.svelte";
@@ -8,7 +10,7 @@
 	interface Step {
 		sel: string;
 		key: string;
-		pos?: "right" | "left";
+		pos?: "right" | "left" | "center";
 		onEnter?: () => void;
 		measureDelay?: number;
 	}
@@ -53,6 +55,7 @@
 				if (javaTab) javaTab.click();
 			},
 		},
+		{ sel: "body", key: "slide9", pos: "center" },
 	];
 
 	let currentStep = $state(0);
@@ -75,12 +78,36 @@
 	let rAFId: number | undefined;
 	let measureTimer: ReturnType<typeof setTimeout> | undefined;
 
-	function close() {
+	const isLicenseStep = $derived(currentStep === steps.length - 1);
+	const isCentered = $derived(steps[currentStep]?.pos === "center");
+	const canFinish = $derived(
+		!isLicenseStep || launcherStore.settings.license_accepted,
+	);
+	const canSkip = $derived(launcherStore.settings.license_accepted);
+
+	function closeTutorial() {
 		active = false;
 		closeTimer = setTimeout(() => {
 			open = false;
 			onclose?.();
 		}, 150);
+	}
+
+	async function skipTutorial() {
+		if (!canSkip) return;
+		launcherStore.settings.show_tutorial = false;
+		await saveSettings();
+		closeTutorial();
+	}
+
+	async function finishTutorial() {
+		if (!canFinish) return;
+		if (isLicenseStep) {
+			launcherStore.settings.license_accepted = true;
+		}
+		launcherStore.settings.show_tutorial = false;
+		await saveSettings();
+		closeTutorial();
 	}
 
 	function goToStep(i: number) {
@@ -129,6 +156,13 @@
 
 		const tipW = hasMeasured && measuredW > 0 ? measuredW : 280;
 		const tipH = hasMeasured && measuredH > 0 ? measuredH : 150;
+
+		if (step.pos === "center") {
+			tipLeft = false;
+			tx = Math.max(m, (window.innerWidth - tipW) / 2);
+			ty = Math.max(m, (window.innerHeight - tipH) / 2);
+			return;
+		}
 
 		const spaceRight = window.innerWidth - r.right;
 		const spaceLeft = r.left;
@@ -219,7 +253,7 @@
 		class="tut-overlay"
 		class:visible={active}
 		class:dim={!tipLeft}
-		onclick={close}
+		onclick={skipTutorial}
 		role="presentation"
 	>
 		<div
@@ -233,24 +267,28 @@
 		class:visible={active}
 		class:fading={positioning}
 		class:left={tipLeft}
+		class:center={isCentered}
 		style="--tx:{tx}px;--ty:{ty}px"
 		bind:this={tipEl}
 		role="dialog"
 	>
 		<div class="tut-arrow"></div>
 
-		<button
-			type="button"
-			class="tut-close"
-			onclick={close}
-			aria-label={t("tutorial.skip")}
-		>
-			<CloseIcon size={20} />
-		</button>
+		{#if canSkip}
+			<button
+				type="button"
+				class="tut-close"
+				onclick={skipTutorial}
+				aria-label={t("tutorial.skip")}
+			>
+				<CloseIcon size={20} />
+			</button>
+		{/if}
 
 		<TutorialTipContent
 			stepKey={steps[currentStep].key}
 			isFirstStep={currentStep === 0}
+			{isLicenseStep}
 		/>
 
 		<TutorialTipFooter
@@ -259,7 +297,8 @@
 			onprev={prev}
 			onnext={next}
 			ongoToStep={goToStep}
-			onfinish={close}
+			onfinish={finishTutorial}
+			{canFinish}
 		/>
 	</div>
 {/if}

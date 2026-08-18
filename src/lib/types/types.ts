@@ -73,8 +73,8 @@ export interface Settings {
 	theme: string;
 	discord_presence: boolean;
 	show_tutorial: boolean;
+	license_accepted: boolean;
 	market_filter_collapsed: boolean;
-	curseforge_api_key: string | null;
 }
 
 export interface JreStatus {

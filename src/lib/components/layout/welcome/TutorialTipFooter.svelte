@@ -8,6 +8,7 @@
 		onnext,
 		ongoToStep,
 		onfinish,
+		canFinish = true,
 	}: {
 		currentStep: number;
 		totalSteps: number;
@@ -15,6 +16,7 @@
 		onnext: () => void;
 		ongoToStep: (i: number) => void;
 		onfinish: () => void;
+		canFinish?: boolean;
 	} = $props();
 </script>
 
@@ -41,9 +43,14 @@
 				>{t("tutorial.next")}</button
 			>
 		{:else}
-			<button type="button" class="btn-primary tut-btn" onclick={onfinish}
-				>{t("tutorial.finish")}</button
+			<button
+				type="button"
+				class="btn-primary tut-btn"
+				onclick={onfinish}
+				disabled={!canFinish}
 			>
+				{t("tutorial.finish")}
+			</button>
 		{/if}
 	</div>
 </div>

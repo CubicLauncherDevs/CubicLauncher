@@ -94,8 +94,6 @@
 			"installedVersion": "Versión instalada: {version}",
 			"notInstalled": "No instalado",
 			"installError": "Error al instalar JRE {version}: {error}",
-			"curseforgeApiKey": "Clave API de CurseForge",
-			"curseforgeApiKeyPlaceholder": "Tu clave API de CurseForge (opcional)",
 			"jvmArgs": "Argumentos JVM",
 			"envVars": "Variables de Entorno",
 			"envVarsAdd": "Añadir",
@@ -521,7 +519,18 @@
 		"slide8": {
 			"title": "Configuración de Java",
 			"desc": "Aquí puedes gestionar las versiones de Java 8, 17, 21 y 25. Puedes instalar Java automáticamente desde el launcher o usar una instalación externa. También puedes configurar argumentos JVM y variables de entorno."
-		}
+		},
+		"slide9": {
+			"title": "Licencia",
+			"desc": "CubicLauncher es software libre publicado bajo la GNU General Public License v3."
+		},
+		"licenseName": "GNU General Public License v3",
+		"licenseBullet1": "Podés usar, estudiar, compartir y modificar el software libremente.",
+		"licenseBullet2": "Si redistribuís el software, debés mantener la misma licencia.",
+		"licenseBullet3": "El software se proporciona sin garantía de ningún tipo.",
+		"viewLicense": "Ver licencia completa",
+		"acceptLicense": "Acepto los términos de la licencia",
+		"acceptLicenseNote": "Marcá la casilla para continuar."
 	},
 	"errors": {
 		"title": "Error",

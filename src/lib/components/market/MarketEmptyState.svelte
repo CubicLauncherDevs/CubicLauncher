@@ -1,15 +1,18 @@
 <script lang="ts">
+	import Icon from "$lib/icons/Icon.svelte";
+
 	interface Props {
 		title: string;
 		subtitle?: string;
-		icon?: string;
 	}
 
-	let { title, subtitle, icon = "📦" }: Props = $props();
+	let { title, subtitle }: Props = $props();
 </script>
 
 <div class="market-empty">
-	<span class="market-empty-icon">{icon}</span>
+	<div class="market-empty-icon">
+		<Icon src="/images/icons/instance/box.svg" size={40} />
+	</div>
 	<p class="market-empty-title">{title}</p>
 	{#if subtitle}
 		<p class="market-empty-subtitle">{subtitle}</p>
@@ -31,7 +34,9 @@
 	}
 
 	.market-empty-icon {
-		font-size: 2.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		opacity: 0.7;
 	}
 

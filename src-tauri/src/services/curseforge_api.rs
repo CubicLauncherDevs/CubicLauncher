@@ -6,7 +6,6 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 use crate::core::http_client::HTTP;
-use crate::services::SettingsManager;
 
 const CURSEFORGE_API_BASE: &str = "https://api.curseforge.com/v1";
 const MINECRAFT_GAME_ID: u32 = 432;
@@ -288,8 +287,6 @@ pub struct CurseForgeFilesResponse {
 
 #[derive(Debug, thiserror::Error)]
 pub enum CurseForgeError {
-    #[error("CurseForge API key is not configured")]
-    MissingApiKey,
     #[error("HTTP request failed: {0}")]
     Request(#[from] reqwest::Error),
     #[error("API error {status}: {body}")]
@@ -363,22 +360,9 @@ pub struct CurseForgeClient {
 }
 
 impl CurseForgeClient {
-    /// Creates a client using the configured API key. If no key is configured,
-    /// returns a `MissingApiKey` error.
-    pub fn from_settings() -> Result<Self, CurseForgeError> {
-        let key = SettingsManager::read()
-            .curseforge_api_key
-            .as_ref()
-            .map(|s| s.to_string());
-        key.map(|api_key| Self { api_key })
-            .ok_or(CurseForgeError::MissingApiKey)
-    }
-
-    /// Creates a client from settings if available, otherwise falls back to the
-    /// built-in default key. This preserves compatibility while allowing users to
-    /// provide their own key.
+    /// Creates a client using the built-in default API key.
     pub fn from_settings_or_default() -> Self {
-        Self::from_settings().unwrap_or_else(|_| Self::default())
+        Self::default()
     }
 
     /// Creates a client with an explicit API key.

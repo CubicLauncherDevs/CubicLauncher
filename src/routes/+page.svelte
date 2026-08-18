@@ -17,6 +17,7 @@
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
 	import JreInstallPrompt from "$lib/components/ui/JreInstallPrompt.svelte";
 	import Tutorial from "$lib/components/layout/welcome/welcome.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 	import { initDiscordPresence } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
 	import {
@@ -82,7 +83,10 @@
 			loadInstalledVersions(),
 		]);
 
-		if (launcherStore.settings.show_tutorial) {
+		if (
+			launcherStore.settings.show_tutorial ||
+			!launcherStore.settings.license_accepted
+		) {
 			showTutorial = true;
 		}
 
@@ -279,7 +283,9 @@
 		{#if isDragOver}
 			<div class="drag-overlay">
 				<div class="drag-overlay-content">
-					<span>📦</span>
+					<div class="drag-icon">
+						<Icon src="/images/icons/instance/box.svg" size={48} />
+					</div>
 					<h2>Suelta tu modpack o theme aquí</h2>
 					<p>
 						Los archivos .mrpack y .zip se importarán
@@ -398,9 +404,10 @@
 		color: white;
 	}
 
-	.drag-overlay-content span {
-		font-size: 3rem;
-		display: block;
+	.drag-overlay-content .drag-icon {
+		display: flex;
+		justify-content: center;
+		align-items: center;
 		margin-bottom: 16px;
 	}
 
