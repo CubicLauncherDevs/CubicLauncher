@@ -416,17 +416,13 @@
 
 <ModalBase bind:open title={t("versionDownloader.title")} width="700px">
 	<div class="version-downloader-body">
-		<div style="display: flex; justify-content: flex-end;">
+		<div class="vd-header">
 			<button
 				type="button"
+				class="vd-refresh-btn"
 				onclick={refreshCurrentSource}
 				disabled={refreshing}
 				title={t("versionDownloader.refreshBtn")}
-				style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; border-radius: 4px; transition: color 0.2s;"
-				onmouseenter={(e) =>
-					(e.currentTarget.style.color = "var(--text-primary)")}
-				onmouseleave={(e) =>
-					(e.currentTarget.style.color = "var(--text-muted)")}
 			>
 				<svg
 					width="16"
@@ -438,9 +434,6 @@
 					stroke-linecap="round"
 					stroke-linejoin="round"
 					class:spin={refreshing}
-					style={refreshing
-						? "animation: spin 1s linear infinite; will-change: transform;"
-						: ""}
 				>
 					<polyline points="23 4 23 10 17 10"></polyline>
 					<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
@@ -448,203 +441,222 @@
 			</button>
 		</div>
 
-		<VersionDownloaderTabs bind:loaderTab {LOADERS} onswitch={switchTab} />
+		<div class="vd-layout">
+			<div class="vd-loader-sidebar">
+				<VersionDownloaderTabs
+					bind:loaderTab
+					{LOADERS}
+					onswitch={switchTab}
+				/>
+			</div>
 
-		<div class="vd-scrollable">
-			{#if loaderTab === "vanilla"}
-				<div style="display: flex; flex-direction: column; gap: 12px;">
-					<input
-						type="text"
-						placeholder={t("versionDownloader.searchPlaceholder")}
-						bind:value={vanillaSearch}
-						style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box;"
-					/>
-
-					{#if loadingMojang || loadingVanillaInstalled}
-						<div class="qm-empty-state">
-							{t("versionDownloader.loading")}
-						</div>
-					{:else if vanillaDisplayList.length === 0}
-						<div class="qm-empty-state">
-							{t("versionDownloader.notFound")}
-						</div>
-					{:else}
-						<div
-							style="display: flex; flex-direction: column; gap: 6px;"
-						>
-							{#each vanillaDisplayList as vitem (vitem.id)}
-								{@const vid = vitem.id}
-								{@const isVanInstalled =
-									versionsState.mcVersions?.vanilla.has(
-										vid,
-									) ?? false}
-								{@const isVanDownloading =
-									isVersionDownloading(vid)}
-								<div class="version-card">
-									<div class="version-card-info">
-										<div class="version-card-name">
-											{vid}
-										</div>
-										<div class="version-card-type">
-											{(vitem as MinecraftVersion).type ??
-												"release"} • {new Date(
-												(vitem as MinecraftVersion)
-													.releaseTime ?? "",
-											).toLocaleDateString()}
-										</div>
-									</div>
-									{#if isVanInstalled}
-										<div class="inst-icon">✓</div>
-									{:else if isVanDownloading}
-										<button
-											type="button"
-											class="download-btn"
-											disabled
-										>
-											<span class="dl-spinner"></span>
-											{t("versionDownloader.downloading")}
-										</button>
-									{:else}
-										<button
-											type="button"
-											class="download-btn"
-											onclick={() =>
-												handleDownloadVanilla(vid)}
-										>
-											{t("versionDownloader.downloadBtn")}
-										</button>
-									{/if}
-								</div>
-							{/each}
-						</div>
-					{/if}
-				</div>
-			{:else}
-				<div style="display: flex; flex-direction: column; gap: 16px;">
-					<div class="linked-selects">
-						<Select
-							bind:value={selectedMcVersion}
-							options={mcVersionOptions}
-							placeholder={mcPlaceholder}
-							loading={loadingMinecraft}
-							loadingPlaceholder={t("createInstance.loading")}
-							disabled={loadingMinecraft ||
-								mcVersionOptions.length === 0}
-							onchange={(value) =>
-								loadLoaderVersions(value, loaderTab)}
-						/>
-					</div>
-
-					{#if loaderTab === "forge" || loaderTab === "neoforge"}
-						<div
-							style="font-size: 0.75rem; color: var(--text-muted); padding: 0 4px;"
-						>
-							{t(
-								loaderTab === "neoforge"
-									? "versionDownloader.neoForgeJavaHint"
-									: "versionDownloader.forgeJavaHint",
-							)}
-						</div>
-					{/if}
-
-					<input
-						type="text"
-						placeholder={t(
-							"versionDownloader.loaderSearchPlaceholder",
-						)}
-						bind:value={loaderSearch}
-						style="width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; box-sizing: border-box;"
-					/>
-
-					{#if loadingLoader}
-						<div class="qm-empty-state">
-							{t("versionDownloader.loading")}
-						</div>
-					{:else if filteredLoaderItems.length === 0}
-						<div class="qm-empty-state">
-							{t("versionDownloader.notFound")}
-						</div>
-					{:else}
-						<div
-							style="display: flex; flex-direction: column; gap: 6px;"
-						>
-							{#each filteredLoaderItems as item (item.version_id)}
-								{@const isInstalled =
-									versionsState.mcVersions?.[
-										loaderTab as keyof typeof versionsState.mcVersions
-									].has(item.version_id) ?? false}
-								{@const isDownloading = isVersionDownloading(
-									item.version_id,
+			<div class="vd-scrollable">
+				{#if loaderTab === "vanilla"}
+					<div class="vd-tab-content">
+						<div class="vd-search">
+							<input
+								type="text"
+								class="text-input"
+								placeholder={t(
+									"versionDownloader.searchPlaceholder",
 								)}
-								<div class="version-card">
-									<div class="version-card-info">
-										<div class="version-card-name">
-											{#if item.stable}
-												{@const tooltipText = t(
-													"versionDownloader.stableTooltip",
-												)}
-												<span
-													class="stable-icon"
-													role="img"
-													aria-label={tooltipText}
-													onmouseenter={(e) =>
-														showStableTooltip(
-															e,
-															tooltipText,
-														)}
-													onmouseleave={hideStableTooltip}
-													onfocus={(e) =>
-														showStableTooltip(
-															e,
-															tooltipText,
-														)}
-													onblur={hideStableTooltip}
-												>
-													<Icon
-														src="/images/icons/ui/check-circle.svg"
-														size={14}
-													/>
-												</span>
-											{/if}
-											{item.display_version}
-										</div>
-										<div class="version-card-type">
-											{loaderTab === "fabric"
-												? "Fabric"
-												: loaderTab === "quilt"
-													? "Quilt"
-													: loaderTab === "forge"
-														? "Forge"
-														: "NeoForge"} • MC {item.game_version}
-										</div>
-									</div>
-									{#if isInstalled}
-										<div class="inst-icon">✓</div>
-									{:else if isDownloading}
-										<button
-											type="button"
-											class="download-btn"
-											disabled
-										>
-											<span class="dl-spinner"></span>
-											{t("versionDownloader.downloading")}
-										</button>
-									{:else}
-										<button
-											type="button"
-											class="download-btn"
-											onclick={() =>
-												handleDownloadLoader(item)}
-										>
-											{t("versionDownloader.downloadBtn")}
-										</button>
-									{/if}
-								</div>
-							{/each}
+								bind:value={vanillaSearch}
+							/>
 						</div>
-					{/if}
-				</div>
-			{/if}
+
+						{#if loadingMojang || loadingVanillaInstalled}
+							<div class="qm-empty-state">
+								{t("versionDownloader.loading")}
+							</div>
+						{:else if vanillaDisplayList.length === 0}
+							<div class="qm-empty-state">
+								{t("versionDownloader.notFound")}
+							</div>
+						{:else}
+							<div class="vd-list">
+								{#each vanillaDisplayList as vitem (vitem.id)}
+									{@const vid = vitem.id}
+									{@const isVanInstalled =
+										versionsState.mcVersions?.vanilla.has(
+											vid,
+										) ?? false}
+									{@const isVanDownloading =
+										isVersionDownloading(vid)}
+									<div class="version-card">
+										<div class="version-card-info">
+											<div class="version-card-name">
+												{vid}
+											</div>
+											<div class="version-card-type">
+												{(vitem as MinecraftVersion)
+													.type ?? "release"} • {new Date(
+													(vitem as MinecraftVersion)
+														.releaseTime ?? "",
+												).toLocaleDateString()}
+											</div>
+										</div>
+										{#if isVanInstalled}
+											<div class="inst-icon">✓</div>
+										{:else if isVanDownloading}
+											<button
+												type="button"
+												class="download-btn"
+												disabled
+											>
+												<span class="dl-spinner"></span>
+												{t(
+													"versionDownloader.downloading",
+												)}
+											</button>
+										{:else}
+											<button
+												type="button"
+												class="download-btn"
+												onclick={() =>
+													handleDownloadVanilla(vid)}
+											>
+												{t(
+													"versionDownloader.downloadBtn",
+												)}
+											</button>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{:else}
+					<div class="vd-tab-content">
+						<div class="vd-controls">
+							<div class="vd-control linked-selects">
+								<Select
+									bind:value={selectedMcVersion}
+									options={mcVersionOptions}
+									placeholder={mcPlaceholder}
+									loading={loadingMinecraft}
+									loadingPlaceholder={t(
+										"createInstance.loading",
+									)}
+									disabled={loadingMinecraft ||
+										mcVersionOptions.length === 0}
+									onchange={(value) =>
+										loadLoaderVersions(value, loaderTab)}
+								/>
+							</div>
+
+							<div class="vd-control vd-search">
+								<input
+									type="text"
+									class="text-input"
+									placeholder={t(
+										"versionDownloader.loaderSearchPlaceholder",
+									)}
+									bind:value={loaderSearch}
+								/>
+							</div>
+						</div>
+
+						{#if loaderTab === "forge" || loaderTab === "neoforge"}
+							<div class="vd-hint">
+								{t(
+									loaderTab === "neoforge"
+										? "versionDownloader.neoForgeJavaHint"
+										: "versionDownloader.forgeJavaHint",
+								)}
+							</div>
+						{/if}
+
+						{#if loadingLoader}
+							<div class="qm-empty-state">
+								{t("versionDownloader.loading")}
+							</div>
+						{:else if filteredLoaderItems.length === 0}
+							<div class="qm-empty-state">
+								{t("versionDownloader.notFound")}
+							</div>
+						{:else}
+							<div class="vd-list">
+								{#each filteredLoaderItems as item (item.version_id)}
+									{@const isInstalled =
+										versionsState.mcVersions?.[
+											loaderTab as keyof typeof versionsState.mcVersions
+										].has(item.version_id) ?? false}
+									{@const isDownloading =
+										isVersionDownloading(item.version_id)}
+									<div class="version-card">
+										<div class="version-card-info">
+											<div class="version-card-name">
+												{#if item.stable}
+													{@const tooltipText = t(
+														"versionDownloader.stableTooltip",
+													)}
+													<span
+														class="stable-icon"
+														role="img"
+														aria-label={tooltipText}
+														onmouseenter={(e) =>
+															showStableTooltip(
+																e,
+																tooltipText,
+															)}
+														onmouseleave={hideStableTooltip}
+														onfocus={(e) =>
+															showStableTooltip(
+																e,
+																tooltipText,
+															)}
+														onblur={hideStableTooltip}
+													>
+														<Icon
+															src="/images/icons/ui/check-circle.svg"
+															size={14}
+														/>
+													</span>
+												{/if}
+												{item.display_version}
+											</div>
+											<div class="version-card-type">
+												{loaderTab === "fabric"
+													? "Fabric"
+													: loaderTab === "quilt"
+														? "Quilt"
+														: loaderTab === "forge"
+															? "Forge"
+															: "NeoForge"} • MC {item.game_version}
+											</div>
+										</div>
+										{#if isInstalled}
+											<div class="inst-icon">✓</div>
+										{:else if isDownloading}
+											<button
+												type="button"
+												class="download-btn"
+												disabled
+											>
+												<span class="dl-spinner"></span>
+												{t(
+													"versionDownloader.downloading",
+												)}
+											</button>
+										{:else}
+											<button
+												type="button"
+												class="download-btn"
+												onclick={() =>
+													handleDownloadLoader(item)}
+											>
+												{t(
+													"versionDownloader.downloadBtn",
+												)}
+											</button>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/if}
+			</div>
 		</div>
 	</div>
 </ModalBase>
@@ -657,9 +669,96 @@
 	.version-downloader-body {
 		display: flex;
 		flex-direction: column;
-		gap: 16px;
+		gap: 12px;
 		height: 100%;
 		min-height: 0;
+	}
+
+	.vd-header {
+		display: flex;
+		justify-content: flex-end;
+	}
+
+	.vd-refresh-btn {
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		cursor: pointer;
+		padding: 4px;
+		display: flex;
+		align-items: center;
+		border-radius: var(--border-radius-sm);
+		transition: color 0.2s;
+	}
+
+	.vd-refresh-btn:hover:not(:disabled) {
+		color: var(--text-primary);
+	}
+
+	.vd-refresh-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.vd-refresh-btn svg {
+		display: block;
+	}
+
+	.vd-refresh-btn svg.spin {
+		animation: vd-spin 1s linear infinite;
+	}
+
+	.vd-layout {
+		display: flex;
+		flex: 1;
+		gap: 16px;
+		min-height: 0;
+	}
+
+	.vd-loader-sidebar {
+		width: 96px;
+		flex-shrink: 0;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.vd-tab-content {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.vd-controls {
+		display: flex;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
+
+	.vd-control {
+		flex: 1;
+		min-width: 160px;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.vd-search {
+		width: 100%;
+	}
+
+	.vd-search .text-input {
+		width: 100%;
+	}
+
+	.vd-hint {
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		padding: 0 4px;
+	}
+
+	.vd-list {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
 	}
 
 	.vd-scrollable {
@@ -667,6 +766,12 @@
 		overflow-y: auto;
 		min-height: 0;
 		max-height: 440px;
+	}
+
+	@keyframes vd-spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.qm-empty-state {
@@ -686,8 +791,16 @@
 		padding: 10px 12px;
 		background: var(--bg-card);
 		border: 1px solid var(--border-color);
-		border-radius: 8px;
+		border-radius: var(--border-radius);
 		gap: 8px;
+		transition:
+			background-color 0.15s ease,
+			border-color 0.15s ease;
+	}
+
+	.version-card:hover {
+		background: var(--surface-hover);
+		border-color: rgba(var(--surface-rgb), 0.2);
 	}
 
 	.version-card-info {
@@ -737,20 +850,22 @@
 	.download-btn {
 		background: var(--accent);
 		color: var(--accent-text);
-		border: none;
-		padding: 4px 10px;
+		border: 1px solid transparent;
+		padding: 6px 12px;
 		border-radius: var(--border-radius-sm);
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 		font-weight: 700;
 		cursor: pointer;
-		transition: all 0.2s;
-		display: flex;
+		transition:
+			background-color 0.2s,
+			opacity 0.2s;
+		display: inline-flex;
 		align-items: center;
-		gap: 5px;
+		gap: 6px;
 		flex-shrink: 0;
 	}
 
-	.download-btn:hover {
+	.download-btn:hover:not(:disabled) {
 		opacity: 0.9;
 	}
 
@@ -759,7 +874,7 @@
 		cursor: not-allowed;
 		background: var(--bg-input);
 		color: var(--text-muted);
-		border: 1px solid var(--border-color);
+		border-color: var(--border-color);
 	}
 
 	.dl-spinner {

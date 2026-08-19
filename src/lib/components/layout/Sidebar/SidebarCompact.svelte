@@ -222,7 +222,7 @@
 					items={launcherStore.loadedInstances}
 					itemHeight={50}
 					keyFn={(i) => i.uuid}
-					hideScrollbar={false}
+					hideScrollbar={true}
 				>
 					{#snippet children(instance)}
 						<div class="sc-instance-item-wrapper">

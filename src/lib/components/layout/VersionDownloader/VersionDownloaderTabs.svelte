@@ -32,26 +32,29 @@
 <style>
 	.loader-unified {
 		display: flex;
+		flex-direction: column;
 		width: 100%;
 	}
 
 	.loader-btn {
 		--btn-bg: rgba(var(--accent-rgb, 255, 255, 255), 0.03);
-		flex: 1;
+		flex: none;
+		width: 100%;
 		display: flex;
+		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 8px;
-		padding: 12px 8px;
+		gap: 4px;
+		padding: 10px 4px;
 		background: var(--btn-bg);
 		border: 1px solid var(--border);
+		border-top: none;
 		color: var(--text-secondary);
 		font-family: inherit;
-		font-size: 0.8rem;
+		font-size: 0.75rem;
 		font-weight: 600;
 		cursor: pointer;
 		position: relative;
-		margin-left: -1px;
 		z-index: 0;
 		transition:
 			background-color 0.15s,
@@ -61,12 +64,12 @@
 	}
 
 	.loader-btn:first-child {
-		margin-left: 0;
-		border-radius: var(--border-radius-sm) 0 0 var(--border-radius-sm);
+		border-top: 1px solid var(--border);
+		border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
 	}
 
 	.loader-btn:last-child {
-		border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+		border-radius: 0 0 var(--border-radius-sm) var(--border-radius-sm);
 	}
 
 	.loader-btn:hover {
@@ -83,8 +86,8 @@
 	}
 
 	.loader-btn img {
-		width: 20px;
-		height: 20px;
+		width: 22px;
+		height: 22px;
 		object-fit: contain;
 	}
 
@@ -92,6 +95,7 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+		max-width: 100%;
 	}
 
 	@media (max-width: 500px) {
