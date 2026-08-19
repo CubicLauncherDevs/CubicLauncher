@@ -60,6 +60,7 @@ let currentImage: HTMLImageElement | null = null;
 let currentGeneration = 0;
 let currentBlobUrl: string | null = null;
 const addedFonts: Set<globalThis.FontFace> = new Set();
+let appliedThemeId: string | null = null;
 
 export const themeIcons = new SvelteMap<string, string>();
 
@@ -101,11 +102,6 @@ function injectDefaultFonts() {
 	el.id = DEFAULT_FONTS_ID;
 	el.textContent = defaultFontsCSS;
 	document.head.appendChild(el);
-}
-
-function removeDefaultFonts() {
-	const el = document.getElementById(DEFAULT_FONTS_ID);
-	if (el) el.remove();
 }
 
 export async function listThemes(): Promise<ThemeEntry[]> {
@@ -212,7 +208,11 @@ function clearThemeResources() {
 	themeIcons.clear();
 }
 
-export async function applyTheme(themeId: string) {
+export async function applyTheme(themeId: string, opts?: { force?: boolean }) {
+	if (!opts?.force && themeId === appliedThemeId) {
+		return;
+	}
+
 	const gen = ++currentGeneration;
 
 	clearThemeResources();
@@ -279,8 +279,6 @@ export async function applyTheme(themeId: string) {
 	}
 
 	if (theme.fonts && theme.fonts.length > 0) {
-		removeDefaultFonts();
-
 		root.style.setProperty("--font-loaded", "0");
 
 		const loaded: Promise<void>[] = [];
@@ -335,4 +333,6 @@ export async function applyTheme(themeId: string) {
 		link.id = CUSTOM_CSS_ID;
 		document.head.appendChild(link);
 	}
+
+	appliedThemeId = themeId;
 }

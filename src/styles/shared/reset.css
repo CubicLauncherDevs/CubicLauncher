@@ -87,6 +87,20 @@ body {
 	user-select: none;
 }
 
+button,
+input,
+select,
+textarea,
+optgroup,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-family: inherit;
+}
+
 input,
 textarea,
 [contenteditable],

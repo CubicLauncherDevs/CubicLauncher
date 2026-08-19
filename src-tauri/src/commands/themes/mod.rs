@@ -76,6 +76,32 @@ fn extract_preview(vars: &HashMap<String, String>) -> ThemePreview {
 }
 
 const MAX_ICON_SIZE: u64 = 2 * 1024 * 1024;
+const MAX_BG_SIZE: u64 = 25 * 1024 * 1024;
+
+#[derive(Debug)]
+enum BgValidationError {
+    TooLarge,
+    InvalidImage,
+    Io,
+}
+
+fn validate_background_image(path: &std::path::Path) -> Result<(), BgValidationError> {
+    let mut file = std::fs::File::open(path).map_err(|_| BgValidationError::Io)?;
+    let meta = file.metadata().map_err(|_| BgValidationError::Io)?;
+    if meta.len() > MAX_BG_SIZE {
+        return Err(BgValidationError::TooLarge);
+    }
+
+    let mut buf = [0u8; 16];
+    file.read_exact(&mut buf)
+        .map_err(|_| BgValidationError::Io)?;
+
+    if infer::is_image(&buf) {
+        Ok(())
+    } else {
+        Err(BgValidationError::InvalidImage)
+    }
+}
 
 fn validate_theme_icon(path: &str) -> bool {
     if path.is_empty() {
@@ -414,33 +440,21 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
             definitions.background.reference_path = Some(abs_path.to_string_lossy().to_string());
         }
 
-        // validar size
-        if let Some(ref bg) = definitions.background.reference_path
-            && let Ok(meta) = std::fs::metadata(bg)
-            && meta.len() > 25 * 1024 * 1024
-        {
-            warn!(
-                "Theme {}, Background demasiado grande ({} bytes), ignorando",
-                id,
-                meta.len()
-            );
-            definitions.background.reference_path = None;
-        }
-
-        //validar magic
+        // validar imagen de fondo
         if let Some(ref bg) = definitions.background.reference_path {
-            let is_image = std::fs::File::open(bg)
-                .ok()
-                .and_then(|mut f| {
-                    let mut buf = [0u8; 16];
-                    f.read_exact(&mut buf).ok()?;
-                    Some(infer::is_image(&buf))
-                })
-                .unwrap_or(false);
-
-            if !is_image {
-                warn!("Theme '{}': bg_image no es una imagen válida", id);
-                definitions.background.reference_path = None;
+            match validate_background_image(std::path::Path::new(bg)) {
+                Ok(()) => {}
+                Err(BgValidationError::TooLarge) => {
+                    warn!("Theme '{}': background demasiado grande, ignorando", id);
+                    definitions.background.reference_path = None;
+                }
+                Err(BgValidationError::InvalidImage) => {
+                    warn!("Theme '{}': bg_image no es una imagen válida", id);
+                    definitions.background.reference_path = None;
+                }
+                Err(BgValidationError::Io) => {
+                    definitions.background.reference_path = None;
+                }
             }
         }
 
@@ -533,35 +547,23 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
             theme.bg_image = Some(abs_path.to_string_lossy().to_string());
         }
 
-        // Valida si un archivo pesa mas de 25MB
-        if let Some(ref bg) = theme.bg_image
-            && let Ok(meta) = std::fs::metadata(bg)
-            && meta.len() > 25 * 1024 * 1024
-        {
-            warn!(
-                "Theme '{}': bg_image demasiado grande ({} bytes), ignorando",
-                id,
-                meta.len()
-            );
-            theme.bg_image_warning_key = Some("themes.warning.largeFile".into());
-            theme.bg_image = None;
-        }
-
-        // Validar magic bytes para asegurar que es una imagen
+        // Validar imagen de fondo
         if let Some(ref bg) = theme.bg_image {
-            let is_image = std::fs::File::open(bg)
-                .ok()
-                .and_then(|mut f| {
-                    let mut buf = [0u8; 16];
-                    f.read_exact(&mut buf).ok()?;
-                    Some(infer::is_image(&buf))
-                })
-                .unwrap_or(false);
-
-            if !is_image {
-                warn!("Theme '{}': bg_image no es una imagen válida", id);
-                theme.bg_image_warning_key = Some("themes.warning.notAnImage".into());
-                theme.bg_image = None;
+            match validate_background_image(std::path::Path::new(bg)) {
+                Ok(()) => {}
+                Err(BgValidationError::TooLarge) => {
+                    warn!("Theme '{}': bg_image demasiado grande, ignorando", id);
+                    theme.bg_image_warning_key = Some("themes.warning.largeFile".into());
+                    theme.bg_image = None;
+                }
+                Err(BgValidationError::InvalidImage) => {
+                    warn!("Theme '{}': bg_image no es una imagen válida", id);
+                    theme.bg_image_warning_key = Some("themes.warning.notAnImage".into());
+                    theme.bg_image = None;
+                }
+                Err(BgValidationError::Io) => {
+                    theme.bg_image = None;
+                }
             }
         }
 
