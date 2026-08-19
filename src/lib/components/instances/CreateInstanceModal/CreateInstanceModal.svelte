@@ -2,13 +2,13 @@
 	import {
 		createInstance,
 		uploadCustomIcon,
-		fetchAll,
 		addToQueue,
 		downloadFabric,
 		downloadForge,
 		downloadNeoForge,
 		downloadQuilt,
 	} from "$lib/api/cubicApi";
+	import { launcherStore } from "$lib/state/state.svelte";
 	import {
 		isVersionInstalled,
 		loadInstalledVersions,
@@ -99,7 +99,9 @@
 	// ── Common ──────────────────────────────────────────────────────────────────
 	let loading = $state(false);
 	let error = $state<string | null>(null);
-	let existingNames = $state<string[]>([]);
+	let existingNames = $derived(
+		launcherStore.loadedInstances.map((i) => i.name),
+	);
 	let nameMsg = $state<string | null>(null);
 
 	function validateName(): boolean {
@@ -125,8 +127,6 @@
 	}
 
 	// ── Effects ─────────────────────────────────────────────────────────────────
-	let namesCache: string[] | null = null;
-
 	$effect(() => {
 		if (open) {
 			nameMsg = null;
@@ -135,7 +135,6 @@
 			} else {
 				tab = "manual";
 			}
-			if (!namesCache) fetchInstances();
 		}
 	});
 
@@ -147,13 +146,6 @@
 			}
 		}
 	});
-
-	// ── Fetch instances ─────────────────────────────────────────────────────────
-	async function fetchInstances() {
-		const instances = await fetchAll();
-		namesCache = instances.map((i) => i.name);
-		existingNames = namesCache;
-	}
 
 	// ── Helpers ─────────────────────────────────────────────────────────────────
 	function selectIconForLoader(loader: string | null): string | null {

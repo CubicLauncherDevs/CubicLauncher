@@ -17,6 +17,9 @@ pub enum AppEvent {
         id: CompactString,
         dto: InstanceDto,
     },
+    InstanceDeleted {
+        id: CompactString,
+    },
     DProgress {
         version: Arc<str>,
         stage: Cow<'static, str>,

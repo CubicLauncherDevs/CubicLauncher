@@ -245,7 +245,7 @@
 								{instance.name.charAt(0).toUpperCase()}
 							{/if}
 						</div>
-						{#if launcherStore.runningInstances.includes(instance.uuid)}
+						{#if instance.status === "started"}
 							<span
 								class="sc-instance-running"
 								aria-label={t("instanceView.status.started")}

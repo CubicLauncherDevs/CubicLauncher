@@ -257,6 +257,8 @@
 					updated.icon !== sel.icon)
 			) {
 				selectedInstance = updated;
+			} else if (!updated) {
+				selectedInstance = null;
 			}
 		}
 	});
@@ -268,6 +270,8 @@
 			const updated = instances.find((i) => i.uuid === ei.uuid);
 			if (updated && updated.overrides !== ei.overrides) {
 				editingInstance = updated;
+			} else if (!updated) {
+				editingInstance = null;
 			}
 		}
 	});

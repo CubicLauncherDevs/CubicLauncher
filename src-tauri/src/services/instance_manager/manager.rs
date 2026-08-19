@@ -1,6 +1,7 @@
 use crate::core::path_manager::PathManager;
-use crate::core::{FsError, InstanceError};
+use crate::core::{AppEvent, FsError, InstanceError, emit};
 use crate::services::launcher::remove_log_ring;
+use compact_str::ToCompactString;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use tokio::fs as tokio_fs;
@@ -102,6 +103,14 @@ impl InstanceManager {
                 { manager.instances.read().await.values().cloned().collect() };
 
             for handle in handles {
+                let still_present = manager
+                    .instances
+                    .read()
+                    .await
+                    .contains_key(&handle.uuid.to_string());
+                if !still_present {
+                    continue;
+                }
                 if let Err(e) = handle.save_if_dirty().await {
                     error!("Error guardando instancia {}: {:?}", handle.uuid, e);
                 }
@@ -173,13 +182,10 @@ impl InstanceManager {
         unregister_kill_sender(uuid);
         remove_log_ring(uuid);
 
-        let handle = {
-            self.instances
-                .write()
-                .await
-                .remove(uuid)
-                .ok_or_else(|| "Instancia no encontrada".to_string())?
-        };
+        let handle = self
+            .get_handle(uuid)
+            .await
+            .ok_or_else(|| "Instancia no encontrada".to_string())?;
 
         let dir = handle.get_instance_dir().await;
         if dir.exists() {
@@ -187,6 +193,16 @@ impl InstanceManager {
                 .await
                 .map_err(|e| format!("Error al eliminar el directorio: {}", e))?;
         }
+
+        let removed = self.instances.write().await.remove(uuid).is_some();
+        if !removed {
+            return Err("Instancia no encontrada".to_string());
+        }
+
+        emit(AppEvent::InstanceDeleted {
+            id: uuid.to_compact_string(),
+        });
+
         Ok(())
     }
 

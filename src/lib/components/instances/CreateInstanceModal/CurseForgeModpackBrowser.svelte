@@ -21,6 +21,7 @@
 		isValidInstanceName,
 		sanitizeInstanceName,
 	} from "$lib/utils/instanceName";
+	import { launcherStore } from "$lib/state/state.svelte";
 	import ModpackBrowser, {
 		type ModpackItem,
 		type ModpackFilters,
@@ -74,6 +75,10 @@
 
 	let description = $state<string>("");
 	let loadingDescription = $state(false);
+
+	const existingNames = $derived(
+		launcherStore.loadedInstances.map((i) => i.name),
+	);
 
 	let searchGen = 0;
 
@@ -217,13 +222,19 @@
 		description = "";
 	}
 
+	function isNameTaken(name: string): boolean {
+		return existingNames.includes(name.trim());
+	}
+
 	async function handleInstall() {
 		if (!selectedPack || !selectedVersion) return;
 
 		const rawName = selectedPack.name;
-		if (!isValidInstanceName(rawName)) {
+		if (!isValidInstanceName(rawName) || isNameTaken(rawName)) {
 			customName = sanitizeInstanceName(rawName);
-			customNameError = null;
+			customNameError = isNameTaken(customName)
+				? t("createInstance.nameExists")
+				: null;
 			needsCustomName = true;
 			installError = null;
 			return;
@@ -288,6 +299,10 @@
 		}
 		if (!isValidInstanceName(trimmed)) {
 			customNameError = t("createInstance.nameInvalidChars");
+			return;
+		}
+		if (isNameTaken(trimmed)) {
+			customNameError = t("createInstance.nameExists");
 			return;
 		}
 		doInstall(trimmed);
