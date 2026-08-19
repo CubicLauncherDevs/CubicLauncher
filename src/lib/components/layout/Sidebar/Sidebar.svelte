@@ -292,16 +292,20 @@
 	}
 
 	.empty-instances {
-		padding: 10px 12px;
+		padding: 14px 12px;
 		font-size: 0.8rem;
 		color: var(--text-muted);
 		text-align: center;
+		border: 1px dashed var(--border);
+		border-radius: var(--border-radius);
+		margin-top: 4px;
 	}
 
 	.instance-list {
 		display: flex;
 		flex-direction: column;
-		gap: 3px;
+		gap: 4px;
+		padding: 4px 2px;
 	}
 
 	.sidebar-sections {
