@@ -14,6 +14,7 @@
 	import DeleteInstanceModal from "./DeleteInstanceModal.svelte";
 	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
 	import CubicIcon from "$lib/icons/Cubic.svelte";
+	import VirtualList from "$lib/components/layout/VirtualList.svelte";
 
 	interface Props {
 		selectedInstance: InstanceDto | null;
@@ -217,42 +218,58 @@
 			{#if launcherStore.loadedInstances.length === 0}
 				<div class="sc-empty" title={t("sidebar.noInstances")}>—</div>
 			{:else}
-				{#each launcherStore.loadedInstances as instance (instance.uuid)}
-					<button
-						type="button"
-						class="sc-instance-item"
-						class:active={selectedInstance?.uuid === instance.uuid}
-						data-instance-uuid={instance.uuid}
-						onmouseenter={(e) => showTooltip(e, instance)}
-						onmouseleave={hideTooltip}
-						onfocus={(e) => showTooltip(e, instance)}
-						onblur={hideTooltip}
-						onclick={() =>
-							(selectedInstance =
-								selectedInstance?.uuid === instance.uuid
-									? null
-									: instance)}
-					>
-						<div class="sc-instance-icon">
-							{#if instance.icon}
-								<img
-									src={getDisplayIconSrc(instance.icon)}
-									alt={instance.name}
-									width="20"
-									height="20"
-								/>
-							{:else}
-								{instance.name.charAt(0).toUpperCase()}
-							{/if}
+				<VirtualList
+					items={launcherStore.loadedInstances}
+					itemHeight={50}
+					keyFn={(i) => i.uuid}
+					hideScrollbar={false}
+				>
+					{#snippet children(instance)}
+						<div class="sc-instance-item-wrapper">
+							<button
+								type="button"
+								class="sc-instance-item"
+								class:active={selectedInstance?.uuid ===
+									instance.uuid}
+								data-instance-uuid={instance.uuid}
+								onmouseenter={(e) => showTooltip(e, instance)}
+								onmouseleave={hideTooltip}
+								onfocus={(e) => showTooltip(e, instance)}
+								onblur={hideTooltip}
+								onclick={() =>
+									(selectedInstance =
+										selectedInstance?.uuid === instance.uuid
+											? null
+											: instance)}
+							>
+								<div class="sc-instance-icon">
+									{#if instance.icon}
+										<img
+											src={getDisplayIconSrc(
+												instance.icon,
+											)}
+											alt={instance.name}
+											loading="lazy"
+											decoding="async"
+											width="20"
+											height="20"
+										/>
+									{:else}
+										{instance.name.charAt(0).toUpperCase()}
+									{/if}
+								</div>
+								{#if instance.status === "started"}
+									<span
+										class="sc-instance-running"
+										aria-label={t(
+											"instanceView.status.started",
+										)}
+									></span>
+								{/if}
+							</button>
 						</div>
-						{#if instance.status === "started"}
-							<span
-								class="sc-instance-running"
-								aria-label={t("instanceView.status.started")}
-							></span>
-						{/if}
-					</button>
-				{/each}
+					{/snippet}
+				</VirtualList>
 			{/if}
 		</div>
 	</div>
@@ -422,24 +439,40 @@
 
 	.sc-content {
 		flex: 1;
-		overflow-y: auto;
+		overflow: hidden;
 		min-height: 0;
 		width: 100%;
 		padding: 4px 0;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.sc-instance-list {
+		flex: 1;
+		min-height: 0;
 		display: flex;
 		flex-direction: column;
-		align-items: center;
-		gap: 8px;
+		align-items: stretch;
 		padding: 0 8px;
+		overflow: hidden;
 	}
 
 	.sc-empty {
 		font-size: 0.75rem;
 		color: var(--text-muted);
 		padding: 10px 0;
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.sc-instance-item-wrapper {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.sc-instance-item {

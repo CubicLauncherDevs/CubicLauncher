@@ -20,6 +20,7 @@
 
 	let isRunning = $derived(instance.status === "started");
 	let loaderColor = $derived(getLoaderColorVar(instance.loader));
+	let iconUrl = $derived(getDisplayIconSrc(instance.icon));
 	let formattedLoader = $derived(
 		instance.loader.charAt(0).toUpperCase() + instance.loader.slice(1),
 	);
@@ -50,8 +51,10 @@
 		>
 			{#if instance.icon}
 				<img
-					src={getDisplayIconSrc(instance.icon)}
+					src={iconUrl}
 					alt={instance.name}
+					loading="lazy"
+					decoding="async"
 					width="20"
 					height="20"
 				/>
@@ -129,6 +132,11 @@
 		width: 100%;
 		text-align: left;
 		outline: none;
+		height: 48px;
+		min-height: 48px;
+		box-sizing: border-box;
+		overflow: hidden;
+		contain: layout paint style;
 	}
 
 	.instance-item:hover {
@@ -230,16 +238,26 @@
 	}
 
 	.instance-actions {
-		display: flex;
+		display: none;
 		align-items: center;
 		gap: 2px;
 		opacity: 0;
 		transition: opacity 0.2s ease;
+		transition-behavior: allow-discrete;
+	}
+
+	@starting-style {
+		.instance-item:hover .instance-actions,
+		.instance-item.active .instance-actions,
+		.instance-item:focus-within .instance-actions {
+			opacity: 0;
+		}
 	}
 
 	.instance-item:hover .instance-actions,
 	.instance-item.active .instance-actions,
 	.instance-item:focus-within .instance-actions {
+		display: flex;
 		opacity: 1;
 	}
 

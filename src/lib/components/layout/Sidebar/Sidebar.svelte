@@ -11,6 +11,7 @@
 	import Icon from "$lib/icons/Icon.svelte";
 	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
 	import DownloadQueue from "../DownloadQueue/DownloadQueue.svelte";
+	import VirtualList from "$lib/components/layout/VirtualList.svelte";
 	import InstanceItem from "./InstanceItem.svelte";
 	import UserProfile from "./UserProfile.svelte";
 	import DeleteInstanceModal from "./DeleteInstanceModal.svelte";
@@ -97,6 +98,7 @@
 
 	<div class="sidebar-content">
 		<div
+			class="instances-section"
 			role="region"
 			aria-label={t("sidebar.yourInstances")}
 			oncontextmenu={(e) => ctxMenu?.openContextMenu(e)}
@@ -108,19 +110,27 @@
 						{t("sidebar.noInstances")}
 					</div>
 				{:else}
-					{#each launcherStore.loadedInstances as instance (instance.uuid)}
-						<InstanceItem
-							{instance}
-							selected={selectedInstance?.uuid === instance.uuid}
-							onselect={() =>
-								(selectedInstance =
-									selectedInstance?.uuid === instance.uuid
-										? null
-										: instance)}
-							onedit={() => onopeneditinstance?.(instance)}
-							ondelete={() => openDeleteModal(instance)}
-						/>
-					{/each}
+					<VirtualList
+						items={launcherStore.loadedInstances}
+						itemHeight={48}
+						keyFn={(i) => i.uuid}
+						hideScrollbar={false}
+					>
+						{#snippet children(instance)}
+							<InstanceItem
+								{instance}
+								selected={selectedInstance?.uuid ===
+									instance.uuid}
+								onselect={() =>
+									(selectedInstance =
+										selectedInstance?.uuid === instance.uuid
+											? null
+											: instance)}
+								onedit={() => onopeneditinstance?.(instance)}
+								ondelete={() => openDeleteModal(instance)}
+							/>
+						{/snippet}
+					</VirtualList>
 				{/if}
 			</div>
 		</div>
@@ -286,9 +296,18 @@
 
 	.sidebar-content {
 		flex: 1;
-		overflow-y: auto;
+		overflow: hidden;
 		min-height: 0;
 		padding: 6px 0;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.instances-section {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
 	}
 
 	.empty-instances {
@@ -299,13 +318,19 @@
 		border: 1px dashed var(--border);
 		border-radius: var(--border-radius);
 		margin-top: 4px;
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.instance-list {
+		flex: 1;
+		min-height: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
 		padding: 4px 2px;
+		overflow: hidden;
 	}
 
 	.sidebar-sections {

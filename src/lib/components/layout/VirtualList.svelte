@@ -10,6 +10,7 @@
 		padding?: number;
 		onNearEnd?: () => void;
 		keyFn?: (item: T) => string | number;
+		hideScrollbar?: boolean;
 	}
 
 	let {
@@ -20,6 +21,7 @@
 		padding = 20,
 		onNearEnd,
 		keyFn,
+		hideScrollbar = true,
 	}: Props = $props();
 
 	let container: HTMLDivElement = $state() as HTMLDivElement;
@@ -77,6 +79,7 @@
 <div
 	bind:this={container}
 	class="virtual-list-container {className}"
+	class:hide-scrollbar={hideScrollbar}
 	onscroll={handleScroll}
 	style="position: relative; overflow-y: auto; height: 100%;"
 >
@@ -102,11 +105,11 @@
 </div>
 
 <style>
-	.virtual-list-container {
+	.virtual-list-container.hide-scrollbar {
 		scrollbar-width: none;
 	}
 
-	.virtual-list-container::-webkit-scrollbar {
+	.virtual-list-container.hide-scrollbar::-webkit-scrollbar {
 		display: none;
 	}
 </style>

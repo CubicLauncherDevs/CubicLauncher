@@ -128,6 +128,10 @@ impl InstanceHandle {
 
     pub async fn get_icon_absolute(&self) -> Option<Arc<str>> {
         let data = self.data.read().await;
+        Self::resolve_icon_absolute(&data)
+    }
+
+    fn resolve_icon_absolute(data: &InstanceData) -> Option<Arc<str>> {
         let icon = data.icon.as_ref()?;
         let icon_str = icon.as_ref();
         if is_asset_icon(icon_str) {
@@ -143,7 +147,6 @@ impl InstanceHandle {
     }
 
     pub async fn to_dto(&self) -> InstanceDto {
-        let icon = self.get_icon_absolute().await;
         let data = self.data.read().await;
         InstanceDto {
             name: data.name.clone(),
@@ -152,7 +155,7 @@ impl InstanceHandle {
             last_played: data.last_played,
             status: self.get_status(),
             cover_image: data.cover_image.clone(),
-            icon,
+            icon: Self::resolve_icon_absolute(&data),
             uuid: self.uuid.clone(),
             path: data.get_instance_dir(),
             overrides: data.overrides,
