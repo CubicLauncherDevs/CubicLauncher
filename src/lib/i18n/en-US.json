@@ -139,7 +139,8 @@
 		},
 		"downloadVersions": "Download Versions",
 		"collapse": "Collapse sidebar",
-		"expand": "Expand sidebar"
+		"expand": "Expand sidebar",
+		"export": "Export"
 	},
 	"userMenu": {
 		"title": "User Profile",
@@ -531,6 +532,12 @@
 		"viewLicense": "View full license",
 		"acceptLicense": "I accept the license terms",
 		"acceptLicenseNote": "Check the box to continue."
+	},
+	"notifications": {
+		"exportTitle": "Export instance",
+		"exportSuccess": "Instance exported to {path}",
+		"exportingTitle": "Exporting instance",
+		"exportingMessage": "Compressing {name}..."
 	},
 	"errors": {
 		"title": "Error",

@@ -139,7 +139,8 @@
 		},
 		"downloadVersions": "Descargar Versiones",
 		"collapse": "Colapsar barra lateral",
-		"expand": "Expandir barra lateral"
+		"expand": "Expandir barra lateral",
+		"export": "Exportar"
 	},
 	"userMenu": {
 		"title": "Perfil de Usuario",
@@ -531,6 +532,12 @@
 		"viewLicense": "Ver licencia completa",
 		"acceptLicense": "Acepto los términos de la licencia",
 		"acceptLicenseNote": "Marcá la casilla para continuar."
+	},
+	"notifications": {
+		"exportTitle": "Exportar instancia",
+		"exportSuccess": "Instancia exportada a {path}",
+		"exportingTitle": "Exportando instancia",
+		"exportingMessage": "Comprimiendo {name}..."
 	},
 	"errors": {
 		"title": "Error",

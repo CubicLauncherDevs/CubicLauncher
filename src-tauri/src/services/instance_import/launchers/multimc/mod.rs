@@ -12,7 +12,7 @@ use std::path::Path;
 use std::pin::Pin;
 use tracing::{info, warn};
 
-mod migrate;
+pub mod migrate;
 mod parser;
 
 /// Provider para ZIPs de MultiMC / Prism Launcher.

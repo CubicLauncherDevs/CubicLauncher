@@ -42,7 +42,8 @@ pub trait InstanceImporter: Send + Sync {
 }
 
 /// Registro global de providers, ordenado por prioridad.
-static IMPORTERS: &[&dyn InstanceImporter] = &[&launchers::MultimcProvider];
+static IMPORTERS: &[&dyn InstanceImporter] =
+    &[&launchers::CubicProvider, &launchers::MultimcProvider];
 
 /// Detecta el formato de un archivo ZIP y devuelve un plan de importación.
 pub async fn detect_instance_zip(archive_path: &Path) -> Result<InstanceImportPlan, ImportError> {

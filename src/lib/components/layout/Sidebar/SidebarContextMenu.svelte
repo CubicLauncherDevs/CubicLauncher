@@ -1,10 +1,17 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
-	import { openInstanceDir } from "$lib/api/cubicApi";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { exportInstanceZip, openInstanceDir } from "$lib/api/cubicApi";
+	import {
+		launcherStore,
+		removeNotification,
+		showErrorParsed,
+		showInfo,
+		showSuccess,
+	} from "$lib/state/state.svelte";
 	import type { InstanceDto } from "$lib/types/types";
 	import type { ContextMenuItem } from "$lib/components/layout/ContextMenu.svelte";
 	import type ContextMenuComponent from "$lib/components/layout/ContextMenu.svelte";
+	import { save } from "@tauri-apps/plugin-dialog";
 
 	type ContextMenuConstructor = typeof ContextMenuComponent;
 
@@ -37,6 +44,33 @@
 		await loadPromise;
 	}
 
+	async function handleExport(instance: InstanceDto) {
+		try {
+			const dest = await save({
+				defaultPath: `${instance.name}.zip`,
+				filters: [{ name: "ZIP", extensions: ["zip"] }],
+			});
+			if (!dest) return;
+
+			const notificationId = showInfo(
+				t("notifications.exportingTitle"),
+				t("notifications.exportingMessage", { name: instance.name }),
+			);
+
+			const path = await exportInstanceZip(instance.uuid, dest);
+			removeNotification(notificationId);
+
+			if (path) {
+				showSuccess(
+					t("notifications.exportTitle"),
+					t("notifications.exportSuccess", { path }),
+				);
+			}
+		} catch (err) {
+			showErrorParsed(err);
+		}
+	}
+
 	function buildInstanceMenu(instance: InstanceDto): ContextMenuItem[] {
 		return [
 			{
@@ -48,6 +82,11 @@
 				label: t("sidebar.openFolder"),
 				icon: "/images/icons/instance/folder.svg",
 				action: () => openInstanceDir(instance.uuid),
+			},
+			{
+				label: t("sidebar.export"),
+				icon: "/images/icons/ui/download.svg",
+				action: () => void handleExport(instance),
 			},
 			{ separator: true, label: "" },
 			{

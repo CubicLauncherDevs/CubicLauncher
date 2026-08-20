@@ -14,6 +14,7 @@ pub fn run() {
             commands::instance::create_instance,
             commands::instance::launch,
             commands::instance::kill_instance,
+            commands::instance::export::export_instance_zip,
             commands::instance::delete_instance,
             commands::instance::open_instance_dir,
             commands::instance::rename_instance,

@@ -9,11 +9,14 @@ const FOLDERS_TO_MIGRATE: &[&str] = &[
     "resourcepacks",
     "shaderpacks",
     "saves",
+    "screenshots",
+    "data",
     "config",
     "scripts",
     "defaultconfigs",
     "kubejs",
     "options.txt",
+    "optionsof.txt",
     "servers.dat",
 ];
 

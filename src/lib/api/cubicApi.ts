@@ -235,6 +235,18 @@ export async function openInstanceDir(
 	});
 }
 
+export async function exportInstanceZip(
+	instanceId: string,
+	dest: string,
+): Promise<string | null> {
+	return (
+		(await invokeWithFallback<string>("export_instance_zip", {
+			id: instanceId,
+			dest,
+		})) ?? null
+	);
+}
+
 export async function reinstallVersion(versionId: string): Promise<void> {
 	return invokeVoid("reinstall_version", { version: versionId });
 }

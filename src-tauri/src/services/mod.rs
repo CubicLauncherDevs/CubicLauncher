@@ -3,6 +3,7 @@ pub(crate) mod curseforge_api;
 pub(crate) mod curseforge_modpack;
 pub(crate) mod discord_presence;
 pub(crate) mod download_queue;
+pub mod instance_export;
 pub mod instance_import;
 mod instance_manager;
 pub(crate) mod java_manager;
