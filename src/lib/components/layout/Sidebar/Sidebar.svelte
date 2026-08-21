@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
+	import { pinInstance } from "$lib/api/cubicApi";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import {
 		getAvatar,
@@ -223,6 +224,7 @@
 	bind:this={ctxMenu}
 	onedit={(instance) => onopeneditinstance?.(instance)}
 	ondelete={(instance) => openDeleteModal(instance)}
+	onpin={(instance, pinned) => void pinInstance(instance.uuid, pinned)}
 />
 
 <style>

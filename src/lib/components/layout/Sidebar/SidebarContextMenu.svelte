@@ -18,9 +18,10 @@
 	interface Props {
 		onedit: (instance: InstanceDto) => void;
 		ondelete: (instance: InstanceDto) => void;
+		onpin: (instance: InstanceDto, pinned: boolean) => void;
 	}
 
-	let { onedit, ondelete }: Props = $props();
+	let { onedit, ondelete, onpin }: Props = $props();
 
 	let ctxOpen = $state(false);
 	let ctxX = $state(0);
@@ -73,6 +74,11 @@
 
 	function buildInstanceMenu(instance: InstanceDto): ContextMenuItem[] {
 		return [
+			{
+				label: instance.pinned ? t("sidebar.unpin") : t("sidebar.pin"),
+				icon: "/images/icons/ui/pin.svg",
+				action: () => onpin(instance, !instance.pinned),
+			},
 			{
 				label: t("sidebar.edit"),
 				icon: "/images/icons/nav/edit.svg",

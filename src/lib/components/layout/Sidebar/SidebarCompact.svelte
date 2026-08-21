@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
+	import { pinInstance } from "$lib/api/cubicApi";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import {
 		getAvatar,
@@ -11,6 +12,7 @@
 	import { tick } from "svelte";
 	import type { Component, Snippet } from "svelte";
 	import { getDisplayIconSrc } from "$lib/icons/logos";
+	import Icon from "$lib/icons/Icon.svelte";
 	import DeleteInstanceModal from "./DeleteInstanceModal.svelte";
 	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
 	import CubicIcon from "$lib/icons/Cubic.svelte";
@@ -43,6 +45,7 @@
 	type SidebarContextMenuProps = {
 		onedit: (instance: InstanceDto) => void;
 		ondelete: (instance: InstanceDto) => void;
+		onpin: (instance: InstanceDto, pinned: boolean) => void;
 	};
 
 	type SidebarContextMenuExports = {
@@ -266,6 +269,14 @@
 										)}
 									></span>
 								{/if}
+								{#if instance.pinned}
+									<span class="sc-instance-pin"
+										><Icon
+											src="/images/icons/ui/pin.svg"
+											size={12}
+										/></span
+									>
+								{/if}
 							</button>
 						</div>
 					{/snippet}
@@ -354,6 +365,7 @@
 		bind:this={ctxMenu}
 		onedit={(instance) => onopeneditinstance?.(instance)}
 		ondelete={(instance) => openDeleteModal(instance)}
+		onpin={(instance, pinned) => void pinInstance(instance.uuid, pinned)}
 	/>
 {/if}
 
@@ -536,6 +548,16 @@
 		border: 1.5px solid var(--bg-sidebar);
 		border-radius: 50%;
 		box-shadow: 0 0 4px rgba(var(--color-success-rgb), 0.5);
+	}
+
+	.sc-instance-pin {
+		position: absolute;
+		top: 3px;
+		right: 3px;
+		color: var(--color-warning);
+		line-height: 0;
+		pointer-events: none;
+		z-index: 1;
 	}
 
 	.sc-tools {

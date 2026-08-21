@@ -126,6 +126,16 @@ impl InstanceHandle {
         self.data.read().await.overrides
     }
 
+    pub async fn get_pinned(&self) -> bool {
+        self.data.read().await.pinned
+    }
+
+    pub async fn set_pinned(&self, pinned: bool) {
+        let mut data = self.data.write().await;
+        data.pinned = pinned;
+        data.dirty = true;
+    }
+
     pub async fn get_icon_absolute(&self) -> Option<Arc<str>> {
         let data = self.data.read().await;
         Self::resolve_icon_absolute(&data)
@@ -159,6 +169,7 @@ impl InstanceHandle {
             uuid: self.uuid.clone(),
             path: data.get_instance_dir(),
             overrides: data.overrides,
+            pinned: data.pinned,
         }
     }
     pub async fn set_name(&self, name: String) {

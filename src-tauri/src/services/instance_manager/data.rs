@@ -21,6 +21,8 @@ pub(crate) struct InstanceData {
     pub icon: Option<Arc<str>>,
     pub uuid: Arc<str>,
     pub overrides: Option<InstOverrides>,
+    #[serde(default)]
+    pub pinned: bool,
     #[serde(skip)]
     pub dirty: bool,
 }
@@ -51,6 +53,7 @@ impl InstanceData {
             icon: icon.map(|s| s.into()),
             uuid: uuid::Uuid::new_v4().to_string().into(),
             overrides: None,
+            pinned: false,
             dirty: true,
         }
     }
@@ -100,6 +103,7 @@ pub struct InstanceDto {
     pub uuid: Arc<str>,
     pub path: PathBuf,
     pub overrides: Option<InstOverrides>,
+    pub pinned: bool,
 }
 
 pub fn validate_instance_name(name: &str) -> Result<(), String> {

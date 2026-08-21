@@ -140,7 +140,10 @@
 		"downloadVersions": "Download Versions",
 		"collapse": "Collapse sidebar",
 		"expand": "Expand sidebar",
-		"export": "Export"
+		"export": "Export",
+		"pin": "Pin",
+		"unpin": "Unpin",
+		"pinned": "Pinned instance"
 	},
 	"userMenu": {
 		"title": "User Profile",

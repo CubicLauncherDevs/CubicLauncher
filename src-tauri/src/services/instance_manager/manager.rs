@@ -164,7 +164,9 @@ impl InstanceManager {
 
     pub async fn get_all_dtos(&self) -> Vec<super::data::InstanceDto> {
         let handles = self.get_all_handles().await;
-        futures::future::join_all(handles.iter().map(|h| h.to_dto())).await
+        let mut dtos = futures::future::join_all(handles.iter().map(|h| h.to_dto())).await;
+        dtos.sort_by(|a, b| b.pinned.cmp(&a.pinned).then_with(|| a.name.cmp(&b.name)));
+        dtos
     }
 
     pub async fn get_running_ids(&self) -> Vec<String> {

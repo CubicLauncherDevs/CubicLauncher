@@ -2,6 +2,7 @@
 	import type { InstanceDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
 	import Trash from "$lib/icons/Trash.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 	import { getDisplayIconSrc, getLoaderColorVar } from "$lib/icons/logos";
 
 	let {
@@ -19,6 +20,7 @@
 	} = $props();
 
 	let isRunning = $derived(instance.status === "started");
+	let isPinned = $derived(instance.pinned);
 	let loaderColor = $derived(getLoaderColorVar(instance.loader));
 	let iconUrl = $derived(getDisplayIconSrc(instance.icon));
 	let formattedLoader = $derived(
@@ -60,18 +62,17 @@
 				/>
 			{:else}
 				{instance.name.charAt(0).toUpperCase()}
-				{#if isRunning}
-					<span
-						class="status-dot"
-						aria-label={t("instanceView.status.started")}
-					></span>
-				{/if}
 			{/if}
-			{#if instance.icon && isRunning}
+			{#if isRunning}
 				<span
 					class="status-dot"
 					aria-label={t("instanceView.status.started")}
 				></span>
+			{/if}
+			{#if isPinned}
+				<span class="pin-icon"
+					><Icon src="/images/icons/ui/pin.svg" size={12} /></span
+				>
 			{/if}
 		</div>
 		<div class="instance-text">
@@ -302,6 +303,16 @@
 		background: var(--color-status-started);
 		box-shadow: 0 0 0 2px var(--item-bg);
 		transition: box-shadow 0.18s ease;
+	}
+
+	.pin-icon {
+		position: absolute;
+		top: -3px;
+		right: -3px;
+		color: var(--color-warning);
+		line-height: 0;
+		pointer-events: none;
+		z-index: 1;
 	}
 
 	@media (max-width: 650px) {

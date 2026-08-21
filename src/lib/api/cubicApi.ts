@@ -183,6 +183,20 @@ export async function updateInstance(
 	);
 }
 
+export async function pinInstance(
+	id: string,
+	pinned: boolean,
+	callback?: () => void,
+	onError?: (err: unknown) => void,
+): Promise<void> {
+	return invokeWithCallback(
+		"pin_instance",
+		{ id, pinned },
+		callback,
+		onError,
+	);
+}
+
 export async function fetchAll(
 	callback?: () => void,
 	onError?: (err: unknown) => void,

@@ -157,6 +157,27 @@ pub async fn update_instance(
 }
 
 #[tauri::command]
+pub async fn pin_instance(id: String, pinned: bool) -> Result<(), String> {
+    validate_uuid(&id)?;
+    info!("Cambiando pin de instancia {} a {}", id, pinned);
+    let manager = InstanceManager::get();
+    let Some(handle) = manager.get_handle(&id).await else {
+        return Err(InstanceError::NotFound.to_string());
+    };
+
+    handle.set_pinned(pinned).await;
+    handle
+        .save_if_dirty()
+        .await
+        .map_err(|e| format!("Error al guardar la instancia: {}", e))?;
+
+    emit(AppEvent::InstanceEdited {
+        id: handle.uuid.to_string().into(),
+    });
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn get_installed_versions() -> Vec<String> {
     let versions_dir = PathManager::get().get_shared_dir().join("versions");
     let mut versions = tokio::task::spawn_blocking(move || -> Vec<String> {

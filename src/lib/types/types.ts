@@ -9,6 +9,7 @@ export interface InstanceDto {
 	uuid: string;
 	path: string;
 	overrides: InstOverrides | null;
+	pinned: boolean;
 }
 
 export interface InstOverrides {
