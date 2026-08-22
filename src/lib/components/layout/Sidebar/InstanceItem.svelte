@@ -307,12 +307,20 @@
 
 	.pin-icon {
 		position: absolute;
-		top: -3px;
-		right: -3px;
+		top: -5px;
+		right: -5px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 16px;
+		height: 16px;
+		background: var(--bg-sidebar);
+		border: 1px solid var(--border);
+		border-radius: 50%;
 		color: var(--color-warning);
-		line-height: 0;
 		pointer-events: none;
 		z-index: 1;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 	}
 
 	@media (max-width: 650px) {
