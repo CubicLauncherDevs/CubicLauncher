@@ -171,8 +171,10 @@ pub async fn pin_instance(id: String, pinned: bool) -> Result<(), String> {
         .await
         .map_err(|e| format!("Error al guardar la instancia: {}", e))?;
 
+    let dto = handle.to_dto().await;
     emit(AppEvent::InstanceEdited {
         id: handle.uuid.to_string().into(),
+        dto: Some(dto),
     });
     Ok(())
 }
@@ -374,6 +376,7 @@ pub async fn upload_custom_icon(
     })?;
     emit(AppEvent::InstanceEdited {
         id: handle.uuid.to_string().into(),
+        dto: None,
     });
     info!("Icono personalizado subido a {:?}", dest_path);
 
@@ -416,6 +419,7 @@ pub async fn reset_instance_icon(instance_id: String) -> Result<(), String> {
     })?;
     emit(AppEvent::InstanceEdited {
         id: handle.uuid.to_string().into(),
+        dto: None,
     });
     info!("Icono reseteado para instancia {}", instance_id);
     Ok(())

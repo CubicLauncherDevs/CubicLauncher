@@ -6,7 +6,7 @@
 	export interface ContextMenuItem {
 		label: string;
 		icon?: string;
-		action?: () => void;
+		action?: () => void | Promise<void>;
 		variant?: "default" | "danger";
 		separator?: boolean;
 		disabled?: boolean;

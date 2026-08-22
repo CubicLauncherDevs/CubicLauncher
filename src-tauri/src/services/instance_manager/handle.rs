@@ -73,6 +73,7 @@ impl InstanceHandle {
         self.status.set(status);
         emit(AppEvent::InstanceEdited {
             id: self.uuid.to_compact_string(),
+            dto: None,
         });
     }
 

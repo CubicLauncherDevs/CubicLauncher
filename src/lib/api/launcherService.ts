@@ -101,11 +101,18 @@ export function initEventListeners(): void {
 		switch (payload.type) {
 			case "InstanceCreated":
 				launcherStore.loadedInstances.push(payload.data.dto);
+				sortInstances(launcherStore.loadedInstances);
 				break;
-			case "InstanceEdited":
+			case "InstanceEdited": {
 				clearTimeout(_instanceTimer);
-				_instanceTimer = setTimeout(() => getVersions(), 100);
+				const dto = payload.data.dto;
+				if (dto) {
+					updateInstanceInStore(dto);
+				} else {
+					_instanceTimer = setTimeout(() => getVersions(), 100);
+				}
 				break;
+			}
 			case "InstanceDeleted":
 				{
 					const idx = launcherStore.loadedInstances.findIndex(
@@ -284,9 +291,26 @@ export async function updateInst(
 	}
 }
 
+export function sortInstances(instances: InstanceDto[]): void {
+	instances.sort(
+		(a, b) =>
+			Number(b.pinned) - Number(a.pinned) || a.name.localeCompare(b.name),
+	);
+}
+
+export function updateInstanceInStore(dto: InstanceDto): void {
+	const instances = launcherStore.loadedInstances;
+	const idx = instances.findIndex((i) => i.uuid === dto.uuid);
+	if (idx !== -1) {
+		instances[idx] = dto;
+	}
+	sortInstances(instances);
+}
+
 export async function getVersions(): Promise<void> {
 	const instances: InstanceDto[] = await invoke("get_instances");
 
+	sortInstances(instances);
 	launcherStore.loadedInstances.splice(
 		0,
 		launcherStore.loadedInstances.length,

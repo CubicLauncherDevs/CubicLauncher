@@ -45,7 +45,7 @@
 	type SidebarContextMenuProps = {
 		onedit: (instance: InstanceDto) => void;
 		ondelete: (instance: InstanceDto) => void;
-		onpin: (instance: InstanceDto, pinned: boolean) => void;
+		onpin: (instance: InstanceDto, pinned: boolean) => Promise<void>;
 	};
 
 	type SidebarContextMenuExports = {
@@ -365,7 +365,8 @@
 		bind:this={ctxMenu}
 		onedit={(instance) => onopeneditinstance?.(instance)}
 		ondelete={(instance) => openDeleteModal(instance)}
-		onpin={(instance, pinned) => void pinInstance(instance.uuid, pinned)}
+		onpin={async (instance, pinned) =>
+			await pinInstance(instance.uuid, pinned)}
 	/>
 {/if}
 

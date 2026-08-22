@@ -224,7 +224,7 @@
 	bind:this={ctxMenu}
 	onedit={(instance) => onopeneditinstance?.(instance)}
 	ondelete={(instance) => openDeleteModal(instance)}
-	onpin={(instance, pinned) => void pinInstance(instance.uuid, pinned)}
+	onpin={async (instance, pinned) => await pinInstance(instance.uuid, pinned)}
 />
 
 <style>

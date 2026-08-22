@@ -209,6 +209,7 @@ export type AppEvent =
 			type: "InstanceEdited";
 			data: {
 				id: string;
+				dto?: InstanceDto;
 			};
 	  }
 	| {

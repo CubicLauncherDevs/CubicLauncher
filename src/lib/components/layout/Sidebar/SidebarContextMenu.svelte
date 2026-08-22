@@ -18,7 +18,7 @@
 	interface Props {
 		onedit: (instance: InstanceDto) => void;
 		ondelete: (instance: InstanceDto) => void;
-		onpin: (instance: InstanceDto, pinned: boolean) => void;
+		onpin: (instance: InstanceDto, pinned: boolean) => Promise<void>;
 	}
 
 	let { onedit, ondelete, onpin }: Props = $props();
@@ -77,7 +77,16 @@
 			{
 				label: instance.pinned ? t("sidebar.unpin") : t("sidebar.pin"),
 				icon: "/images/icons/ui/pin.svg",
-				action: () => onpin(instance, !instance.pinned),
+				action: async () => {
+					const previousPinned = instance.pinned;
+					const newPinned = !previousPinned;
+					instance.pinned = newPinned;
+					try {
+						await onpin(instance, newPinned);
+					} catch {
+						instance.pinned = previousPinned;
+					}
+				},
 			},
 			{
 				label: t("sidebar.edit"),

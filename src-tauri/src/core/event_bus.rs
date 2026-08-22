@@ -12,6 +12,7 @@ static APP: OnceLock<AppHandle> = OnceLock::new();
 pub enum AppEvent {
     InstanceEdited {
         id: CompactString,
+        dto: Option<InstanceDto>,
     },
     InstanceCreated {
         id: CompactString,
