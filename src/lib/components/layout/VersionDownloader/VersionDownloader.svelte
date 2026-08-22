@@ -716,10 +716,16 @@
 	}
 
 	.vd-loader-sidebar {
-		width: 96px;
+		width: 110px;
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
+	}
+
+	@media (max-width: 500px) {
+		.vd-loader-sidebar {
+			width: 64px;
+		}
 	}
 
 	.vd-tab-content {

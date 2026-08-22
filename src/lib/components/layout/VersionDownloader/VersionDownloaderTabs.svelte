@@ -21,10 +21,13 @@
 			type="button"
 			class="loader-btn"
 			class:active={loaderTab === loader.value}
+			title={loader.label}
 			onclick={() => handleClick(loader.value)}
 		>
-			<img src={loader.icon} alt={loader.label} />
-			<span>{loader.label}</span>
+			<span class="loader-icon-wrap">
+				<img src={loader.icon} alt="" />
+			</span>
+			<span class="loader-label">{loader.label}</span>
 		</button>
 	{/each}
 </div>
@@ -37,18 +40,17 @@
 	}
 
 	.loader-btn {
-		--btn-bg: rgba(var(--accent-rgb, 255, 255, 255), 0.03);
 		flex: none;
 		width: 100%;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 4px;
-		padding: 10px 4px;
-		background: var(--btn-bg);
+		gap: 6px;
+		padding: 12px 6px;
+		background: var(--bg-card);
 		border: 1px solid var(--border);
-		border-top: none;
+		margin-top: -1px;
 		color: var(--text-secondary);
 		font-family: inherit;
 		font-size: 0.75rem;
@@ -64,7 +66,7 @@
 	}
 
 	.loader-btn:first-child {
-		border-top: 1px solid var(--border);
+		margin-top: 0;
 		border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
 	}
 
@@ -73,25 +75,44 @@
 	}
 
 	.loader-btn:hover {
-		background: rgba(var(--accent-rgb, 255, 255, 255), 0.06);
+		background: var(--surface-hover);
 		color: var(--text-primary);
 		z-index: 1;
 	}
 
 	.loader-btn.active {
-		background: rgba(var(--accent-rgb, 255, 255, 255), 0.1);
+		background: var(--surface-active);
 		border-color: var(--accent);
 		color: var(--text-primary);
 		z-index: 2;
 	}
 
-	.loader-btn img {
-		width: 22px;
-		height: 22px;
-		object-fit: contain;
+	.loader-icon-wrap {
+		width: 34px;
+		height: 34px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--surface-input);
+		border-radius: var(--border-radius-sm);
+		padding: 4px;
+		flex-shrink: 0;
+		transition: background-color 0.15s;
 	}
 
-	.loader-btn span {
+	.loader-btn:hover .loader-icon-wrap,
+	.loader-btn.active .loader-icon-wrap {
+		background: var(--bg-main);
+	}
+
+	.loader-btn img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+		display: block;
+	}
+
+	.loader-label {
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -99,8 +120,18 @@
 	}
 
 	@media (max-width: 500px) {
-		.loader-btn span {
+		.loader-btn {
+			padding: 10px 4px;
+			gap: 0;
+		}
+
+		.loader-label {
 			display: none;
+		}
+
+		.loader-icon-wrap {
+			width: 28px;
+			height: 28px;
 		}
 	}
 </style>
