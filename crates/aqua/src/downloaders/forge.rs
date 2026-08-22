@@ -90,93 +90,87 @@ impl ForgeBatch {
         })
         .await??;
 
-		// 3. Parse install_profile.json — detect modern vs legacy
-		let profile_path = extract_dir.join("install_profile.json");
-		let profile_bytes = tokio::fs::read(&profile_path).await?;
+        // 3. Parse install_profile.json — detect modern vs legacy
+        let profile_path = extract_dir.join("install_profile.json");
+        let profile_bytes = tokio::fs::read(&profile_path).await?;
 
-		let (version_json_text, profile_kind) =
-			match serde_json::from_slice::<InstallProfile>(&profile_bytes) {
-				Ok(mut profile) => {
-					info!(
-						"Forge profile (modern): spec={}, version={}, {} processors, {} profile libs",
-						profile.spec,
-						profile.version,
-						profile.processors.len(),
-						profile.libraries.len()
-					);
-					// Inject INSTALLER data entry (XMCL-style)
-					let installer_maven =
-						format!("net.minecraftforge:forge:{game_version}-{forge_version}:installer");
-					let installer_entry = zellkern::DataEntry {
-						client: Some(serde_json::Value::String(format!(
-							"[{installer_maven}]"
-						))),
-						server: Some(serde_json::Value::String(format!(
-							"[{installer_maven}]"
-						))),
-					};
-					profile.data.insert("INSTALLER".into(), installer_entry);
+        let (version_json_text, profile_kind) = match serde_json::from_slice::<InstallProfile>(
+            &profile_bytes,
+        ) {
+            Ok(mut profile) => {
+                info!(
+                    "Forge profile (modern): spec={}, version={}, {} processors, {} profile libs",
+                    profile.spec,
+                    profile.version,
+                    profile.processors.len(),
+                    profile.libraries.len()
+                );
+                // Inject INSTALLER data entry (XMCL-style)
+                let installer_maven =
+                    format!("net.minecraftforge:forge:{game_version}-{forge_version}:installer");
+                let installer_entry = zellkern::DataEntry {
+                    client: Some(serde_json::Value::String(format!("[{installer_maven}]"))),
+                    server: Some(serde_json::Value::String(format!("[{installer_maven}]"))),
+                };
+                profile.data.insert("INSTALLER".into(), installer_entry);
 
-					// Modern: read separate version.json
-					let version_json_path = extract_dir.join("version.json");
-					let version_json_text = tokio::fs::read_to_string(&version_json_path)
-						.await
-						.map_err(|e| {
-							AquaError::ForgeExtract(format!("Cannot read version.json: {e}"))
-						})?;
-					let profile_kind = ProfileKind::Modern {
-						profile: Box::new(profile),
-					};
-					(version_json_text, profile_kind)
-				}
-				Err(e) => {
-					info!("Modern parse failed ({e}), trying legacy install_profile.json format");
-					let legacy: LegacyInstallProfile = serde_json::from_slice(&profile_bytes).map_err(
-						|e2| {
-							AquaError::ForgeProfileParse(format!(
-								"Not modern ({e}) or legacy ({e2})"
-							))
-						},
-					)?;
-					info!(
-						"Forge profile (legacy): target={}, minecraft={}, {} libs",
-						legacy.install.target,
-						legacy.install.minecraft,
-						legacy.version_info.libraries.len()
-					);
-					// Legacy: version.json content is the versionInfo
-					// Ensure --tweakClass is present for legacy Forge
-					let mut vi = legacy.version_info.clone();
-					let tweak_class = "cpw.mods.fml.relauncher.FMLTweaker";
-					let tweak_arg = format!("--tweakClass {tweak_class}");
-					match vi.minecraft_arguments {
-						Some(ref mut ma) => {
-							if !ma.contains("--tweakClass") {
-								ma.push(' ');
-								ma.push_str(&tweak_arg);
-							}
-						}
-						None => {
-							vi.minecraft_arguments = Some(format!(
-								"--username ${{auth_player_name}} --version ${{version_name}} \
+                // Modern: read separate version.json
+                let version_json_path = extract_dir.join("version.json");
+                let version_json_text = tokio::fs::read_to_string(&version_json_path)
+                    .await
+                    .map_err(|e| {
+                        AquaError::ForgeExtract(format!("Cannot read version.json: {e}"))
+                    })?;
+                let profile_kind = ProfileKind::Modern {
+                    profile: Box::new(profile),
+                };
+                (version_json_text, profile_kind)
+            }
+            Err(e) => {
+                info!("Modern parse failed ({e}), trying legacy install_profile.json format");
+                let legacy: LegacyInstallProfile =
+                    serde_json::from_slice(&profile_bytes).map_err(|e2| {
+                        AquaError::ForgeProfileParse(format!("Not modern ({e}) or legacy ({e2})"))
+                    })?;
+                info!(
+                    "Forge profile (legacy): target={}, minecraft={}, {} libs",
+                    legacy.install.target,
+                    legacy.install.minecraft,
+                    legacy.version_info.libraries.len()
+                );
+                // Legacy: version.json content is the versionInfo
+                // Ensure --tweakClass is present for legacy Forge
+                let mut vi = legacy.version_info.clone();
+                let tweak_class = "cpw.mods.fml.relauncher.FMLTweaker";
+                let tweak_arg = format!("--tweakClass {tweak_class}");
+                match vi.minecraft_arguments {
+                    Some(ref mut ma) => {
+                        if !ma.contains("--tweakClass") {
+                            ma.push(' ');
+                            ma.push_str(&tweak_arg);
+                        }
+                    }
+                    None => {
+                        vi.minecraft_arguments = Some(format!(
+                            "--username ${{auth_player_name}} --version ${{version_name}} \
 								 --gameDir ${{game_directory}} --assetsDir ${{assets_root}} \
 								 --assetIndex ${{assets_index_name}} --uuid ${{auth_uuid}} \
 								 --accessToken ${{auth_access_token}} --userType ${{user_type}} \
 								 {tweak_arg}"
-							));
-						}
-					}
-					let version_json_text = serde_json::to_string_pretty(&vi).map_err(|e| {
-						AquaError::ForgeProfileParse(format!(
-							"Failed to serialize legacy versionInfo: {e}"
-						))
-					})?;
-					let profile_kind = ProfileKind::Legacy {
-						profile: Box::new(legacy),
-					};
-					(version_json_text, profile_kind)
-				}
-			};
+                        ));
+                    }
+                }
+                let version_json_text = serde_json::to_string_pretty(&vi).map_err(|e| {
+                    AquaError::ForgeProfileParse(format!(
+                        "Failed to serialize legacy versionInfo: {e}"
+                    ))
+                })?;
+                let profile_kind = ProfileKind::Legacy {
+                    profile: Box::new(legacy),
+                };
+                (version_json_text, profile_kind)
+            }
+        };
 
         // 4. Collect library download items
         let staging_libs = staging_dir.join("libraries");
