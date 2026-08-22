@@ -146,17 +146,16 @@
 
 	.upload-btn {
 		flex: 1;
-		display: flex;
+		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
-		padding: 10px 16px;
-		font-size: 0.8rem;
 	}
 
 	.url-toggle {
-		padding: 10px 14px;
-		font-size: 0.78rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.url-row {
@@ -192,42 +191,5 @@
 
 	.url-input:focus {
 		border-color: var(--text-muted);
-	}
-
-	.btn-primary,
-	.btn-secondary {
-		font-family: inherit;
-		font-weight: 600;
-		border-radius: var(--border-radius-sm);
-		cursor: pointer;
-		transition: all 0.15s ease;
-		border: 1px solid transparent;
-		white-space: nowrap;
-	}
-
-	.btn-primary {
-		background: var(--accent);
-		color: var(--accent-text);
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		opacity: 0.85;
-	}
-
-	.btn-secondary {
-		background: transparent;
-		border-color: var(--border);
-		color: var(--text-secondary);
-	}
-
-	.btn-secondary:hover:not(:disabled) {
-		background: var(--surface-selected);
-		color: var(--text-primary);
-	}
-
-	.btn-primary:disabled,
-	.btn-secondary:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 </style>

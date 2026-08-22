@@ -150,9 +150,6 @@
 		border-left: 3px solid var(--accent);
 		border-radius: var(--border-radius);
 		padding: 12px;
-		box-shadow:
-			var(--shadow-sm),
-			inset 0 1px 0 var(--surface-selected);
 	}
 
 	.active-cape-img {
@@ -231,9 +228,6 @@
 		border-radius: var(--border-radius);
 		overflow: hidden;
 		transition: background 0.15s ease;
-		box-shadow:
-			var(--shadow-sm),
-			inset 0 1px 0 var(--surface-selected);
 	}
 
 	.cape-card:hover {
@@ -288,41 +282,10 @@
 		padding: 6px 10px;
 	}
 
-	.btn-primary,
-	.btn-secondary {
-		font-family: inherit;
-		font-weight: 600;
-		border-radius: var(--border-radius-sm);
-		cursor: pointer;
-		transition: all 0.15s ease;
-		border: 1px solid transparent;
-		white-space: nowrap;
-	}
-
-	.btn-primary {
-		background: var(--accent);
-		color: var(--accent-text);
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		opacity: 0.85;
-	}
-
-	.btn-secondary {
-		background: transparent;
-		border-color: var(--border);
-		color: var(--text-secondary);
-	}
-
-	.btn-secondary:hover:not(:disabled) {
-		background: var(--surface-selected);
-		color: var(--text-primary);
-	}
-
-	.btn-primary:disabled,
-	.btn-secondary:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
+	.unequip-btn {
+		flex-shrink: 0;
+		font-size: 0.75rem;
+		padding: 6px 12px;
 	}
 
 	@media (max-width: 520px) {

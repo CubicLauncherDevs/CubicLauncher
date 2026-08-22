@@ -64,17 +64,14 @@
 	.preview-zone {
 		position: relative;
 		background: var(--bg-card);
-		border: 2px solid var(--border);
+		border: 1px solid var(--border);
 		border-radius: var(--border-radius);
 		overflow: hidden;
-		min-height: 280px;
-		height: 320px;
+		min-height: 260px;
+		height: 300px;
 		transition:
 			border-color 0.15s ease,
 			background 0.15s ease;
-		box-shadow:
-			var(--shadow-sm),
-			inset 0 1px 0 var(--surface-selected);
 		outline: none;
 	}
 

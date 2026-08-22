@@ -228,8 +228,6 @@
 	<div class="profile-layout">
 		<section class="profile-hero">
 			{#if selectedUser}
-				<div class="hero-banner"></div>
-
 				<div class="hero-content">
 					<div class="hero-identity">
 						<div class="hero-avatar">
@@ -256,7 +254,7 @@
 									/>
 									<button
 										type="button"
-										class="btn-icon btn-icon-primary"
+										class="btn-icon"
 										onclick={() =>
 											handleSaveName(selectedIdx)}
 									>
@@ -264,7 +262,7 @@
 									</button>
 									<button
 										type="button"
-										class="btn-icon btn-icon-secondary"
+										class="btn-icon"
 										onclick={cancelEditingName}
 									>
 										✕
@@ -520,58 +518,33 @@
 		position: relative;
 	}
 
-	.hero-banner {
-		height: 180px;
-		flex-shrink: 0;
-		background: linear-gradient(
-			135deg,
-			color-mix(in srgb, var(--accent) 70%, transparent) 0%,
-			color-mix(in srgb, var(--accent) 20%, transparent) 100%
-		);
-		position: relative;
-	}
-
-	.hero-banner::after {
-		content: "";
-		position: absolute;
-		inset: 0;
-		background: linear-gradient(
-			to bottom,
-			transparent 0%,
-			var(--bg-main) 100%
-		);
-	}
-
 	.hero-content {
 		flex: 1;
 		display: flex;
 		flex-direction: column;
-		padding: 0 40px 40px;
-		margin-top: -72px;
-		position: relative;
-		z-index: 1;
-		gap: 24px;
+		padding: 24px 28px;
+		gap: 20px;
 	}
 
 	.hero-identity {
 		display: flex;
-		align-items: flex-end;
-		gap: 20px;
+		align-items: center;
+		gap: 16px;
 		flex-wrap: wrap;
 	}
 
 	.hero-avatar {
-		width: 144px;
-		height: 144px;
+		width: 64px;
+		height: 64px;
 		border-radius: var(--border-radius);
-		border: 4px solid var(--bg-main);
+		border: 2px solid var(--bg-main);
 		background: var(--cubic-logo) center/50% no-repeat;
+		background-color: var(--bg-card);
 		overflow: hidden;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		flex-shrink: 0;
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 	}
 
 	.hero-avatar :global(svg) {
@@ -586,16 +559,15 @@
 		flex-direction: column;
 		gap: 4px;
 		min-width: 0;
-		padding-bottom: 12px;
 		flex: 1;
 	}
 
 	.hero-name {
 		margin: 0;
-		font-size: 2.2rem;
-		font-weight: 800;
+		font-size: 1.6rem;
+		font-weight: 700;
 		color: var(--text-primary);
-		line-height: 1.1;
+		line-height: 1.2;
 		word-break: break-word;
 	}
 
@@ -608,20 +580,24 @@
 
 	.hero-name-input {
 		font-family: inherit;
-		font-size: 1.8rem;
+		font-size: 1.2rem;
 		font-weight: 700;
 		color: var(--text-primary);
 		background: var(--bg-input);
-		border: 1px solid var(--accent);
+		border: 1px solid var(--border-color);
 		border-radius: var(--border-radius-sm);
 		padding: 6px 10px;
 		outline: none;
 		min-width: 0;
-		width: 280px;
+		width: 220px;
+	}
+
+	.hero-name-input:focus {
+		border-color: var(--text-muted);
 	}
 
 	.hero-type {
-		font-size: 0.85rem;
+		font-size: 0.75rem;
 		font-weight: 600;
 		color: var(--text-secondary);
 		text-transform: uppercase;
@@ -629,15 +605,14 @@
 	}
 
 	.hero-status {
-		font-size: 0.75rem;
+		font-size: 0.65rem;
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
 		background: var(--accent);
 		color: var(--accent-text);
-		padding: 8px 16px;
+		padding: 4px 10px;
 		border-radius: 999px;
-		margin-bottom: 12px;
 		flex-shrink: 0;
 	}
 
@@ -651,23 +626,20 @@
 		background: var(--bg-card);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius);
-		padding: 16px 22px;
+		padding: 14px 18px;
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
-		min-width: 120px;
-		box-shadow:
-			var(--shadow-sm),
-			inset 0 1px 0 var(--surface-selected);
+		min-width: 110px;
 	}
 
 	.stat-card.wide {
-		min-width: 180px;
+		min-width: 160px;
 		flex: 1;
 	}
 
 	.stat-value {
-		font-size: 1.15rem;
+		font-size: 1.1rem;
 		font-weight: 700;
 		color: var(--text-primary);
 	}
@@ -685,63 +657,18 @@
 		gap: 10px;
 		align-items: center;
 		flex-wrap: wrap;
-		margin-top: auto;
-		padding-top: 8px;
+		margin-left: auto;
 	}
 
 	.hero-skin-cape {
 		width: 100%;
 		max-width: 640px;
-		border-top: 1px solid var(--border);
-		padding-top: 20px;
-	}
-
-	.btn-primary,
-	.btn-secondary,
-	.btn-danger {
-		font-family: inherit;
-		font-size: 0.82rem;
-		font-weight: 600;
-		padding: 10px 20px;
-		border-radius: var(--border-radius-sm);
-		cursor: pointer;
-		transition: all 0.15s ease;
-		border: 1px solid transparent;
-	}
-
-	.btn-primary {
-		background: var(--accent);
-		color: var(--accent-text);
-	}
-
-	.btn-primary:hover {
-		opacity: 0.85;
-	}
-
-	.btn-secondary {
-		background: transparent;
-		border-color: var(--border);
-		color: var(--text-secondary);
-	}
-
-	.btn-secondary:hover {
-		background: var(--surface-selected);
-		color: var(--text-primary);
-	}
-
-	.btn-danger {
-		background: rgba(var(--color-error-rgb), 0.1);
-		border-color: rgba(var(--color-error-rgb), 0.25);
-		color: var(--color-error);
-	}
-
-	.btn-danger:hover {
-		background: rgba(var(--color-error-rgb), 0.18);
+		padding-top: 4px;
 	}
 
 	.btn-icon {
-		width: 34px;
-		height: 34px;
+		width: 32px;
+		height: 32px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -749,26 +676,15 @@
 		font-size: 1rem;
 		cursor: pointer;
 		border: 1px solid transparent;
-		transition: all 0.15s ease;
-	}
-
-	.btn-icon-primary {
-		background: var(--accent);
-		color: var(--accent-text);
-	}
-
-	.btn-icon-primary:hover {
-		opacity: 0.85;
-	}
-
-	.btn-icon-secondary {
 		background: transparent;
-		border-color: var(--border);
 		color: var(--text-secondary);
+		transition:
+			background 0.15s ease,
+			color 0.15s ease;
 	}
 
-	.btn-icon-secondary:hover {
-		background: var(--surface-selected);
+	.btn-icon:hover {
+		background: var(--surface-hover);
 		color: var(--text-primary);
 	}
 
@@ -871,32 +787,32 @@
 			min-height: auto;
 		}
 
-		.hero-banner {
-			height: 140px;
-		}
-
 		.hero-content {
-			margin-top: -56px;
-			padding: 0 20px 28px;
-			gap: 20px;
+			padding: 20px;
+			gap: 18px;
 		}
 
 		.hero-avatar {
-			width: 112px;
-			height: 112px;
+			width: 56px;
+			height: 56px;
 		}
 
 		.hero-name {
-			font-size: 1.8rem;
+			font-size: 1.4rem;
 		}
 
 		.hero-name-input {
-			font-size: 1.4rem;
-			width: 200px;
+			font-size: 1.1rem;
+			width: 180px;
 		}
 
 		.hero-identity {
 			gap: 14px;
+		}
+
+		.hero-actions {
+			margin-left: 0;
+			width: 100%;
 		}
 
 		.profile-list {

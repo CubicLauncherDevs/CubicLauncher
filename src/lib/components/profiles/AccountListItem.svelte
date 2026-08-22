@@ -55,35 +55,23 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
-		padding: 12px 14px;
+		padding: 10px 12px;
 		background: var(--bg-card);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
 		transition:
 			border-color 0.15s ease,
-			background 0.15s ease,
-			transform 0.15s ease,
-			box-shadow 0.15s ease;
+			background-color 0.15s ease;
 	}
 
 	.account-item:hover {
-		border-color: var(--text-muted);
-		background: color-mix(
-			in srgb,
-			var(--bg-card) 100%,
-			var(--text-primary) 3%
-		);
-		transform: translateY(-1px);
-		box-shadow: var(--shadow-sm);
-	}
-
-	.account-item.active {
-		border-color: var(--accent);
+		background: var(--surface-hover);
+		border-color: var(--border);
 	}
 
 	.account-item.selected {
-		background: color-mix(in srgb, var(--accent) 8%, transparent);
+		background: var(--bg-item-active);
 		border-color: var(--accent);
 	}
 
@@ -135,11 +123,11 @@
 	}
 
 	.active-badge {
-		font-size: 0.55rem;
+		font-size: 0.6rem;
 		background: var(--accent);
 		color: var(--accent-text);
 		padding: 3px 8px;
-		border-radius: 4px;
+		border-radius: 999px;
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.3px;

@@ -35,6 +35,24 @@
 	color: var(--text-primary);
 }
 
+.btn-danger {
+	background: rgba(var(--color-error-rgb), 0.1);
+	border: 1px solid rgba(var(--color-error-rgb), 0.25);
+	color: var(--color-error);
+	padding: 8px 16px;
+	border-radius: var(--border-radius-sm);
+	font-size: 0.8rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition:
+		background 0.2s ease,
+		color 0.2s ease;
+}
+
+.btn-danger:hover {
+	background: rgba(var(--color-error-rgb), 0.18);
+}
+
 .action-btn {
 	background: transparent;
 	border: none;

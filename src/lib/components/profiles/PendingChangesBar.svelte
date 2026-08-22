@@ -95,45 +95,7 @@
 	.discard-btn {
 		display: inline-flex;
 		align-items: center;
-		font-size: 0.78rem;
-		padding: 7px 14px;
-	}
-
-	.btn-primary,
-	.btn-secondary {
-		font-family: inherit;
-		font-weight: 600;
-		border-radius: var(--border-radius-sm);
-		cursor: pointer;
-		transition: all 0.15s ease;
-		border: 1px solid transparent;
-		white-space: nowrap;
-	}
-
-	.btn-primary {
-		background: var(--accent);
-		color: var(--accent-text);
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		opacity: 0.85;
-	}
-
-	.btn-secondary {
-		background: transparent;
-		border-color: var(--border);
-		color: var(--text-secondary);
-	}
-
-	.btn-secondary:hover:not(:disabled) {
-		background: var(--surface-selected);
-		color: var(--text-primary);
-	}
-
-	.btn-primary:disabled,
-	.btn-secondary:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
+		gap: 6px;
 	}
 
 	.spinner {
