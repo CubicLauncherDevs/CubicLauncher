@@ -255,6 +255,8 @@
 			);
 
 			const queue: ModDownloadInfo[] = [];
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
+			const queuedFilenames = new Set<string>();
 
 			// Fase 1: descargar versiones de los proyectos principales en paralelo
 			const mainFetches = [...basket].map(async ([id, project]) => {
@@ -311,9 +313,8 @@
 						targetVersion.files.find(
 							(f: ModrinthFile) => f.primary,
 						) || targetVersion.files[0];
-					if (
-						!queue.find((q) => q.filename === primaryFile.filename)
-					) {
+					if (!queuedFilenames.has(primaryFile.filename)) {
+						queuedFilenames.add(primaryFile.filename);
 						queue.push({
 							url: primaryFile.url,
 							filename: primaryFile.filename,
@@ -344,11 +345,8 @@
 						targetFile = files[0];
 					}
 					if (targetFile.downloadUrl) {
-						if (
-							!queue.find(
-								(q) => q.filename === targetFile.fileName,
-							)
-						) {
+						if (!queuedFilenames.has(targetFile.fileName)) {
+							queuedFilenames.add(targetFile.fileName);
 							queue.push({
 								url: targetFile.downloadUrl,
 								filename: targetFile.fileName,
@@ -378,7 +376,8 @@
 				const resolvedCf = await Promise.all(urlFetches);
 				for (const { cfProject, file, url } of resolvedCf) {
 					if (!url) continue;
-					if (!queue.find((q) => q.filename === file.fileName)) {
+					if (!queuedFilenames.has(file.fileName)) {
+						queuedFilenames.add(file.fileName);
 						queue.push({
 							url,
 							filename: file.fileName,
@@ -409,10 +408,9 @@
 					const alreadyInstalled = installedFilenames.has(
 						depFile.filename.toLowerCase(),
 					);
-					const alreadyQueued = queue.find(
-						(q) => q.filename === depFile.filename,
-					);
+					const alreadyQueued = queuedFilenames.has(depFile.filename);
 					if (!alreadyInstalled && !alreadyQueued) {
+						queuedFilenames.add(depFile.filename);
 						queue.push({
 							url: depFile.url,
 							filename: depFile.filename,
@@ -480,15 +478,16 @@
 				const cfFiles = [...files].sort((a, b) => {
 					const aCompat = isVersionCompatibleCurseForge(a) ? 1 : 0;
 					const bCompat = isVersionCompatibleCurseForge(b) ? 1 : 0;
-					return bCompat - aCompat;
+					if (bCompat !== aCompat) return bCompat - aCompat;
+					const rank = [1, 2, 3];
+					const aRank = rank.indexOf(a.releaseType);
+					const bRank = rank.indexOf(b.releaseType);
+					if (aRank !== -1 && bRank !== -1) return aRank - bRank;
+					if (aRank !== -1) return -1;
+					if (bRank !== -1) return 1;
+					return a.releaseType - b.releaseType;
 				});
-				const prioritized = [
-					...cfFiles.filter((f) => f.releaseType === 1),
-					...cfFiles.filter((f) => f.releaseType === 2),
-					...cfFiles.filter((f) => f.releaseType === 3),
-				];
-				selectedModVersions =
-					prioritized.length > 0 ? prioritized : cfFiles;
+				selectedModVersions = cfFiles;
 				if (selectedModVersions.length > 0) {
 					const stored = versionSelection.get(projectId);
 					const first = selectedModVersions[0] as CurseForgeFile;

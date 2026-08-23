@@ -35,6 +35,7 @@
 	import { t } from "$lib/i18n";
 	import Select from "../Select.svelte";
 	import ModalBase from "../ModalBase.svelte";
+	import VirtualList from "../VirtualList.svelte";
 	import VersionDownloaderTabs from "./VersionDownloaderTabs.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
 	import Tooltip from "$lib/components/ui/Tooltip.svelte";
@@ -293,12 +294,16 @@
 		}
 	}
 
+	const normalizedVanillaSearch = $derived(
+		vanillaSearch.trim().toLowerCase(),
+	);
+
 	const vanillaDisplayList = $derived.by(() => {
 		if (!vanillaAllCache) return [];
 		return vanillaAllCache.filter((v) => {
 			if (
-				vanillaSearch &&
-				!v.id.toLowerCase().includes(vanillaSearch.toLowerCase())
+				normalizedVanillaSearch &&
+				!v.id.toLowerCase().includes(normalizedVanillaSearch)
 			)
 				return false;
 			if (!launcherStore.settings.show_snapshots && v.type === "snapshot")
@@ -344,19 +349,20 @@
 			: t("createInstance.selectMcVersion"),
 	);
 
-	const filteredLoaderItems = $derived(
-		loaderSearch
-			? loaderItems.filter(
-					(item) =>
-						item.display_version
-							.toLowerCase()
-							.includes(loaderSearch.toLowerCase()) ||
-						item.game_version
-							.toLowerCase()
-							.includes(loaderSearch.toLowerCase()),
-				)
-			: loaderItems,
-	);
+	const normalizedLoaderSearch = $derived(loaderSearch.trim().toLowerCase());
+
+	const filteredLoaderItems = $derived.by(() => {
+		if (!normalizedLoaderSearch) return loaderItems;
+		return loaderItems.filter(
+			(item) =>
+				item.display_version
+					.toLowerCase()
+					.includes(normalizedLoaderSearch) ||
+				item.game_version
+					.toLowerCase()
+					.includes(normalizedLoaderSearch),
+		);
+	});
 
 	// --- Refresh ---
 
@@ -450,7 +456,7 @@
 				/>
 			</div>
 
-			<div class="vd-scrollable">
+			<div class="vd-content">
 				{#if loaderTab === "vanilla"}
 					<div class="vd-tab-content">
 						<div class="vd-search">
@@ -473,8 +479,13 @@
 								{t("versionDownloader.notFound")}
 							</div>
 						{:else}
-							<div class="vd-list">
-								{#each vanillaDisplayList as vitem (vitem.id)}
+							<VirtualList
+								items={vanillaDisplayList}
+								itemHeight={64}
+								keyFn={(v) => v.id}
+								class="vd-virtual-list"
+							>
+								{#snippet children(vitem)}
 									{@const vid = vitem.id}
 									{@const isVanInstalled =
 										versionsState.mcVersions?.vanilla.has(
@@ -488,10 +499,8 @@
 												{vid}
 											</div>
 											<div class="version-card-type">
-												{(vitem as MinecraftVersion)
-													.type ?? "release"} • {new Date(
-													(vitem as MinecraftVersion)
-														.releaseTime ?? "",
+												{vitem.type ?? "release"} • {new Date(
+													vitem.releaseTime ?? "",
 												).toLocaleDateString()}
 											</div>
 										</div>
@@ -521,8 +530,8 @@
 											</button>
 										{/if}
 									</div>
-								{/each}
-							</div>
+								{/snippet}
+							</VirtualList>
 						{/if}
 					</div>
 				{:else}
@@ -575,8 +584,13 @@
 								{t("versionDownloader.notFound")}
 							</div>
 						{:else}
-							<div class="vd-list">
-								{#each filteredLoaderItems as item (item.version_id)}
+							<VirtualList
+								items={filteredLoaderItems}
+								itemHeight={64}
+								keyFn={(item) => item.version_id}
+								class="vd-virtual-list"
+							>
+								{#snippet children(item)}
 									{@const isInstalled =
 										versionsState.mcVersions?.[
 											loaderTab as keyof typeof versionsState.mcVersions
@@ -651,8 +665,8 @@
 											</button>
 										{/if}
 									</div>
-								{/each}
-							</div>
+								{/snippet}
+							</VirtualList>
 						{/if}
 					</div>
 				{/if}
@@ -728,16 +742,27 @@
 		}
 	}
 
+	.vd-content {
+		flex: 1;
+		min-height: 0;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+
 	.vd-tab-content {
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
+		flex: 1;
+		min-height: 0;
 	}
 
 	.vd-controls {
 		display: flex;
 		gap: 12px;
 		flex-wrap: wrap;
+		flex-shrink: 0;
 	}
 
 	.vd-control {
@@ -749,6 +774,7 @@
 
 	.vd-search {
 		width: 100%;
+		flex-shrink: 0;
 	}
 
 	.vd-search .text-input {
@@ -759,19 +785,17 @@
 		font-size: 0.75rem;
 		color: var(--text-muted);
 		padding: 0 4px;
+		flex-shrink: 0;
 	}
 
-	.vd-list {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-	}
-
-	.vd-scrollable {
+	:global(.vd-virtual-list) {
 		flex: 1;
-		overflow-y: auto;
 		min-height: 0;
-		max-height: 440px;
+	}
+
+	:global(.vd-virtual-list .virtual-list-item-wrapper) {
+		padding: 3px 0;
+		box-sizing: border-box;
 	}
 
 	@keyframes vd-spin {

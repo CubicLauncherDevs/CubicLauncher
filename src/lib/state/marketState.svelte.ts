@@ -188,34 +188,36 @@ export function createMarketState(
 		localModsById.clear();
 	}
 
+	const normalizedQuery = $derived(filters.query.trim().toLowerCase());
+
 	function sortLocalItems(list: MarketProject[]): MarketProject[] {
 		const sort = filters.localSort;
 		if (sort === "name-asc")
 			return [...list].sort((a, b) => a.title.localeCompare(b.title));
 		if (sort === "name-desc")
 			return [...list].sort((a, b) => b.title.localeCompare(a.title));
-		return [...list];
+		return list;
 	}
 
 	function filterLocalItems(list: MarketProject[]): MarketProject[] {
-		const query = filters.query.trim().toLowerCase();
-		if (!query) return list;
+		if (!normalizedQuery) return list;
 		return list.filter(
 			(m) =>
-				m.title.toLowerCase().includes(query) ||
-				m.description.toLowerCase().includes(query) ||
-				m.author.toLowerCase().includes(query),
+				m.title.toLowerCase().includes(normalizedQuery) ||
+				m.description.toLowerCase().includes(normalizedQuery) ||
+				m.author.toLowerCase().includes(normalizedQuery),
 		);
 	}
 
 	function syncInstalledToItems() {
 		if (filters.source === "local") return;
-		for (const item of items) {
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
 			const id = item.modrinthProjectId ?? item.curseforgeProjectId;
-			if (id && localModsById.has(id)) {
-				item.installed = localModsById.get(id)!;
-			} else {
-				item.installed = undefined;
+			const installed =
+				id && localModsById.has(id) ? localModsById.get(id) : undefined;
+			if (item.installed !== installed) {
+				items[i] = { ...item, installed };
 			}
 		}
 	}

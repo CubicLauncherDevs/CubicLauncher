@@ -351,6 +351,7 @@
 					items={allHits}
 					itemHeight={130}
 					onNearEnd={handleNearEnd}
+					keyFn={(project) => project.project_id}
 				>
 					{#snippet children(project)}
 						<div

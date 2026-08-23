@@ -20,20 +20,23 @@
 	let loading = $state(true);
 	let bulkDeleteModal = $state(false);
 
-	let filteredMods = $derived(
-		mods.filter(
+	const normalizedSearchQuery = $derived(searchQuery.trim().toLowerCase());
+
+	let filteredMods = $derived.by(() => {
+		if (!normalizedSearchQuery) return mods;
+		return mods.filter(
 			(mod) =>
-				mod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				mod.name.toLowerCase().includes(normalizedSearchQuery) ||
 				(mod.description &&
 					mod.description
 						.toLowerCase()
-						.includes(searchQuery.toLowerCase())) ||
+						.includes(normalizedSearchQuery)) ||
 				(mod.authors &&
 					mod.authors.some((a) =>
-						a.toLowerCase().includes(searchQuery.toLowerCase()),
+						a.toLowerCase().includes(normalizedSearchQuery),
 					)),
-		),
-	);
+		);
+	});
 
 	$effect(() => {
 		if (instanceId && instanceId !== prevInstanceId) {

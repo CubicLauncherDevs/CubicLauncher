@@ -11,6 +11,7 @@
 		onNearEnd?: () => void;
 		keyFn?: (item: T) => string | number;
 		hideScrollbar?: boolean;
+		overscan?: number;
 	}
 
 	let {
@@ -22,6 +23,7 @@
 		onNearEnd,
 		keyFn,
 		hideScrollbar = true,
+		overscan = 5,
 	}: Props = $props();
 
 	let container: HTMLDivElement = $state() as HTMLDivElement;
@@ -32,15 +34,13 @@
 
 	const totalHeight = $derived(items.length * itemHeight + padding);
 
-	const buffer = 5;
-
 	const startIndex = $derived(
-		Math.max(0, Math.floor(scrollTop / itemHeight) - buffer),
+		Math.max(0, Math.floor(scrollTop / itemHeight) - overscan),
 	);
 	const endIndex = $derived(
 		Math.min(
 			items.length - 1,
-			Math.floor((scrollTop + containerHeight) / itemHeight) + buffer,
+			Math.floor((scrollTop + containerHeight) / itemHeight) + overscan,
 		),
 	);
 
