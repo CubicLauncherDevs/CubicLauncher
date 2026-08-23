@@ -7,6 +7,7 @@ use tracing::{info, warn};
 use crate::commands::instance::mods::{PerFileCacheEntry, repo_path};
 use crate::core::PathManager;
 use crate::core::errors::{DownloadError, FsError, InstanceError};
+use crate::core::validate_filename;
 use crate::services::InstanceManager;
 use crate::services::compute_file_sha1;
 
@@ -41,6 +42,10 @@ pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> R
         }
         .to_string()
     })?;
+
+    for m in &mods {
+        validate_filename(&m.filename)?;
+    }
 
     let count = mods.len();
     let items: Vec<DownloadItemSpec> = mods
@@ -172,6 +177,10 @@ pub async fn download_resourcepacks(
         .to_string()
     })?;
 
+    for m in &packs {
+        validate_filename(&m.filename)?;
+    }
+
     let count = packs.len();
     let items: Vec<DownloadItemSpec> = packs
         .iter()
@@ -248,6 +257,10 @@ pub async fn download_shaderpacks(
         .to_string()
     })?;
 
+    for m in &packs {
+        validate_filename(&m.filename)?;
+    }
+
     let count = packs.len();
     let items: Vec<DownloadItemSpec> = packs
         .iter()
@@ -307,6 +320,8 @@ pub async fn download_shaderpacks(
 #[tauri::command]
 pub async fn download_mrpack(url: String, version_id: String) -> Result<String, String> {
     info!("Downloading mrpack from {} (version: {})", url, version_id);
+
+    validate_filename(&version_id).map_err(|e| format!("Invalid version_id: {}", e))?;
 
     let cache_dir = std::env::temp_dir()
         .join("cubiclauncher")

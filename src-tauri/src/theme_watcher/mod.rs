@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use crate::core::{AppEvent, PathManager, emit};
+use crate::core::{AppEvent, PathManager, emit, validate_identifier};
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 use tracing::{info, warn};
 
@@ -57,6 +57,10 @@ impl ThemeWatcher {
                         }
 
                         if let Some(ref id) = current_id {
+                            if validate_identifier(id).is_err() {
+                                warn!("ThemeWatcher: id de theme inválido, ignorando: {}", id);
+                                continue;
+                            }
                             let path = PathManager::get().get_themes_dir().join(id);
                             if path.exists() {
                                 info!("ThemeWatcher: observando {:?}", path);

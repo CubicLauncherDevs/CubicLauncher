@@ -11,6 +11,7 @@ use tokio::io::AsyncWriteExt;
 use zellkern::is_native_file;
 
 use crate::AquaError;
+use crate::path_security::safe_join;
 use crate::progress::DownloadReporter;
 
 pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
@@ -259,11 +260,19 @@ pub fn extract_zip_to_dir(zip_path: &Path, dest_dir: &Path) -> Result<(), AquaEr
             .map_err(|e| AquaError::ForgeExtract(format!("Cannot read ZIP entry: {e}")))?;
 
         let name = entry.name().to_string();
-        if name.ends_with('/') {
+
+        // `enclosed_name()` rejects entries that escape the archive root.
+        let Some(enclosed) = entry.enclosed_name() else {
+            warn!("ZIP entry with unsafe path ignored: {}", name);
+            continue;
+        };
+
+        if entry.is_dir() {
             continue;
         }
 
-        let out_path = dest_dir.join(&name);
+        let out_path = safe_join(dest_dir, enclosed.to_string_lossy().as_ref())
+            .map_err(|e| AquaError::ForgeExtract(e))?;
         if let Some(parent) = out_path.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| AquaError::ForgeExtract(format!("Cannot create dir: {e}")))?;

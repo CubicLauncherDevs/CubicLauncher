@@ -1,4 +1,5 @@
-use crate::core::errors::{AppError, FsError, InstanceError};
+use crate::core::errors::{AppError, InstanceError};
+use crate::core::sanitize_path;
 use crate::services::{InstanceDto, InstanceManager, InstanceStatus, Launcher, signal_kill};
 use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
@@ -9,15 +10,7 @@ pub fn validate_uuid(uuid: &str) -> Result<(), String> {
 }
 
 pub fn sanitize_sub_path(instance_dir: &Path, sub_path: &Path) -> Result<PathBuf, String> {
-    if sub_path.is_absolute() {
-        return Err(FsError::InvalidPath(sub_path.to_string_lossy().to_string()).to_string());
-    }
-    for component in sub_path.components() {
-        if matches!(component, std::path::Component::ParentDir) {
-            return Err(FsError::InvalidPath(sub_path.to_string_lossy().to_string()).to_string());
-        }
-    }
-    Ok(instance_dir.join(sub_path))
+    sanitize_path(instance_dir, sub_path)
 }
 
 #[tauri::command]

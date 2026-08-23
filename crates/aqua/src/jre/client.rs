@@ -1,5 +1,6 @@
 use crate::errors::AquaError;
 use crate::jre::types::{JrePackage, ZuluPackage};
+use crate::path_security::safe_join;
 use crate::progress::{DownloadProgress, DownloadStage, ProgressSender};
 use crate::utilities::HTTP_CLIENT;
 use std::path::Path;
@@ -214,12 +215,20 @@ async fn extract_zip(archive: &Path, dest: &Path, _filename: &str) -> Result<(),
                 .map_err(|e| AquaError::Other(format!("Failed to read ZIP entry: {}", e)))?;
 
             let name = entry.name().to_string();
-            if name.ends_with('/') {
-                std::fs::create_dir_all(dest.join(&name))?;
+
+            // `enclosed_name()` rejects entries that escape the archive root.
+            let Some(enclosed) = entry.enclosed_name() else {
+                log::warn!("JRE ZIP entry with unsafe path ignored: {}", name);
+                continue;
+            };
+
+            if entry.is_dir() {
+                std::fs::create_dir_all(dest.join(enclosed))?;
                 continue;
             }
 
-            let out_path = dest.join(&name);
+            let out_path = safe_join(&dest, enclosed.to_string_lossy().as_ref())
+                .map_err(|e| AquaError::Other(e))?;
             if let Some(parent) = out_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }

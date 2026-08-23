@@ -2,6 +2,7 @@ use std::io::Read;
 use std::path::Path;
 
 use super::pack_format::{MrpackMetadata, PackFormat};
+use crate::utils::path::safe_join;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MrpackError {
@@ -89,7 +90,7 @@ pub async fn install_mrpack(
         })
         .filter_map(|f| {
             let url = f.downloads.first()?;
-            let dest = instance_dir.join(&f.path);
+            let dest = safe_join(instance_dir, &f.path).ok()?;
             let hash = f.hashes.get("sha1").map(|s| s.as_str()).unwrap_or("");
             Some(
                 aqua::DownloadItemSpec::new(url.clone(), dest, &f.path)
@@ -128,21 +129,39 @@ async fn extract_overrides(
         let entry = archive.by_index(i)?;
         let entry_name = entry.name().to_string();
         let is_dir = entry.is_dir();
+
+        // Reject paths that escape the archive root (e.g. `../` or absolute paths).
+        let Some(enclosed) = entry.enclosed_name().and_then(|p| {
+            if p.is_absolute() {
+                None
+            } else {
+                Some(p.to_path_buf())
+            }
+        }) else {
+            tracing::warn!("Mrpack override with unsafe path ignored: {}", entry_name);
+            drop(entry);
+            continue;
+        };
         drop(entry);
 
         if is_dir {
             continue;
         }
 
-        let relative_path = if let Some(stripped) = entry_name.strip_prefix("overrides/") {
-            stripped.to_string()
-        } else if let Some(stripped) = entry_name.strip_prefix("client-overrides/") {
-            stripped.to_string()
+        let relative_path = if let Ok(stripped) = enclosed.strip_prefix("overrides/") {
+            stripped
+        } else if let Ok(stripped) = enclosed.strip_prefix("client-overrides/") {
+            stripped
         } else {
             continue;
         };
 
-        let dest = instance_dir.join(&relative_path);
+        if relative_path.as_os_str().is_empty() {
+            continue;
+        }
+
+        let dest = safe_join(instance_dir, relative_path.to_string_lossy().as_ref())
+            .map_err(MrpackError::Invalid)?;
 
         if let Some(parent) = dest.parent() {
             tokio::fs::create_dir_all(parent).await?;

@@ -1,7 +1,7 @@
 use super::launch::sanitize_sub_path;
 use super::launch::validate_uuid;
 use crate::core::errors::{FsError, InstanceError};
-use crate::core::{AppEvent, PathManager, emit};
+use crate::core::{AppEvent, PathManager, emit, validate_filename};
 use crate::services::InstOverrides;
 use crate::services::InstanceManager;
 use serde::Serialize;
@@ -218,6 +218,7 @@ pub async fn delete_instance_file(
 
     let instance_dir = handle.get_instance_dir().await;
     let sub_path = sanitize_sub_path(&instance_dir, Path::new(&sub_dir))?;
+    validate_filename(&filename)?;
     let file_path = sub_path.join(&filename);
     info!("Eliminando archivo {:?} de instancia {}", file_path, id);
     if file_path.exists() {

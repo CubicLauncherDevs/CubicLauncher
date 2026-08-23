@@ -2,7 +2,7 @@ use super::launch::validate_uuid;
 use crate::core::InstanceError;
 use crate::services::InstanceManager;
 use crate::services::instance_export::{export_to_zip, prepare_export};
-use std::path::PathBuf;
+use std::path::{Component, PathBuf};
 use tracing::{error, info};
 
 #[tauri::command]
@@ -25,6 +25,21 @@ pub async fn export_instance_zip(id: String, dest: String) -> Result<String, Str
         .await
         .map_err(|e| format!("Error preparando exportación: {e}"))?;
     let dest_path = PathBuf::from(dest);
+
+    if dest_path.file_name().is_none() {
+        return Err("Ruta de destino inválida".into());
+    }
+    if dest_path.extension().map(|e| e != "zip").unwrap_or(true) {
+        return Err("La exportación debe ser un archivo .zip".into());
+    }
+
+    // Reject destinations containing parent directory references to avoid overwriting
+    // files outside the intended export location.
+    for component in dest_path.components() {
+        if matches!(component, Component::ParentDir) {
+            return Err("Ruta de destino inválida: contiene '..'".into());
+        }
+    }
 
     let output = tokio::task::spawn_blocking(move || export_to_zip(&input, &dest_path))
         .await

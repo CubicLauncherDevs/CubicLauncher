@@ -1,5 +1,6 @@
 use crate::core::errors::InstanceError;
 use crate::core::event_bus;
+use crate::core::validate_filename;
 use crate::services::{
     AddonManager, AddonMetaNoIcon, InstanceManager, ModSource, PackCacheEntry, PackFullCacheEntry,
     compute_file_sha1, file_fingerprint, read_all_full_pack_cache,
@@ -444,6 +445,8 @@ pub async fn toggle_instance_mod(id: String, filename: String, enable: bool) -> 
         error!("Intento de toggle mod en instancia ocupada {}", id);
         return Err(InstanceError::Busy.to_string());
     }
+
+    validate_filename(&filename)?;
 
     let mods_dir = handle.get_instance_dir().await.join("mods");
     let file_path = mods_dir.join(&filename);

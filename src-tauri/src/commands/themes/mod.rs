@@ -1,7 +1,9 @@
 use crate::commands::themes::v1::{ThemeEntry, ThemeFile, ThemePreview};
 use crate::commands::themes::v2::{ThemeDef, ThemeMeta, V2Theme, flatten_variables};
 use crate::core::errors::{CoreError, FsError};
-use crate::core::{AppEvent, PathManager, emit};
+use crate::core::{
+    AppEvent, PathManager, emit, safe_join, sanitize_path, validate_identifier,
+};
 use crate::services::SettingsManager;
 use crate::theme_watcher::ThemeWatcher;
 use compact_str::CompactString;
@@ -9,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::exists;
 use std::io::Read;
+use std::path::{Component, Path, PathBuf};
 use tauri::command;
 use tracing::{error, info, warn};
 mod v1;
@@ -54,6 +57,31 @@ pub(crate) trait ZipImportable: Sized {
     fn import_name(&self) -> &str;
     fn import_author(&self) -> &str;
     fn import_version(&self) -> &str;
+}
+
+fn build_theme_id(name: &str, author: &str) -> Result<String, String> {
+    let normalized_name = name.to_lowercase().replace(' ', "_");
+    let theme_id = if author.is_empty() {
+        normalized_name
+    } else {
+        let normalized_author = author.to_lowercase().replace(' ', "_");
+        format!("{}_{}", normalized_name, normalized_author)
+    };
+    validate_identifier(&theme_id)?;
+    Ok(theme_id)
+}
+
+/// Resolves a theme asset reference relative to the theme base directory.
+/// Absolute paths and `file:` URLs are returned as-is; relative paths are
+/// validated to avoid directory traversal.
+fn resolve_theme_asset(theme_base: &Path, reference: &str) -> Result<Option<PathBuf>, String> {
+    if reference.starts_with('/') || reference.starts_with("file:") {
+        return Ok(Some(PathBuf::from(reference)));
+    }
+    if reference.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(sanitize_path(theme_base, Path::new(reference))?))
 }
 
 fn extract_preview(vars: &HashMap<String, String>) -> ThemePreview {
@@ -221,15 +249,7 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
         (n.to_owned(), a.to_owned(), v.to_owned())
     };
 
-    let theme_id = if author_str.is_empty() {
-        name_str.to_lowercase().replace(' ', "_")
-    } else {
-        format!(
-            "{}_{}",
-            name_str.to_lowercase().replace(' ', "_"),
-            author_str.to_lowercase().replace(' ', "_")
-        )
-    };
+    let theme_id = build_theme_id(&name_str, &author_str)?;
 
     let theme_dir = PathManager::get().get_themes_dir().join(&theme_id);
 
@@ -257,24 +277,40 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
     } else {
         entry_name.strip_suffix(target).unwrap_or("").to_string()
     };
+    let prefix_path = Path::new(&prefix);
+    if !prefix.is_empty() {
+        for component in prefix_path.components() {
+            if !matches!(component, Component::Normal(_) | Component::CurDir) {
+                return Err(
+                    CoreError::Other(format!("Prefijo ZIP inválido: '{}'", prefix)).to_string(),
+                );
+            }
+        }
+    }
 
     for i in 0..archive.len() {
         let mut entry = archive
             .by_index(i)
             .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
 
-        let entry_name = entry.name().to_string();
-
-        let relative = match entry_name.strip_prefix(&prefix) {
-            Some(r) => r.to_string(),
-            None => continue,
+        // `enclosed_name()` rejects paths that escape the current directory, including
+        // entries with `..` or absolute paths.
+        let Some(enclosed) = entry.enclosed_name() else {
+            warn!("Entrada ZIP con ruta insegura ignorada: {}", entry.name());
+            continue;
         };
 
-        if relative.is_empty() || relative.ends_with('/') {
+        let relative = match enclosed.strip_prefix(prefix_path) {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+
+        if relative.as_os_str().is_empty() || entry.is_dir() {
             continue;
         }
 
-        let out_path = theme_dir.join(&relative);
+        // Double-check the resolved path stays under the theme directory.
+        let out_path = sanitize_path(&theme_dir, relative)?;
 
         if let Some(parent) = out_path.parent()
             && let Err(e) = std::fs::create_dir_all(parent)
@@ -406,6 +442,7 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
 #[command]
 pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
     info!("Leyendo theme '{}'", id);
+    validate_identifier(&id)?;
     let theme_base = PathManager::get().get_themes_dir().join(&id);
     let meta_path = theme_base.join("Meta.toml");
     let exists_meta_toml = match exists(&meta_path) {
@@ -432,12 +469,11 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
             toml::from_slice(&definition_bytes).map_err(|e| CoreError::Serialize(e.to_string()))?;
 
         //verificar si existe la referencia al backgroudn
-        if let Some(ref bg) = definitions.background.reference_path
-            && !bg.starts_with('/')
-            && !bg.starts_with(':')
-        {
-            let abs_path = theme_base.join(bg);
-            definitions.background.reference_path = Some(abs_path.to_string_lossy().to_string());
+        if let Some(ref bg) = definitions.background.reference_path {
+            if let Some(resolved) = resolve_theme_asset(&theme_base, bg.as_ref())? {
+                definitions.background.reference_path =
+                    Some(resolved.to_string_lossy().to_string());
+            }
         }
 
         // validar imagen de fondo
@@ -459,12 +495,10 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
         }
 
         // Resolver y validar iconos del theme
-        if let Some(ref preview) = definitions.icons.preview
-            && !preview.starts_with('/')
-            && !preview.starts_with("file:")
-        {
-            definitions.icons.preview =
-                Some(theme_base.join(preview).to_string_lossy().to_string());
+        if let Some(ref preview) = definitions.icons.preview {
+            if let Some(resolved) = resolve_theme_asset(&theme_base, preview.as_ref())? {
+                definitions.icons.preview = Some(resolved.to_string_lossy().to_string());
+            }
         }
         if let Some(ref preview) = definitions.icons.preview
             && !validate_theme_icon(preview)
@@ -475,8 +509,8 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
 
         for items in definitions.icons.groups.values_mut() {
             for path in items.values_mut() {
-                if !path.starts_with('/') && !path.starts_with("file:") {
-                    *path = theme_base.join(&path).to_string_lossy().to_string();
+                if let Some(resolved) = resolve_theme_asset(&theme_base, path.as_ref())? {
+                    *path = resolved.to_string_lossy().to_string();
                 }
             }
         }
@@ -495,9 +529,8 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
         });
 
         for font in &mut definitions.fonts {
-            if !font.src.starts_with('/') && !font.src.starts_with("file:") {
-                let abs_path = theme_base.join(&font.src);
-                font.src = abs_path.to_string_lossy().to_string().into();
+            if let Some(resolved) = resolve_theme_asset(&theme_base, font.src.as_ref())? {
+                font.src = resolved.to_string_lossy().to_string().into();
             }
         }
 
@@ -539,12 +572,10 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
             .map_err(|e| CoreError::Other(format!("Theme '{}' inválido: {}", id, e)).to_string())?;
 
         // Resolver bg_image relativa al directorio del theme si no es absoluta
-        if let Some(ref bg) = theme.bg_image
-            && !bg.starts_with('/')
-            && !bg.starts_with("file:")
-        {
-            let abs_path = theme_base.join(bg);
-            theme.bg_image = Some(abs_path.to_string_lossy().to_string());
+        if let Some(ref bg) = theme.bg_image {
+            if let Some(resolved) = resolve_theme_asset(&theme_base, bg.as_ref())? {
+                theme.bg_image = Some(resolved.to_string_lossy().to_string());
+            }
         }
 
         // Validar imagen de fondo
@@ -569,9 +600,8 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
 
         // Resolver rutas de fuentes relativas al directorio del theme
         for font in &mut theme.fonts {
-            if !font.src.starts_with('/') && !font.src.starts_with("file:") {
-                let abs_path = theme_base.join(&font.src);
-                font.src = abs_path.to_string_lossy().to_string().into();
+            if let Some(resolved) = resolve_theme_asset(&theme_base, font.src.as_ref())? {
+                font.src = resolved.to_string_lossy().to_string().into();
             }
         }
         Ok(theme.to_theme_res())
@@ -638,15 +668,7 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
         CoreError::Other(format!("El archivo no es un theme válido: {}", e)).to_string()
     })?;
 
-    let theme_id = if theme_file.author.is_empty() {
-        theme_file.name.to_lowercase().replace(' ', "_")
-    } else {
-        format!(
-            "{}_{}",
-            theme_file.name.to_lowercase().replace(' ', "_"),
-            theme_file.author.to_lowercase().replace(' ', "_")
-        )
-    };
+    let theme_id = build_theme_id(&theme_file.name, &theme_file.author)?;
     let theme_dir = PathManager::get().get_themes_dir().join(&theme_id);
 
     if theme_dir.exists() {
@@ -680,14 +702,12 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
         && !bg.starts_with('/')
         && !bg.starts_with("file:")
     {
-        let bg_source = source.parent().map(|p| p.join(bg));
-        if let Some(bg_src) = bg_source
-            && bg_src.exists()
-        {
-            let bg_dest = theme_dir.join(bg);
-            info!("Copiando bg_image a {:?}", bg_dest);
-            if let Err(e) = std::fs::copy(&bg_src, &bg_dest) {
-                warn!("Error copiando bg_image a {:?}: {}", bg_dest, e);
+        if let Some(resolved_src) = source.parent().and_then(|p| safe_join(p, bg.as_ref()).ok()) {
+            if let Some(resolved_dest) = resolve_theme_asset(&theme_dir, bg.as_ref())? {
+                info!("Copiando bg_image a {:?}", resolved_dest);
+                if let Err(e) = std::fs::copy(&resolved_src, &resolved_dest) {
+                    warn!("Error copiando bg_image a {:?}: {}", resolved_dest, e);
+                }
             }
         }
     }
@@ -732,6 +752,7 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
 #[command]
 pub fn remove_theme(id: String) -> Result<(), String> {
     info!("Eliminando theme '{}'", id);
+    validate_identifier(&id)?;
     let theme_dir = PathManager::get().get_themes_dir().join(&id);
     if !theme_dir.exists() {
         return Err(FsError::NotFound(theme_dir.to_string_lossy().to_string()).to_string());
@@ -747,12 +768,28 @@ pub fn remove_theme(id: String) -> Result<(), String> {
 #[command]
 pub fn export_theme(id: String, dest: String) -> Result<String, String> {
     info!("Exportando theme '{}' a '{}'", id, dest);
+    validate_identifier(&id)?;
+
+    let output = std::path::PathBuf::from(&dest);
+    if output.file_name().is_none() {
+        return Err(FsError::InvalidPath(dest.clone()).to_string());
+    }
+    if output.extension().map(|e| e != "zip").unwrap_or(true) {
+        return Err(CoreError::Other("La exportación debe ser un archivo .zip".into()).to_string());
+    }
+
+    // Reject destinations that traverse out of the intended location to avoid
+    // silently overwriting arbitrary files.
+    for component in output.components() {
+        if matches!(component, Component::ParentDir) {
+            return Err(FsError::InvalidPath(dest.clone()).to_string());
+        }
+    }
+
     let theme_dir = PathManager::get().get_themes_dir().join(&id);
     if !theme_dir.exists() {
         return Err(FsError::NotFound(theme_dir.to_string_lossy().to_string()).to_string());
     }
-
-    let output = std::path::PathBuf::from(&dest);
 
     let file = std::fs::File::create(&output).map_err(|e| FsError::WriteFile {
         path: output.to_string_lossy().to_string(),

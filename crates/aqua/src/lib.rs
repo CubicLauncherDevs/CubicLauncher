@@ -2,6 +2,7 @@ mod downloaders;
 pub(crate) mod errors;
 pub(crate) mod jre;
 pub(crate) mod manifest;
+pub mod path_security;
 pub mod progress;
 pub(crate) mod types;
 pub(crate) mod utilities;

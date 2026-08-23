@@ -6,6 +6,7 @@ use futures::{StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
+use crate::core::{safe_join, validate_filename};
 use crate::services::curseforge_api::{
     CurseForgeClient, CurseForgeFile, MODPACKS_CLASS_ID, MODS_CLASS_ID, RESOURCE_PACKS_CLASS_ID,
     SHADERS_CLASS_ID, curseforge_cdn_url,
@@ -253,6 +254,13 @@ pub async fn install_curseforge_modpack(
                     ))
                 })?;
 
+                validate_filename(&file.file_name).map_err(|e| {
+                    CurseForgeModpackError::Invalid(format!(
+                        "Invalid file_name in modpack: {}",
+                        e
+                    ))
+                })?;
+
                 let sub_dir = sub_dir_for_class(
                     class_by_mod_id
                         .get(&project_id)
@@ -353,27 +361,47 @@ async fn extract_overrides(
     instance_dir: &Path,
     overrides_name: &str,
 ) -> Result<(), CurseForgeModpackError> {
+    if overrides_name.contains("..") || overrides_name.contains('/') || overrides_name.contains('\\')
+    {
+        return Err(CurseForgeModpackError::Invalid(format!(
+            "Invalid overrides name: {}",
+            overrides_name
+        )));
+    }
+
     let prefix = format!("{}/", overrides_name.trim_end_matches('/'));
+    let prefix_path = Path::new(&prefix);
 
     for i in 0..archive.len() {
         let entry = archive.by_index(i)?;
         let entry_name = entry.name().to_string();
         let is_dir = entry.is_dir();
+
+        // `enclosed_name()` rejects paths with `..` or absolute paths.
+        let Some(enclosed) = entry.enclosed_name() else {
+            tracing::warn!("CurseForge override with unsafe path ignored: {}", entry_name);
+            drop(entry);
+            continue;
+        };
         drop(entry);
 
         if is_dir {
             continue;
         }
 
-        let relative_path = if let Some(stripped) = entry_name.strip_prefix(&prefix) {
-            stripped.to_string()
-        } else {
-            continue;
+        let relative_path = match enclosed.strip_prefix(prefix_path) {
+            Ok(r) => r,
+            Err(_) => continue,
         };
+
+        if relative_path.as_os_str().is_empty() {
+            continue;
+        }
 
         // Avoid overwriting files downloaded from CurseForge if the pack
         // duplicated any file in overrides.
-        let dest = instance_dir.join(&relative_path);
+        let dest = safe_join(instance_dir, relative_path.to_string_lossy().as_ref())
+            .map_err(CurseForgeModpackError::Invalid)?;
 
         if let Some(parent) = dest.parent() {
             tokio::fs::create_dir_all(parent).await?;
