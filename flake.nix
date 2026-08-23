@@ -8,7 +8,11 @@
   outputs =
     { self, nixpkgs }:
     let
-      supportedSystems = [ "x86_64-linux" ];
+      supportedSystems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+      ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
       pkgsFor = system: import nixpkgs { inherit system; };
     in
@@ -28,6 +32,14 @@
             cargo-tauri
             clippy
             desktop-file-utils
+            nixpkgs-fmt
+            nodejs
+            openssl
+            pkg-config
+            rustc
+            rustfmt
+          ]
+          ++ lib.optionals stdenv.isLinux [
             glib-networking
             gst_all_1.gst-libav
             gst_all_1.gst-plugins-bad
@@ -36,13 +48,10 @@
             gst_all_1.gstreamer
             gtk3
             libsoup_3
-            nixpkgs-fmt
-            nodejs
-            openssl
-            pkg-config
-            rustc
-            rustfmt
             webkitgtk_4_1
+          ]
+          ++ lib.optionals stdenv.isDarwin [
+            apple-sdk
           ];
 
           shellHook = ''

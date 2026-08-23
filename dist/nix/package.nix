@@ -1,8 +1,10 @@
 { lib
 , stdenv
 , rustPlatform
+, apple-sdk ? null
 , bun
 , cargo-tauri
+, darwin ? null
 , desktop-file-utils
 , glib-networking
 , gtk3
@@ -53,7 +55,9 @@ rustPlatform.buildRustPackage (finalAttrs: {
     outputHashAlgo = "sha256";
     outputHash =
       {
-        x86_64-linux = "sha256-jg3N+04W6Ry8mXxJyWzL9NY2ug5qiU52A7Rqr3GWnxs=";
+        x86_64-linux = "sha256-vDlD6oXQsoTDz4wY74HRpIlxLMQOYAKejveKGrz7Guk=";
+        aarch64-linux = "sha256-U3vIRaHjKZgJyg7A9GfbeMDxM1P6vlYRYw5/XUhQUZ8=";
+        aarch64-darwin = "sha256-Tkp+mIt2lCUg4Q5RF49UDfl9zBNIAyKduoxsLARc2b4=";
       }.${stdenv.hostPlatform.system} or (throw "Unsupported system ${stdenv.hostPlatform.system}");
   };
 
@@ -72,23 +76,31 @@ rustPlatform.buildRustPackage (finalAttrs: {
   nativeBuildInputs = [
     bun
     cargo-tauri.hook
-    desktop-file-utils
     nodejs
     pkg-config
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [
+    desktop-file-utils
     wrapGAppsHook4
   ];
 
   buildInputs = [
+    openssl
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [
     glib-networking
     gtk3
     libsoup_3
-    openssl
     webkitgtk_4_1
-  ];
+  ]
+  ++ lib.optionals (stdenv.hostPlatform.isDarwin && apple-sdk != null) [ apple-sdk ]
+  ++ lib.optionals (stdenv.hostPlatform.isDarwin && apple-sdk == null && darwin != null) (
+    with darwin.apple_sdk.frameworks; [ WebKit Cocoa CoreFoundation Security ]
+  );
 
   doCheck = false;
 
-  postInstall = ''
+  postInstall = lib.optionalString stdenv.hostPlatform.isLinux ''
     if [ -f "$out/share/applications/cubiclauncher.desktop" ]; then
       ${lib.getExe' desktop-file-utils "desktop-file-edit"} \
         --set-key Exec --set-value "$out/bin/cubiclauncher" \
@@ -102,6 +114,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
     license = lib.licenses.gpl3Only;
     maintainers = [ ];
     mainProgram = "cubiclauncher";
-    platforms = lib.platforms.linux;
+    platforms = lib.platforms.linux ++ lib.platforms.darwin;
   };
 })

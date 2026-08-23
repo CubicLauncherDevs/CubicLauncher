@@ -10,3 +10,4 @@ build/
 result
 result-*
 target/
+flake.lock

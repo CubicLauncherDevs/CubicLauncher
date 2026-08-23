@@ -12,7 +12,7 @@ Esta carpeta contiene el empaquetado de CubicLauncher para Nix y NixOS.
 ## Requisitos
 
 - Nix con `flakes` y `nix-command` habilitados.
-- Sistema soportado actualmente: `x86_64-linux`.
+- Sistemas soportados: `x86_64-linux`, `aarch64-linux` y `aarch64-darwin`.
 
 ## Comandos útiles
 
@@ -51,12 +51,16 @@ ls -la result/bin
 
 ## Soportar otras arquitecturas
 
-Para agregar `aarch64-linux` (u otra plataforma Linux) hay que:
+Para agregar una nueva plataforma hay que:
 
 1. Añadir el sistema a `supportedSystems` en `flake.nix`.
 2. Ejecutar el build en esa arquitectura para obtener el hash de
    `nodeModules` (porque `bun install` descarga binarios nativos opcionales).
 3. Agregar el hash por sistema en `dist/nix/package.nix`.
+
+> **Nota sobre `x86_64-darwin`:** la rama `nixos-unstable` actual ha dejado de
+> dar soporte a Intel Mac. Para ese sistema hace falta apuntar el input
+> `nixpkgs` a una rama que todavía lo soporte (por ejemplo `nixpkgs-26.05-darwin`).
 
 ## Notas
 
