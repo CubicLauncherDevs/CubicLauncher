@@ -38,11 +38,78 @@ cd ..
 
 ### Commits
 
+#### Formato
+
+```
+<tipo>(<alcance opcional>): <descripción breve>
+
+[cuerpo opcional con explicación del cambio]
+
+[breaking change / referencia a issue si aplica]
+```
+
+El `alcance` es opcional y suele ser el componente, módulo o archivo afectado
+(por ejemplo `sidebar`, `InstanceItem`, `src-tauri`).
+
+#### Tipos
+
+Usá uno de los siguientes tipos, alineados con las labels de PR del proyecto:
+
+| Tipo | Uso |
+|------|-----|
+| `feat` | Nueva funcionalidad visible para el usuario. |
+| `fix` | Corrección de un bug. |
+| `refactor` | Cambio interno sin alterar comportamiento observable. |
+| `perf` | Mejora de rendimiento. |
+| `style` | Cambios de formato, espacios, punto y coma, CSS puramente visual. |
+| `docs` | Cambios en documentación (`README`, `CONTRIBUTING`, comentarios). |
+| `test` | Nuevos o modificados tests. |
+| `chore` | Tareas de mantenimiento, dependencias, CI, scripts. |
+| `i18n` | Nuevas traducciones o claves de idioma. |
+| `core` | Cambios en el backend Rust (commands, servicios, crates). |
+
+#### Reglas generales
+
 - Los mensajes de commit van en **español**, en infinitivo o imperativo.
-- Ejemplos válidos:
-    - `Arreglar warns de vite`
-    - `Agregar drawer de descarga de versiones`
-    - `Refactorizar manejo de errores en VersionSelectorStep`
+- La primera línea no debe superar los **72 caracteres**.
+- Describí el **qué** se cambia, no el **cómo**. El cómo va en el cuerpo si es
+  necesario.
+- Hacé un commit por cambio lógico. Evitar mensajes genéricos tipo
+  `Varios arreglos` o `WIP`.
+- Si el cambio rompe compatibilidad, marcá el breaking change con `!` después del
+  tipo/alcance o escribí `BREAKING CHANGE:` en el cuerpo.
+
+#### Ejemplos
+
+```
+feat(sidebar): agregar indicador lateral para instancias ancladas
+```
+
+```
+fix(launcher): corregir crash al eliminar instancia en ejecución
+```
+
+```
+refactor(InstanceItem): simplificar renderizado de badges
+```
+
+```
+docs(CONTRIBUTING): agregar normativa de commits
+```
+
+```
+chore(deps): actualizar svelte-check a 4.7.3
+```
+
+```
+i18n(es-ES): agregar claves de estado de instancia
+```
+
+```
+core(src-tauri): cambiar serialización de errores para i18n
+
+BREAKING CHANGE: los errores ahora usan el campo `code` en snake_case.
+```
 
 ### Frontend (Svelte 5 + TypeScript)
 
@@ -131,5 +198,5 @@ de la ejecución, sin crear un release público.
 4. Actualizá este archivo si cambian las reglas del proyecto.
 5. Abrí un PR y asegurate de que pasen los checks de CI (`lint`, `check`, tests
    de Rust, build del frontend, etc.).
-6. Una vez mergeado a `main` o `develop`, el equipo decide cuándo publicar un
+6. Una vez mergeado a `develop`, el equipo decide cuándo publicar un
    nuevo tag y ejecutar el release correspondiente.
