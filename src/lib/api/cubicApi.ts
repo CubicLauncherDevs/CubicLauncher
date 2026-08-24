@@ -953,14 +953,6 @@ export async function uploadSkinFile(
 	});
 }
 
-export async function uploadSkinUrl(
-	uuid: string,
-	skinUrl: string,
-	variant: "CLASSIC" | "SLIM",
-): Promise<void> {
-	return invokeThrowingSilent("upload_skin_url", { uuid, skinUrl, variant });
-}
-
 export async function equipCape(uuid: string, capeId: string): Promise<void> {
 	return invokeThrowingSilent("equip_cape", { uuid, capeId });
 }

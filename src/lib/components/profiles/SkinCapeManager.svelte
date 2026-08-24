@@ -6,7 +6,6 @@
 		getMinecraftProfile,
 		getSkinPreviewData,
 		uploadSkinFile,
-		uploadSkinUrl,
 		equipCape,
 		unequipCape,
 	} from "$lib/api/cubicApi";
@@ -31,18 +30,14 @@
 	let profile = $state<MinecraftProfileResponse | null>(null);
 	let loading = $state(false);
 	let skinModel = $state<"classic" | "slim">("classic");
-	let skinUrlInput = $state("");
 	let processing = $state(false);
-	let showUrl = $state(false);
 	let draggingPng = $state(false);
 	let dropTargetActive = $state(false);
 
 	interface PendingSkin {
-		source: "file" | "url";
-		filePath?: string;
-		url?: string;
+		filePath: string;
 		variant: "CLASSIC" | "SLIM";
-		previewUrl?: string;
+		previewUrl: string;
 	}
 
 	type PendingCape = { type: "equip"; capeId: string } | { type: "unequip" };
@@ -70,8 +65,6 @@
 	function discardChanges() {
 		pendingSkin = null;
 		pendingCape = null;
-		skinUrlInput = "";
-		showUrl = false;
 	}
 
 	async function handleFileUpload(filePath?: string) {
@@ -89,7 +82,7 @@
 			if (!dialogResult || Array.isArray(dialogResult)) return;
 			selected = dialogResult;
 		}
-		let previewUrl: string | undefined;
+		let previewUrl: string;
 		try {
 			previewUrl = await getSkinPreviewData(selected);
 		} catch (e) {
@@ -97,22 +90,10 @@
 			return;
 		}
 		pendingSkin = {
-			source: "file",
 			filePath: selected,
 			variant: skinModel === "slim" ? "SLIM" : "CLASSIC",
 			previewUrl,
 		};
-	}
-
-	async function handleUrlUpload() {
-		const url = skinUrlInput.trim();
-		if (!url) return;
-		pendingSkin = {
-			source: "url",
-			url,
-			variant: skinModel === "slim" ? "SLIM" : "CLASSIC",
-		};
-		skinUrlInput = "";
 	}
 
 	async function handleDroppedSkinFile(paths: string[]) {
@@ -148,19 +129,11 @@
 		processing = true;
 		try {
 			if (pendingSkin) {
-				if (pendingSkin.source === "file" && pendingSkin.filePath) {
-					await uploadSkinFile(
-						uuid,
-						pendingSkin.filePath,
-						pendingSkin.variant === "SLIM" ? "slim" : "classic",
-					);
-				} else if (pendingSkin.url) {
-					await uploadSkinUrl(
-						uuid,
-						pendingSkin.url,
-						pendingSkin.variant,
-					);
-				}
+				await uploadSkinFile(
+					uuid,
+					pendingSkin.filePath,
+					pendingSkin.variant === "SLIM" ? "slim" : "classic",
+				);
 			}
 			if (pendingCape) {
 				if (pendingCape.type === "equip") {
@@ -207,7 +180,7 @@
 	);
 
 	const previewSkinUrl = $derived(
-		pendingSkin?.previewUrl ?? pendingSkin?.url ?? activeSkin?.url ?? "",
+		pendingSkin?.previewUrl ?? activeSkin?.url ?? "",
 	);
 	const previewModel = $derived(
 		pendingSkin?.variant === "SLIM" ? "slim" : viewerModel,
@@ -333,13 +306,9 @@
 					<div class="controls-panel">
 						<SkinUploadControls
 							{skinModel}
-							{showUrl}
-							bind:skinUrlInput
 							{processing}
 							onModelChange={handleModelChange}
 							onFileSelect={() => handleFileUpload()}
-							onUrlToggle={() => (showUrl = !showUrl)}
-							onUrlSubmit={handleUrlUpload}
 						/>
 					</div>
 				</div>

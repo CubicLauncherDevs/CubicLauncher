@@ -179,8 +179,6 @@
 			"uploadSkin": "Upload skin (.png)",
 			"dropSkinHere": "Drop skin here",
 			"invalidSkinFile": "Only .png files are allowed",
-			"skinUrlPlaceholder": "Image URL (.png)",
-			"useUrl": "Use URL",
 			"classic": "Classic",
 			"slim": "Slim",
 			"capes": "Capes",
