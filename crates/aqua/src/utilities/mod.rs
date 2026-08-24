@@ -271,8 +271,8 @@ pub fn extract_zip_to_dir(zip_path: &Path, dest_dir: &Path) -> Result<(), AquaEr
             continue;
         }
 
-		let out_path = safe_join(dest_dir, enclosed.to_string_lossy().as_ref())
-			.map_err(AquaError::ForgeExtract)?;
+        let out_path = safe_join(dest_dir, enclosed.to_string_lossy().as_ref())
+            .map_err(AquaError::ForgeExtract)?;
         if let Some(parent) = out_path.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| AquaError::ForgeExtract(format!("Cannot create dir: {e}")))?;

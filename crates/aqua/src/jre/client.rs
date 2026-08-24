@@ -227,8 +227,8 @@ async fn extract_zip(archive: &Path, dest: &Path, _filename: &str) -> Result<(),
                 continue;
             }
 
-			let out_path = safe_join(&dest, enclosed.to_string_lossy().as_ref())
-				.map_err(AquaError::Other)?;
+            let out_path =
+                safe_join(&dest, enclosed.to_string_lossy().as_ref()).map_err(AquaError::Other)?;
             if let Some(parent) = out_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
