@@ -467,11 +467,10 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
             toml::from_slice(&definition_bytes).map_err(|e| CoreError::Serialize(e.to_string()))?;
 
         //verificar si existe la referencia al backgroudn
-        if let Some(ref bg) = definitions.background.reference_path {
-            if let Some(resolved) = resolve_theme_asset(&theme_base, bg.as_ref())? {
-                definitions.background.reference_path =
-                    Some(resolved.to_string_lossy().to_string());
-            }
+        if let Some(ref bg) = definitions.background.reference_path
+            && let Some(resolved) = resolve_theme_asset(&theme_base, bg.as_ref())?
+        {
+            definitions.background.reference_path = Some(resolved.to_string_lossy().to_string());
         }
 
         // validar imagen de fondo
@@ -493,10 +492,10 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
         }
 
         // Resolver y validar iconos del theme
-        if let Some(ref preview) = definitions.icons.preview {
-            if let Some(resolved) = resolve_theme_asset(&theme_base, preview.as_ref())? {
-                definitions.icons.preview = Some(resolved.to_string_lossy().to_string());
-            }
+        if let Some(ref preview) = definitions.icons.preview
+            && let Some(resolved) = resolve_theme_asset(&theme_base, preview.as_ref())?
+        {
+            definitions.icons.preview = Some(resolved.to_string_lossy().to_string());
         }
         if let Some(ref preview) = definitions.icons.preview
             && !validate_theme_icon(preview)
@@ -570,10 +569,10 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
             .map_err(|e| CoreError::Other(format!("Theme '{}' inválido: {}", id, e)).to_string())?;
 
         // Resolver bg_image relativa al directorio del theme si no es absoluta
-        if let Some(ref bg) = theme.bg_image {
-            if let Some(resolved) = resolve_theme_asset(&theme_base, bg.as_ref())? {
-                theme.bg_image = Some(resolved.to_string_lossy().to_string());
-            }
+        if let Some(ref bg) = theme.bg_image
+            && let Some(resolved) = resolve_theme_asset(&theme_base, bg.as_ref())?
+        {
+            theme.bg_image = Some(resolved.to_string_lossy().to_string());
         }
 
         // Validar imagen de fondo
@@ -699,14 +698,12 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
     if let Some(ref bg) = theme_file.bg_image
         && !bg.starts_with('/')
         && !bg.starts_with("file:")
+        && let Some(resolved_src) = source.parent().and_then(|p| safe_join(p, bg.as_ref()).ok())
+        && let Some(resolved_dest) = resolve_theme_asset(&theme_dir, bg.as_ref())?
     {
-        if let Some(resolved_src) = source.parent().and_then(|p| safe_join(p, bg.as_ref()).ok()) {
-            if let Some(resolved_dest) = resolve_theme_asset(&theme_dir, bg.as_ref())? {
-                info!("Copiando bg_image a {:?}", resolved_dest);
-                if let Err(e) = std::fs::copy(&resolved_src, &resolved_dest) {
-                    warn!("Error copiando bg_image a {:?}: {}", resolved_dest, e);
-                }
-            }
+        info!("Copiando bg_image a {:?}", resolved_dest);
+        if let Err(e) = std::fs::copy(&resolved_src, &resolved_dest) {
+            warn!("Error copiando bg_image a {:?}: {}", resolved_dest, e);
         }
     }
 
