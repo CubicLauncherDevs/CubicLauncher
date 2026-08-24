@@ -13,7 +13,6 @@
 	import { showError, showSuccess } from "$lib/state/state.svelte";
 	import { bumpAvatarVersion } from "$lib/state/avatarCache.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
-	import PendingChangesBar from "./PendingChangesBar.svelte";
 	import SkinPreview from "./SkinPreview.svelte";
 	import SkinUploadControls from "./SkinUploadControls.svelte";
 	import CapeList from "./CapeList.svelte";
@@ -72,6 +71,7 @@
 		pendingSkin = null;
 		pendingCape = null;
 		skinUrlInput = "";
+		showUrl = false;
 	}
 
 	async function handleFileUpload(filePath?: string) {
@@ -135,6 +135,15 @@
 		pendingCape = { type: "unequip" };
 	}
 
+	function isRateLimitError(err: unknown): boolean {
+		const msg = String(err).toLowerCase();
+		return (
+			msg.includes("429") ||
+			msg.includes("too many requests") ||
+			msg.includes("rate limit")
+		);
+	}
+
 	async function handleSaveChanges() {
 		processing = true;
 		try {
@@ -167,8 +176,15 @@
 			discardChanges();
 			await loadProfile(true);
 			bumpAvatarVersion(uuid);
-		} catch (e) {
-			showError(t("errors.title"), String(e));
+		} catch (err) {
+			if (isRateLimitError(err)) {
+				showError(
+					t("userMenu.skinCape.rateLimitTitle"),
+					t("userMenu.skinCape.rateLimitMessage"),
+				);
+			} else {
+				showError(t("errors.title"), String(err));
+			}
 		} finally {
 			processing = false;
 		}
@@ -278,18 +294,10 @@
 			{#if loading}
 				<span class="spinner"></span>
 			{:else}
-				<Icon src="/images/icons/ui/refresh.svg" size={16} />
+				<Icon src="/images/icons/ui/refresh.svg" size={14} />
 			{/if}
 		</button>
 	</div>
-
-	{#if hasPending}
-		<PendingChangesBar
-			{processing}
-			onSave={handleSaveChanges}
-			onDiscard={discardChanges}
-		/>
-	{/if}
 
 	{#if loading && !profile}
 		<div class="loading-state">
@@ -297,52 +305,96 @@
 			<span>{t("userMenu.skinCape.loading")}</span>
 		</div>
 	{:else if profile}
-		<SkinPreview
-			skinUrl={previewSkinUrl}
-			capeUrl={previewCapeUrl}
-			model={previewModel}
-			variant={pendingSkin?.variant ?? activeSkin?.variant}
-			{draggingPng}
-			{dropTargetActive}
-			onDragEnter={(e) => {
-				e.preventDefault();
-				dropTargetActive = true;
-			}}
-			onDragLeave={(e) => {
-				e.preventDefault();
-				dropTargetActive = false;
-			}}
-			onDragOver={(e) => e.preventDefault()}
-			onDrop={(e) => e.preventDefault()}
-		/>
+		<div class="content-grid">
+			<div class="left-col">
+				<div class="viewer-card">
+					<div class="preview-panel">
+						<SkinPreview
+							skinUrl={previewSkinUrl}
+							capeUrl={previewCapeUrl}
+							model={previewModel}
+							variant={pendingSkin?.variant ??
+								activeSkin?.variant}
+							{draggingPng}
+							{dropTargetActive}
+							onDragEnter={(e) => {
+								e.preventDefault();
+								dropTargetActive = true;
+							}}
+							onDragLeave={(e) => {
+								e.preventDefault();
+								dropTargetActive = false;
+							}}
+							onDragOver={(e) => e.preventDefault()}
+							onDrop={(e) => e.preventDefault()}
+						/>
+					</div>
 
-		<SkinUploadControls
-			{skinModel}
-			{showUrl}
-			bind:skinUrlInput
-			{processing}
-			onModelChange={handleModelChange}
-			onFileSelect={() => handleFileUpload()}
-			onUrlToggle={() => (showUrl = !showUrl)}
-			onUrlSubmit={handleUrlUpload}
-		/>
+					<div class="controls-panel">
+						<SkinUploadControls
+							{skinModel}
+							{showUrl}
+							bind:skinUrlInput
+							{processing}
+							onModelChange={handleModelChange}
+							onFileSelect={() => handleFileUpload()}
+							onUrlToggle={() => (showUrl = !showUrl)}
+							onUrlSubmit={handleUrlUpload}
+						/>
+					</div>
+				</div>
+			</div>
 
-		<CapeList
-			capes={profile.capes}
-			activeCapeId={previewActiveCapeId}
-			showUnequipPending={pendingCape?.type === "unequip"}
-			{processing}
-			onEquip={handleEquipCape}
-			onUnequip={handleUnequipCape}
-		/>
+			<div class="right-col">
+				<div class="capes-panel">
+					<CapeList
+						capes={profile.capes}
+						activeCapeId={previewActiveCapeId}
+						showUnequipPending={pendingCape?.type === "unequip"}
+						{processing}
+						onEquip={handleEquipCape}
+						onUnequip={handleUnequipCape}
+					/>
+				</div>
+			</div>
+		</div>
 	{/if}
 </div>
+
+{#if hasPending}
+	<div class="save-bar">
+		<span class="pending-info">
+			{t("userMenu.skinCape.pendingChanges")}
+		</span>
+		<div class="save-actions">
+			<button
+				type="button"
+				class="btn-secondary discard-btn"
+				onclick={discardChanges}
+				disabled={processing}
+			>
+				{t("userMenu.skinCape.discardChanges")}
+			</button>
+			<button
+				type="button"
+				class="btn-primary save-btn"
+				onclick={handleSaveChanges}
+				disabled={processing}
+			>
+				{#if processing}
+					<span class="spinner"></span>
+				{/if}
+				{t("userMenu.skinCape.saveChanges")}
+			</button>
+		</div>
+	</div>
+{/if}
 
 <style>
 	.skin-cape-manager {
 		display: flex;
 		flex-direction: column;
-		gap: 14px;
+		gap: 12px;
 		width: 100%;
 	}
 
@@ -351,11 +403,13 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 10px;
+		padding-bottom: 8px;
+		border-bottom: 1px solid var(--border);
 	}
 
 	.section-title {
 		margin: 0;
-		font-size: 0.85rem;
+		font-size: 0.75rem;
 		font-weight: 700;
 		color: var(--text-primary);
 		text-transform: uppercase;
@@ -367,13 +421,15 @@
 		border: 1px solid var(--border);
 		color: var(--text-secondary);
 		border-radius: var(--border-radius-sm);
-		width: 28px;
-		height: 28px;
+		width: 24px;
+		height: 24px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease;
 	}
 
 	.icon-btn:hover:not(:disabled) {
@@ -392,13 +448,13 @@
 		justify-content: center;
 		gap: 10px;
 		color: var(--text-secondary);
-		font-size: 0.85rem;
+		font-size: 0.8rem;
 		padding: 24px;
 	}
 
 	.spinner {
-		width: 16px;
-		height: 16px;
+		width: 14px;
+		height: 14px;
 		border: 2px solid var(--border);
 		border-top-color: var(--accent);
 		border-radius: 50%;
@@ -409,5 +465,153 @@
 		to {
 			transform: rotate(360deg);
 		}
+	}
+
+	.content-grid {
+		display: grid;
+		grid-template-columns: 1fr 320px;
+		gap: 14px;
+		align-items: start;
+	}
+
+	.left-col,
+	.right-col {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		min-width: 0;
+	}
+
+	.right-col {
+		position: sticky;
+		top: 0;
+		max-height: 100%;
+	}
+
+	.viewer-card {
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius);
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.preview-panel :global(.preview-zone) {
+		border: none;
+		border-radius: 0;
+		box-shadow: inset 0 -1px 0 0 var(--border);
+	}
+
+	.preview-panel :global(.preview-zone.drop-ready) {
+		box-shadow:
+			inset 0 -1px 0 0 var(--border),
+			inset 0 0 0 2px var(--accent);
+	}
+
+	.controls-panel {
+		padding: 12px;
+		border-top: 1px solid var(--border);
+	}
+
+	.capes-panel {
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius);
+		overflow: hidden;
+		overflow-y: auto;
+	}
+
+	@media (max-width: 720px) {
+		.content-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.right-col {
+			position: static;
+			max-height: none;
+		}
+	}
+
+	.save-bar {
+		position: sticky;
+		bottom: 12px;
+		width: fit-content;
+		min-width: 360px;
+		margin: 16px auto 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		padding: 6px 8px 6px 14px;
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+	}
+
+	.pending-info {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+		white-space: nowrap;
+	}
+
+	.save-actions {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.save-btn,
+	.discard-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 0.7rem;
+		padding: 4px 10px;
+		border-radius: var(--border-radius-sm);
+		font-weight: 600;
+		cursor: pointer;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease,
+			opacity 0.15s ease;
+	}
+
+	.save-btn {
+		background: var(--accent);
+		color: var(--accent-text);
+		border: 1px solid var(--accent);
+	}
+
+	.save-btn:hover:not(:disabled) {
+		background: var(--accent-hover);
+	}
+
+	.discard-btn {
+		background: transparent;
+		color: var(--text-secondary);
+		border: 1px solid var(--border);
+	}
+
+	.discard-btn:hover:not(:disabled) {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	.save-btn:disabled,
+	.discard-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.save-actions .spinner {
+		width: 12px;
+		height: 12px;
+		margin: 0;
 	}
 </style>

@@ -76,9 +76,9 @@
 		{/if}
 
 		{#if inactiveCapes.length > 0}
-			<div class="cape-grid">
+			<div class="cape-list">
 				{#each inactiveCapes as cape (cape.id)}
-					<div class="cape-card">
+					<div class="cape-row">
 						{#if cape.url}
 							<div class="cape-thumb">
 								<img src={cape.url} alt={cape.alias} />
@@ -86,11 +86,9 @@
 						{:else}
 							<div class="cape-thumb cape-thumb-fallback"></div>
 						{/if}
-						<div class="cape-info">
-							<span class="cape-name">
-								{cape.alias || t("userMenu.skinCape.cape")}
-							</span>
-						</div>
+						<span class="cape-name">
+							{cape.alias || t("userMenu.skinCape.cape")}
+						</span>
 						<button
 							type="button"
 							class="btn-primary cape-action"
@@ -111,8 +109,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
-		padding-top: 8px;
-		border-top: 1px solid var(--border);
+		padding: 14px;
 	}
 
 	.subsection-title {
@@ -121,16 +118,16 @@
 		font-weight: 700;
 		color: var(--text-secondary);
 		text-transform: uppercase;
-		letter-spacing: 0.5px;
+		letter-spacing: 0.6px;
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 10px;
 	}
 
 	.cape-count {
-		background: var(--surface-selected);
-		color: var(--text-secondary);
-		padding: 1px 6px;
+		background: var(--accent);
+		color: var(--accent-text);
+		padding: 2px 8px;
 		border-radius: 999px;
 		font-size: 0.65rem;
 	}
@@ -144,21 +141,21 @@
 	.active-cape-card {
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		border-left: 3px solid var(--accent);
+		gap: 14px;
+		background: var(--bg-input);
+		border: 1px solid var(--accent);
+		border-left: 4px solid var(--accent);
 		border-radius: var(--border-radius);
 		padding: 12px;
 	}
 
 	.active-cape-img {
-		width: 40px;
-		height: 64px;
+		width: 48px;
+		height: 80px;
 		position: relative;
 		overflow: hidden;
 		border-radius: var(--border-radius-sm);
-		background: var(--bg-input);
+		background: var(--bg-card);
 		border: 1px solid var(--border);
 		flex-shrink: 0;
 	}
@@ -180,14 +177,14 @@
 	.active-cape-meta {
 		display: flex;
 		flex-direction: column;
-		gap: 2px;
+		gap: 4px;
 		min-width: 0;
 		flex: 1;
 	}
 
 	.active-cape-name {
-		font-size: 0.85rem;
-		font-weight: 600;
+		font-size: 0.9rem;
+		font-weight: 700;
 		color: var(--text-primary);
 		white-space: nowrap;
 		overflow: hidden;
@@ -195,54 +192,50 @@
 	}
 
 	.active-cape-status {
-		font-size: 0.62rem;
+		font-size: 0.65rem;
 		font-weight: 700;
 		color: var(--accent);
 		text-transform: uppercase;
-		letter-spacing: 0.3px;
-	}
-
-	.unequip-btn {
-		flex-shrink: 0;
-		font-size: 0.75rem;
-		padding: 6px 12px;
+		letter-spacing: 0.4px;
 	}
 
 	.pending-unequip {
 		justify-content: center;
-		border-left: 3px solid var(--text-muted);
-		opacity: 0.75;
+		border-left: 4px solid var(--text-muted);
+		border-color: var(--border);
+		opacity: 0.8;
 	}
 
-	.cape-grid {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: 10px;
-	}
-
-	.cape-card {
+	.cape-list {
 		display: flex;
 		flex-direction: column;
-		background: var(--bg-card);
+		gap: 8px;
+	}
+
+	.cape-row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		background: var(--bg-input);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius);
-		overflow: hidden;
+		padding: 10px 12px;
 		transition: background 0.15s ease;
 	}
 
-	.cape-card:hover {
+	.cape-row:hover {
 		background: var(--surface-selected);
 	}
 
 	.cape-thumb {
 		width: 40px;
-		height: 64px;
+		height: 68px;
 		position: relative;
 		overflow: hidden;
-		margin: 6px auto 0;
-		background: var(--bg-input);
+		background: var(--bg-card);
 		border-radius: var(--border-radius-sm);
 		border: 1px solid var(--border);
+		flex-shrink: 0;
 	}
 
 	.cape-thumb img {
@@ -259,16 +252,10 @@
 		background: var(--cubic-logo) center/30% no-repeat;
 	}
 
-	.cape-info {
-		padding: 10px;
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		min-width: 0;
-	}
-
 	.cape-name {
-		font-size: 0.75rem;
+		flex: 1;
+		min-width: 0;
+		font-size: 0.8rem;
 		font-weight: 600;
 		color: var(--text-primary);
 		white-space: nowrap;
@@ -276,21 +263,45 @@
 		text-overflow: ellipsis;
 	}
 
-	.cape-action {
-		margin: 0 10px 10px;
+	.cape-action,
+	.unequip-btn {
+		font-family: inherit;
 		font-size: 0.75rem;
-		padding: 6px 10px;
+		font-weight: 600;
+		padding: 5px 12px;
+		border-radius: var(--border-radius-sm);
+		cursor: pointer;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease,
+			opacity 0.15s ease;
 	}
 
-	.unequip-btn {
-		flex-shrink: 0;
-		font-size: 0.75rem;
-		padding: 6px 12px;
+	.cape-action:disabled,
+	.unequip-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	@media (max-width: 520px) {
-		.cape-grid {
-			grid-template-columns: 1fr;
+		.active-cape-card {
+			gap: 10px;
+			padding: 10px;
+		}
+
+		.active-cape-img {
+			width: 38px;
+			height: 64px;
+		}
+
+		.cape-row {
+			gap: 10px;
+			padding: 8px;
+		}
+
+		.cape-thumb {
+			width: 34px;
+			height: 56px;
 		}
 	}
 </style>

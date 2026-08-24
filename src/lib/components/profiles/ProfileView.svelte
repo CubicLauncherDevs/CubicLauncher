@@ -281,19 +281,69 @@
 							</span>
 						</div>
 
-						{#if selectedIdx === activeUserIdx}
-							<span class="hero-status"
-								>{t("userMenu.active")}</span
-							>
-						{:else}
-							<button
-								type="button"
-								class="btn-primary"
-								onclick={() => handleSwitchUser(selectedIdx)}
-							>
-								{t("userMenu.activate")}
-							</button>
-						{/if}
+						<div class="hero-id-actions">
+							{#if selectedIdx === activeUserIdx}
+								<span class="hero-status">
+									{t("userMenu.active")}
+								</span>
+							{:else}
+								<button
+									type="button"
+									class="btn-primary"
+									onclick={() =>
+										handleSwitchUser(selectedIdx)}
+								>
+									{t("userMenu.activate")}
+								</button>
+							{/if}
+
+							{#if selectedUser.user_type === "Microsoft" && selectedIdx === activeUserIdx}
+								<button
+									type="button"
+									class="btn-secondary"
+									onclick={handleLogout}
+								>
+									{t("userMenu.logout")}
+								</button>
+							{/if}
+
+							{#if selectedUser.user_type === "Cracked" && editingIdx !== selectedIdx}
+								<button
+									type="button"
+									class="btn-secondary"
+									onclick={startEditingName}
+								>
+									{t("userMenu.editName")}
+								</button>
+							{/if}
+
+							{#if removingUserUuid === selectedUser.uuid}
+								<button
+									type="button"
+									class="btn-primary confirm-yes"
+									onclick={() =>
+										handleRemoveUser(selectedUser.uuid)}
+								>
+									{t("userMenu.yes")}
+								</button>
+								<button
+									type="button"
+									class="btn-secondary confirm-no"
+									onclick={() => (removingUserUuid = null)}
+								>
+									{t("userMenu.no")}
+								</button>
+							{:else}
+								<button
+									type="button"
+									class="btn-danger"
+									onclick={() =>
+										(removingUserUuid = selectedUser.uuid)}
+								>
+									{t("userMenu.removeUser")}
+								</button>
+							{/if}
+						</div>
 					</div>
 
 					<div class="hero-stats">
@@ -326,59 +376,6 @@
 									>{t("userMenu.server")}</span
 								>
 							</div>
-						{/if}
-					</div>
-
-					<div class="hero-actions">
-						{#if selectedUser.user_type === "Cracked"}
-							{#if editingIdx !== selectedIdx}
-								<button
-									type="button"
-									class="btn-secondary"
-									onclick={startEditingName}
-								>
-									{t("userMenu.editName")}
-								</button>
-							{/if}
-						{/if}
-
-						{#if selectedUser.user_type === "Microsoft" && selectedIdx === activeUserIdx}
-							<button
-								type="button"
-								class="btn-secondary"
-								onclick={handleLogout}
-							>
-								{t("userMenu.logout")}
-							</button>
-						{/if}
-
-						{#if removingUserUuid === selectedUser.uuid}
-							<div class="confirm-group">
-								<button
-									type="button"
-									class="btn-primary confirm-yes"
-									onclick={() =>
-										handleRemoveUser(selectedUser.uuid)}
-								>
-									{t("userMenu.yes")}
-								</button>
-								<button
-									type="button"
-									class="btn-secondary confirm-no"
-									onclick={() => (removingUserUuid = null)}
-								>
-									{t("userMenu.no")}
-								</button>
-							</div>
-						{:else}
-							<button
-								type="button"
-								class="btn-danger"
-								onclick={() =>
-									(removingUserUuid = selectedUser.uuid)}
-							>
-								{t("userMenu.removeUser")}
-							</button>
 						{/if}
 					</div>
 
@@ -604,18 +601,6 @@
 		letter-spacing: 0.5px;
 	}
 
-	.hero-status {
-		font-size: 0.65rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-		background: var(--accent);
-		color: var(--accent-text);
-		padding: 4px 10px;
-		border-radius: 999px;
-		flex-shrink: 0;
-	}
-
 	.hero-stats {
 		display: flex;
 		gap: 12px;
@@ -652,17 +637,27 @@
 		letter-spacing: 0.5px;
 	}
 
-	.hero-actions {
+	.hero-id-actions {
 		display: flex;
-		gap: 10px;
 		align-items: center;
+		gap: 8px;
 		flex-wrap: wrap;
 		margin-left: auto;
 	}
 
+	.hero-status {
+		font-size: 0.65rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		background: var(--accent);
+		color: var(--accent-text);
+		padding: 4px 10px;
+		border-radius: 999px;
+	}
+
 	.hero-skin-cape {
 		width: 100%;
-		max-width: 640px;
 		padding-top: 4px;
 	}
 
@@ -686,12 +681,6 @@
 	.btn-icon:hover {
 		background: var(--surface-hover);
 		color: var(--text-primary);
-	}
-
-	.confirm-group {
-		display: flex;
-		gap: 8px;
-		align-items: center;
 	}
 
 	.confirm-yes:hover {
@@ -810,9 +799,9 @@
 			gap: 14px;
 		}
 
-		.hero-actions {
-			margin-left: 0;
+		.hero-id-actions {
 			width: 100%;
+			justify-content: flex-end;
 		}
 
 		.profile-list {

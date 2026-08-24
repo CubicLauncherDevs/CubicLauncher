@@ -3,7 +3,7 @@
 	import { t } from "$lib/i18n";
 	import Trash from "$lib/icons/Trash.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
-	import { getDisplayIconSrc, getLoaderColorVar } from "$lib/icons/logos";
+	import { getDisplayIconSrc } from "$lib/icons/logos";
 
 	let {
 		instance,
@@ -21,7 +21,6 @@
 
 	let isRunning = $derived(instance.status === "started");
 	let isPinned = $derived(instance.pinned);
-	let loaderColor = $derived(getLoaderColorVar(instance.loader));
 	let iconUrl = $derived(getDisplayIconSrc(instance.icon));
 	let formattedLoader = $derived(
 		instance.loader.charAt(0).toUpperCase() + instance.loader.slice(1),
@@ -43,25 +42,21 @@
 	tabindex="0"
 	title={instance.name}
 >
-	<div class="instance-info-container">
-		<div
-			class="instance-icon"
-			class:has-icon={!!instance.icon}
-			style={instance.icon
-				? ""
-				: `background: color-mix(in srgb, ${loaderColor} 18%, transparent); border-color: color-mix(in srgb, ${loaderColor} 35%, transparent); color: ${loaderColor};`}
-		>
+	<div class="instance-icon-strip">
+		<div class="instance-icon-inner">
 			{#if instance.icon}
 				<img
 					src={iconUrl}
 					alt={instance.name}
 					loading="lazy"
 					decoding="async"
-					width="20"
-					height="20"
+					width="22"
+					height="22"
 				/>
 			{:else}
-				{instance.name.charAt(0).toUpperCase()}
+				<span class="instance-icon-letter">
+					{instance.name.charAt(0).toUpperCase()}
+				</span>
 			{/if}
 			{#if isRunning}
 				<span
@@ -70,16 +65,18 @@
 				></span>
 			{/if}
 			{#if isPinned}
-				<span class="pin-icon"
-					><Icon src="/images/icons/ui/pin.svg" size={12} /></span
-				>
+				<span class="pin-icon">
+					<Icon src="/images/icons/ui/pin.svg" size={10} />
+				</span>
 			{/if}
 		</div>
-		<div class="instance-text">
-			<span class="instance-name">{instance.name}</span>
-			<span class="instance-subtitle">{subtitle}</span>
-		</div>
 	</div>
+
+	<div class="instance-text">
+		<span class="instance-name">{instance.name}</span>
+		<span class="instance-subtitle">{subtitle}</span>
+	</div>
+
 	<div class="instance-actions">
 		<button
 			type="button"
@@ -114,27 +111,26 @@
 
 <style>
 	.instance-item {
-		--item-bg: transparent;
+		--item-bg: var(--bg-card);
 
 		position: relative;
 		display: flex;
 		align-items: center;
-		gap: 10px;
-		padding: 6px 12px;
 		border-radius: var(--border-radius);
 		cursor: pointer;
 		transition:
 			background 0.18s ease,
 			border-color 0.18s ease,
 			box-shadow 0.18s ease;
-		border: 1px solid transparent;
+		border: 1px solid var(--border);
 		background: var(--item-bg);
 		color: var(--text-primary);
 		width: 100%;
 		text-align: left;
 		outline: none;
-		height: 48px;
-		min-height: 48px;
+		height: 38px;
+		min-height: 38px;
+		margin-bottom: 4px;
 		box-sizing: border-box;
 		overflow: hidden;
 		contain: layout paint style;
@@ -151,64 +147,72 @@
 
 	.instance-item.active {
 		--item-bg: var(--bg-item-active);
-		border-color: var(--border);
-		box-shadow: inset 0 0 0 1px rgba(var(--surface-rgb), 0.04);
 	}
 
-	.instance-item.active::before {
-		content: "";
-		position: absolute;
-		left: 0;
-		top: 50%;
-		transform: translateY(-50%);
-		width: 3px;
-		height: 18px;
-		border-radius: 0 3px 3px 0;
-		background: var(--accent);
-	}
-
-	.instance-info-container {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		flex: 1;
-		min-width: 0;
-	}
-
-	.instance-icon {
-		position: relative;
-		width: 28px;
-		height: 28px;
-		background: rgba(var(--surface-rgb), 0.04);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
+	.instance-icon-strip {
+		flex-shrink: 0;
+		width: 38px;
+		height: 100%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.85rem;
-		font-weight: 700;
-		flex-shrink: 0;
+		border-right: 1px solid var(--border);
+		position: relative;
+		z-index: 0;
+		color: var(--text-primary);
+		transition: color 0.18s ease;
+	}
+
+	.instance-icon-strip::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		background: var(--surface-active);
+		filter: brightness(0.8);
 		transition:
-			transform 0.18s ease,
-			border-color 0.18s ease;
+			background 0.18s ease,
+			filter 0.18s ease;
+		z-index: 0;
 	}
 
-	.instance-item:hover .instance-icon:not(.has-icon) {
-		transform: scale(1.05);
+	.instance-item.active .instance-icon-strip {
+		color: var(--accent-text);
 	}
 
-	.instance-icon img {
+	.instance-item.active .instance-icon-strip::before {
+		background: var(--accent);
+		filter: brightness(0.5);
+	}
+
+	.instance-icon-inner {
+		position: relative;
+		width: 22px;
+		height: 22px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1;
+	}
+
+	.instance-icon-inner img {
 		display: block;
 		border-radius: 2px;
 		object-fit: cover;
 	}
 
+	.instance-icon-letter {
+		font-size: 0.85rem;
+		font-weight: 700;
+		line-height: 1;
+	}
+
 	.instance-text {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
 		gap: 1px;
 		min-width: 0;
-		flex: 1;
+		padding: 0 8px;
 	}
 
 	.instance-name {
@@ -242,6 +246,7 @@
 		display: none;
 		align-items: center;
 		gap: 2px;
+		padding-right: 6px;
 		opacity: 0;
 		transition: opacity 0.2s ease;
 		transition-behavior: allow-discrete;
@@ -263,8 +268,8 @@
 	}
 
 	.action-btn {
-		width: 26px;
-		height: 26px;
+		width: 24px;
+		height: 24px;
 		border-radius: var(--border-radius-sm);
 		border: none;
 		background: transparent;
@@ -295,10 +300,10 @@
 
 	.status-dot {
 		position: absolute;
-		bottom: -2px;
-		right: -2px;
-		width: 9px;
-		height: 9px;
+		bottom: -3px;
+		right: -3px;
+		width: 8px;
+		height: 8px;
 		border-radius: 50%;
 		background: var(--color-status-started);
 		box-shadow: 0 0 0 2px var(--item-bg);
@@ -307,13 +312,13 @@
 
 	.pin-icon {
 		position: absolute;
-		top: -5px;
-		right: -5px;
+		top: -4px;
+		right: -4px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 16px;
-		height: 16px;
+		width: 14px;
+		height: 14px;
 		background: var(--bg-sidebar);
 		border: 1px solid var(--border);
 		border-radius: 50%;
@@ -326,7 +331,6 @@
 	@media (max-width: 650px) {
 		.instance-item {
 			justify-content: center;
-			padding: 12px 0;
 		}
 
 		.instance-text,

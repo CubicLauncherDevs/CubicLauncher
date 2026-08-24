@@ -245,7 +245,7 @@
 
 	.theme-header-actions {
 		display: flex;
-		gap: 8px;
+		gap: 4px;
 	}
 
 	.theme-header-actions .import-btn,
@@ -257,11 +257,11 @@
 		background: var(--surface-hover);
 		border: 1px dashed var(--border);
 		color: var(--text-primary);
-		padding: 8px 14px;
+		padding: 5px 10px;
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
 		font-family: inherit;
-		font-size: 0.8rem;
+		font-size: 0.7rem;
 		font-weight: 600;
 		transition:
 			background 0.2s,
@@ -407,11 +407,11 @@
 		background: rgba(var(--accent-rgb), 0.08);
 		border: 1px solid rgba(var(--accent-rgb), 0.3);
 		color: var(--accent);
-		padding: 8px 14px;
+		padding: 5px 10px;
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
 		font-family: inherit;
-		font-size: 0.8rem;
+		font-size: 0.7rem;
 		font-weight: 600;
 		display: flex;
 		align-items: center;

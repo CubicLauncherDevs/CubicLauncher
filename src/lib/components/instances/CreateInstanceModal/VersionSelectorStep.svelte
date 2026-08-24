@@ -20,6 +20,24 @@
 		compact?: boolean;
 	} = $props();
 
+	$effect(() => {
+		if (selectedLoader == null || selectedLoader === "") {
+			selectedLoader = "vanilla";
+		}
+	});
+
+	$effect(() => {
+		if (selectedMcVersion == null) {
+			selectedMcVersion = "";
+		}
+	});
+
+	$effect(() => {
+		if (selectedLoaderVersion == null) {
+			selectedLoaderVersion = "";
+		}
+	});
+
 	const LOADERS = [
 		{
 			value: "vanilla",

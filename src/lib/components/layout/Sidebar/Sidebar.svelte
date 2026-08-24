@@ -26,6 +26,7 @@
 		onopencreateinstance?: () => void;
 		onopenversiondownloader?: () => void;
 		oncollapse?: () => void;
+		onselectinstance?: () => void;
 	}
 
 	let {
@@ -36,6 +37,7 @@
 		onopencreateinstance,
 		onopenversiondownloader,
 		oncollapse,
+		onselectinstance,
 	}: Props = $props();
 
 	let showDeleteModal = $state(false);
@@ -90,6 +92,12 @@
 		}
 		showDeleteModal = false;
 	}
+
+	function selectInstance(instance: InstanceDto) {
+		selectedInstance =
+			selectedInstance?.uuid === instance.uuid ? null : instance;
+		onselectinstance?.();
+	}
 </script>
 
 <aside class="sidebar">
@@ -113,7 +121,7 @@
 				{:else}
 					<VirtualList
 						items={launcherStore.loadedInstances}
-						itemHeight={48}
+						itemHeight={42}
 						keyFn={(i) => i.uuid}
 						hideScrollbar={true}
 					>
@@ -122,11 +130,7 @@
 								{instance}
 								selected={selectedInstance?.uuid ===
 									instance.uuid}
-								onselect={() =>
-									(selectedInstance =
-										selectedInstance?.uuid === instance.uuid
-											? null
-											: instance)}
+								onselect={() => selectInstance(instance)}
 								onedit={() => onopeneditinstance?.(instance)}
 								ondelete={() => openDeleteModal(instance)}
 							/>
@@ -235,15 +239,15 @@
 		border-right: 1px solid var(--border);
 		display: flex;
 		flex-direction: column;
-		padding: 18px 16px 0;
+		padding: 14px 12px 0;
 		z-index: 10;
 		user-select: none;
 		position: relative;
 	}
 
 	.sidebar-header {
-		padding-bottom: 14px;
-		margin-bottom: 8px;
+		padding-bottom: 10px;
+		margin-bottom: 6px;
 		border-bottom: 1px solid var(--border);
 		display: flex;
 		align-items: center;
@@ -292,7 +296,7 @@
 		color: var(--text-secondary);
 		text-transform: uppercase;
 		letter-spacing: 1.5px;
-		margin-bottom: 10px;
+		margin-bottom: 6px;
 		display: block;
 	}
 
@@ -300,7 +304,7 @@
 		flex: 1;
 		overflow: hidden;
 		min-height: 0;
-		padding: 6px 0;
+		padding: 4px 0;
 		display: flex;
 		flex-direction: column;
 	}
@@ -313,7 +317,7 @@
 	}
 
 	.empty-instances {
-		padding: 14px 12px;
+		padding: 10px;
 		font-size: 0.8rem;
 		color: var(--text-muted);
 		text-align: center;
@@ -331,7 +335,7 @@
 		min-height: 0;
 		display: flex;
 		flex-direction: column;
-		padding: 4px 2px;
+		padding: 2px;
 		overflow: hidden;
 	}
 
@@ -339,9 +343,9 @@
 		border: 1px solid var(--border-color);
 		border-radius: var(--border-radius-sm);
 		overflow: hidden;
-		width: calc(100% + 32px);
-		margin-left: -16px;
-		margin-right: -16px;
+		width: calc(100% + 24px);
+		margin-left: -12px;
+		margin-right: -12px;
 	}
 
 	.sidebar-sections .section-full {
@@ -366,14 +370,14 @@
 		background: transparent;
 		border: 1px solid var(--border);
 		color: var(--text-secondary);
-		padding: 7px 10px;
+		padding: 5px 8px;
 		border-radius: var(--border-radius-sm);
-		font-size: 0.75rem;
+		font-size: 0.7rem;
 		font-weight: 500;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
-		gap: 7px;
+		gap: 6px;
 		width: 100%;
 		transition:
 			background 0.15s ease,

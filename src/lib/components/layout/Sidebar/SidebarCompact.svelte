@@ -26,6 +26,7 @@
 		onopencreateinstance?: () => void;
 		onopenversiondownloader?: () => void;
 		onexpand?: () => void;
+		onselectinstance?: () => void;
 	}
 
 	let {
@@ -36,6 +37,7 @@
 		onopencreateinstance,
 		onopenversiondownloader,
 		onexpand,
+		onselectinstance,
 	}: Props = $props();
 
 	let showDeleteModal = $state(false);
@@ -203,6 +205,12 @@
 		}
 		showDeleteModal = false;
 	}
+
+	function selectInstance(instance: InstanceDto) {
+		selectedInstance =
+			selectedInstance?.uuid === instance.uuid ? null : instance;
+		onselectinstance?.();
+	}
 </script>
 
 <aside class="sidebar-compact">
@@ -239,11 +247,7 @@
 								onmouseleave={hideTooltip}
 								onfocus={(e) => showTooltip(e, instance)}
 								onblur={hideTooltip}
-								onclick={() =>
-									(selectedInstance =
-										selectedInstance?.uuid === instance.uuid
-											? null
-											: instance)}
+								onclick={() => selectInstance(instance)}
 							>
 								<div class="sc-instance-icon">
 									{#if instance.icon}
@@ -400,7 +404,7 @@
 		border-right: 1px solid var(--border);
 		display: flex;
 		flex-direction: column;
-		padding: 14px 0 0;
+		padding: 10px 0 0;
 		z-index: 10;
 		user-select: none;
 		align-items: center;
@@ -412,8 +416,8 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 10px;
-		padding: 0 0 14px;
-		margin-bottom: 8px;
+		padding: 0 0 10px;
+		margin-bottom: 6px;
 		border-bottom: 1px solid var(--border);
 		width: 100%;
 	}
@@ -455,7 +459,7 @@
 		overflow: hidden;
 		min-height: 0;
 		width: 100%;
-		padding: 4px 0;
+		padding: 2px 0;
 		display: flex;
 		flex-direction: column;
 	}
@@ -466,7 +470,8 @@
 		display: flex;
 		flex-direction: column;
 		align-items: stretch;
-		padding: 0 8px;
+		gap: 4px;
+		padding: 0 6px;
 		overflow: hidden;
 	}
 
@@ -574,7 +579,7 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 6px;
-		padding: 12px 0;
+		padding: 8px 0;
 		margin: 0 8px;
 		border-top: 1px solid var(--border);
 	}
@@ -610,7 +615,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: 10px 0;
+		padding: 8px 0;
 		margin-top: auto;
 		background: var(--bg-item-active);
 		cursor: pointer;

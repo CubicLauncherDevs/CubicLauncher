@@ -25,108 +25,117 @@
 	}: Props = $props();
 </script>
 
-<div class="model-selector">
-	<button
-		type="button"
-		class="model-btn"
-		class:active={skinModel === "classic"}
-		onclick={() => onModelChange("classic")}
-		disabled={processing}
-	>
-		<span class="model-label">{t("userMenu.skinCape.classic")}</span>
-		{#if skinModel === "classic"}
-			<Icon src="/images/icons/ui/check.svg" size={14} />
-		{/if}
-	</button>
-	<button
-		type="button"
-		class="model-btn"
-		class:active={skinModel === "slim"}
-		onclick={() => onModelChange("slim")}
-		disabled={processing}
-	>
-		<span class="model-label">{t("userMenu.skinCape.slim")}</span>
-		{#if skinModel === "slim"}
-			<Icon src="/images/icons/ui/check.svg" size={14} />
-		{/if}
-	</button>
-</div>
+<div class="controls-stack">
+	<div class="controls-row">
+		<div class="model-selector">
+			<button
+				type="button"
+				class="model-btn"
+				class:active={skinModel === "classic"}
+				onclick={() => onModelChange("classic")}
+				disabled={processing}
+			>
+				{t("userMenu.skinCape.classic")}
+			</button>
+			<button
+				type="button"
+				class="model-btn"
+				class:active={skinModel === "slim"}
+				onclick={() => onModelChange("slim")}
+				disabled={processing}
+			>
+				{t("userMenu.skinCape.slim")}
+			</button>
+		</div>
 
-<div class="skin-actions">
-	<button
-		type="button"
-		class="btn-primary upload-btn"
-		onclick={onFileSelect}
-		disabled={processing}
-	>
-		<Icon src="/images/icons/ui/upload.svg" size={16} />
-		<span>{t("userMenu.skinCape.uploadSkin")}</span>
-	</button>
-	<button
-		type="button"
-		class="btn-secondary url-toggle"
-		onclick={onUrlToggle}
-		disabled={processing}
-		aria-expanded={showUrl}
-	>
-		{t("userMenu.skinCape.useUrl")}
-	</button>
-</div>
-
-{#if showUrl}
-	<div class="url-row">
-		<input
-			type="text"
-			bind:value={skinUrlInput}
-			placeholder={t("userMenu.skinCape.skinUrlPlaceholder")}
-			class="url-input"
-			onkeydown={(e) => e.key === "Enter" && onUrlSubmit()}
-			disabled={processing}
-		/>
-		<button
-			type="button"
-			class="btn-primary"
-			onclick={onUrlSubmit}
-			disabled={processing || !skinUrlInput.trim()}
-		>
-			{t("userMenu.skinCape.useUrl")}
-		</button>
+		<div class="skin-actions">
+			<button
+				type="button"
+				class="btn-primary upload-btn"
+				onclick={onFileSelect}
+				disabled={processing}
+			>
+				<Icon src="/images/icons/ui/upload.svg" size={14} />
+				<span>{t("userMenu.skinCape.uploadSkin")}</span>
+			</button>
+			<button
+				type="button"
+				class="btn-secondary url-toggle"
+				onclick={onUrlToggle}
+				disabled={processing}
+				aria-expanded={showUrl}
+			>
+				{t("userMenu.skinCape.useUrl")}
+			</button>
+		</div>
 	</div>
-{/if}
+
+	{#if showUrl}
+		<div class="url-row">
+			<input
+				type="text"
+				bind:value={skinUrlInput}
+				placeholder={t("userMenu.skinCape.skinUrlPlaceholder")}
+				class="url-input"
+				onkeydown={(e) => e.key === "Enter" && onUrlSubmit()}
+				disabled={processing}
+			/>
+			<button
+				type="button"
+				class="btn-primary url-submit"
+				onclick={onUrlSubmit}
+				disabled={processing || !skinUrlInput.trim()}
+			>
+				{t("userMenu.skinCape.useUrl")}
+			</button>
+		</div>
+	{/if}
+</div>
 
 <style>
-	.model-selector {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
+	.controls-stack {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.controls-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	.model-selector {
+		display: inline-flex;
+		gap: 4px;
 	}
 
 	.model-btn {
-		position: relative;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 8px;
-		padding: 10px 12px;
-		background: var(--bg-card);
+		background: var(--bg-input);
 		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
 		color: var(--text-secondary);
+		padding: 5px 10px;
+		border-radius: var(--border-radius-sm);
 		font-family: inherit;
-		font-size: 0.8rem;
+		font-size: 0.7rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease,
+			color 0.15s ease;
 	}
 
 	.model-btn:hover:not(:disabled, .active) {
-		background: var(--surface-selected);
+		background: var(--surface-hover);
 		color: var(--text-primary);
 	}
 
 	.model-btn.active {
 		background: rgba(var(--accent-rgb), 0.12);
-		border-color: rgba(var(--accent-rgb), 0.45);
+		border-color: var(--accent);
 		color: var(--accent);
 	}
 
@@ -135,32 +144,63 @@
 		cursor: not-allowed;
 	}
 
-	.model-label {
-		text-transform: capitalize;
+	.skin-actions {
+		display: inline-flex;
+		gap: 6px;
 	}
 
-	.skin-actions {
-		display: flex;
-		gap: 10px;
+	.upload-btn,
+	.url-toggle,
+	.url-submit {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		padding: 5px 10px;
+		border-radius: var(--border-radius-sm);
+		font-family: inherit;
+		font-size: 0.7rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease,
+			color 0.15s ease;
 	}
 
 	.upload-btn {
-		flex: 1;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 8px;
+		background: var(--accent);
+		color: var(--accent-text);
+		border: 1px solid var(--accent);
 	}
 
-	.url-toggle {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
+	.upload-btn:hover:not(:disabled) {
+		background: var(--accent-hover);
+	}
+
+	.url-toggle,
+	.url-submit {
+		background: transparent;
+		color: var(--text-secondary);
+		border: 1px solid var(--border);
+	}
+
+	.url-toggle:hover:not(:disabled),
+	.url-submit:hover:not(:disabled) {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	.upload-btn:disabled,
+	.url-toggle:disabled,
+	.url-submit:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	.url-row {
 		display: flex;
-		gap: 8px;
+		gap: 6px;
 		align-items: center;
 		animation: slideDown 0.15s ease;
 	}
@@ -183,13 +223,29 @@
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		color: var(--text-primary);
-		padding: 8px 10px;
+		padding: 6px 8px;
 		font-family: inherit;
-		font-size: 0.8rem;
+		font-size: 0.75rem;
 		outline: none;
 	}
 
 	.url-input:focus {
 		border-color: var(--text-muted);
+	}
+
+	@media (max-width: 420px) {
+		.controls-row {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.skin-actions {
+			width: 100%;
+		}
+
+		.upload-btn,
+		.url-toggle {
+			flex: 1;
+		}
 	}
 </style>

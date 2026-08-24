@@ -198,6 +198,8 @@
 			"pendingChanges": "Unsaved changes",
 			"changesSaved": "Changes saved",
 			"changesSavedDesc": "Your changes were applied successfully.",
+			"rateLimitTitle": "Too many changes",
+			"rateLimitMessage": "You're making changes too fast. Wait a few seconds before trying again.",
 			"unequipPending": "Cape unequipped (pending save)"
 		},
 		"authModal": {
@@ -394,6 +396,7 @@
 		"javaHint": "Cubic will select the recommended Java version for this Minecraft version. Some mods may be incompatible and require a different one.",
 		"recommended": "Recommended",
 		"repairHint": "This reinstalls the mod loader and game version.",
+		"versionChangeWarning": "Changing the version or loader may damage the installation and make mods stop working.",
 		"useCustomConfig": "Use custom configuration"
 	},
 	"createInstance": {

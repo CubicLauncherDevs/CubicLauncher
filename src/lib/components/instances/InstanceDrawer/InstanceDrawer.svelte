@@ -57,19 +57,37 @@
 	];
 
 	const finalVersionId = $derived.by(() => {
+		if (!selectedMcVersion) return "";
 		if (selectedLoader === "vanilla") return selectedMcVersion;
-		if (selectedLoader === "fabric" && selectedLoaderVersion)
+		if (!selectedLoaderVersion) return "";
+		if (selectedLoader === "fabric")
 			return `fabric-loader-${selectedLoaderVersion}-${selectedMcVersion}`;
-		if (selectedLoader === "quilt" && selectedLoaderVersion)
+		if (selectedLoader === "quilt")
 			return `quilt-loader-${selectedLoaderVersion}-${selectedMcVersion}`;
-		if (selectedLoader === "forge" && selectedLoaderVersion)
+		if (selectedLoader === "forge")
 			return `${selectedMcVersion}-forge-${selectedLoaderVersion}`;
-		if (selectedLoader === "neoforge" && selectedLoaderVersion)
+		if (selectedLoader === "neoforge")
 			return `${selectedMcVersion}-neoforge-${selectedLoaderVersion}`;
 		return "";
 	});
 
-	function parseInstanceVersion(version: string) {
+	const isVersionValid = $derived.by(() => {
+		if (!selectedLoader) return false;
+		if (!selectedMcVersion) return false;
+		if (selectedLoader !== "vanilla" && !selectedLoaderVersion)
+			return false;
+		return true;
+	});
+
+	function parseInstanceVersion(version: string | null | undefined) {
+		if (!version) {
+			return {
+				loader: "vanilla" as const,
+				mcVersion: "",
+				loaderVersion: "",
+			};
+		}
+
 		const fabricMatch = version.match(/^fabric-loader-([\d.]+)-(.+)$/);
 		if (fabricMatch)
 			return {
@@ -110,6 +128,7 @@
 	}
 
 	async function handleSave() {
+		if (!isVersionValid) return;
 		saving = true;
 		const newOverrides = useOverrides
 			? {
@@ -136,6 +155,7 @@
 	}
 
 	async function handleRepair() {
+		if (!isVersionValid) return;
 		repairing = true;
 		await reinstallVersion(finalVersionId);
 		repairing = false;
@@ -216,7 +236,7 @@
 			type="button"
 			class="qm-save-btn"
 			onclick={handleSave}
-			disabled={saving}
+			disabled={saving || !isVersionValid}
 		>
 			{saving ? t("settings.java.saving") : t("settings.java.saveBtn")}
 		</button>

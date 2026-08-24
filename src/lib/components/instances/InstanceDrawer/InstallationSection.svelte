@@ -15,9 +15,26 @@
 		onRepair: () => void;
 		repairing: boolean;
 	} = $props();
+
+	$effect(() => {
+		if (selectedLoader == null || selectedLoader === "")
+			selectedLoader = "vanilla";
+		if (selectedMcVersion == null) selectedMcVersion = "";
+		if (selectedLoaderVersion == null) selectedLoaderVersion = "";
+	});
+
+	let canRepair = $derived(
+		selectedLoader === "vanilla"
+			? !!selectedMcVersion
+			: !!selectedMcVersion && !!selectedLoaderVersion,
+	);
 </script>
 
 <div class="installation-section">
+	<div class="version-warning">
+		{t("instanceEditor.versionChangeWarning")}
+	</div>
+
 	<VersionSelectorStep
 		bind:selectedLoader
 		bind:selectedMcVersion
@@ -30,7 +47,7 @@
 			type="button"
 			class="repair-btn"
 			onclick={onRepair}
-			disabled={repairing}
+			disabled={repairing || !canRepair}
 		>
 			Repair
 		</button>
@@ -45,6 +62,20 @@
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
+	}
+
+	.version-warning {
+		font-size: 0.8rem;
+		color: var(--warning, #f59e0b);
+		line-height: 1.5;
+		padding: 10px 12px;
+		border: 1px solid var(--warning, #f59e0b);
+		border-radius: var(--border-radius-sm);
+		background: color-mix(
+			in srgb,
+			var(--warning, #f59e0b) 10%,
+			transparent
+		);
 	}
 
 	.repair-section {

@@ -86,6 +86,13 @@ async function invokeThrowing(
 	}
 }
 
+async function invokeThrowingSilent(
+	cmd: string,
+	args?: Record<string, unknown> | null,
+): Promise<void> {
+	await invoke(cmd, args ?? {});
+}
+
 // ─────────────────────────────────────────────────────────────
 // Settings
 // ─────────────────────────────────────────────────────────────
@@ -939,7 +946,7 @@ export async function uploadSkinFile(
 	filePath: string,
 	model: "slim" | "classic",
 ): Promise<void> {
-	return invokeVoid("upload_skin_file", {
+	return invokeThrowingSilent("upload_skin_file", {
 		uuid,
 		filePath,
 		model,
@@ -951,15 +958,15 @@ export async function uploadSkinUrl(
 	skinUrl: string,
 	variant: "CLASSIC" | "SLIM",
 ): Promise<void> {
-	return invokeVoid("upload_skin_url", { uuid, skinUrl, variant });
+	return invokeThrowingSilent("upload_skin_url", { uuid, skinUrl, variant });
 }
 
 export async function equipCape(uuid: string, capeId: string): Promise<void> {
-	return invokeVoid("equip_cape", { uuid, capeId });
+	return invokeThrowingSilent("equip_cape", { uuid, capeId });
 }
 
 export async function unequipCape(uuid: string): Promise<void> {
-	return invokeVoid("unequip_cape", { uuid });
+	return invokeThrowingSilent("unequip_cape", { uuid });
 }
 
 // ─────────────────────────────────────────────────────────────

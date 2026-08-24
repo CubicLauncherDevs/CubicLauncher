@@ -299,42 +299,42 @@
 			</div>
 		{/if}
 
-		{#if !showProfileView}
-			<div
-				class="sidebar-container"
-				class:compact={sidebarMode === "compact"}
-			>
-				{#if sidebarMode === "normal"}
-					<Sidebar
-						bind:selectedInstance
-						onopenquickmenu={() => (quickMenuOpen = true)}
-						onopenprofileview={() => (showProfileView = true)}
-						onopenversiondownloader={() =>
-							(versionDownloaderOpen = true)}
-						onopencreateinstance={() => (openCreateModal = true)}
-						onopeneditinstance={(inst) => {
-							instanceEditorOpen = true;
-							editingInstance = inst;
-						}}
-						oncollapse={toggleSidebar}
-					/>
-				{:else}
-					<SidebarCompact
-						bind:selectedInstance
-						onopenquickmenu={() => (quickMenuOpen = true)}
-						onopenprofileview={() => (showProfileView = true)}
-						onopenversiondownloader={() =>
-							(versionDownloaderOpen = true)}
-						onopencreateinstance={() => (openCreateModal = true)}
-						onopeneditinstance={(inst) => {
-							instanceEditorOpen = true;
-							editingInstance = inst;
-						}}
-						onexpand={toggleSidebar}
-					/>
-				{/if}
-			</div>
-		{/if}
+		<div
+			class="sidebar-container"
+			class:compact={sidebarMode === "compact"}
+		>
+			{#if sidebarMode === "normal"}
+				<Sidebar
+					bind:selectedInstance
+					onopenquickmenu={() => (quickMenuOpen = true)}
+					onopenprofileview={() => (showProfileView = true)}
+					onopenversiondownloader={() =>
+						(versionDownloaderOpen = true)}
+					onopencreateinstance={() => (openCreateModal = true)}
+					onopeneditinstance={(inst) => {
+						instanceEditorOpen = true;
+						editingInstance = inst;
+					}}
+					oncollapse={toggleSidebar}
+					onselectinstance={() => (showProfileView = false)}
+				/>
+			{:else}
+				<SidebarCompact
+					bind:selectedInstance
+					onopenquickmenu={() => (quickMenuOpen = true)}
+					onopenprofileview={() => (showProfileView = true)}
+					onopenversiondownloader={() =>
+						(versionDownloaderOpen = true)}
+					onopencreateinstance={() => (openCreateModal = true)}
+					onopeneditinstance={(inst) => {
+						instanceEditorOpen = true;
+						editingInstance = inst;
+					}}
+					onexpand={toggleSidebar}
+					onselectinstance={() => (showProfileView = false)}
+				/>
+			{/if}
+		</div>
 
 		<main class="main-content">
 			<div class="background-overlay"></div>
