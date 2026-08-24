@@ -65,9 +65,7 @@ pub fn validate_filename(filename: &str) -> Result<(), String> {
 /// a generic filename because identifiers are also used as directory names.
 pub fn validate_identifier(id: &str) -> Result<(), String> {
     if id.is_empty() || id.len() > 64 {
-        return Err(
-            "El identificador no puede estar vacío ni superar 64 caracteres".into(),
-        );
+        return Err("El identificador no puede estar vacío ni superar 64 caracteres".into());
     }
     if id == "." || id == ".." || id.contains(":") || id.contains('\0') {
         return Err("El identificador contiene caracteres no permitidos".into());

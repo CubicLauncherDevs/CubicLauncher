@@ -1,9 +1,7 @@
 use crate::commands::themes::v1::{ThemeEntry, ThemeFile, ThemePreview};
 use crate::commands::themes::v2::{ThemeDef, ThemeMeta, V2Theme, flatten_variables};
 use crate::core::errors::{CoreError, FsError};
-use crate::core::{
-    AppEvent, PathManager, emit, safe_join, sanitize_path, validate_identifier,
-};
+use crate::core::{AppEvent, PathManager, emit, safe_join, sanitize_path, validate_identifier};
 use crate::services::SettingsManager;
 use crate::theme_watcher::ThemeWatcher;
 use compact_str::CompactString;

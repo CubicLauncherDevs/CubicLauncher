@@ -255,10 +255,7 @@ pub async fn install_curseforge_modpack(
                 })?;
 
                 validate_filename(&file.file_name).map_err(|e| {
-                    CurseForgeModpackError::Invalid(format!(
-                        "Invalid file_name in modpack: {}",
-                        e
-                    ))
+                    CurseForgeModpackError::Invalid(format!("Invalid file_name in modpack: {}", e))
                 })?;
 
                 let sub_dir = sub_dir_for_class(
@@ -361,7 +358,9 @@ async fn extract_overrides(
     instance_dir: &Path,
     overrides_name: &str,
 ) -> Result<(), CurseForgeModpackError> {
-    if overrides_name.contains("..") || overrides_name.contains('/') || overrides_name.contains('\\')
+    if overrides_name.contains("..")
+        || overrides_name.contains('/')
+        || overrides_name.contains('\\')
     {
         return Err(CurseForgeModpackError::Invalid(format!(
             "Invalid overrides name: {}",
@@ -379,7 +378,10 @@ async fn extract_overrides(
 
         // `enclosed_name()` rejects paths with `..` or absolute paths.
         let Some(enclosed) = entry.enclosed_name() else {
-            tracing::warn!("CurseForge override with unsafe path ignored: {}", entry_name);
+            tracing::warn!(
+                "CurseForge override with unsafe path ignored: {}",
+                entry_name
+            );
             drop(entry);
             continue;
         };
