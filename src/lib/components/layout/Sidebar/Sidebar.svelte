@@ -121,13 +121,14 @@
 				{:else}
 					<VirtualList
 						items={launcherStore.loadedInstances}
-						itemHeight={42}
+						itemHeight={52}
 						keyFn={(i) => i.uuid}
 						hideScrollbar={true}
 					>
-						{#snippet children(instance)}
+						{#snippet children(instance, index)}
 							<InstanceItem
 								{instance}
+								{index}
 								selected={selectedInstance?.uuid ===
 									instance.uuid}
 								onselect={() => selectInstance(instance)}

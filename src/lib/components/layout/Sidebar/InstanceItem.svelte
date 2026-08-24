@@ -2,17 +2,18 @@
 	import type { InstanceDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
 	import Trash from "$lib/icons/Trash.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
 	import { getDisplayIconSrc } from "$lib/icons/logos";
 
 	let {
 		instance,
+		index,
 		selected,
 		onselect,
 		onedit,
 		ondelete,
 	}: {
 		instance: InstanceDto;
+		index: number;
 		selected: boolean;
 		onselect: () => void;
 		onedit: () => void;
@@ -33,6 +34,8 @@
 <div
 	class="instance-item"
 	class:active={selected}
+	class:odd={index % 2 !== 0}
+	class:pinned={isPinned}
 	data-instance-uuid={instance.uuid}
 	onclick={onselect}
 	onkeydown={(e) => {
@@ -50,8 +53,8 @@
 					alt={instance.name}
 					loading="lazy"
 					decoding="async"
-					width="22"
-					height="22"
+					width="20"
+					height="20"
 				/>
 			{:else}
 				<span class="instance-icon-letter">
@@ -63,11 +66,6 @@
 					class="status-dot"
 					aria-label={t("instanceView.status.started")}
 				></span>
-			{/if}
-			{#if isPinned}
-				<span class="pin-icon">
-					<Icon src="/images/icons/ui/pin.svg" size={10} />
-				</span>
 			{/if}
 		</div>
 	</div>
@@ -122,22 +120,27 @@
 			background 0.18s ease,
 			border-color 0.18s ease,
 			box-shadow 0.18s ease;
-		border: 1px solid var(--border);
+		border: 1px solid transparent;
 		background: var(--item-bg);
 		color: var(--text-primary);
 		width: 100%;
 		text-align: left;
 		outline: none;
-		height: 38px;
-		min-height: 38px;
-		margin-bottom: 4px;
+		height: 44px;
+		min-height: 44px;
+		margin-bottom: 8px;
 		box-sizing: border-box;
 		overflow: hidden;
 		contain: layout paint style;
 	}
 
+	.instance-item.odd {
+		--item-bg: var(--surface-selected);
+	}
+
 	.instance-item:hover {
 		--item-bg: var(--surface-hover);
+		border-color: var(--border);
 	}
 
 	.instance-item:focus-visible {
@@ -147,11 +150,25 @@
 
 	.instance-item.active {
 		--item-bg: var(--bg-item-active);
+		border-color: var(--border);
+	}
+
+	.instance-item.pinned::before {
+		content: "";
+		position: absolute;
+		left: 0;
+		top: 12px;
+		bottom: 12px;
+		width: 3px;
+		border-radius: 0 3px 3px 0;
+		background: var(--color-warning);
+		opacity: 0.9;
+		z-index: 2;
 	}
 
 	.instance-icon-strip {
 		flex-shrink: 0;
-		width: 38px;
+		width: 34px;
 		height: 100%;
 		display: flex;
 		align-items: center;
@@ -168,7 +185,6 @@
 		position: absolute;
 		inset: 0;
 		background: var(--surface-active);
-		filter: brightness(0.8);
 		transition:
 			background 0.18s ease,
 			filter 0.18s ease;
@@ -181,13 +197,13 @@
 
 	.instance-item.active .instance-icon-strip::before {
 		background: var(--accent);
-		filter: brightness(0.5);
+		filter: brightness(0.65);
 	}
 
 	.instance-icon-inner {
 		position: relative;
-		width: 22px;
-		height: 22px;
+		width: 20px;
+		height: 20px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -196,12 +212,14 @@
 
 	.instance-icon-inner img {
 		display: block;
+		width: 100%;
+		height: 100%;
 		border-radius: 2px;
 		object-fit: cover;
 	}
 
 	.instance-icon-letter {
-		font-size: 0.85rem;
+		font-size: 0.8rem;
 		font-weight: 700;
 		line-height: 1;
 	}
@@ -212,7 +230,7 @@
 		flex-direction: column;
 		gap: 1px;
 		min-width: 0;
-		padding: 0 8px;
+		padding: 0 10px;
 	}
 
 	.instance-name {
@@ -245,8 +263,8 @@
 	.instance-actions {
 		display: none;
 		align-items: center;
-		gap: 2px;
-		padding-right: 6px;
+		gap: 4px;
+		padding-right: 4px;
 		opacity: 0;
 		transition: opacity 0.2s ease;
 		transition-behavior: allow-discrete;
@@ -268,12 +286,12 @@
 	}
 
 	.action-btn {
-		width: 24px;
-		height: 24px;
+		width: 22px;
+		height: 22px;
 		border-radius: var(--border-radius-sm);
 		border: none;
 		background: transparent;
-		color: var(--text-secondary);
+		color: var(--text-tertiary);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -300,32 +318,14 @@
 
 	.status-dot {
 		position: absolute;
-		bottom: -3px;
-		right: -3px;
-		width: 8px;
-		height: 8px;
+		bottom: 2px;
+		right: 2px;
+		width: 7px;
+		height: 7px;
 		border-radius: 50%;
 		background: var(--color-status-started);
 		box-shadow: 0 0 0 2px var(--item-bg);
 		transition: box-shadow 0.18s ease;
-	}
-
-	.pin-icon {
-		position: absolute;
-		top: -4px;
-		right: -4px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 14px;
-		height: 14px;
-		background: var(--bg-sidebar);
-		border: 1px solid var(--border);
-		border-radius: 50%;
-		color: var(--color-warning);
-		pointer-events: none;
-		z-index: 1;
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 	}
 
 	@media (max-width: 650px) {
