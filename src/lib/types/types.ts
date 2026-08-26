@@ -66,6 +66,8 @@ export interface Settings {
 	close_launcher_on_play: boolean;
 	hide_on_launch: boolean;
 	open_console_on_launch: boolean;
+	console_history_limit: number;
+	console_show_level_tags: boolean;
 	show_snapshots: boolean;
 	show_alpha: boolean;
 	show_unstable_loaders: boolean;

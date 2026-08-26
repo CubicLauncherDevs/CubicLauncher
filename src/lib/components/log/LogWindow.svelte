@@ -9,10 +9,10 @@
 	} from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
 	import { openUrl } from "$lib/api/cubicApi";
-	import { LogState } from "./logState.svelte";
-	import { LogRenderer } from "./LogRenderer";
-	import { MAX_LINES } from "./logHelpers";
-	import LogHeader from "./LogHeader.svelte";
+import { LogState } from "./logState.svelte";
+import { LogRenderer } from "./LogRenderer";
+import { CONSOLE_HISTORY_MAX } from "./logHelpers";
+import LogHeader from "./LogHeader.svelte";
 	import LogControls from "./LogControls.svelte";
 	import LogViewport from "./LogViewport.svelte";
 
@@ -29,6 +29,23 @@
 		launcherStore.settings.user[launcherStore.settings.active_user_idx],
 	);
 	const activeUsername = $derived(activeUser?.username ?? null);
+	const consoleHistoryLimit = $derived(
+		Math.max(
+			100,
+			Math.min(
+				launcherStore.settings.console_history_limit ??
+					CONSOLE_HISTORY_MAX,
+				CONSOLE_HISTORY_MAX,
+			),
+		),
+	);
+	const showLevelTags = $derived(
+		launcherStore.settings.console_show_level_tags ?? true,
+	);
+
+	$effect(() => {
+		log.setMaxLines(consoleHistoryLimit);
+	});
 
 	function buildPrivacyTerms(username: string | null): string[] {
 		// El backend ya sanitiza tokens, session ids, correos e IPs.
@@ -118,7 +135,7 @@
 				}[]
 			>("get_log_history_cmd", {
 				instanceId,
-				limit: MAX_LINES,
+				limit: consoleHistoryLimit,
 			});
 			log.ingestHistory(raw);
 			renderer.rebuild();
@@ -163,12 +180,13 @@
 			onScrollBottom={() => renderer.scrollToBottom()}
 		/>
 
-		<LogControls
-			activeLevels={log.activeLevels}
-			query={log.inputQuery}
-			matchCount={log.matchCount}
-			currentMatchIndex={log.currentMatchIndex}
-			onQueryInput={(v) => log.searchInput(v)}
+	<LogControls
+		activeLevels={log.activeLevels}
+		query={log.inputQuery}
+		matchCount={log.matchCount}
+		currentMatchIndex={log.currentMatchIndex}
+		{showLevelTags}
+		onQueryInput={(v) => log.searchInput(v)}
 			onQueryKeydown={handleSearchKeydown}
 			onClearQuery={() => log.resetSearch()}
 			onPrev={() => {

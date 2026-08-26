@@ -28,6 +28,7 @@ pub async fn update_settings(mut new_settings: SettingsManager) -> Result<(), St
                 .to_string(),
         );
     }
+    new_settings.console_history_limit = new_settings.console_history_limit.clamp(100, 5000);
     SettingsManager::write(|s| {
         for new_user in &mut new_settings.user {
             let _ = new_user.load_tokens();

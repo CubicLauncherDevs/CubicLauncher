@@ -1,7 +1,7 @@
 import { SvelteSet } from "svelte/reactivity";
 import {
+	CONSOLE_HISTORY_MAX,
 	LEVEL_ORDER,
-	MAX_LINES,
 	SEARCH_DEBOUNCE_MS,
 	buildQueryRegex,
 	createLogLine,
@@ -29,6 +29,7 @@ export class LogState {
 	matchCount = $state(0);
 	uploading = $state(false);
 	privacyTerms = $state<string[]>([]);
+	maxLines = $state(CONSOLE_HISTORY_MAX);
 
 	private searchTimer: ReturnType<typeof setTimeout> | null = null;
 	renderer?: LogRenderer;
@@ -39,6 +40,17 @@ export class LogState {
 
 	setRenderer(renderer: LogRenderer) {
 		this.renderer = renderer;
+	}
+
+	setMaxLines(limit: number) {
+		const clamped = Math.max(100, Math.min(limit, CONSOLE_HISTORY_MAX));
+		if (this.maxLines === clamped) return;
+		this.maxLines = clamped;
+		if (this.lines.length > this.maxLines) {
+			this.lines.splice(0, this.lines.length - this.maxLines);
+			this.currentMatchIndex = 0;
+			this.renderer?.rebuild();
+		}
 	}
 
 	lineVisible(line: LogLine): boolean {
@@ -62,8 +74,8 @@ export class LogState {
 
 	ingestHistory(raw: HistoryLogLine[]) {
 		let parsed = raw.map(createLogLine);
-		if (parsed.length > MAX_LINES) {
-			parsed = parsed.slice(parsed.length - MAX_LINES);
+		if (parsed.length > this.maxLines) {
+			parsed = parsed.slice(parsed.length - this.maxLines);
 		}
 		this.lines = parsed;
 	}
@@ -71,8 +83,8 @@ export class LogState {
 	ingestBatch(raw: RawLogEvent[]) {
 		const parsed = raw.map(createLogLine);
 		this.lines.push(...parsed);
-		if (this.lines.length > MAX_LINES) {
-			this.lines.splice(0, this.lines.length - MAX_LINES);
+		if (this.lines.length > this.maxLines) {
+			this.lines.splice(0, this.lines.length - this.maxLines);
 			this.renderer?.rebuild();
 			return;
 		}

@@ -6,6 +6,7 @@ import type {
 	JreInstallPrompt,
 	PendingJreLaunch,
 } from "../types/types";
+import { DEFAULT_CONSOLE_HISTORY_LIMIT } from "$lib/components/log/logHelpers";
 import { t } from "$lib/i18n";
 
 export interface PendingUpdate {
@@ -54,6 +55,8 @@ export const launcherStore = $state<LauncherState>({
 		close_launcher_on_play: true,
 		hide_on_launch: false,
 		open_console_on_launch: false,
+		console_history_limit: DEFAULT_CONSOLE_HISTORY_LIMIT,
+		console_show_level_tags: true,
 		show_snapshots: false,
 		show_alpha: false,
 		show_unstable_loaders: false,

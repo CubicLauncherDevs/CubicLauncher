@@ -7,6 +7,7 @@
 		query: string;
 		matchCount: number;
 		currentMatchIndex: number;
+		showLevelTags?: boolean;
 		onQueryInput: (value: string) => void;
 		onQueryKeydown: (e: KeyboardEvent) => void;
 		onClearQuery: () => void;
@@ -21,6 +22,7 @@
 		query,
 		matchCount,
 		currentMatchIndex,
+		showLevelTags = true,
 		onQueryInput,
 		onQueryKeydown,
 		onClearQuery,
@@ -90,31 +92,33 @@
 			</span>
 		</div>
 
-		<div class="level-group" role="group" aria-label="Niveles de log">
-			<button
-				type="button"
-				class="chip all"
-				class:active={activeLevels.size === LEVEL_ORDER.length}
-				aria-pressed={activeLevels.size === LEVEL_ORDER.length}
-				onclick={() =>
-					onSetAllLevels(activeLevels.size !== LEVEL_ORDER.length)}
-			>
-				ALL
-			</button>
-			{#each LEVEL_ORDER as level (level)}
-				{@const isActive = activeLevels.has(level)}
+		{#if showLevelTags}
+			<div class="level-group" role="group" aria-label="Niveles de log">
 				<button
 					type="button"
-					class="chip {level}"
-					class:active={isActive}
-					aria-pressed={isActive}
-					style="--chip-color: {levelColor(level)}"
-					onclick={() => onToggleLevel(level)}
+					class="chip all"
+					class:active={activeLevels.size === LEVEL_ORDER.length}
+					aria-pressed={activeLevels.size === LEVEL_ORDER.length}
+					onclick={() =>
+						onSetAllLevels(activeLevels.size !== LEVEL_ORDER.length)}
 				>
-					{level.toUpperCase()}
+					ALL
 				</button>
-			{/each}
-		</div>
+				{#each LEVEL_ORDER as level (level)}
+					{@const isActive = activeLevels.has(level)}
+					<button
+						type="button"
+						class="chip {level}"
+						class:active={isActive}
+						aria-pressed={isActive}
+						style="--chip-color: {levelColor(level)}"
+						onclick={() => onToggleLevel(level)}
+					>
+						{level.toUpperCase()}
+					</button>
+				{/each}
+			</div>
+		{/if}
 	</div>
 </div>
 

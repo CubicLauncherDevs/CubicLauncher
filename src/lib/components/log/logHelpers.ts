@@ -16,7 +16,8 @@ export type RawLogEvent = {
 	timestamp: number;
 };
 
-export const MAX_LINES = 3000;
+export const CONSOLE_HISTORY_MAX = 5000;
+export const DEFAULT_CONSOLE_HISTORY_LIMIT = 3000;
 export const SCROLL_THRESHOLD = 60;
 export const SEARCH_DEBOUNCE_MS = 180;
 

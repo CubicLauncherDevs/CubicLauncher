@@ -613,6 +613,64 @@
 						>
 					</div>
 				</CollapsibleSection>
+
+				<CollapsibleSection
+					title={t("settings.minecraft.consoleTitle")}
+					iconSrc="/images/icons/instance/terminal.svg"
+					storageKey="section_console"
+				>
+					<div class="qm-field">
+						<label for="console-history-limit"
+							>{t("settings.minecraft.consoleHistoryLimit")}</label
+						>
+						<div class="qm-console-limit-row">
+							<input
+								type="number"
+								id="console-history-limit"
+								min="100"
+								max="5000"
+								step="100"
+								class="qm-console-limit-input"
+								bind:value={
+									launcherStore.settings.console_history_limit
+								}
+								onchange={() => {
+									launcherStore.settings.console_history_limit =
+										Math.max(
+											100,
+											Math.min(
+												launcherStore.settings
+													.console_history_limit,
+												5000,
+											),
+										);
+									handleSave();
+								}}
+							/>
+							<span class="qm-console-limit-divider">/</span>
+							<span class="qm-console-limit-max">5000</span>
+						</div>
+					</div>
+					<span class="qm-ram-hint"
+						>{t("settings.minecraft.consoleHistoryHint")}</span
+					>
+					<div class="qm-field-checkbox">
+						<input
+							type="checkbox"
+							id="console-show-level-tags"
+							bind:checked={
+								launcherStore.settings.console_show_level_tags
+							}
+							onchange={handleSave}
+						/>
+						<label for="console-show-level-tags">
+							{t("settings.minecraft.consoleShowLevelTags")}
+							<span class="qm-hint-not-recommended"
+								>{t("settings.minecraft.consoleShowLevelTagsHint")}</span
+							>
+						</label>
+					</div>
+				</CollapsibleSection>
 			</div>
 		{/if}
 
@@ -1120,5 +1178,58 @@
 	.about-link:hover {
 		opacity: 0.8;
 		text-decoration: underline;
+	}
+
+	.qm-console-limit-row {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		background: var(--bg-input);
+		border: 1px solid var(--border-color);
+		border-radius: var(--border-radius-sm);
+		padding: 6px 10px;
+		box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+		max-width: 180px;
+	}
+
+	.qm-console-limit-input {
+		flex: 1;
+		background: transparent;
+		border: none;
+		color: var(--text-primary);
+		font-family: var(--font-family);
+		font-size: 0.9rem;
+		font-weight: 600;
+		text-align: right;
+		padding: 0;
+		width: 100%;
+		appearance: textfield;
+		-moz-appearance: textfield;
+	}
+
+	.qm-console-limit-input::-webkit-outer-spin-button,
+	.qm-console-limit-input::-webkit-inner-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+
+	.qm-console-limit-input:focus {
+		outline: none;
+	}
+
+	.qm-console-limit-divider,
+	.qm-console-limit-max {
+		font-size: 0.85rem;
+		color: var(--text-muted);
+		font-weight: 600;
+		user-select: none;
+	}
+
+	.qm-hint-not-recommended {
+		display: block;
+		font-size: 0.75rem;
+		color: var(--color-warning);
+		font-weight: 500;
+		margin-top: 2px;
 	}
 </style>
