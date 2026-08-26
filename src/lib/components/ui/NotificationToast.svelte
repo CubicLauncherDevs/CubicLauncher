@@ -2,6 +2,8 @@
 	import { onDestroy } from "svelte";
 	import type { Notification } from "$lib/types/types";
 	import { removeNotification } from "$lib/state/state.svelte";
+	import CopyIcon from "$lib/icons/CopyIcon.svelte";
+	import CheckIcon from "$lib/icons/CheckIcon.svelte";
 
 	let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 	let completeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -18,6 +20,7 @@
 
 	let removing = $state(false);
 	let isDone = $state(false);
+	let copied = $state(false);
 	let iconColor = $derived(typeColor(notification.type));
 
 	const hasProgress = $derived(typeof notification.progress === "number");
@@ -39,6 +42,16 @@
 			() => removeNotification(notification.id),
 			340,
 		);
+	}
+
+	function copyMessage(event: MouseEvent) {
+		event.stopPropagation();
+		if (!notification.message || copied) return;
+		navigator.clipboard.writeText(notification.message);
+		copied = true;
+		setTimeout(() => {
+			copied = false;
+		}, 1500);
 	}
 
 	function handleComplete() {
@@ -202,6 +215,22 @@
 			>
 		{/if}
 	</div>
+
+	{#if notification.type === "error"}
+		<button
+			type="button"
+			class="notification-copy"
+			class:copied
+			aria-label="Copiar mensaje"
+			onclick={copyMessage}
+		>
+			{#if copied}
+				<CheckIcon size={14} color="var(--color-success)" />
+			{:else}
+				<CopyIcon size={14} />
+			{/if}
+		</button>
+	{/if}
 </div>
 
 <style>
@@ -382,5 +411,44 @@
 
 	.notification-sub.done {
 		color: var(--color-success);
+	}
+
+	.notification-copy {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 24px;
+		height: 24px;
+		padding: 0;
+		margin: 0;
+		border: none;
+		border-radius: 50%;
+		background: transparent;
+		color: var(--text-secondary);
+		cursor: pointer;
+		opacity: 0;
+		transition:
+			opacity 0.2s ease,
+			background 0.2s ease,
+			color 0.2s ease;
+		pointer-events: auto;
+		flex-shrink: 0;
+	}
+
+	.notification-copy:hover {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	.notification-copy:active {
+		transform: scale(0.92);
+	}
+
+	.notification-copy.copied {
+		color: var(--color-success);
+	}
+
+	.notification-toast:hover .notification-copy {
+		opacity: 1;
 	}
 </style>
