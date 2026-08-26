@@ -66,7 +66,12 @@
 			"optionsTitle": "Opciones de Minecraft",
 			"showSnapshots": "Mostrar versiones Snapshots",
 			"showAlpha": "Mostrar versiones Alpha",
-			"showUnstableLoaders": "Mostrar versiones inestables de los loaders"
+			"showUnstableLoaders": "Mostrar versiones inestables de los loaders",
+			"consoleTitle": "Opciones de Consola",
+			"consoleHistoryLimit": "Límite del historial",
+			"consoleHistoryHint": "Máximo de líneas que se conservarán en la consola de cada instancia (100-5000).",
+			"consoleShowLevelTags": "Mostrar etiquetas de nivel",
+			"consoleShowLevelTagsHint": "No recomendado: ocultar las etiquetas dificulta filtrar el log por nivel."
 		},
 		"about": {
 			"title": "Sobre Nosotros",
@@ -519,7 +524,7 @@
 		},
 		"slide7": {
 			"title": "Secciones de Ajustes",
-			"desc": "Usa las pestañas para navegar entre Launcher (idioma, temas, actualizaciones), Minecraft (RAM, versiones) y Java (rutas, argumentos)."
+			"desc": "Usa las pestañas para navegar entre Launcher (idioma, temas, actualizaciones), Minecraft (RAM, versiones, consola) y Java (runtimes, argumentos)."
 		},
 		"slide8": {
 			"title": "Configuración de Java",

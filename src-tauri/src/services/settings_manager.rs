@@ -51,6 +51,9 @@ fn default_true() -> bool {
 fn default_theme() -> CompactString {
     CompactString::from("dark")
 }
+fn default_console_history_limit() -> u32 {
+    3000
+}
 fn default_active_user_idx() -> usize {
     0
 }
@@ -100,6 +103,10 @@ pub struct SettingsManager {
     pub hide_on_launch: bool,
     #[serde(default)]
     pub open_console_on_launch: bool,
+    #[serde(default = "default_console_history_limit")]
+    pub console_history_limit: u32,
+    #[serde(default = "default_true")]
+    pub console_show_level_tags: bool,
     #[serde(default)]
     pub show_snapshots: bool,
     #[serde(default)]
@@ -183,6 +190,8 @@ impl Default for SettingsManager {
             close_launcher_on_play: true,
             hide_on_launch: false,
             open_console_on_launch: false,
+            console_history_limit: 3000,
+            console_show_level_tags: true,
             show_snapshots: false,
             show_alpha: false,
             show_unstable_loaders: false,
@@ -406,6 +415,12 @@ impl SettingsManager {
             self.max_memory *= 1024;
             self.dirty = true;
         }
+        // Asegurar que el límite del historial de consola esté en rango válido.
+        let sanitized = self.console_history_limit.clamp(100, 5000);
+        if sanitized != self.console_history_limit {
+            self.console_history_limit = sanitized;
+            self.dirty = true;
+        }
     }
 }
 
@@ -417,7 +432,7 @@ mod tests {
     /// los valores por defecto definidos en las funciones `default_*`.
     /// Verifica: username, min_memory, max_memory, language, auto_updates,
     /// close_launcher_on_play, show_snapshots, show_alpha, show_unstable_loaders,
-    /// theme, dirty, env_vars y jvm_args.
+    /// theme, dirty, env_vars, jvm_args y console_history_limit.
     #[test]
     fn test_default_values() {
         let s = SettingsManager::default();
@@ -432,6 +447,8 @@ mod tests {
         assert!(!s.show_alpha);
         assert!(!s.show_unstable_loaders);
         assert!(!s.open_console_on_launch);
+        assert_eq!(s.console_history_limit, 3000);
+        assert!(s.console_show_level_tags);
         assert_eq!(s.theme, "dark");
         assert!(s.dirty);
         assert!(s.env_vars.is_empty());
@@ -511,7 +528,32 @@ mod tests {
         assert_eq!(deserialized.min_memory, s.min_memory);
         assert_eq!(deserialized.max_memory, s.max_memory);
         assert_eq!(deserialized.language, s.language);
+        assert_eq!(deserialized.console_history_limit, s.console_history_limit);
+        assert_eq!(deserialized.console_show_level_tags, s.console_show_level_tags);
         assert_eq!(deserialized.theme, s.theme);
         assert!(!deserialized.dirty);
+    }
+
+    /// El límite del historial de consola debe quedar dentro del rango
+    /// permitido (100-5000) durante la migración.
+    #[test]
+    fn test_migrate_clamps_console_history_limit() {
+        let mut s = SettingsManager {
+            console_history_limit: 99999,
+            dirty: false,
+            ..Default::default()
+        };
+        s.migrate();
+        assert_eq!(s.console_history_limit, 5000);
+        assert!(s.dirty);
+
+        let mut s = SettingsManager {
+            console_history_limit: 50,
+            dirty: false,
+            ..Default::default()
+        };
+        s.migrate();
+        assert_eq!(s.console_history_limit, 100);
+        assert!(s.dirty);
     }
 }
