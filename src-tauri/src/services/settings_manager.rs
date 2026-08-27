@@ -529,7 +529,10 @@ mod tests {
         assert_eq!(deserialized.max_memory, s.max_memory);
         assert_eq!(deserialized.language, s.language);
         assert_eq!(deserialized.console_history_limit, s.console_history_limit);
-        assert_eq!(deserialized.console_show_level_tags, s.console_show_level_tags);
+        assert_eq!(
+            deserialized.console_show_level_tags,
+            s.console_show_level_tags
+        );
         assert_eq!(deserialized.theme, s.theme);
         assert!(!deserialized.dirty);
     }

@@ -100,7 +100,9 @@
 					class:active={activeLevels.size === LEVEL_ORDER.length}
 					aria-pressed={activeLevels.size === LEVEL_ORDER.length}
 					onclick={() =>
-						onSetAllLevels(activeLevels.size !== LEVEL_ORDER.length)}
+						onSetAllLevels(
+							activeLevels.size !== LEVEL_ORDER.length,
+						)}
 				>
 					ALL
 				</button>

@@ -621,7 +621,9 @@
 				>
 					<div class="qm-field">
 						<label for="console-history-limit"
-							>{t("settings.minecraft.consoleHistoryLimit")}</label
+							>{t(
+								"settings.minecraft.consoleHistoryLimit",
+							)}</label
 						>
 						<div class="qm-console-limit-row">
 							<input
@@ -666,7 +668,9 @@
 						<label for="console-show-level-tags">
 							{t("settings.minecraft.consoleShowLevelTags")}
 							<span class="qm-hint-not-recommended"
-								>{t("settings.minecraft.consoleShowLevelTagsHint")}</span
+								>{t(
+									"settings.minecraft.consoleShowLevelTagsHint",
+								)}</span
 							>
 						</label>
 					</div>
