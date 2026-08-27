@@ -1,5 +1,5 @@
 use crate::core::{AppError, FsError, PathManager};
-use aqua::{JrePackage, JreStatus, ZuluApi};
+use aqua::{JrePackage, JreProviderChain, JreStatus};
 use std::path::PathBuf;
 use tokio::fs;
 use tracing::info;
@@ -44,7 +44,7 @@ impl JavaManager {
     }
 
     pub async fn get_latest_package(version: u8) -> Result<JrePackage, AppError> {
-        ZuluApi::get_latest_package(version)
+        JreProviderChain::get_latest_package(version)
             .await
             .map_err(|e| AppError::CoreError(crate::core::CoreError::Other(e.to_string())))
     }

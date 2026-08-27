@@ -1,7 +1,7 @@
 use crate::core::path_manager::PathManager;
 use crate::core::{AppEvent, emit};
 use crate::services::java_manager::JavaManager;
-use aqua::{DownloadBatch, DownloadManager, DownloadProgress, JreBatch};
+use aqua::{DownloadBatch, DownloadManager, DownloadProgress, JreBatch, java_runtime_preferences};
 use compact_str::CompactString;
 use dashmap::DashMap;
 use std::borrow::Cow;
@@ -352,13 +352,8 @@ impl DownloadQueue {
             }
         };
 
-        // Determine Java preference based on MC version
-        // MC 1.21+ → Java 21; MC 1.17-1.20.4 → Java 17; < 1.17 → Java 8
-        let java_pref: &[u8] = match parse_mc_major_minor(gv) {
-            Some((1, n)) if n >= 21 => &[21, 17, 8],
-            Some((1, n)) if n >= 17 => &[17, 21, 8],
-            _ => &[8, 17, 21],
-        };
+        // Determine Java preference based on MC version.
+        let java_pref = java_runtime_preferences(gv);
 
         // Ensure a suitable Java runtime is installed, making the download visible.
         if !java_pref.iter().any(|v| JavaManager::is_installed(*v)) {
@@ -417,11 +412,7 @@ impl DownloadQueue {
         };
 
         // NeoForge only exists for MC 1.20.2+ / future year-based versions.
-        // MC 1.21+ -> Java 21; MC 1.20.x -> Java 17.
-        let java_pref: &[u8] = match parse_mc_major_minor(gv) {
-            Some((1, n)) if n >= 21 => &[21, 17, 8],
-            _ => &[17, 21, 8],
-        };
+        let java_pref = java_runtime_preferences(gv);
 
         if !java_pref.iter().any(|v| JavaManager::is_installed(*v)) {
             let java_version = java_pref[0];
@@ -513,19 +504,6 @@ fn parse_quilt_version(version: &str) -> Option<(String, String)> {
     let rest = version.strip_prefix("quilt-loader-")?;
     let (loader, game) = rest.rsplit_once('-')?;
     Some((game.to_string(), loader.to_string()))
-}
-
-fn parse_mc_major_minor(version: &str) -> Option<(u32, u32)> {
-    let parts: Vec<&str> = version.split('.').collect();
-    match parts.as_slice() {
-        [major] => major.parse().ok().map(|m| (m, 0)),
-        [major, minor] => {
-            let m = major.parse().ok()?;
-            let n = minor.parse().ok()?;
-            Some((m, n))
-        }
-        _ => None,
-    }
 }
 
 async fn monitor_download_progress(

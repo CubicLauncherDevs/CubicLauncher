@@ -1,7 +1,9 @@
 use crate::core::errors::CoreError;
 use crate::services::SettingsManager;
+use aqua::parse_java_major_version;
 use serde::Serialize;
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 use tauri::command;
@@ -48,120 +50,184 @@ pub struct JavaPaths {
     jre25: String,
 }
 
-#[command]
-pub fn detect_java_paths() -> Result<JavaPaths, String> {
-    info!("Detectando rutas de Java");
-    let mut paths = JavaPaths {
-        jre8: String::new(),
-        jre17: String::new(),
-        jre21: String::new(),
-        jre25: String::new(),
-    };
+#[derive(Debug, Default)]
+struct JavaPathSlots {
+    jre8: Option<String>,
+    jre17: Option<String>,
+    jre21: Option<String>,
+    jre25: Option<String>,
+}
+
+impl JavaPathSlots {
+    fn set_if_empty(&mut self, major: u8, path: String) -> bool {
+        let slot = match major {
+            8 => &mut self.jre8,
+            17 => &mut self.jre17,
+            21 => &mut self.jre21,
+            25 => &mut self.jre25,
+            _ => return false,
+        };
+        if slot.is_some() {
+            return false;
+        }
+        *slot = Some(path);
+        true
+    }
+
+    fn into_java_paths(self) -> JavaPaths {
+        JavaPaths {
+            jre8: self.jre8.unwrap_or_default(),
+            jre17: self.jre17.unwrap_or_default(),
+            jre21: self.jre21.unwrap_or_default(),
+            jre25: self.jre25.unwrap_or_default(),
+        }
+    }
+}
+
+/// Name of the Java binary used for version detection. `javaw.exe` is used for
+/// launching, but `java.exe` is used here because it prints `-version` output.
+fn detection_binary_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "java.exe"
+    } else {
+        "java"
+    }
+}
+
+fn java_home_candidates() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+
+    // $JAVA_HOME always wins.
+    if let Ok(java_home) = std::env::var("JAVA_HOME") {
+        let candidate = Path::new(&java_home)
+            .join("bin")
+            .join(detection_binary_name());
+        out.push(candidate);
+    }
 
     #[cfg(target_os = "windows")]
     {
-        // Simple heuristic for Windows
         let base_dirs = [
-            "C:\\Program Files\\Java",
-            "C:\\Program Files\\Eclipse Adoptium",
-            "C:\\Program Files\\AdoptOpenJDK",
+            PathBuf::from(r"C:\Program Files\Java"),
+            PathBuf::from(r"C:\Program Files\Eclipse Adoptium"),
+            PathBuf::from(r"C:\Program Files\AdoptOpenJDK"),
+            PathBuf::from(r"C:\Program Files\Microsoft"),
+            PathBuf::from(r"C:\Program Files\Amazon Corretto"),
         ];
-
-        for base in base_dirs {
-            if let Ok(entries) = std::fs::read_dir(base) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        let name = match path.file_name() {
-                            Some(n) => n.to_string_lossy().to_lowercase(),
-                            None => String::new(),
-                        };
-                        let exact_java = path.join("bin").join("javaw.exe");
-                        if exact_java.exists() {
-                            if name.contains("1.8") || name.contains("-8") {
-                                if paths.jre8.is_empty() {
-                                    paths.jre8 = exact_java.to_string_lossy().into_owned();
-                                }
-                            } else if name.contains("-17") || name.contains("17.") {
-                                if paths.jre17.is_empty() {
-                                    paths.jre17 = exact_java.to_string_lossy().into_owned();
-                                }
-                            } else if name.contains("-21") || name.contains("21.") {
-                                if paths.jre21.is_empty() {
-                                    paths.jre21 = exact_java.to_string_lossy().into_owned();
-                                }
-                            } else if name.contains("-25") || name.contains("25.") {
-                                if paths.jre25.is_empty() {
-                                    paths.jre25 = exact_java.to_string_lossy().into_owned();
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        for base in &base_dirs {
+            push_subdirectory_bins(base, &mut out);
         }
     }
 
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[cfg(target_os = "macos")]
     {
-        // Simple heuristic for Linux
-        let base_dir = "/usr/lib/jvm";
-        info!("Escaneando {} en busca de JVMs", base_dir);
-        if let Ok(entries) = std::fs::read_dir(base_dir) {
+        // Typical locations for installed JDKs/JREs on macOS.
+        let mac_vm_base = PathBuf::from("/Library/Java/JavaVirtualMachines");
+        if let Ok(entries) = std::fs::read_dir(&mac_vm_base) {
             for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    let name = match path.file_name() {
-                        Some(n) => n.to_string_lossy().to_lowercase(),
-                        None => String::new(),
-                    };
-                    let exact_java = path.join("bin").join("java");
-                    if exact_java.exists() {
-                        if name.contains("-8-") || name.contains("1.8.0") {
-                            if paths.jre8.is_empty() {
-                                paths.jre8 = exact_java.to_string_lossy().into_owned();
-                            }
-                        } else if name.contains("-17-")
-                            || name.ends_with("-17")
-                            || name.contains("17-")
-                        {
-                            if paths.jre17.is_empty() {
-                                paths.jre17 = exact_java.to_string_lossy().into_owned();
-                            }
-                        } else if name.contains("-21-")
-                            || name.ends_with("-21")
-                            || name.contains("21-")
-                        {
-                            if paths.jre21.is_empty() {
-                                paths.jre21 = exact_java.to_string_lossy().into_owned();
-                            }
-                        } else if (name.contains("-25-")
-                            || name.ends_with("-25")
-                            || name.contains("25-"))
-                            && paths.jre25.is_empty()
-                        {
-                            paths.jre25 = exact_java.to_string_lossy().into_owned();
-                        }
-                    }
-                }
+                let home = entry.path().join("Contents").join("Home");
+                out.push(home.join("bin").join(detection_binary_name()));
             }
         }
+        let brew_bases = [
+            PathBuf::from("/opt/homebrew/opt"),
+            PathBuf::from("/usr/local/opt"),
+        ];
+        for base in &brew_bases {
+            push_matching_subdirectory_bins(base, "openjdk", &mut out);
+        }
+        push_subdirectory_bins(Path::new("/usr/lib/jvm"), &mut out);
+    }
 
-        // Fallbacks if not found
-        if paths.jre8.is_empty() && Path::new("/usr/bin/java").exists() {
-            paths.jre8 = "/usr/bin/java".to_string();
-        }
-        if paths.jre17.is_empty() && Path::new("/usr/bin/java").exists() {
-            paths.jre17 = "/usr/bin/java".to_string();
-        }
-        if paths.jre21.is_empty() && Path::new("/usr/bin/java").exists() {
-            paths.jre21 = "/usr/bin/java".to_string();
-        }
-        if paths.jre25.is_empty() && Path::new("/usr/bin/java").exists() {
-            paths.jre25 = "/usr/bin/java".to_string();
+    #[cfg(target_os = "linux")]
+    {
+        push_subdirectory_bins(Path::new("/usr/lib/jvm"), &mut out);
+        if Path::new("/usr/bin/java").exists() {
+            out.push(PathBuf::from("/usr/bin/java"));
         }
     }
 
+    out
+}
+
+fn push_subdirectory_bins(base: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(base) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let candidate = entry.path().join("bin").join(detection_binary_name());
+        if candidate.exists() {
+            out.push(candidate);
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn push_matching_subdirectory_bins(base: &Path, prefix: &str, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(base) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy().to_lowercase();
+        if !name.starts_with(prefix) {
+            continue;
+        }
+        let candidate = entry
+            .path()
+            .join("libexec")
+            .join("openjdk.jdk")
+            .join("Contents")
+            .join("Home")
+            .join("bin")
+            .join(detection_binary_name());
+        if candidate.exists() {
+            out.push(candidate);
+        }
+        // Direct symlinked Home.
+        let candidate2 = entry.path().join("bin").join(detection_binary_name());
+        if candidate2.exists() {
+            out.push(candidate2);
+        }
+    }
+}
+
+fn detect_java_major_version_sync(java_bin: &Path) -> Option<u8> {
+    let output = std::process::Command::new(java_bin)
+        .arg("-version")
+        .output()
+        .ok()?;
+
+    let text = String::from_utf8_lossy(if output.stderr.is_empty() {
+        &output.stdout
+    } else {
+        &output.stderr
+    });
+
+    parse_java_major_version(&text)
+}
+
+#[command]
+pub fn detect_java_paths() -> Result<JavaPaths, String> {
+    info!("Detectando rutas de Java");
+
+    let candidates = java_home_candidates();
+    let mut seen = HashSet::new();
+    let mut slots = JavaPathSlots::default();
+
+    for candidate in candidates {
+        let canonical = std::fs::canonicalize(&candidate).unwrap_or_else(|_| candidate.clone());
+        if !canonical.exists() || !seen.insert(canonical.clone()) {
+            continue;
+        }
+
+        if let Some(major) = detect_java_major_version_sync(&canonical) {
+            info!("Detectado Java {} en {}", major, canonical.display());
+            slots.set_if_empty(major, canonical.to_string_lossy().into_owned());
+        }
+    }
+
+    let paths = slots.into_java_paths();
     info!(
         "Rutas Java detectadas: JRE8={}, JRE17={}, JRE21={}, JRE25={}",
         paths.jre8, paths.jre17, paths.jre21, paths.jre25

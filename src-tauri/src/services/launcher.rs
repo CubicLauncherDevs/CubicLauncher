@@ -29,7 +29,7 @@ use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tokio::fs;
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, trace, warn};
-use zellkern::Loader;
+use zellkern::{GameVersion, Loader};
 
 use dashmap::DashMap;
 
@@ -532,6 +532,21 @@ impl Launcher {
                     .and_then(|p| p.java_version)
             })
         };
+
+        // If the manifest does not declare a Java version, infer one from the
+        // Minecraft version string so we do not default unconditionally to Java 25.
+        if java_version_req.is_none() {
+            let game_version = GameVersion::from_version_id(&manifest.id_raw);
+            let inferred = aqua::infer_java_version(&game_version.mc_version);
+            info!(
+                "No explicit java_version for {}; inferred Java {}",
+                manifest.id_raw, inferred
+            );
+            java_version_req = Some(JavaVersion {
+                component: String::new(),
+                major_version: inferred,
+            });
+        }
 
         // Forge/NeoForge ModLauncher requires Java 16+; bump if manifest says < 16.
         // But Forge < 36.2.26 bundles ModLauncher 8.0.9 which has a broken
