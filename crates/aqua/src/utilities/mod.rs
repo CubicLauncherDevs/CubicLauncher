@@ -12,7 +12,6 @@ use zellkern::is_native_file;
 
 use crate::AquaError;
 use crate::path_security::safe_join;
-use crate::progress::DownloadReporter;
 
 pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
@@ -23,12 +22,22 @@ pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
 
 const MAX_DOWNLOAD_ATTEMPTS: usize = 3;
 
+/// Abstraction over any progress reporter that can track bytes for a single
+/// download item. Allows the shared download loop to be reused by callers
+/// that need different progress backends (e.g. a shared `ProgressState` or
+/// a watch channel for JRE installs).
+pub trait ProgressReporter: Send + Sync {
+    fn reset_attempt(&self);
+    fn report_delta(&self, delta: u64);
+    fn commit_known_size(&self, size: u64);
+}
+
 pub async fn download_file(
     url: &str,
     path: &Path,
     expected_hash: &str,
     size_hint: Option<u64>,
-    reporter: Option<&DownloadReporter>,
+    reporter: Option<&dyn ProgressReporter>,
 ) -> Result<(), AquaError> {
     download_file_with_headers(url, path, expected_hash, size_hint, reporter, &[]).await
 }
@@ -38,7 +47,7 @@ pub async fn download_file_with_headers(
     path: &Path,
     expected_hash: &str,
     size_hint: Option<u64>,
-    reporter: Option<&DownloadReporter>,
+    reporter: Option<&dyn ProgressReporter>,
     headers: &[(String, String)],
 ) -> Result<(), AquaError> {
     if url.is_empty() {
@@ -245,6 +254,57 @@ fn hex_encode(bytes: &[u8]) -> String {
     s
 }
 
+// ─── Java utilities ─────────────────────────────────────────────────────────
+
+/// Parses the major version number from a `java -version` output line such as
+/// `openjdk version "21.0.11"` or `openjdk version "1.8.0_412"`.
+pub fn parse_java_major_version(version_line: &str) -> Option<u8> {
+    let version_token = version_line.lines().next()?.split('"').nth(1).or_else(|| {
+        version_line
+            .split_whitespace()
+            .find(|s| s.chars().next().is_some_and(|c| c.is_ascii_digit()))
+    })?;
+
+    let version_token = version_token.trim();
+
+    // Legacy format: "1.8.0_xxx" -> major is 8.
+    if let Some(rest) = version_token.strip_prefix("1.") {
+        let major_str = rest.split('.').next()?;
+        return major_str.parse().ok();
+    }
+
+    version_token.split('.').next()?.parse().ok()
+}
+
+fn parse_mc_major_minor(version: &str) -> Option<(u32, u32)> {
+    let mut parts = version.split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts.next().unwrap_or("0").parse().ok()?;
+    Some((major, minor))
+}
+
+/// Returns the preferred Java runtime versions for a given Minecraft version.
+/// The first element is the optimal version; later entries are acceptable
+/// fallbacks if the optimal one is not installed.
+pub fn java_runtime_preferences(mc_version: &str) -> &'static [u8] {
+    match parse_mc_major_minor(mc_version) {
+        Some((1, n)) if n >= 21 => &[21, 17, 8],
+        Some((1, n)) if n >= 17 => &[17, 21, 8],
+        Some((1, _)) => &[8, 17, 21],
+        // Year-based and snapshot versions default to the most recent LTS Java.
+        _ => &[21, 17, 8],
+    }
+}
+
+/// Infers the single required Java major version for a Minecraft version.
+/// This is used when the version manifest does not declare `java_version`.
+pub fn infer_java_version(mc_version: &str) -> u8 {
+    java_runtime_preferences(mc_version)
+        .first()
+        .copied()
+        .unwrap_or(21)
+}
+
 // ─── Forge utilities ──────────────────────────────────────────────────────────
 
 /// Extract a ZIP file to a destination directory (all files, no filtering).
@@ -406,5 +466,44 @@ mod tests {
         assert!(is_native_file("libglfw.dylib"));
         assert!(!is_native_file("META-INF/MANIFEST.MF"));
         assert!(!is_native_file("some/path/"));
+    }
+
+    #[test]
+    fn test_parse_java_major_version() {
+        assert_eq!(
+            parse_java_major_version("openjdk version \"21.0.11\" 2025-04-15"),
+            Some(21)
+        );
+        assert_eq!(
+            parse_java_major_version("openjdk version \"17.0.12\" 2024-07-16"),
+            Some(17)
+        );
+        assert_eq!(
+            parse_java_major_version("openjdk version \"1.8.0_412\" 2024-05-16"),
+            Some(8)
+        );
+        assert_eq!(
+            parse_java_major_version("java version \"1.7.0_80\" "),
+            Some(7)
+        );
+        assert_eq!(parse_java_major_version("not a version"), None);
+    }
+
+    #[test]
+    fn test_java_runtime_preferences() {
+        assert_eq!(java_runtime_preferences("1.16.5"), &[8, 17, 21]);
+        assert_eq!(java_runtime_preferences("1.17.1"), &[17, 21, 8]);
+        assert_eq!(java_runtime_preferences("1.20.4"), &[17, 21, 8]);
+        assert_eq!(java_runtime_preferences("1.21"), &[21, 17, 8]);
+        assert_eq!(java_runtime_preferences("1.21.4"), &[21, 17, 8]);
+        assert_eq!(java_runtime_preferences("26.3-snapshot-2"), &[21, 17, 8]);
+    }
+
+    #[test]
+    fn test_infer_java_version() {
+        assert_eq!(infer_java_version("1.16.5"), 8);
+        assert_eq!(infer_java_version("1.17.1"), 17);
+        assert_eq!(infer_java_version("1.21.4"), 21);
+        assert_eq!(infer_java_version("26.3-snapshot-2"), 21);
     }
 }

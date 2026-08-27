@@ -206,3 +206,17 @@ impl DownloadReporter {
         }
     }
 }
+
+impl crate::utilities::ProgressReporter for DownloadReporter {
+    fn reset_attempt(&self) {
+        DownloadReporter::reset_attempt(self);
+    }
+
+    fn report_delta(&self, delta: u64) {
+        DownloadReporter::report_delta(self, delta);
+    }
+
+    fn commit_known_size(&self, size: u64) {
+        DownloadReporter::commit_known_size(self, size);
+    }
+}

@@ -13,7 +13,8 @@ pub use downloaders::{
     QuiltBatch,
 };
 pub use errors::AquaError;
-pub use jre::{JrePackage, JreStatus, ZuluApi, ZuluPackage};
+pub use jre::{ArchiveFormat, JrePackage, JreProviderChain, JreStatus, JreVendor};
 pub use manifest::resolve_version_data;
 pub use progress::{DownloadProgress, DownloadReporter, DownloadStage, ProgressSender};
 pub use types::*;
+pub use utilities::{infer_java_version, java_runtime_preferences, parse_java_major_version};

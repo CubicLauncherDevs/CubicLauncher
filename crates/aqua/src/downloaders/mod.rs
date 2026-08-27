@@ -265,13 +265,16 @@ async fn run_download(
             }
 
             let reporter = state.as_ref().map(|s| DownloadReporter::new(Arc::clone(s)));
+            let reporter_dyn: Option<&dyn crate::utilities::ProgressReporter> = reporter
+                .as_ref()
+                .map(|r| r as &dyn crate::utilities::ProgressReporter);
 
             if let Err(e) = download_file_with_headers(
                 &item.url,
                 &item.destination,
                 &item.expected_hash,
                 item.size,
-                reporter.as_ref(),
+                reporter_dyn,
                 &item.headers,
             )
             .await
@@ -283,7 +286,7 @@ async fn run_download(
                         &item.destination,
                         &item.expected_hash,
                         item.size,
-                        reporter.as_ref(),
+                        reporter_dyn,
                         &item.headers,
                     )
                     .await
@@ -295,7 +298,7 @@ async fn run_download(
                             &item.destination,
                             &item.expected_hash,
                             item.size,
-                            reporter.as_ref(),
+                            reporter_dyn,
                             &item.headers,
                         )
                         .await

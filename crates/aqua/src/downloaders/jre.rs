@@ -4,7 +4,7 @@ use std::pin::Pin;
 
 use super::batch::{DownloadBatch, DownloadItemSpec};
 use crate::AquaError;
-use crate::jre::{JrePackage, ZuluApi};
+use crate::jre::{JrePackage, download_and_extract};
 use crate::progress::ProgressSender;
 
 pub struct JreBatch {
@@ -42,7 +42,7 @@ impl DownloadBatch for JreBatch {
 
         Box::pin(async move {
             let label = format!("Java {}", version);
-            ZuluApi::download_and_extract(&pkg, &dest_dir, progress_tx, label).await?;
+            download_and_extract(&pkg, &dest_dir, progress_tx, label).await?;
             Ok(())
         })
     }
