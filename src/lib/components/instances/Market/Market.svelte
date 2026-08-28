@@ -69,6 +69,7 @@
 				onSortChange={state.setSort}
 				onCategoryChange={state.setCategory}
 				onLocalSortChange={state.setLocalSort}
+				onLocalSourceChange={state.setLocalSource}
 			/>
 		{/snippet}
 

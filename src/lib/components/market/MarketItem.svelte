@@ -45,11 +45,17 @@
 		return null;
 	});
 
-	const remoteLabel = $derived.by(() => {
-		if (project.hasRemoteData) {
-			return project.modrinthProjectId ? "Modrinth" : "CF";
+	const sourceLabel = $derived.by(() => {
+		switch (project.source) {
+			case "modrinth":
+				return "Modrinth";
+			case "curseforge":
+				return "CF";
+			case "local":
+				return t("market.item.local");
+			default:
+				return null;
 		}
-		return null;
 	});
 </script>
 
@@ -87,9 +93,9 @@
 						{statusLabel}
 					</span>
 				{/if}
-				{#if remoteLabel}
-					<span class="market-item-badge remote">
-						{remoteLabel}
+				{#if sourceLabel}
+					<span class="market-item-badge {project.source}">
+						{sourceLabel}
 					</span>
 				{/if}
 				{#if incompatible}
@@ -251,7 +257,21 @@
 		border: 1px solid rgba(var(--color-error-rgb), 0.2);
 	}
 
-	.market-item-badge.remote {
+	.market-item-badge.modrinth {
+		color: #4ade80;
+		background: rgba(74, 222, 128, 0.08);
+		border: 1px solid rgba(74, 222, 128, 0.22);
+		font-size: 0.55rem;
+	}
+
+	.market-item-badge.curseforge {
+		color: #fb923c;
+		background: rgba(251, 146, 60, 0.08);
+		border: 1px solid rgba(251, 146, 60, 0.22);
+		font-size: 0.55rem;
+	}
+
+	.market-item-badge.local {
 		color: var(--text-primary);
 		background: rgba(255, 255, 255, 0.06);
 		border: 1px solid var(--border);

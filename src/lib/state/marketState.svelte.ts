@@ -50,6 +50,7 @@ export type MarketSource = "local" | "modrinth" | "curseforge";
 
 export type MarketSort = "relevance" | "downloads" | "newest";
 export type LocalSort = "name-asc" | "name-desc";
+export type LocalSourceFilter = "all" | "modrinth" | "curseforge" | "local";
 
 const CURSEFORGE_CATEGORY_IDS: Record<string, number> = {
 	adventure: 422,
@@ -72,6 +73,7 @@ export interface MarketFilters {
 	category: string | null;
 	sort: MarketSort;
 	localSort: LocalSort;
+	localSource: LocalSourceFilter;
 }
 
 export interface MarketDetailState {
@@ -118,6 +120,7 @@ export function createMarketState(
 		category: null,
 		sort: "downloads",
 		localSort: "name-asc",
+		localSource: "all",
 	});
 
 	const items = $state<MarketProject[]>([]);
@@ -184,6 +187,7 @@ export function createMarketState(
 		filters.category = null;
 		filters.sort = "downloads";
 		filters.localSort = "name-asc";
+		filters.localSource = "all";
 		resetPagination();
 		selectedId = null;
 		overrideVersionId = null;
@@ -305,7 +309,10 @@ export function createMarketState(
 
 	function applyLocalFilters(merge = false) {
 		if (filters.source !== "local") return;
-		const filtered = filterLocalItems(rawLocalItems);
+		let filtered = filterLocalItems(rawLocalItems);
+		if (filters.localSource !== "all") {
+			filtered = filtered.filter((m) => m.source === filters.localSource);
+		}
 		const sorted = sortLocalItems(filtered);
 		setLocalItems(sorted, merge);
 	}
@@ -787,6 +794,13 @@ export function createMarketState(
 		}
 	}
 
+	function setLocalSource(source: LocalSourceFilter) {
+		filters.localSource = source;
+		if (filters.source === "local") {
+			applyLocalFilters();
+		}
+	}
+
 	// Watch instance changes and reset
 	let lastInstanceId = "";
 	$effect(() => {
@@ -872,6 +886,7 @@ export function createMarketState(
 		setCategory,
 		setSort,
 		setLocalSort,
+		setLocalSource,
 		selectProject,
 		loadMore,
 		prepareInstall,

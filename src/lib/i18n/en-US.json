@@ -628,6 +628,11 @@
 			"title": "Filters",
 			"hideFilters": "Hide advanced filters",
 			"showFilters": "Show advanced filters",
+			"source": "Source",
+			"sourceAll": "All",
+			"sourceModrinth": "Modrinth",
+			"sourceCurseForge": "CurseForge",
+			"sourceLocal": "Local",
 			"tabModrinth": "Modrinth",
 			"tabCurseForge": "CurseForge",
 			"tabLocal": "Local",
@@ -649,7 +654,8 @@
 			"install": "Install",
 			"installed": "Installed",
 			"updateAvailable": "Update",
-			"incompatible": "Incompatible"
+			"incompatible": "Incompatible",
+			"local": "Local"
 		},
 		"detail": {
 			"close": "Close details",

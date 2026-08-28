@@ -10,6 +10,7 @@
 		MarketFilters,
 		MarketSort,
 		LocalSort,
+		LocalSourceFilter,
 	} from "$lib/state/marketState.svelte";
 	import type { MarketSource, ContentType } from "$lib/types/market";
 
@@ -21,6 +22,7 @@
 		onSortChange: (sort: MarketSort) => void;
 		onCategoryChange: (category: string | null) => void;
 		onLocalSortChange?: (sort: LocalSort) => void;
+		onLocalSourceChange?: (source: LocalSourceFilter) => void;
 	}
 
 	let {
@@ -31,6 +33,7 @@
 		onSortChange,
 		onCategoryChange,
 		onLocalSortChange,
+		onLocalSourceChange,
 	}: Props = $props();
 
 	const isModContent = $derived(contentType === "mods");
@@ -71,6 +74,16 @@
 	const localSorts: { value: LocalSort; label: string; icon: string }[] = [
 		{ value: "name-asc", label: "Name A-Z", icon: "A" },
 		{ value: "name-desc", label: "Name Z-A", icon: "Z" },
+	];
+
+	const localSources: {
+		value: LocalSourceFilter;
+		label: string;
+	}[] = [
+		{ value: "all", label: t("market.filter.sourceAll") },
+		{ value: "modrinth", label: t("market.filter.sourceModrinth") },
+		{ value: "curseforge", label: t("market.filter.sourceCurseForge") },
+		{ value: "local", label: t("market.filter.sourceLocal") },
 	];
 
 	const categories = [
@@ -158,6 +171,24 @@
 							>
 								<span class="chip-icon">{sort.icon}</span>
 								{sort.label}
+							</button>
+						{/each}
+					</div>
+				</div>
+				<div class="filter-section">
+					<span class="filter-label">{t("market.filter.source")}</span
+					>
+					<div class="filter-chips">
+						{#each localSources as source (source.value)}
+							<button
+								type="button"
+								class="filter-chip"
+								class:active={filters.localSource ===
+									source.value}
+								onclick={() =>
+									onLocalSourceChange?.(source.value)}
+							>
+								{source.label}
 							</button>
 						{/each}
 					</div>

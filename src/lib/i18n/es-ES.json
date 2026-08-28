@@ -640,7 +640,12 @@
 			"refresh": "Actualizar",
 			"title": "Filters",
 			"hideFilters": "Hide advanced filters",
-			"showFilters": "Show advanced filters"
+			"showFilters": "Show advanced filters",
+			"source": "Fuente",
+			"sourceAll": "Todas",
+			"sourceModrinth": "Modrinth",
+			"sourceCurseForge": "CurseForge",
+			"sourceLocal": "Local"
 		},
 		"item": {
 			"by": "por",
@@ -649,7 +654,8 @@
 			"install": "Instalar",
 			"installed": "Instalado",
 			"updateAvailable": "Actualizar",
-			"incompatible": "Incompatible"
+			"incompatible": "Incompatible",
+			"local": "Local"
 		},
 		"detail": {
 			"close": "Cerrar detalles",
