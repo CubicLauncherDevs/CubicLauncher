@@ -480,6 +480,11 @@ export interface CurseForgeSearchResult {
 	};
 }
 
+export interface CurseForgeFileDependency {
+	modId?: number;
+	relationType: number;
+}
+
 export interface CurseForgeFile {
 	id: number;
 	modId?: number;
@@ -491,6 +496,7 @@ export interface CurseForgeFile {
 	modLoaders: string[];
 	isAvailable: boolean;
 	releaseType: number;
+	dependencies: CurseForgeFileDependency[];
 }
 
 export interface CurseForgeFilesResult {

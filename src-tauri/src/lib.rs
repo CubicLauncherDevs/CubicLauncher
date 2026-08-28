@@ -40,6 +40,7 @@ pub fn run() {
             commands::instance::instance_import::cancel_instance_import,
             commands::instance::upload_custom_icon,
             commands::instance::reset_instance_icon,
+            commands::dependencies::resolve_mod_dependencies,
             commands::download::add_to_queue,
             commands::download::get_available_versions,
             commands::download::get_fabric_versions,
