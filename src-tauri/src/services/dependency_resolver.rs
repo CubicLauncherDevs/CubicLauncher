@@ -130,6 +130,39 @@ struct ModrinthProjectBrief {
     icon_url: Option<String>,
 }
 
+fn record_version(
+    source: DependencySource,
+    project_id: &str,
+    version_id: &str,
+    requested_by: &str,
+    visited: &mut HashMap<(DependencySource, String), String>,
+) -> Option<DependencyConflict> {
+    let key = (source, project_id.to_string());
+
+    if let Some(existing_version) = visited.get(&key) {
+        if existing_version != version_id {
+            return Some(DependencyConflict {
+                project_id: project_id.to_string(),
+                source,
+                requested_versions: vec![
+                    RequestedVersion {
+                        version_id: existing_version.clone(),
+                        requested_by: "otra dependencia".to_string(),
+                    },
+                    RequestedVersion {
+                        version_id: version_id.to_string(),
+                        requested_by: requested_by.to_string(),
+                    },
+                ],
+            });
+        }
+        return None;
+    }
+
+    visited.insert(key, version_id.to_string());
+    None
+}
+
 pub async fn resolve_dependencies(
     requests: Vec<DependencyRequest>,
     loader: String,
@@ -218,27 +251,16 @@ async fn resolve_modrinth_node(
             .ok_or_else(|| format!("No se encontró versión compatible para {}", project_id))?
     };
 
-    let visited_key = (DependencySource::Modrinth, project_id.to_string());
-    if let Some(existing_version) = visited.get(&visited_key) {
-        if existing_version != &version.id {
-            conflicts.push(DependencyConflict {
-                project_id: project_id.to_string(),
-                source: DependencySource::Modrinth,
-                requested_versions: vec![
-                    RequestedVersion {
-                        version_id: existing_version.clone(),
-                        requested_by: "otra dependencia".to_string(),
-                    },
-                    RequestedVersion {
-                        version_id: version.id.clone(),
-                        requested_by: requested_by.to_string(),
-                    },
-                ],
-            });
-        }
+    if let Some(conflict) = record_version(
+        DependencySource::Modrinth,
+        project_id,
+        &version.id,
+        requested_by,
+        visited,
+    ) {
+        conflicts.push(conflict);
         return Ok(None);
     }
-    visited.insert(visited_key, version.id.clone());
 
     let project = fetch_modrinth_project(project_id).await;
     let (title, icon_url) = project
@@ -385,27 +407,16 @@ async fn resolve_curseforge_node(
     };
 
     let file_id_string = file.id.to_string();
-    let visited_key = (DependencySource::Curseforge, project_id_string.clone());
-    if let Some(existing_version) = visited.get(&visited_key) {
-        if existing_version != &file_id_string {
-            conflicts.push(DependencyConflict {
-                project_id: project_id_string.clone(),
-                source: DependencySource::Curseforge,
-                requested_versions: vec![
-                    RequestedVersion {
-                        version_id: existing_version.clone(),
-                        requested_by: "otra dependencia".to_string(),
-                    },
-                    RequestedVersion {
-                        version_id: file_id_string.clone(),
-                        requested_by: requested_by.to_string(),
-                    },
-                ],
-            });
-        }
+    if let Some(conflict) = record_version(
+        DependencySource::Curseforge,
+        &project_id_string,
+        &file_id_string,
+        requested_by,
+        visited,
+    ) {
+        conflicts.push(conflict);
         return Ok(None);
     }
-    visited.insert(visited_key, file_id_string.clone());
 
     let project = fetch_curseforge_project(mod_id).await;
     let (title, icon_url) = project
@@ -642,5 +653,127 @@ impl DependencyExt for ResolvedDependency {
     fn with_kind(mut self, kind: DependencyKind) -> Self {
         self.kind = kind;
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dependency_kind_from_modrinth() {
+        assert_eq!(DependencyKind::from_modrinth("required"), DependencyKind::Required);
+        assert_eq!(DependencyKind::from_modrinth("optional"), DependencyKind::Optional);
+        assert_eq!(DependencyKind::from_modrinth("embedded"), DependencyKind::Embedded);
+        assert_eq!(DependencyKind::from_modrinth("incompatible"), DependencyKind::Incompatible);
+        assert_eq!(DependencyKind::from_modrinth("unknown"), DependencyKind::Required);
+        assert_eq!(DependencyKind::from_modrinth("OPTIONAL"), DependencyKind::Optional);
+    }
+
+    #[test]
+    fn dependency_kind_from_curseforge_relation() {
+        assert_eq!(
+            DependencyKind::from_curseforge_relation(1),
+            Some(DependencyKind::Embedded)
+        );
+        assert_eq!(
+            DependencyKind::from_curseforge_relation(2),
+            Some(DependencyKind::Optional)
+        );
+        assert_eq!(
+            DependencyKind::from_curseforge_relation(3),
+            Some(DependencyKind::Required)
+        );
+        assert_eq!(
+            DependencyKind::from_curseforge_relation(5),
+            Some(DependencyKind::Incompatible)
+        );
+        assert_eq!(DependencyKind::from_curseforge_relation(99), None);
+    }
+
+    #[test]
+    fn record_version_first_insert() {
+        let mut visited = HashMap::new();
+        let conflict = record_version(
+            DependencySource::Modrinth,
+            "abc123",
+            "v1",
+            "root",
+            &mut visited,
+        );
+
+        assert!(conflict.is_none());
+        assert_eq!(
+            visited.get(&(DependencySource::Modrinth, "abc123".to_string())),
+            Some(&"v1".to_string())
+        );
+    }
+
+    #[test]
+    fn record_version_same_version_is_no_conflict() {
+        let mut visited = HashMap::new();
+        visited.insert(
+            (DependencySource::Modrinth, "abc123".to_string()),
+            "v1".to_string(),
+        );
+
+        let conflict = record_version(
+            DependencySource::Modrinth,
+            "abc123",
+            "v1",
+            "dep-a",
+            &mut visited,
+        );
+
+        assert!(conflict.is_none());
+    }
+
+    #[test]
+    fn record_version_different_version_is_conflict() {
+        let mut visited = HashMap::new();
+        visited.insert(
+            (DependencySource::Curseforge, "98765".to_string()),
+            "file-1".to_string(),
+        );
+
+        let conflict = record_version(
+            DependencySource::Curseforge,
+            "98765",
+            "file-2",
+            "dep-b",
+            &mut visited,
+        );
+
+        assert!(conflict.is_some());
+        let conflict = conflict.unwrap();
+        assert_eq!(conflict.project_id, "98765");
+        assert_eq!(conflict.source, DependencySource::Curseforge);
+        assert_eq!(conflict.requested_versions.len(), 2);
+        assert_eq!(conflict.requested_versions[0].version_id, "file-1");
+        assert_eq!(conflict.requested_versions[1].version_id, "file-2");
+        assert_eq!(conflict.requested_versions[1].requested_by, "dep-b");
+    }
+
+    #[test]
+    fn record_version_tracks_sources_independently() {
+        let mut visited = HashMap::new();
+
+        record_version(
+            DependencySource::Modrinth,
+            "abc123",
+            "v1",
+            "root",
+            &mut visited,
+        );
+        let conflict = record_version(
+            DependencySource::Curseforge,
+            "abc123",
+            "file-1",
+            "root",
+            &mut visited,
+        );
+
+        assert!(conflict.is_none());
+        assert_eq!(visited.len(), 2);
     }
 }

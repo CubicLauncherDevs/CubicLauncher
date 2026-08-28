@@ -1,21 +1,126 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
-	import type { ModDownloadInfo } from "$lib/api/cubicApi";
 	import Loading from "$lib/icons/Loading.svelte";
+	import { SvelteSet } from "svelte/reactivity";
+	import type { ModDownloadInfo } from "$lib/api/cubicApi";
+	import type {
+		DependencyConflict,
+		ResolvedDependency,
+	} from "$lib/types/dependency";
 
 	let {
 		resolvingDeps = false,
 		downloading = false,
 		downloadQueue = [] as ModDownloadInfo[],
+		dependencyTree = [] as ResolvedDependency[],
+		conflicts = [] as DependencyConflict[],
+		installedProjectIds = new Set<string>(),
 		onBack,
 		onConfirmDownload,
+		onQueueChange,
 	}: {
 		resolvingDeps: boolean;
 		downloading: boolean;
 		downloadQueue: ModDownloadInfo[];
+		dependencyTree: ResolvedDependency[];
+		conflicts: DependencyConflict[];
+		installedProjectIds?: Set<string>;
 		onBack: () => void;
 		onConfirmDownload: () => Promise<void>;
+		onQueueChange?: (queue: ModDownloadInfo[]) => void;
 	} = $props();
+
+	let selectedOptionalIds = new SvelteSet<string>();
+
+	function isInstalled(dep: ResolvedDependency): boolean {
+		return installedProjectIds.has(dep.projectId);
+	}
+
+	function badgeLabel(kind: ResolvedDependency["kind"]): string {
+		const key = `instanceView.downloadMods.dependencyKind.${kind}`;
+		const value = t(key as never);
+		return value === key ? kind : value;
+	}
+
+	function computeQueue(deps: ResolvedDependency[]): ModDownloadInfo[] {
+		const queue: ModDownloadInfo[] = [];
+		const seen = new SvelteSet<string>();
+
+		function walk(items: ResolvedDependency[]) {
+			for (const dep of items) {
+				if (dep.kind === "incompatible") continue;
+				if (isInstalled(dep)) continue;
+				if (
+					dep.kind === "optional" &&
+					!selectedOptionalIds.has(dep.projectId)
+				) {
+					continue;
+				}
+				if (dep.downloadUrl && dep.filename) {
+					const key = dep.filename.toLowerCase();
+					if (!seen.has(key)) {
+						seen.add(key);
+						queue.push({
+							url: dep.downloadUrl,
+							filename: dep.filename,
+							projectTitle: dep.title,
+							iconUrl: dep.iconUrl ?? undefined,
+						});
+					}
+				}
+				walk(dep.children);
+			}
+		}
+
+		walk(deps);
+		return queue;
+	}
+
+	$effect(() => {
+		if (dependencyTree.length > 0) {
+			void selectedOptionalIds;
+			onQueueChange?.(computeQueue(dependencyTree));
+		}
+	});
+
+	function toggleOptional(projectId: string) {
+		if (selectedOptionalIds.has(projectId)) {
+			selectedOptionalIds.delete(projectId);
+		} else {
+			selectedOptionalIds.add(projectId);
+		}
+	}
+
+	function expandAllOptionals() {
+		for (const dep of dependencyTree) {
+			addOptionalsRecursively(dep);
+		}
+	}
+
+	function addOptionalsRecursively(dep: ResolvedDependency) {
+		if (dep.kind === "optional") {
+			selectedOptionalIds.add(dep.projectId);
+		}
+		for (const child of dep.children) {
+			addOptionalsRecursively(child);
+		}
+	}
+
+	function collapseAllOptionals() {
+		selectedOptionalIds.clear();
+	}
+
+	async function handleConfirm() {
+		if (onQueueChange) {
+			onQueueChange(computeQueue(dependencyTree));
+		}
+		await onConfirmDownload();
+	}
+
+	function hasOptionalRecursively(dep: ResolvedDependency): boolean {
+		if (dep.kind === "optional") return true;
+		return dep.children.some(hasOptionalRecursively);
+	}
 </script>
 
 <div class="dm-review">
@@ -44,7 +149,7 @@
 				<Loading />
 				<p>{t("instanceView.downloadMods.resolvingDeps")}</p>
 			</div>
-		{:else if downloadQueue.length === 0}
+		{:else if dependencyTree.length === 0}
 			<div class="dm-center-state">
 				<p>{t("instanceView.downloadMods.allInstalled")}</p>
 				<span style="font-size:0.75rem; opacity:0.5;"
@@ -52,64 +157,149 @@
 				>
 			</div>
 		{:else}
+			{#if conflicts.length > 0}
+				<div class="dm-conflicts-box">
+					<strong
+						>{t("instanceView.downloadMods.conflictsTitle")}</strong
+					>
+					<ul>
+						{#each conflicts as conflict (conflict.projectId)}
+							<li>
+								{conflict.projectId}: {conflict.requestedVersions
+									.map((v) => v.versionId)
+									.join(", ")}
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+
 			<div class="dm-queue-box">
-				<p class="dm-queue-subtitle">
-					{downloadQueue.length}
-					{downloadQueue.length === 1
-						? t("instanceView.downloadMods.file_one")
-						: t("instanceView.downloadMods.file_other")} para descargar:
-				</p>
-				<div class="dm-queue-list">
-					{#each downloadQueue as item (item.filename)}
-						<div class="dm-queue-item">
-							{#if item.iconUrl}
-								<img
-									src={item.iconUrl}
-									alt=""
-									class="dm-queue-icon-img"
-								/>
-							{:else}
-								<span class="dm-queue-icon">📦</span>
-							{/if}
-							<div class="dm-queue-item-info">
-								{#if item.projectTitle}
-									<span class="dm-queue-title"
-										>{item.projectTitle}</span
-									>
-								{/if}
-								<span class="dm-queue-filename"
-									>{item.filename}</span
-								>
-							</div>
+				<div class="dm-queue-toolbar">
+					<p class="dm-queue-subtitle">
+						{downloadQueue.length === 1
+							? t(
+									"instanceView.downloadMods.filesToDownload_one",
+									{
+										count: downloadQueue.length,
+									},
+								)
+							: t(
+									"instanceView.downloadMods.filesToDownload_other",
+									{
+										count: downloadQueue.length,
+									},
+								)}
+					</p>
+					{#if dependencyTree.some((d) => hasOptionalRecursively(d))}
+						<div class="dm-optional-actions">
+							<button type="button" onclick={expandAllOptionals}>
+								{t(
+									"instanceView.downloadMods.selectAllOptional",
+								)}
+							</button>
+							<button
+								type="button"
+								onclick={collapseAllOptionals}
+							>
+								{t(
+									"instanceView.downloadMods.deselectAllOptional",
+								)}
+							</button>
 						</div>
+					{/if}
+				</div>
+
+				<div class="dm-dep-list">
+					{#each dependencyTree as dep (dep.projectId)}
+						{@render dependencyNode(dep)}
 					{/each}
 				</div>
 			</div>
+		{/if}
+	</div>
 
-			<div class="dm-review-footer">
-				<span class="dm-review-count">
-					<strong>{downloadQueue.length}</strong>
-					{downloadQueue.length !== 1
-						? t("instanceView.downloadMods.file_other")
-						: t("instanceView.downloadMods.file_one")}
+	{#if !resolvingDeps && dependencyTree.length > 0}
+		<div class="dm-review-footer">
+			<span class="dm-review-count">
+				<strong>{downloadQueue.length}</strong>
+				{downloadQueue.length !== 1
+					? t("instanceView.downloadMods.file_other")
+					: t("instanceView.downloadMods.file_one")}
+			</span>
+			<button
+				type="button"
+				class="dm-primary-btn"
+				onclick={handleConfirm}
+				disabled={downloading || downloadQueue.length === 0}
+			>
+				{#if downloading}
+					<Loading />
+					{t("instanceView.downloadMods.downloading")}
+				{:else}
+					{t("instanceView.downloadMods.confirmDownload")}
+				{/if}
+			</button>
+		</div>
+	{/if}
+</div>
+
+{#snippet dependencyNode(dep: ResolvedDependency)}
+	{@const isOptional = dep.kind === "optional"}
+	{@const isIncompatible = dep.kind === "incompatible"}
+	{@const installed = isInstalled(dep)}
+	{@const hasOptional = hasOptionalRecursively(dep)}
+
+	<div
+		class="dm-dep-node"
+		class:optional={isOptional}
+		class:incompatible={isIncompatible}
+	>
+		<div
+			class="dm-dep-row"
+			style:padding-left="{dep.depth * 14}px"
+			class:has-optional-children={hasOptional}
+		>
+			<div class="dm-dep-icon">
+				{#if dep.iconUrl}
+					<img src={dep.iconUrl} alt="" />
+				{:else}
+					<span>🧩</span>
+				{/if}
+			</div>
+			<div class="dm-dep-info">
+				<span class="dm-dep-title">{dep.title}</span>
+				{#if dep.filename}
+					<span class="dm-dep-filename">{dep.filename}</span>
+				{/if}
+			</div>
+			<span class="dm-dep-badge dm-dep-badge-{dep.kind}">
+				{badgeLabel(dep.kind)}
+			</span>
+			{#if installed}
+				<span class="dm-dep-badge dm-dep-badge-installed">
+					{t("instanceView.downloadMods.installed")}
 				</span>
-				<button
-					type="button"
-					class="dm-primary-btn"
-					onclick={onConfirmDownload}
-					disabled={downloading}
-				>
-					{#if downloading}
-						<Loading />
-						{t("instanceView.downloadMods.downloading")}
-					{:else}
-						{t("instanceView.downloadMods.confirmDownload")}
-					{/if}
-				</button>
+			{:else if isOptional}
+				<label class="dm-optional-toggle">
+					<input
+						type="checkbox"
+						checked={selectedOptionalIds.has(dep.projectId)}
+						onchange={() => toggleOptional(dep.projectId)}
+					/>
+					{t("instanceView.downloadMods.include")}
+				</label>
+			{/if}
+		</div>
+		{#if dep.children.length > 0}
+			<div class="dm-dep-children">
+				{#each dep.children as child (child.projectId)}
+					{@render dependencyNode(child)}
+				{/each}
 			</div>
 		{/if}
 	</div>
-</div>
+{/snippet}
 
 <style>
 	.dm-review {
@@ -147,6 +337,31 @@
 		margin-bottom: 8px;
 		display: block;
 	}
+
+	.dm-conflicts-box {
+		background: rgba(var(--color-error-rgb), 0.08);
+		border: 1px solid rgba(var(--color-error-rgb), 0.25);
+		border-radius: var(--border-radius-sm);
+		padding: 12px 14px;
+		margin-bottom: 16px;
+		color: var(--color-error);
+		font-size: 0.78rem;
+	}
+	.dm-conflicts-box strong {
+		display: block;
+		margin-bottom: 6px;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		font-size: 0.65rem;
+	}
+	.dm-conflicts-box ul {
+		margin: 0;
+		padding-left: 16px;
+	}
+	.dm-conflicts-box li {
+		margin-bottom: 2px;
+	}
+
 	.dm-queue-box {
 		flex: 1;
 		background: rgba(255, 255, 255, 0.02);
@@ -157,35 +372,91 @@
 		flex-direction: column;
 		overflow: hidden;
 	}
+	.dm-queue-toolbar {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 14px;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
 	.dm-queue-subtitle {
 		font-size: 0.78rem;
 		color: var(--text-secondary);
-		margin: 0 0 14px 0;
+		margin: 0;
 	}
-	.dm-queue-list {
+	.dm-optional-actions {
+		display: flex;
+		gap: 8px;
+	}
+	.dm-optional-actions button {
+		background: transparent;
+		border: 1px solid var(--border);
+		color: var(--text-secondary);
+		padding: 4px 10px;
+		border-radius: var(--border-radius-sm);
+		font-size: 0.68rem;
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+	.dm-optional-actions button:hover {
+		background: var(--bg-item-active);
+		color: var(--text-primary);
+	}
+
+	.dm-dep-list {
 		flex: 1;
 		overflow-y: auto;
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-		gap: 8px;
-		align-content: flex-start;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
 	}
-	.dm-queue-item {
-		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid var(--border);
-		padding: 10px 12px;
-		border-radius: var(--border-radius-sm);
+	.dm-dep-node {
+		display: flex;
+		flex-direction: column;
+	}
+	.dm-dep-node.incompatible {
+		opacity: 0.6;
+	}
+	.dm-dep-row {
 		display: flex;
 		align-items: center;
 		gap: 10px;
+		padding: 8px 10px;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		min-height: 42px;
 	}
-	.dm-queue-item-info {
+	.dm-dep-row:hover {
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	.dm-dep-icon {
+		width: 22px;
+		height: 22px;
+		border-radius: var(--border-radius-sm);
+		overflow: hidden;
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.9rem;
+	}
+	.dm-dep-icon img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+	.dm-dep-info {
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
-		gap: 2px;
+		flex: 1;
+		gap: 1px;
 	}
-	.dm-queue-title {
+	.dm-dep-title {
 		font-size: 0.82rem;
 		font-weight: 600;
 		color: var(--text-primary);
@@ -193,17 +464,61 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	.dm-queue-icon {
-		font-size: 1rem;
-		opacity: 0.6;
-	}
-	.dm-queue-filename {
-		font-size: 0.8rem;
-		color: var(--text-primary);
+	.dm-dep-filename {
+		font-size: 0.72rem;
+		color: var(--text-secondary);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+	.dm-dep-badge {
+		font-size: 0.58rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.4px;
+		padding: 2px 6px;
+		border-radius: 4px;
+		flex-shrink: 0;
+	}
+	.dm-dep-badge-required {
+		background: rgba(var(--color-success-rgb), 0.12);
+		color: var(--color-success);
+	}
+	.dm-dep-badge-embedded {
+		background: rgba(var(--color-info-rgb, 59 130 246), 0.12);
+		color: var(--color-info, #3b82f6);
+	}
+	.dm-dep-badge-optional {
+		background: rgba(var(--color-warning-rgb), 0.12);
+		color: var(--color-warning);
+	}
+	.dm-dep-badge-incompatible {
+		background: rgba(var(--color-error-rgb), 0.12);
+		color: var(--color-error);
+	}
+	.dm-dep-badge-installed {
+		background: rgba(var(--color-success-rgb), 0.12);
+		color: var(--color-success);
+	}
+	.dm-optional-toggle {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		font-size: 0.7rem;
+		color: var(--text-secondary);
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+	.dm-optional-toggle input {
+		cursor: pointer;
+	}
+	.dm-dep-children {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		margin-top: 2px;
+	}
+
 	.dm-review-footer {
 		display: flex;
 		justify-content: space-between;
@@ -277,25 +592,5 @@
 		font-size: 0.85rem;
 		text-transform: uppercase;
 		letter-spacing: 1px;
-	}
-
-	.dm-queue-icon-img {
-		width: 24px;
-		height: 24px;
-		border-radius: var(--border-radius-sm);
-		object-fit: cover;
-		flex-shrink: 0;
-	}
-
-	:global(.dm-spinning) {
-		animation: spin 0.8s linear infinite;
-		will-change: transform;
-	}
-	:global {
-		@keyframes spin {
-			to {
-				transform: rotate(360deg);
-			}
-		}
 	}
 </style>

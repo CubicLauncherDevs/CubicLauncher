@@ -4,24 +4,30 @@
 		getModrinthProjectVersions,
 		searchCurseForge,
 		getCurseForgeProjectFiles,
-		getCurseForgeFileDownloadUrl,
 		downloadMods,
 		getInstanceMods,
+		resolveModDependencies,
 		type ModDownloadInfo,
 	} from "$lib/api/cubicApi";
+	import {
+		type DependencyRequest,
+		type ResolvedDependency,
+		type DependencyResolutionResult,
+	} from "$lib/types/dependency";
 	import type {
 		ModrinthProject,
 		ModrinthVersion,
-		ModrinthFile,
 		CurseForgeProject,
 		CurseForgeFile,
 		InstanceDto,
+		ModDto,
 		ModSource,
 	} from "$lib/types/types";
 	import { onDestroy } from "svelte";
-	import { SvelteMap, SvelteSet } from "svelte/reactivity";
+	import { SvelteMap } from "svelte/reactivity";
 	import Review from "./Review.svelte";
 	import Browse from "./Browse.svelte";
+	import ModDependenciesModal from "./ModDependenciesModal.svelte";
 
 	onDestroy(() => {
 		clearTimeout(debounceTimer);
@@ -50,6 +56,7 @@
 	let resolvingDeps = $state(false);
 	let downloading = $state(false);
 	let downloadQueue = $state<ModDownloadInfo[]>([]);
+	let dependencyResult = $state<DependencyResolutionResult | null>(null);
 
 	let selectedModVersions = $state<(ModrinthVersion | CurseForgeFile)[]>([]);
 	let selectedVersionId = $state<string>("");
@@ -57,6 +64,10 @@
 	let versionSelection = new SvelteMap<string, string>();
 
 	let installedModNames = $state<Set<string>>(new Set());
+	let installedMods = $state<ModDto[]>([]);
+	let dependenciesModalOpen = $state(false);
+	let dependencyPreviewRequest = $state<DependencyRequest | null>(null);
+	let dependencyPreviewTitle = $state<string>("");
 
 	function getGameVersion(versionStr: string): string {
 		const lower = versionStr.toLowerCase();
@@ -166,6 +177,19 @@
 		}
 	}
 
+	function openDependenciesModal() {
+		if (!selectedMod) return;
+		dependencyPreviewTitle =
+			"title" in selectedMod ? selectedMod.title : selectedMod.name;
+		dependencyPreviewRequest = {
+			source: isModrinthProject(selectedMod) ? "modrinth" : "curseforge",
+			projectId: getProjectId(selectedMod),
+			versionId: selectedVersionId || null,
+			kind: "required",
+		};
+		dependenciesModalOpen = true;
+	}
+
 	function onSearchInput(value: string) {
 		query = value;
 		clearTimeout(debounceTimer);
@@ -207,6 +231,7 @@
 		resolvingDeps = false;
 		downloading = false;
 		downloadQueue = [];
+		dependencyResult = null;
 		selectedModVersions = [];
 		selectedVersionId = "";
 		loadingVersions = false;
@@ -225,6 +250,7 @@
 		resetState();
 		getInstanceMods(id).then((mods) => {
 			if (pendingInstanceId !== id) return;
+			installedMods = mods;
 			installedModNames = new Set(mods.map((m) => m.name.toLowerCase()));
 		});
 		performSearch();
@@ -243,186 +269,119 @@
 		}
 	}
 
+	function buildDependencyRequests(): DependencyRequest[] {
+		const requests: DependencyRequest[] = [];
+		for (const [id, project] of basket.entries()) {
+			requests.push({
+				source: isModrinthProject(project) ? "modrinth" : "curseforge",
+				projectId: id,
+				versionId: versionSelection.get(id) ?? null,
+				kind: "required",
+			});
+		}
+		return requests;
+	}
+
+	function flattenDependencies(
+		deps: ResolvedDependency[],
+		installedProjectIds: Set<string>,
+		installedSlugs: Set<string>,
+		installedFilenames: Set<string>,
+		queuedFilenames: Set<string>,
+		result: ModDownloadInfo[] = [],
+	): ModDownloadInfo[] {
+		for (const dep of deps) {
+			if (dep.kind === "incompatible" || dep.kind === "optional") {
+				continue;
+			}
+			if (
+				installedProjectIds.has(dep.projectId) ||
+				(installedSlugs.size > 0 && installedSlugs.has(dep.projectId))
+			) {
+				continue;
+			}
+			if (!dep.downloadUrl || !dep.filename) {
+				continue;
+			}
+			const filenameLower = dep.filename.toLowerCase();
+			if (
+				installedFilenames.has(filenameLower) ||
+				queuedFilenames.has(filenameLower)
+			) {
+				continue;
+			}
+			queuedFilenames.add(filenameLower);
+			result.push({
+				url: dep.downloadUrl,
+				filename: dep.filename,
+				projectTitle: dep.title,
+				iconUrl: dep.iconUrl ?? undefined,
+			});
+			flattenDependencies(
+				dep.children,
+				installedProjectIds,
+				installedSlugs,
+				installedFilenames,
+				queuedFilenames,
+				result,
+			);
+		}
+		return result;
+	}
+
 	async function startReview() {
 		reviewing = true;
 		resolvingDeps = true;
 		downloadQueue = [];
+		dependencyResult = null;
 
 		try {
-			const installedMods = await getInstanceMods(instance.uuid);
+			const mods = await getInstanceMods(instance.uuid);
+			installedMods = mods;
+			const installedProjectIds = new Set(
+				mods
+					.map((m) => m.project_id)
+					.filter((id): id is string => !!id),
+			);
+			const installedSlugs = new Set(
+				mods
+					.map((m) => m.slug)
+					.filter((slug): slug is string => !!slug),
+			);
 			const installedFilenames = new Set(
-				installedMods.map((m) => m.filename.toLowerCase()),
+				mods.map((m) => m.filename.toLowerCase()),
 			);
 
-			const queue: ModDownloadInfo[] = [];
-			// eslint-disable-next-line svelte/prefer-svelte-reactivity
-			const queuedFilenames = new Set<string>();
+			const requests = buildDependencyRequests();
+			const result = await resolveModDependencies(
+				requests,
+				instance.loader,
+				gameVersion,
+			);
+			dependencyResult = result;
 
-			// Fase 1: descargar versiones de los proyectos principales en paralelo
-			const mainFetches = [...basket].map(async ([id, project]) => {
-				if (isModrinthProject(project)) {
-					const versions = await getModrinthProjectVersions(
-						id,
-						instance.loader,
-						gameVersion,
-					);
-					return {
-						id,
-						project,
-						versions,
-						files: null as CurseForgeFile[] | null,
-					};
-				} else {
-					const cfProject = project as CurseForgeProject;
-					const files = await getCurseForgeProjectFiles(
-						cfProject.id,
-						instance.loader,
-						gameVersion,
-					);
-					return {
-						id,
-						project,
-						versions: null as ModrinthVersion[] | null,
-						files,
-					};
-				}
-			});
-			const mainResults = await Promise.all(mainFetches);
-
-			// Fase 2: procesar resultados principales y recolectar dependencias
-			const depProjectIds = new SvelteSet<string>();
-			const cfDownloadsToResolve: {
-				cfProject: CurseForgeProject;
-				file: CurseForgeFile;
-			}[] = [];
-
-			for (const result of mainResults) {
-				const { id, project } = result;
-				if (result.versions) {
-					const mrProject = project as ModrinthProject;
-					const versions = result.versions;
-					if (versions.length === 0) continue;
-
-					let targetVersion = versions.find(
-						(v) => v.id === versionSelection.get(id),
-					);
-					if (!targetVersion) {
-						targetVersion = versions[0];
-					}
-					const primaryFile =
-						targetVersion.files.find(
-							(f: ModrinthFile) => f.primary,
-						) || targetVersion.files[0];
-					if (!queuedFilenames.has(primaryFile.filename)) {
-						queuedFilenames.add(primaryFile.filename);
-						queue.push({
-							url: primaryFile.url,
-							filename: primaryFile.filename,
-							projectTitle: mrProject.title,
-							iconUrl: mrProject.icon_url || undefined,
-						});
-					}
-
-					if (targetVersion.dependencies) {
-						for (const dep of targetVersion.dependencies) {
-							if (
-								dep.dependency_type === "required" &&
-								dep.project_id
-							) {
-								depProjectIds.add(dep.project_id);
-							}
-						}
-					}
-				} else if (result.files) {
-					const cfProject = project as CurseForgeProject;
-					const files = result.files;
-					if (files.length === 0) continue;
-
-					let targetFile = files.find(
-						(f) => f.id.toString() === versionSelection.get(id),
-					);
-					if (!targetFile) {
-						targetFile = files[0];
-					}
-					if (targetFile.downloadUrl) {
-						if (!queuedFilenames.has(targetFile.fileName)) {
-							queuedFilenames.add(targetFile.fileName);
-							queue.push({
-								url: targetFile.downloadUrl,
-								filename: targetFile.fileName,
-								projectTitle: cfProject.name,
-								iconUrl: cfProject.logo?.url || undefined,
-							});
-						}
-					} else {
-						cfDownloadsToResolve.push({
-							cfProject,
-							file: targetFile,
-						});
-					}
-				}
-			}
-
-			// Fase 3: resolver URLs de descarga de CurseForge en paralelo
-			if (cfDownloadsToResolve.length > 0) {
-				const urlFetches = cfDownloadsToResolve.map(
-					({ cfProject, file }) =>
-						getCurseForgeFileDownloadUrl(
-							cfProject.id,
-							file.id,
-							file.fileName,
-						).then((url) => ({ cfProject, file, url })),
+			if (result.conflicts.length > 0) {
+				console.warn(
+					"[DownloadMods] Conflictos de dependencias detectados:",
+					result.conflicts,
 				);
-				const resolvedCf = await Promise.all(urlFetches);
-				for (const { cfProject, file, url } of resolvedCf) {
-					if (!url) continue;
-					if (!queuedFilenames.has(file.fileName)) {
-						queuedFilenames.add(file.fileName);
-						queue.push({
-							url,
-							filename: file.fileName,
-							projectTitle: cfProject.name,
-							iconUrl: cfProject.logo?.url || undefined,
-						});
-					}
-				}
 			}
 
-			// Fase 4: descargar versiones de dependencias en paralelo
-			if (depProjectIds.size > 0) {
-				const depFetches = [...depProjectIds].map(async (depId) => {
-					const depVersions = await getModrinthProjectVersions(
-						depId,
-						instance.loader,
-						gameVersion,
-					);
-					return { depId, depVersions };
-				});
-				const depResults = await Promise.all(depFetches);
-				for (const { depVersions } of depResults) {
-					if (!depVersions || depVersions.length === 0) continue;
-					const depLatest = depVersions[0];
-					const depFile =
-						depLatest.files.find((f: ModrinthFile) => f.primary) ||
-						depLatest.files[0];
-					const alreadyInstalled = installedFilenames.has(
-						depFile.filename.toLowerCase(),
-					);
-					const alreadyQueued = queuedFilenames.has(depFile.filename);
-					if (!alreadyInstalled && !alreadyQueued) {
-						queuedFilenames.add(depFile.filename);
-						queue.push({
-							url: depFile.url,
-							filename: depFile.filename,
-						});
-					}
-				}
-			}
-
-			downloadQueue = queue;
+			const queuedFilenames = new Set<string>();
+			downloadQueue = flattenDependencies(
+				result.tree,
+				installedProjectIds,
+				installedSlugs,
+				installedFilenames,
+				queuedFilenames,
+			);
 		} finally {
 			resolvingDeps = false;
 		}
+	}
+
+	function handleQueueChange(queue: ModDownloadInfo[]) {
+		downloadQueue = queue;
 	}
 
 	async function confirmDownload() {
@@ -583,8 +542,16 @@
 			{resolvingDeps}
 			{downloading}
 			{downloadQueue}
+			dependencyTree={dependencyResult?.tree ?? []}
+			conflicts={dependencyResult?.conflicts ?? []}
+			installedProjectIds={new Set(
+				installedMods
+					.map((m) => m.project_id)
+					.filter((id): id is string => !!id),
+			)}
 			onBack={() => (reviewing = false)}
 			onConfirmDownload={confirmDownload}
+			onQueueChange={handleQueueChange}
 		/>
 	{:else}
 		<Browse
@@ -609,9 +576,23 @@
 			{toggleBasket}
 			{onVersionChange}
 			{startReview}
+			onViewDependencies={openDependenciesModal}
 		/>
 	{/if}
 </div>
+
+<ModDependenciesModal
+	bind:open={dependenciesModalOpen}
+	request={dependencyPreviewRequest}
+	loader={instance.loader}
+	{gameVersion}
+	projectTitle={dependencyPreviewTitle}
+	installedProjectIds={new Set(
+		installedMods
+			.map((m) => m.project_id)
+			.filter((id): id is string => !!id),
+	)}
+/>
 
 <style>
 	.dm-root {

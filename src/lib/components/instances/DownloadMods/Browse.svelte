@@ -41,6 +41,7 @@
 		toggleBasket,
 		onVersionChange,
 		startReview,
+		onViewDependencies,
 	}: {
 		source: ModSource;
 		query: string;
@@ -67,6 +68,7 @@
 		toggleBasket: (project: ModrinthProject | CurseForgeProject) => void;
 		onVersionChange: () => void;
 		startReview: () => Promise<void>;
+		onViewDependencies: () => void;
 	} = $props();
 
 	function getProjectId(
@@ -472,6 +474,14 @@
 				<p class="dm-details-desc">
 					{getProjectDescription(selectedMod)}
 				</p>
+
+				<button
+					type="button"
+					class="dm-secondary-btn dm-full-width"
+					onclick={onViewDependencies}
+				>
+					{t("instanceView.downloadMods.viewDependencies")}
+				</button>
 
 				<button
 					type="button"
@@ -1005,6 +1015,30 @@
 		background: rgba(var(--color-error-rgb), 0.12);
 		color: var(--color-error);
 		border-color: rgba(var(--color-error-rgb), 0.3);
+	}
+	.dm-secondary-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		padding: 8px 18px;
+		background: transparent;
+		color: var(--text-secondary);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		cursor: pointer;
+		font-size: 0.82rem;
+		font-weight: 700;
+		letter-spacing: 0.3px;
+		transition: all 0.15s;
+	}
+	.dm-secondary-btn:hover:not(:disabled) {
+		background: var(--bg-item-active);
+		color: var(--text-primary);
+	}
+	.dm-secondary-btn:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
 	}
 
 	.dm-ghost-btn {
