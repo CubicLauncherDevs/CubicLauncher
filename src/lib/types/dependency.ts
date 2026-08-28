@@ -2,6 +2,13 @@ export type DependencySource = "modrinth" | "curseforge";
 export type DependencyKind =
 	"required" | "optional" | "embedded" | "incompatible";
 
+export interface DependencyRequest {
+	source: DependencySource;
+	projectId: string;
+	versionId: string | null;
+	kind: DependencyKind;
+}
+
 export interface ResolvedDependency {
 	projectId: string;
 	versionId: string | null;

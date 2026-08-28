@@ -33,7 +33,7 @@ fn build_modrinth_facets(
     serde_json::to_value(facets).unwrap_or_default()
 }
 
-async fn get_json(url: &str) -> Result<serde_json::Value, String> {
+pub(crate) async fn get_json(url: &str) -> Result<serde_json::Value, String> {
     use crate::core::http_client::HTTP;
     use serde_json::Value;
     use std::collections::HashMap;

@@ -30,6 +30,10 @@ import {
 	type VersionIntegrity,
 	type VersionStatus,
 } from "../utils/versionUtils";
+import {
+	type DependencyRequest,
+	type DependencyResolutionResult,
+} from "../types/dependency";
 
 // ─────────────────────────────────────────────────────────────
 // Internal invoke helpers
@@ -1097,5 +1101,22 @@ export async function getDownloadQueue(): Promise<
 				total: number;
 			}[]
 		>("get_download_queue", null)) ?? []
+	);
+}
+
+export async function resolveModDependencies(
+	requests: DependencyRequest[],
+	loader: string,
+	gameVersion: string,
+): Promise<DependencyResolutionResult> {
+	return (
+		(await invokeWithFallback<DependencyResolutionResult>(
+			"resolve_mod_dependencies",
+			{
+				requests,
+				loader,
+				gameVersion,
+			},
+		)) ?? { tree: [], conflicts: [] }
 	);
 }
