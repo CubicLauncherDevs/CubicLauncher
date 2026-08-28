@@ -1,11 +1,16 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
-	import { openUrl } from "$lib/api/cubicApi";
+	import {
+		openUrl,
+		getCurseForgeFileDownloadUrl,
+		type ModDownloadInfo,
+	} from "$lib/api/cubicApi";
 	import Icon from "$lib/icons/Icon.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
 	import CubicLogo from "./CubicLogo.svelte";
 	import Dropdown from "$lib/components/layout/Dropdown.svelte";
 	import MarkdownRenderer from "$lib/components/ui/MarkdownRenderer.svelte";
+	import MarketDependenciesModal from "./MarketDependenciesModal.svelte";
 	import type { MarketDetailState } from "$lib/state/marketState.svelte";
 	import type {
 		MarketProject,
@@ -14,6 +19,10 @@
 		MarketSource,
 	} from "$lib/types/market";
 	import type { ModrinthProjectFull } from "$lib/types/types";
+	import type {
+		DependencyConflict,
+		ResolvedDependency,
+	} from "$lib/types/dependency";
 
 	interface Props {
 		project: MarketProject;
@@ -23,7 +32,12 @@
 		selectedVersion: MarketVersion | null;
 		isVersionCompatible: (version: MarketVersion) => boolean;
 		onVersionSelect: (version: MarketVersion) => void;
-		onInstall: () => void;
+		onPrepareInstall: () => Promise<{
+			tree: ResolvedDependency[];
+			conflicts: DependencyConflict[];
+			installedProjectIds: Set<string>;
+		}>;
+		onInstallQueue: (queue: ModDownloadInfo[]) => Promise<void>;
 		onUninstall: () => void;
 		onToggleEnabled: () => void;
 		onClose: () => void;
@@ -37,7 +51,8 @@
 		selectedVersion,
 		isVersionCompatible,
 		onVersionSelect,
-		onInstall,
+		onPrepareInstall,
+		onInstallQueue,
 		onUninstall,
 		onToggleEnabled,
 		onClose,
@@ -46,6 +61,13 @@
 	let installing = $state(false);
 	let actionError = $state<string | null>(null);
 	let iconError = $state(false);
+
+	let modalOpen = $state(false);
+	let resolvingDeps = $state(false);
+	let depTree = $state<ResolvedDependency[]>([]);
+	let depConflicts = $state<DependencyConflict[]>([]);
+	let installedProjectIds = $state<Set<string>>(new Set());
+	let modalError = $state<string | null>(null);
 
 	const bodySource = $derived(
 		project.source !== "curseforge"
@@ -86,16 +108,90 @@
 		return num.toString();
 	}
 
+	async function buildSingleDownload(
+		project: MarketProject,
+		version: MarketVersion,
+	): Promise<ModDownloadInfo | null> {
+		let url = version.primaryFileUrl;
+		const projectId =
+			project.source === "curseforge"
+				? (project.curseforgeProjectId ?? project.id)
+				: (project.modrinthProjectId ?? project.id);
+
+		if (project.source === "curseforge" && !url) {
+			url =
+				(await getCurseForgeFileDownloadUrl(
+					Number(projectId),
+					Number(version.id),
+				)) ?? "";
+		}
+
+		if (!url) return null;
+
+		return {
+			url,
+			filename: version.primaryFileName,
+			project_id: projectId,
+			version_id: version.id,
+		};
+	}
+
 	async function handleInstall() {
+		if (!selectedVersion) return;
+
+		installing = true;
+		actionError = null;
+
+		try {
+			if (contentType !== "mods") {
+				const single = await buildSingleDownload(
+					project,
+					selectedVersion,
+				);
+				if (!single) {
+					throw new Error("No download URL available");
+				}
+				await onInstallQueue([single]);
+				return;
+			}
+
+			modalOpen = true;
+			resolvingDeps = true;
+			modalError = null;
+			depTree = [];
+			depConflicts = [];
+			installedProjectIds = new Set();
+
+			const result = await onPrepareInstall();
+			depTree = result.tree;
+			depConflicts = result.conflicts;
+			installedProjectIds = result.installedProjectIds;
+		} catch (e) {
+			modalError = String(e ?? "Install failed");
+			actionError = String(e ?? "Install failed");
+		} finally {
+			resolvingDeps = false;
+			installing = false;
+		}
+	}
+
+	async function handleConfirmInstall(queue: ModDownloadInfo[]) {
 		installing = true;
 		actionError = null;
 		try {
-			await onInstall();
+			await onInstallQueue(queue);
+			modalOpen = false;
 		} catch (e) {
 			actionError = String(e ?? "Install failed");
+			modalError = String(e ?? "Install failed");
 		} finally {
 			installing = false;
 		}
+	}
+
+	function handleCancelInstall() {
+		modalOpen = false;
+		modalError = null;
 	}
 
 	const modrinthTypePath = $derived(
@@ -237,7 +333,9 @@
 				<button
 					type="button"
 					class="market-detail-btn primary"
-					disabled={installing || !selectedVersion.primaryFileUrl}
+					disabled={installing ||
+						(contentType !== "mods" &&
+							!selectedVersion.primaryFileUrl)}
 					onclick={handleInstall}
 				>
 					{#if installing}
@@ -288,6 +386,20 @@
 		</div>
 	{/if}
 </div>
+
+<MarketDependenciesModal
+	bind:open={modalOpen}
+	projectTitle={project.title}
+	tree={depTree}
+	conflicts={depConflicts}
+	{installedProjectIds}
+	resolving={resolvingDeps}
+	downloading={installing}
+	error={modalError}
+	onConfirm={handleConfirmInstall}
+	onCancel={handleCancelInstall}
+	onclose={handleCancelInstall}
+/>
 
 <style>
 	.market-detail {

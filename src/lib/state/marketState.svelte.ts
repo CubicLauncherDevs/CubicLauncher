@@ -1,4 +1,4 @@
-import { SvelteMap } from "svelte/reactivity";
+import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import {
 	deleteInstanceFile,
 	getInstanceMods,
@@ -10,11 +10,12 @@ import {
 	searchCurseForge,
 	getCurseForgeProject,
 	getCurseForgeProjectFiles,
-	getCurseForgeFileDownloadUrl,
 	toggleInstanceMod,
 	downloadMods,
 	downloadResourcePacks,
 	downloadShaderPacks,
+	resolveModDependencies,
+	type ModDownloadInfo,
 } from "$lib/api/cubicApi";
 import { registerModsRefreshCallback } from "$lib/api/launcherService";
 import {
@@ -35,6 +36,10 @@ import type {
 	CurseForgeProject,
 } from "$lib/types/types";
 import { InstState } from "$lib/types/types";
+import type {
+	DependencyRequest,
+	DependencyResolutionResult,
+} from "$lib/types/dependency";
 import { showWarning } from "$lib/state/state.svelte";
 import { t } from "$lib/i18n";
 
@@ -590,59 +595,61 @@ export function createMarketState(
 		);
 	}
 
-	async function install(project: MarketProject, version: MarketVersion) {
+	async function prepareInstall(
+		project: MarketProject,
+		version: MarketVersion,
+	): Promise<
+		DependencyResolutionResult & { installedProjectIds: Set<string> }
+	> {
+		if (isInstanceBusy()) {
+			showWarning(t("errors.title"), t("errors.INST_BUSY"));
+			throw new Error(t("errors.INST_BUSY"));
+		}
+
+		const mods = await getInstanceMods(instance.uuid);
+		const installedProjectIds = new SvelteSet(
+			mods.map((m) => m.project_id).filter((id): id is string => !!id),
+		);
+
+		if (!isModContent) {
+			return { tree: [], conflicts: [], installedProjectIds };
+		}
+
+		const source =
+			project.source === "curseforge" ? "curseforge" : "modrinth";
+		const projectId =
+			source === "curseforge"
+				? (project.curseforgeProjectId ?? project.id)
+				: (project.modrinthProjectId ?? project.id);
+
+		const request: DependencyRequest = {
+			source,
+			project_id: projectId,
+			version_id: version.id,
+			kind: "required",
+		};
+
+		const result = await resolveModDependencies(
+			[request],
+			filters.loader,
+			filters.gameVersion,
+		);
+
+		return { ...result, installedProjectIds };
+	}
+
+	async function confirmInstall(
+		project: MarketProject,
+		queue: ModDownloadInfo[],
+	) {
 		if (isInstanceBusy()) {
 			showWarning(t("errors.title"), t("errors.INST_BUSY"));
 			return;
 		}
-		let fileUrl = version.primaryFileUrl;
-
-		if (project.source === "curseforge") {
-			const cfProjectId = project.curseforgeProjectId ?? project.id;
-			if (!fileUrl) {
-				fileUrl =
-					(await getCurseForgeFileDownloadUrl(
-						Number(cfProjectId),
-						Number(version.id),
-					)) ?? "";
-			}
-			if (!fileUrl) return;
-
-			try {
-				await downloadFn(instance.uuid, [
-					{
-						url: fileUrl,
-						filename: version.primaryFileName,
-						project_id: cfProjectId,
-						version_id: version.id,
-					},
-				]);
-
-				await scanLocalItems(true);
-
-				const current =
-					items.find((i) => i.id === project.id) ?? project;
-				await loadDetail(current);
-			} catch (e) {
-				console.error(e);
-				throw e;
-			}
-			return;
-		}
-
-		const projectId = project.modrinthProjectId ?? project.id;
-		if (!fileUrl) return;
+		if (queue.length === 0) return;
 
 		try {
-			await downloadFn(instance.uuid, [
-				{
-					url: fileUrl,
-					filename: version.primaryFileName,
-					project_id: projectId,
-					version_id: version.id,
-				},
-			]);
-
+			await downloadFn(instance.uuid, queue);
 			await scanLocalItems(true);
 
 			const current = items.find((i) => i.id === project.id) ?? project;
@@ -861,7 +868,8 @@ export function createMarketState(
 		setLocalSort,
 		selectProject,
 		loadMore,
-		install,
+		prepareInstall,
+		confirmInstall,
 		uninstall,
 		toggleEnabled,
 		refresh: () => performSearch(true),

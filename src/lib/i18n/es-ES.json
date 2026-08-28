@@ -669,7 +669,24 @@
 			"openOnCurseForge": "Abrir en CurseForge",
 			"noSelection": "Selecciona un mod para ver sus detalles",
 			"by": "por",
-			"installedLabel": "Ya instalado"
+			"installedLabel": "Ya instalado",
+			"dependencies": {
+				"title": "Instalar {title}",
+				"resolving": "Resolviendo dependencias...",
+				"noDependencies": "Sin dependencias adicionales. Se instalará {title}.",
+				"conflictsTitle": "Conflictos de dependencias",
+				"include": "Incluir",
+				"installed": "Instalado",
+				"cancel": "Cancelar",
+				"install": "Instalar {count} archivos",
+				"installSingle": "Instalar 1 archivo",
+				"dependencyKind": {
+					"required": "requerida",
+					"optional": "opcional",
+					"embedded": "embebida",
+					"incompatible": "incompatible"
+				}
+			}
 		}
 	}
 }

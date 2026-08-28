@@ -84,10 +84,7 @@
 					selected={project.id === state.selectedId}
 					onSelect={() => state.selectProject(project.id)}
 					onInstall={state.filters.source !== "local"
-						? () => {
-								const version = state.selectedVersion;
-								if (version) state.install(project, version);
-							}
+						? () => state.selectProject(project.id)
 						: undefined}
 				/>
 			{/if}
@@ -104,10 +101,13 @@
 					selectedVersion={state.selectedVersion}
 					isVersionCompatible={state.isVersionCompatible}
 					onVersionSelect={state.setSelectedVersion}
-					onInstall={() => {
+					onPrepareInstall={() => {
 						const version = state.selectedVersion;
-						if (version) return state.install(project, version);
+						if (!version) throw new Error("No version selected");
+						return state.prepareInstall(project, version);
 					}}
+					onInstallQueue={(queue) =>
+						state.confirmInstall(project, queue)}
 					onUninstall={() => state.uninstall(project)}
 					onToggleEnabled={() => state.toggleEnabled(project)}
 					onClose={() => state.selectProject(null)}

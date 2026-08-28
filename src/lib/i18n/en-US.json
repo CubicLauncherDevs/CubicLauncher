@@ -668,7 +668,24 @@
 			"openOnModrinth": "Open on Modrinth",
 			"openOnCurseForge": "Open on CurseForge",
 			"noSelection": "Select a mod to view its details",
-			"by": "by"
+			"by": "by",
+			"dependencies": {
+				"title": "Install {title}",
+				"resolving": "Resolving dependencies...",
+				"noDependencies": "No additional dependencies. {title} will be installed.",
+				"conflictsTitle": "Dependency conflicts",
+				"include": "Include",
+				"installed": "Installed",
+				"cancel": "Cancel",
+				"install": "Install {count} files",
+				"installSingle": "Install 1 file",
+				"dependencyKind": {
+					"required": "required",
+					"optional": "optional",
+					"embedded": "embedded",
+					"incompatible": "incompatible"
+				}
+			}
 		}
 	}
 }
