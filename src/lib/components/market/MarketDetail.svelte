@@ -10,6 +10,7 @@
 	import CubicLogo from "./CubicLogo.svelte";
 	import Dropdown from "$lib/components/layout/Dropdown.svelte";
 	import MarkdownRenderer from "$lib/components/ui/MarkdownRenderer.svelte";
+	import HtmlRenderer from "$lib/components/ui/HtmlRenderer.svelte";
 	import MarketDependenciesModal from "./MarketDependenciesModal.svelte";
 	import type { MarketDetailState } from "$lib/state/marketState.svelte";
 	import type {
@@ -73,6 +74,12 @@
 		project.source !== "curseforge"
 			? ((detail.fullProject as ModrinthProjectFull | undefined)?.body ??
 					"")
+			: "",
+	);
+
+	const curseforgeBodySource = $derived(
+		project.source === "curseforge"
+			? (detail.curseforgeDescription ?? "")
 			: "",
 	);
 
@@ -354,16 +361,23 @@
 			<p class="market-detail-description">{project.description}</p>
 		{/if}
 
-		{#if bodySource}
+		{#if bodySource || curseforgeBodySource}
 			<div class="market-detail-readme">
 				<h4 class="market-detail-section-title">
 					{t("market.detail.readme")}
 				</h4>
-				<MarkdownRenderer
-					source={bodySource}
-					baseUrl={readmeBaseUrl}
-					onLinkClick={openUrl}
-				/>
+				{#if project.source === "curseforge"}
+					<HtmlRenderer
+						source={curseforgeBodySource}
+						onLinkClick={openUrl}
+					/>
+				{:else}
+					<MarkdownRenderer
+						source={bodySource}
+						baseUrl={readmeBaseUrl}
+						onLinkClick={openUrl}
+					/>
+				{/if}
 			</div>
 		{/if}
 

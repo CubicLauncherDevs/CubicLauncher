@@ -10,6 +10,7 @@ import {
 	searchCurseForge,
 	getCurseForgeProject,
 	getCurseForgeProjectFiles,
+	getCurseForgeProjectDescription,
 	toggleInstanceMod,
 	downloadMods,
 	downloadResourcePacks,
@@ -75,6 +76,7 @@ export interface MarketFilters {
 
 export interface MarketDetailState {
 	fullProject?: ModrinthProjectFull | CurseForgeProject;
+	curseforgeDescription?: string;
 	versions: MarketVersion[];
 	loading: boolean;
 	error: string | null;
@@ -186,6 +188,7 @@ export function createMarketState(
 		selectedId = null;
 		overrideVersionId = null;
 		detail.fullProject = undefined;
+		detail.curseforgeDescription = "";
 		detail.versions = [];
 		detail.loading = false;
 		detail.error = null;
@@ -503,18 +506,20 @@ export function createMarketState(
 			}
 
 			try {
-				const [full, files] = await Promise.all([
+				const [full, files, description] = await Promise.all([
 					getCurseForgeProject(Number(projectId)),
 					getCurseForgeProjectFiles(
 						Number(projectId),
 						filters.loader,
 						filters.gameVersion,
 					),
+					getCurseForgeProjectDescription(Number(projectId)),
 				]);
 
 				if (full) {
 					detail.fullProject = full;
 				}
+				detail.curseforgeDescription = description ?? "";
 
 				const installedFileId = project.curseforgeVersionId;
 				detail.versions = files.map((f) =>
@@ -812,6 +817,7 @@ export function createMarketState(
 		selectedId = null;
 		overrideVersionId = null;
 		detail.fullProject = undefined;
+		detail.curseforgeDescription = "";
 		detail.versions = [];
 		detail.loading = false;
 		detail.error = null;
