@@ -213,11 +213,16 @@ mod tests {
         let mut others = HashMap::new();
         others.insert("icon-filter".into(), "invert(1)".into());
 
-        let mut icons = Icons::default();
-        icons.preview = Some("preview.png".into());
         let mut ui = HashMap::new();
         ui.insert("play".into(), "ui/play.svg".into());
-        icons.groups.insert("ui".into(), ui);
+        let icons = Icons {
+            preview: Some("preview.png".into()),
+            groups: {
+                let mut groups = HashMap::new();
+                groups.insert("ui".into(), ui);
+                groups
+            },
+        };
 
         ThemeDef {
             colors,
