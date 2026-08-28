@@ -33,7 +33,7 @@
 	let selectedOptionalIds = new SvelteSet<string>();
 
 	function isInstalled(dep: ResolvedDependency): boolean {
-		return installedProjectIds.has(dep.projectId);
+		return installedProjectIds.has(dep.project_id);
 	}
 
 	function badgeLabel(kind: ResolvedDependency["kind"]): string {
@@ -52,19 +52,19 @@
 				if (isInstalled(dep)) continue;
 				if (
 					dep.kind === "optional" &&
-					!selectedOptionalIds.has(dep.projectId)
+					!selectedOptionalIds.has(dep.project_id)
 				) {
 					continue;
 				}
-				if (dep.downloadUrl && dep.filename) {
+				if (dep.download_url && dep.filename) {
 					const key = dep.filename.toLowerCase();
 					if (!seen.has(key)) {
 						seen.add(key);
 						queue.push({
-							url: dep.downloadUrl,
+							url: dep.download_url,
 							filename: dep.filename,
 							projectTitle: dep.title,
-							iconUrl: dep.iconUrl ?? undefined,
+							iconUrl: dep.icon_url ?? undefined,
 						});
 					}
 				}
@@ -99,7 +99,7 @@
 
 	function addOptionalsRecursively(dep: ResolvedDependency) {
 		if (dep.kind === "optional") {
-			selectedOptionalIds.add(dep.projectId);
+			selectedOptionalIds.add(dep.project_id);
 		}
 		for (const child of dep.children) {
 			addOptionalsRecursively(child);
@@ -163,10 +163,10 @@
 						>{t("instanceView.downloadMods.conflictsTitle")}</strong
 					>
 					<ul>
-						{#each conflicts as conflict (conflict.projectId)}
+						{#each conflicts as conflict (conflict.project_id)}
 							<li>
-								{conflict.projectId}: {conflict.requestedVersions
-									.map((v) => v.versionId)
+								{conflict.project_id}: {conflict.requested_versions
+									.map((v) => v.version_id)
 									.join(", ")}
 							</li>
 						{/each}
@@ -211,7 +211,7 @@
 				</div>
 
 				<div class="dm-dep-list">
-					{#each dependencyTree as dep (dep.projectId)}
+					{#each dependencyTree as dep (dep.project_id)}
 						{@render dependencyNode(dep)}
 					{/each}
 				</div>
@@ -261,8 +261,8 @@
 			class:has-optional-children={hasOptional}
 		>
 			<div class="dm-dep-icon">
-				{#if dep.iconUrl}
-					<img src={dep.iconUrl} alt="" />
+				{#if dep.icon_url}
+					<img src={dep.icon_url} alt="" />
 				{:else}
 					<span>🧩</span>
 				{/if}
@@ -284,8 +284,8 @@
 				<label class="dm-optional-toggle">
 					<input
 						type="checkbox"
-						checked={selectedOptionalIds.has(dep.projectId)}
-						onchange={() => toggleOptional(dep.projectId)}
+						checked={selectedOptionalIds.has(dep.project_id)}
+						onchange={() => toggleOptional(dep.project_id)}
 					/>
 					{t("instanceView.downloadMods.include")}
 				</label>
@@ -293,7 +293,7 @@
 		</div>
 		{#if dep.children.length > 0}
 			<div class="dm-dep-children">
-				{#each dep.children as child (child.projectId)}
+				{#each dep.children as child (child.project_id)}
 					{@render dependencyNode(child)}
 				{/each}
 			</div>

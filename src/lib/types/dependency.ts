@@ -4,33 +4,33 @@ export type DependencyKind =
 
 export interface DependencyRequest {
 	source: DependencySource;
-	projectId: string;
-	versionId: string | null;
+	project_id: string;
+	version_id: string | null;
 	kind: DependencyKind;
 }
 
 export interface ResolvedDependency {
-	projectId: string;
-	versionId: string | null;
+	project_id: string;
+	version_id: string | null;
 	source: DependencySource;
 	title: string;
-	iconUrl: string | null;
+	icon_url: string | null;
 	filename: string;
-	downloadUrl: string | null;
+	download_url: string | null;
 	kind: DependencyKind;
 	depth: number;
 	children: ResolvedDependency[];
 }
 
 export interface RequestedVersion {
-	versionId: string;
-	requestedBy: string;
+	version_id: string;
+	requested_by: string;
 }
 
 export interface DependencyConflict {
-	projectId: string;
+	project_id: string;
 	source: DependencySource;
-	requestedVersions: RequestedVersion[];
+	requested_versions: RequestedVersion[];
 }
 
 export interface DependencyResolutionResult {

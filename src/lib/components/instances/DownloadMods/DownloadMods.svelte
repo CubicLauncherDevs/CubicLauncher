@@ -183,8 +183,8 @@
 			"title" in selectedMod ? selectedMod.title : selectedMod.name;
 		dependencyPreviewRequest = {
 			source: isModrinthProject(selectedMod) ? "modrinth" : "curseforge",
-			projectId: getProjectId(selectedMod),
-			versionId: selectedVersionId || null,
+			project_id: getProjectId(selectedMod),
+			version_id: selectedVersionId || null,
 			kind: "required",
 		};
 		dependenciesModalOpen = true;
@@ -274,8 +274,8 @@
 		for (const [id, project] of basket.entries()) {
 			requests.push({
 				source: isModrinthProject(project) ? "modrinth" : "curseforge",
-				projectId: id,
-				versionId: versionSelection.get(id) ?? null,
+				project_id: id,
+				version_id: versionSelection.get(id) ?? null,
 				kind: "required",
 			});
 		}
@@ -295,12 +295,12 @@
 				continue;
 			}
 			if (
-				installedProjectIds.has(dep.projectId) ||
-				(installedSlugs.size > 0 && installedSlugs.has(dep.projectId))
+				installedProjectIds.has(dep.project_id) ||
+				(installedSlugs.size > 0 && installedSlugs.has(dep.project_id))
 			) {
 				continue;
 			}
-			if (!dep.downloadUrl || !dep.filename) {
+			if (!dep.download_url || !dep.filename) {
 				continue;
 			}
 			const filenameLower = dep.filename.toLowerCase();
@@ -312,10 +312,10 @@
 			}
 			queuedFilenames.add(filenameLower);
 			result.push({
-				url: dep.downloadUrl,
+				url: dep.download_url,
 				filename: dep.filename,
 				projectTitle: dep.title,
-				iconUrl: dep.iconUrl ?? undefined,
+				iconUrl: dep.icon_url ?? undefined,
 			});
 			flattenDependencies(
 				dep.children,
