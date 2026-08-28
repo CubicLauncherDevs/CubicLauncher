@@ -301,7 +301,13 @@ async fn resolve_modrinth_node(
                 }
             }
             DependencyKind::Optional => {
-                let leaf = resolve_modrinth_leaf(sub_project_id, sub.version_id.as_deref()).await;
+                let leaf = resolve_modrinth_leaf(
+                    sub_project_id,
+                    sub.version_id.as_deref(),
+                    loader,
+                    game_version,
+                )
+                .await;
                 if let Some(l) = leaf {
                     children.push(l.with_depth(depth + 1).with_kind(DependencyKind::Optional));
                 }
@@ -340,23 +346,18 @@ async fn resolve_modrinth_node(
 async fn resolve_modrinth_leaf(
     project_id: &str,
     version_id: Option<&str>,
+    loader: &str,
+    game_version: &str,
 ) -> Option<ResolvedDependency> {
     let project = fetch_modrinth_project(project_id).await.ok()?;
     let version = if let Some(vid) = version_id {
         fetch_modrinth_version(vid).await.ok()?
     } else {
-        return Some(ResolvedDependency {
-            project_id: project_id.to_string(),
-            version_id: None,
-            source: DependencySource::Modrinth,
-            title: project.title,
-            icon_url: project.icon_url,
-            filename: String::new(),
-            download_url: None,
-            kind: DependencyKind::Optional,
-            depth: 0,
-            children: vec![],
-        });
+        fetch_modrinth_project_versions(project_id, loader, game_version)
+            .await
+            .ok()?
+            .into_iter()
+            .next()?
     };
 
     let primary_file = version
@@ -462,7 +463,7 @@ async fn resolve_curseforge_node(
                 }
             }
             DependencyKind::Optional => {
-                let leaf = resolve_curseforge_leaf(sub_mod_id, None).await;
+                let leaf = resolve_curseforge_leaf(sub_mod_id, None, loader, game_version).await;
                 if let Some(l) = leaf {
                     children.push(l.with_depth(depth + 1).with_kind(DependencyKind::Optional));
                 }
@@ -498,23 +499,21 @@ async fn resolve_curseforge_node(
     }))
 }
 
-async fn resolve_curseforge_leaf(mod_id: u32, file_id: Option<u32>) -> Option<ResolvedDependency> {
+async fn resolve_curseforge_leaf(
+    mod_id: u32,
+    file_id: Option<u32>,
+    loader: &str,
+    game_version: &str,
+) -> Option<ResolvedDependency> {
     let project = fetch_curseforge_project(mod_id).await.ok()?;
     let file = if let Some(fid) = file_id {
         fetch_curseforge_file(fid).await.ok()?
     } else {
-        return Some(ResolvedDependency {
-            project_id: mod_id.to_string(),
-            version_id: None,
-            source: DependencySource::Curseforge,
-            title: project.name,
-            icon_url: project.logo.as_ref().map(|l| l.url.clone()),
-            filename: String::new(),
-            download_url: None,
-            kind: DependencyKind::Optional,
-            depth: 0,
-            children: vec![],
-        });
+        fetch_curseforge_project_files(mod_id, loader, game_version)
+            .await
+            .ok()?
+            .into_iter()
+            .next()?
     };
 
     let download_url = if let Some(url) = &file.download_url {
@@ -662,12 +661,30 @@ mod tests {
 
     #[test]
     fn dependency_kind_from_modrinth() {
-        assert_eq!(DependencyKind::from_modrinth("required"), DependencyKind::Required);
-        assert_eq!(DependencyKind::from_modrinth("optional"), DependencyKind::Optional);
-        assert_eq!(DependencyKind::from_modrinth("embedded"), DependencyKind::Embedded);
-        assert_eq!(DependencyKind::from_modrinth("incompatible"), DependencyKind::Incompatible);
-        assert_eq!(DependencyKind::from_modrinth("unknown"), DependencyKind::Required);
-        assert_eq!(DependencyKind::from_modrinth("OPTIONAL"), DependencyKind::Optional);
+        assert_eq!(
+            DependencyKind::from_modrinth("required"),
+            DependencyKind::Required
+        );
+        assert_eq!(
+            DependencyKind::from_modrinth("optional"),
+            DependencyKind::Optional
+        );
+        assert_eq!(
+            DependencyKind::from_modrinth("embedded"),
+            DependencyKind::Embedded
+        );
+        assert_eq!(
+            DependencyKind::from_modrinth("incompatible"),
+            DependencyKind::Incompatible
+        );
+        assert_eq!(
+            DependencyKind::from_modrinth("unknown"),
+            DependencyKind::Required
+        );
+        assert_eq!(
+            DependencyKind::from_modrinth("OPTIONAL"),
+            DependencyKind::Optional
+        );
     }
 
     #[test]
