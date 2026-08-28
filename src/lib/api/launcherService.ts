@@ -66,6 +66,10 @@ import {
 	initDownloadState,
 	destroyDownloadState,
 } from "$lib/state/downloadState.svelte";
+import {
+	initDownloadQueueState,
+	destroyDownloadQueueState,
+} from "$lib/state/downloadQueueState.svelte";
 import { t } from "$lib/i18n";
 
 import { invoke } from "@tauri-apps/api/core";
@@ -94,6 +98,7 @@ export function initEventListeners(): void {
 	_listenerInitialized = true;
 
 	initDownloadState();
+	initDownloadQueueState();
 
 	_unlistenAppEvent = listen<AppEvent>("app-event", (event) => {
 		const payload = event.payload;
@@ -179,6 +184,7 @@ export function destroyEventListeners(): void {
 		_unlistenAppEvent = null;
 	}
 	destroyDownloadState();
+	destroyDownloadQueueState();
 	_refreshCallbacks.clear();
 	_listenerInitialized = false;
 }

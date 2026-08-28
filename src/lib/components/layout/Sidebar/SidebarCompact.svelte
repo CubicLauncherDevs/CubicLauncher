@@ -7,6 +7,7 @@
 		setAvatar,
 		buildAvatarUrl,
 	} from "$lib/state/avatarCache.svelte";
+	import { getActiveDownloadCount } from "$lib/state/downloadQueueState.svelte";
 	import type { InstanceDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
 	import { tick } from "svelte";
@@ -43,6 +44,7 @@
 	let showDeleteModal = $state(false);
 	let instanceToActOn = $state<InstanceDto | null>(null);
 	let activeUser = $derived(getActiveUser());
+	let activeDownloads = $derived(getActiveDownloadCount());
 
 	type SidebarContextMenuProps = {
 		onedit: (instance: InstanceDto) => void;
@@ -305,7 +307,7 @@
 		</button>
 		<button
 			type="button"
-			class="sc-tool-btn"
+			class="sc-tool-btn sc-download-btn"
 			onclick={onopenversiondownloader}
 			title={t("sidebar.downloadVersions")}
 		>
@@ -315,6 +317,9 @@
 				width="16"
 				height="16"
 			/>
+			{#if activeDownloads > 0}
+				<span class="sc-download-badge">{activeDownloads}</span>
+			{/if}
 		</button>
 		<button
 			type="button"
@@ -608,6 +613,41 @@
 
 	.sc-tool-btn img {
 		filter: var(--icon-filter);
+	}
+
+	.sc-download-btn {
+		position: relative;
+	}
+
+	.sc-download-badge {
+		position: absolute;
+		top: -5px;
+		right: -5px;
+		min-width: 17px;
+		height: 17px;
+		padding: 0 4px;
+		background: var(--color-error, #ef4444);
+		color: white;
+		border-radius: 9px;
+		font-size: 0.6rem;
+		font-weight: 800;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 2px solid var(--bg-sidebar);
+		box-shadow: 0 0 0 0 rgba(var(--color-error-rgb, 239, 68, 68), 0.4);
+		animation: dl-badge-pulse 1.6s ease-in-out infinite;
+		z-index: 1;
+	}
+
+	@keyframes dl-badge-pulse {
+		0%,
+		100% {
+			box-shadow: 0 0 0 0 rgba(var(--color-error-rgb, 239, 68, 68), 0.4);
+		}
+		50% {
+			box-shadow: 0 0 0 4px rgba(var(--color-error-rgb, 239, 68, 68), 0);
+		}
 	}
 
 	.sc-user {
