@@ -4,6 +4,7 @@
 	import { removeNotification } from "$lib/state/state.svelte";
 	import CopyIcon from "$lib/icons/CopyIcon.svelte";
 	import CheckIcon from "$lib/icons/CheckIcon.svelte";
+	import { animDuration } from "$lib/utils/animations";
 
 	let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 	let completeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -25,6 +26,9 @@
 
 	const hasProgress = $derived(typeof notification.progress === "number");
 
+	const entryDuration = $derived(animDuration(300, 50));
+	const exitDuration = $derived(animDuration(340, 50));
+
 	function typeColor(type: string): string {
 		const map: Record<string, string> = {
 			error: "var(--color-error)",
@@ -40,7 +44,7 @@
 		removing = true;
 		dismissTimer = setTimeout(
 			() => removeNotification(notification.id),
-			340,
+			exitDuration + 20,
 		);
 	}
 
@@ -112,6 +116,7 @@
 <div
 	class="notification-toast"
 	class:removing
+	style="--notification-in-duration: {entryDuration}ms; --notification-out-duration: {exitDuration}ms;"
 	role="button"
 	tabindex="0"
 	onclick={dismiss}
@@ -253,7 +258,8 @@
 		user-select: none;
 		-webkit-tap-highlight-color: transparent;
 
-		animation: notificationIn 0.3s cubic-bezier(0.2, 0.85, 0.3, 1) both;
+		animation: notificationIn var(--notification-in-duration, 0.3s)
+			cubic-bezier(0.2, 0.85, 0.3, 1) both;
 		pointer-events: auto;
 		will-change: transform, opacity;
 	}
@@ -266,7 +272,8 @@
 	}
 
 	.notification-toast.removing {
-		animation: notificationOut 0.32s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+		animation: notificationOut var(--notification-out-duration, 0.32s)
+			cubic-bezier(0.4, 0, 0.6, 1) forwards;
 		pointer-events: none;
 	}
 

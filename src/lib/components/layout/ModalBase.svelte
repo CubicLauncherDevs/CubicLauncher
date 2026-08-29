@@ -2,6 +2,7 @@
 	import { fade, fly } from "svelte/transition";
 	import type { Snippet } from "svelte";
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
+	import { animDuration } from "$lib/utils/animations";
 
 	let {
 		open = $bindable(),
@@ -23,6 +24,9 @@
 		open = false;
 		onclose?.();
 	}
+
+	const fadeDuration = $derived(animDuration(150));
+	const flyDuration = $derived(animDuration(250));
 </script>
 
 {#if open}
@@ -31,7 +35,7 @@
 		onclick={close}
 		onkeydown={(e) => e.key === "Escape" && close()}
 		role="presentation"
-		transition:fade={{ duration: 150 }}
+		transition:fade={{ duration: fadeDuration }}
 	>
 		<div
 			class="modal"
@@ -41,7 +45,7 @@
 			aria-modal="true"
 			tabindex="-1"
 			style={width ? `width: min(${width}, 90vw)` : undefined}
-			transition:fly={{ y: 20, duration: 250 }}
+			transition:fly={{ y: 20, duration: flyDuration }}
 		>
 			<div class="modal-header">
 				{#if title}

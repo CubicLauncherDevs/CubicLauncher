@@ -67,6 +67,7 @@ export const launcherStore = $state<LauncherState>({
 		show_tutorial: true,
 		license_accepted: false,
 		market_filter_collapsed: true,
+		reduce_animations: false,
 	},
 });
 

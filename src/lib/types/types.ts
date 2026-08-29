@@ -78,6 +78,7 @@ export interface Settings {
 	show_tutorial: boolean;
 	license_accepted: boolean;
 	market_filter_collapsed: boolean;
+	reduce_animations: boolean;
 }
 
 export interface JreStatus {

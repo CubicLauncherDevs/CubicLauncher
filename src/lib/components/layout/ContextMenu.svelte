@@ -2,6 +2,7 @@
 	import { fly } from "svelte/transition";
 	import { onMount } from "svelte";
 	import Icon from "$lib/icons/Icon.svelte";
+	import { animDuration } from "$lib/utils/animations";
 
 	export interface ContextMenuItem {
 		label: string;
@@ -72,6 +73,8 @@
 			window.removeEventListener("keydown", handleKeydown);
 		};
 	});
+
+	const flyDuration = $derived(animDuration(120));
 </script>
 
 {#if open}
@@ -80,7 +83,7 @@
 			bind:this={containerEl}
 			class="ctx-menu"
 			style="left: {adjustedX}px; top: {adjustedY}px;"
-			transition:fly={{ y: -4, duration: 120 }}
+			transition:fly={{ y: -4, duration: flyDuration }}
 			role="menu"
 		>
 			{#each items as item, index (item.label + index)}

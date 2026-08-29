@@ -2,6 +2,7 @@
 	import { slide } from "svelte/transition";
 	import type { Snippet } from "svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
+	import { animDuration } from "$lib/utils/animations";
 
 	let {
 		title,
@@ -32,6 +33,8 @@
 		return loadSaved(storageKey, defaultOpen);
 	}
 	let open = $state(getSaved());
+
+	const slideDuration = $derived(animDuration(150));
 
 	$effect(() => {
 		if (storageKey) {
@@ -67,7 +70,7 @@
 		/>
 	</button>
 	{#if open}
-		<div class="cs-content" transition:slide={{ duration: 150 }}>
+		<div class="cs-content" transition:slide={{ duration: slideDuration }}>
 			{@render children()}
 		</div>
 	{/if}

@@ -3,6 +3,7 @@
 	import { onMount } from "svelte";
 	import CheckIcon from "$lib/icons/CheckIcon.svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
+	import { animDuration } from "$lib/utils/animations";
 
 	interface Option {
 		value: string;
@@ -57,6 +58,8 @@
 		(options as Option[]).find((o) => o.value === value)?.label ??
 			placeholder,
 	);
+
+	const flyDuration = $derived(animDuration(200));
 </script>
 
 <div class="dd-container" bind:this={container} {id}>
@@ -80,7 +83,7 @@
 	{#if isOpen}
 		<div
 			class="dd-dropdown"
-			transition:fly={{ y: 8, duration: 200 }}
+			transition:fly={{ y: 8, duration: flyDuration }}
 			role="listbox"
 		>
 			{#each options as option (option.value)}

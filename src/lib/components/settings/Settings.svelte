@@ -402,6 +402,26 @@
 				</CollapsibleSection>
 
 				<CollapsibleSection
+					title={t("settings.launcher.interfaceTitle")}
+					iconSrc="/images/icons/ui/interface.svg"
+					storageKey="section_interface"
+				>
+					<div class="qm-field-checkbox">
+						<input
+							type="checkbox"
+							id="reduce-animations"
+							bind:checked={
+								launcherStore.settings.reduce_animations
+							}
+							onchange={handleSave}
+						/>
+						<label for="reduce-animations"
+							>{t("settings.launcher.reduceAnimations")}</label
+						>
+					</div>
+				</CollapsibleSection>
+
+				<CollapsibleSection
 					title={t("settings.about.title")}
 					iconSrc="/images/cubic.svg"
 					storageKey="section_about"

@@ -33,6 +33,7 @@
 	import InstanceDrawer from "$lib/components/instances/InstanceDrawer/InstanceDrawer.svelte";
 	import ProfileView from "$lib/components/profiles/ProfileView.svelte";
 	import { loadInstalledVersions } from "$lib/state/versionsState.svelte";
+	import { animDuration } from "$lib/utils/animations";
 
 	const logParams = $derived.by(() => {
 		if (typeof window === "undefined") return null;
@@ -65,6 +66,8 @@
 	let VersionDownloaderComponent = $state<Component<{
 		open: boolean;
 	}> | null>(null);
+
+	const sidebarTransitionDuration = $derived(animDuration(0.35, 0.05));
 
 	let unlistenDragDrop: (() => void) | undefined;
 	let checkUpdatesTimer: ReturnType<typeof setTimeout> | undefined;
@@ -302,6 +305,7 @@
 		<div
 			class="sidebar-container"
 			class:compact={sidebarMode === "compact"}
+			style="transition-duration: {sidebarTransitionDuration}s"
 		>
 			{#if sidebarMode === "normal"}
 				<Sidebar

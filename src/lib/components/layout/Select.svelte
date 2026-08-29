@@ -3,6 +3,7 @@
 	import { onMount } from "svelte";
 	import CheckIcon from "$lib/icons/CheckIcon.svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
+	import { animDuration } from "$lib/utils/animations";
 
 	interface Option {
 		value: string;
@@ -41,6 +42,7 @@
 
 	const triggerDisabled = $derived(disabled || loading);
 	const triggerOpen = $derived(isOpen && !loading);
+	const flyDuration = $derived(animDuration(200));
 
 	$effect(() => {
 		if (loading && isOpen) {
@@ -159,7 +161,7 @@
 			bind:this={dropdownEl}
 			class="select-dropdown"
 			style={dropdownStyles}
-			transition:fly={{ y: 8, duration: 200 }}
+			transition:fly={{ y: 8, duration: flyDuration }}
 			role="listbox"
 		>
 			{#each options as option (option.value)}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import type { Snippet } from "svelte";
+	import { shouldReduceAnimations } from "$lib/utils/animations";
 
 	type Direction = "bottom" | "top" | "left" | "right";
 
@@ -33,8 +34,17 @@
 	let dismissed = $state(true);
 	let openRAF: number | undefined;
 
+	const reduceAnimations = $derived(shouldReduceAnimations());
+	const openDuration = $derived(reduceAnimations ? 0.05 : 0.35);
+	const closeDuration = $derived(reduceAnimations ? 0.05 : 0.25);
+	const overlayDuration = $derived(reduceAnimations ? 0.05 : 0.25);
+
 	function getClosedTranslate(): number {
 		return direction === "bottom" || direction === "right" ? 100 : -100;
+	}
+
+	function transformTransition(duration: number): string {
+		return `transform ${duration}s cubic-bezier(0.32, 0.72, 0, 1)`;
 	}
 
 	$effect(() => {
@@ -45,13 +55,12 @@
 			// Wait for next frame so browser paints the closed position first,
 			// then CSS transitions animate it open
 			openRAF = requestAnimationFrame(() => {
-				transitionStyle =
-					"transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)";
+				transitionStyle = transformTransition(openDuration);
 				translatePct = 0;
 			});
 			return () => cancelAnimationFrame(openRAF!);
 		} else {
-			transitionStyle = "transform 0.25s cubic-bezier(0.32, 0.72, 0, 1)";
+			transitionStyle = transformTransition(closeDuration);
 			translatePct = getClosedTranslate();
 		}
 	});
@@ -105,7 +114,7 @@
 		if ((delta * sign) / size > closeThreshold) {
 			close();
 		} else {
-			transitionStyle = "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)";
+			transitionStyle = transformTransition(openDuration);
 			translatePct = 0;
 		}
 	}
@@ -135,7 +144,7 @@
 {#if !dismissed}
 	<div
 		class="drawer-overlay"
-		style="opacity: {overlayOpacity}; transition: opacity 0.25s ease;"
+		style="opacity: {overlayOpacity}; transition: opacity {overlayDuration}s ease;"
 		role="presentation"
 		onclick={() => close()}
 	></div>

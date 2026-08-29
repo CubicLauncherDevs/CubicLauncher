@@ -40,6 +40,8 @@
 			"themesSpan": "Buscas temas? Revisa nuestra pagina web de temas en https://www.cubiclauncher.org/themes",
 			"javaSpan": "No sabes que es Java? Revisa nuestra documentacion en https://cubiclauncher.org/docs/java",
 			"themes": "Temas",
+			"interfaceTitle": "Interfaz",
+			"reduceAnimations": "Reducir animaciones de la interfaz",
 			"themesActive": "Tema activo",
 			"themesImport": "Importar tema",
 			"themesImporting": "Importando...",
