@@ -110,6 +110,15 @@
 			"zuluCredit": "Java runtimes provided by Azul Zulu (Zulu.org)"
 		}
 	},
+	"updater": {
+		"availableTitle": "Update available: v{version}",
+		"availableMessage": "It will be downloaded and installed automatically.",
+		"downloadingTitle": "Downloading v{version}",
+		"progress": "{progress}%",
+		"installingTitle": "Installing v{version}",
+		"installingMessage": "Restarting the launcher...",
+		"errorTitle": "Update error"
+	},
 	"main": {
 		"noInstanceTitle": "No instance selected",
 		"noInstanceDesc": "Choose an instance from the sidebar to begin"

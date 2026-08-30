@@ -25,7 +25,7 @@
 		importThemeZip,
 		import_theme_cbth,
 	} from "$lib/api/themeManager";
-	import { checkForUpdates } from "$lib/api/updaterServices";
+	import { autoUpdate } from "$lib/api/updaterServices";
 	import { saveSettings } from "$lib/api/launcherService";
 	import { showSuccess, showError } from "$lib/state/state.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal/CreateInstanceModal.svelte";
@@ -115,7 +115,7 @@
 		}
 
 		if (launcherStore.settings.auto_updates) {
-			checkUpdatesTimer = setTimeout(() => checkForUpdates(true), 2000);
+			checkUpdatesTimer = setTimeout(() => autoUpdate(), 2000);
 		}
 
 		// Lazy load non-critical components after first paint

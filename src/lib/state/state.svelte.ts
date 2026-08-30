@@ -102,6 +102,15 @@ export function removeNotification(id: string) {
 	if (idx !== -1) launcherStore.notifications.splice(idx, 1);
 }
 
+export function updateNotification(
+	id: string,
+	updates: Partial<Omit<Notification, "id">>,
+) {
+	const notification = launcherStore.notifications.find((n) => n.id === id);
+	if (!notification) return;
+	Object.assign(notification, updates);
+}
+
 export function showError(title: string, message: string) {
 	return addNotification(title, message, "error", 8000);
 }
