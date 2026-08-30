@@ -7,6 +7,7 @@
 	} from "$lib/state/avatarCache.svelte";
 	import { SvelteMap } from "svelte/reactivity";
 	import { fade, fly } from "svelte/transition";
+	import { animDuration } from "$lib/utils/animations";
 	import {
 		saveSettings,
 		markLocalSettingsChange,
@@ -207,11 +208,12 @@
 	);
 	const activeUserIdx = $derived(launcherStore.settings.active_user_idx ?? 0);
 	const totalAccounts = $derived(launcherStore.settings.user.length);
+	const flyDuration = $derived(animDuration(200));
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
-<div class="profile-view" transition:fly={{ y: 16, duration: 200 }}>
+<div class="profile-view" transition:fly={{ y: 16, duration: flyDuration }}>
 	<header class="profile-header">
 		<h2 class="profile-title">{t("userMenu.title")}</h2>
 		<button

@@ -22,9 +22,6 @@
 			"java": "Java"
 		},
 		"launcher": {
-			"activeInstancesTitle": "Active Instances",
-			"killInstance": "Kill",
-			"noInstances": "No instances running",
 			"generalTitle": "General",
 			"language": "Language",
 			"autoUpdates": "Automatic Updates",
@@ -40,8 +37,12 @@
 			"themesSpan": "Looking for themes? Check out our themes page at https://www.cubiclauncher.org/themes",
 			"javaSpan": "You don't know what Java is? Check out our documentation at https://cubiclauncher.org/docs/java",
 			"themes": "Themes",
-			"interfaceTitle": "Interface",
+			"performanceTitle": "Performance",
 			"reduceAnimations": "Reduce interface animations",
+			"disableBlurEffects": "Disable blur effects",
+			"disableInfiniteAnimations": "Disable continuous loading animations",
+			"disableSkin3dAnimations": "Disable 3D skin viewer animation",
+			"reduceLogAnimations": "Reduce log animations",
 			"themesActive": "Active theme",
 			"themesImport": "Import Theme",
 			"themesImporting": "Importing...",

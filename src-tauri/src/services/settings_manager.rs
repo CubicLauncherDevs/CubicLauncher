@@ -129,6 +129,14 @@ pub struct SettingsManager {
     pub market_filter_collapsed: bool,
     #[serde(default)]
     pub reduce_animations: bool,
+    #[serde(default)]
+    pub disable_blur_effects: bool,
+    #[serde(default)]
+    pub disable_infinite_animations: bool,
+    #[serde(default)]
+    pub disable_skin3d_animations: bool,
+    #[serde(default)]
+    pub reduce_log_animations: bool,
     #[serde(skip)]
     pub dirty: bool,
 }
@@ -205,6 +213,10 @@ impl Default for SettingsManager {
             license_accepted: false,
             market_filter_collapsed: true,
             reduce_animations: false,
+            disable_blur_effects: false,
+            disable_infinite_animations: false,
+            disable_skin3d_animations: false,
+            reduce_log_animations: false,
             dirty: true,
         }
     }
@@ -457,6 +469,10 @@ mod tests {
         assert!(s.env_vars.is_empty());
         assert!(s.jvm_args.is_empty());
         assert!(!s.reduce_animations);
+        assert!(!s.disable_blur_effects);
+        assert!(!s.disable_infinite_animations);
+        assert!(!s.disable_skin3d_animations);
+        assert!(!s.reduce_log_animations);
     }
 
     /// Valores en GB (min=2, max=4) deben convertirse a MB (2048, 4096)
@@ -539,6 +555,16 @@ mod tests {
         );
         assert_eq!(deserialized.theme, s.theme);
         assert_eq!(deserialized.reduce_animations, s.reduce_animations);
+        assert_eq!(deserialized.disable_blur_effects, s.disable_blur_effects);
+        assert_eq!(
+            deserialized.disable_infinite_animations,
+            s.disable_infinite_animations
+        );
+        assert_eq!(
+            deserialized.disable_skin3d_animations,
+            s.disable_skin3d_animations
+        );
+        assert_eq!(deserialized.reduce_log_animations, s.reduce_log_animations);
         assert!(!deserialized.dirty);
     }
 

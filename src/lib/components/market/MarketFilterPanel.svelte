@@ -2,6 +2,7 @@
 	import { t } from "$lib/i18n";
 	import { slide } from "svelte/transition";
 	import { launcherStore } from "$lib/state/state.svelte";
+	import { animDuration } from "$lib/utils/animations";
 	import { saveSettings } from "$lib/api/launcherService";
 	import Lupa from "$lib/icons/Lupa.svelte";
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
@@ -43,6 +44,8 @@
 		launcherStore.settings.market_filter_collapsed = !collapsed;
 		saveSettings().catch(console.error);
 	}
+
+	const slideDuration = $derived(animDuration(180));
 
 	const sources = $derived<{ value: MarketSource; label: string }[]>([
 		{ value: "modrinth", label: t("market.filter.tabModrinth") },
@@ -156,7 +159,10 @@
 	</div>
 
 	{#if !collapsed}
-		<div class="filter-advanced" transition:slide={{ duration: 180 }}>
+		<div
+			class="filter-advanced"
+			transition:slide={{ duration: slideDuration }}
+		>
 			{#if filters.source === "local"}
 				<div class="filter-section">
 					<span class="filter-label">{t("market.filter.sortBy")}</span

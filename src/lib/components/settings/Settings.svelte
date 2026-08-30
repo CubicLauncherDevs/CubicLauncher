@@ -2,11 +2,7 @@
 	import { onMount, onDestroy } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
 	import { launcherStore } from "$lib/state/state.svelte";
-	import {
-		killInst,
-		saveSettings,
-		onAppEvent,
-	} from "$lib/api/launcherService";
+	import { saveSettings, onAppEvent } from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
 	import { t, locales, downloadLocale } from "$lib/i18n";
 	import { i18nLoader } from "$lib/i18n/loader.svelte";
@@ -208,12 +204,6 @@
 			unsubJRE();
 		};
 	});
-	let runningInstances = $derived(
-		launcherStore.loadedInstances
-			.filter((i) => i.status === "started" || i.status === "starting")
-			.map((i) => i.uuid),
-	);
-
 	const currentVersion = __APP_VERSION__;
 
 	function fmtVersion(v: string): string {
@@ -262,81 +252,6 @@
 		{#if currentTab === "launcher"}
 			<div class="section-group">
 				<CollapsibleSection
-					title={t("settings.launcher.activeInstancesTitle")}
-					iconSrc="/images/icons/ui/play.svg"
-					storageKey="section_instances"
-				>
-					{#each runningInstances as uuid (uuid)}
-						{@const inst = launcherStore.loadedInstances.find(
-							(i) => i.uuid === uuid,
-						)}
-						{#if inst}
-							<div class="qm-active-card">
-								<div class="qm-status-dot running"></div>
-								<div class="qm-active-info">
-									<span class="qm-active-name"
-										>{inst.name}</span
-									>
-									<span class="qm-active-sub"
-										>{inst.version} - {inst.loader}</span
-									>
-								</div>
-								<button
-									type="button"
-									class="qm-kill-btn"
-									onclick={() => killInst(inst.uuid)}
-									>{t(
-										"settings.launcher.killInstance",
-									)}</button
-								>
-							</div>
-						{/if}
-					{:else}
-						<div class="qm-empty-state">
-							{t("settings.launcher.noInstances")}
-						</div>
-					{/each}
-				</CollapsibleSection>
-
-				<CollapsibleSection
-					title={t("settings.launcher.updatesTitle")}
-					iconSrc="/images/icons/ui/download.svg"
-					storageKey="section_updates"
-				>
-					<UpdateSection
-						currentVersion={displayVersion}
-						pendingUpdate={formattedPendingUpdate}
-						updateProgress={launcherStore.updateProgress}
-						updateDownloaded={launcherStore.updateDownloaded}
-						{checking}
-						{downloading}
-						{installing}
-						onCheck={handleCheckForUpdates}
-						onDownload={handleDownload}
-						onInstall={handleInstall}
-					/>
-				</CollapsibleSection>
-
-				<CollapsibleSection
-					title={t("settings.launcher.themes")}
-					iconSrc="/images/icons/nav/pencil.svg"
-					storageKey="section_themes"
-				>
-					<ThemeSelector
-						themes={availableThemes}
-						bind:value={launcherStore.settings.theme}
-						onchange={async (id: string) => {
-							try {
-								await invoke("set_theme", { id });
-							} catch (e) {
-								console.error("Error setting theme:", e);
-							}
-						}}
-						onrefresh={loadThemes}
-					/>
-				</CollapsibleSection>
-
-				<CollapsibleSection
 					title={t("settings.launcher.generalTitle")}
 					iconSrc="/images/icons/nav/sliders.svg"
 					storageKey="section_general"
@@ -351,17 +266,6 @@
 							handleSave();
 						}}
 					/>
-					<div class="qm-field-checkbox">
-						<input
-							type="checkbox"
-							id="auto-updates"
-							bind:checked={launcherStore.settings.auto_updates}
-							onchange={handleSave}
-						/>
-						<label for="auto-updates"
-							>{t("settings.launcher.autoUpdates")}</label
-						>
-					</div>
 					<div class="qm-field-checkbox">
 						<input
 							type="checkbox"
@@ -402,9 +306,28 @@
 				</CollapsibleSection>
 
 				<CollapsibleSection
-					title={t("settings.launcher.interfaceTitle")}
-					iconSrc="/images/icons/ui/interface.svg"
-					storageKey="section_interface"
+					title={t("settings.launcher.themes")}
+					iconSrc="/images/icons/nav/pencil.svg"
+					storageKey="section_themes"
+				>
+					<ThemeSelector
+						themes={availableThemes}
+						bind:value={launcherStore.settings.theme}
+						onchange={async (id: string) => {
+							try {
+								await invoke("set_theme", { id });
+							} catch (e) {
+								console.error("Error setting theme:", e);
+							}
+						}}
+						onrefresh={loadThemes}
+					/>
+				</CollapsibleSection>
+
+				<CollapsibleSection
+					title={t("settings.launcher.performanceTitle")}
+					iconSrc="/images/icons/ui/performance.svg"
+					storageKey="section_performance"
 				>
 					<div class="qm-field-checkbox">
 						<input
@@ -419,6 +342,93 @@
 							>{t("settings.launcher.reduceAnimations")}</label
 						>
 					</div>
+					<div class="qm-field-checkbox">
+						<input
+							type="checkbox"
+							id="disable-blur-effects"
+							bind:checked={
+								launcherStore.settings.disable_blur_effects
+							}
+							onchange={handleSave}
+						/>
+						<label for="disable-blur-effects"
+							>{t("settings.launcher.disableBlurEffects")}</label
+						>
+					</div>
+					<div class="qm-field-checkbox">
+						<input
+							type="checkbox"
+							id="disable-infinite-animations"
+							bind:checked={
+								launcherStore.settings
+									.disable_infinite_animations
+							}
+							onchange={handleSave}
+						/>
+						<label for="disable-infinite-animations"
+							>{t(
+								"settings.launcher.disableInfiniteAnimations",
+							)}</label
+						>
+					</div>
+					<div class="qm-field-checkbox">
+						<input
+							type="checkbox"
+							id="disable-skin3d-animations"
+							bind:checked={
+								launcherStore.settings.disable_skin3d_animations
+							}
+							onchange={handleSave}
+						/>
+						<label for="disable-skin3d-animations"
+							>{t(
+								"settings.launcher.disableSkin3dAnimations",
+							)}</label
+						>
+					</div>
+					<div class="qm-field-checkbox">
+						<input
+							type="checkbox"
+							id="reduce-log-animations"
+							bind:checked={
+								launcherStore.settings.reduce_log_animations
+							}
+							onchange={handleSave}
+						/>
+						<label for="reduce-log-animations"
+							>{t("settings.launcher.reduceLogAnimations")}</label
+						>
+					</div>
+				</CollapsibleSection>
+
+				<CollapsibleSection
+					title={t("settings.launcher.updatesTitle")}
+					iconSrc="/images/icons/ui/download.svg"
+					storageKey="section_updates"
+				>
+					<div class="qm-field-checkbox">
+						<input
+							type="checkbox"
+							id="auto-updates"
+							bind:checked={launcherStore.settings.auto_updates}
+							onchange={handleSave}
+						/>
+						<label for="auto-updates"
+							>{t("settings.launcher.autoUpdates")}</label
+						>
+					</div>
+					<UpdateSection
+						currentVersion={displayVersion}
+						pendingUpdate={formattedPendingUpdate}
+						updateProgress={launcherStore.updateProgress}
+						updateDownloaded={launcherStore.updateDownloaded}
+						{checking}
+						{downloading}
+						{installing}
+						onCheck={handleCheckForUpdates}
+						onDownload={handleDownload}
+						onInstall={handleInstall}
+					/>
 				</CollapsibleSection>
 
 				<CollapsibleSection
@@ -847,64 +857,6 @@
 
 	.section-group :global(.cs-root:last-child) {
 		border-bottom: none;
-	}
-
-	.qm-active-card {
-		background: var(--bg-card);
-		border-radius: var(--border-radius-sm);
-		padding: 10px 12px;
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		border: 1px solid var(--border-color);
-		box-shadow:
-			var(--shadow-sm),
-			inset 0 1px 0 var(--surface-selected);
-		margin-bottom: 6px;
-	}
-
-	.qm-status-dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-	}
-
-	.qm-status-dot.running {
-		background: var(--color-success);
-		box-shadow: 0 0 10px rgba(var(--color-success-rgb), 0.4);
-	}
-
-	.qm-active-info {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.qm-active-name {
-		font-weight: 600;
-		font-size: 0.9rem;
-	}
-
-	.qm-active-sub {
-		font-size: 0.75rem;
-		color: var(--text-secondary);
-	}
-
-	.qm-kill-btn {
-		background: rgba(var(--color-error-rgb), 0.1);
-		color: var(--color-error);
-		border: 1px solid rgba(var(--color-error-rgb), 0.2);
-		padding: 4px 10px;
-		border-radius: var(--border-radius-sm);
-		font-size: 0.75rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition: all 0.2s;
-	}
-
-	.qm-kill-btn:hover {
-		background: var(--color-error);
-		color: var(--accent-text);
 	}
 
 	.qm-field {

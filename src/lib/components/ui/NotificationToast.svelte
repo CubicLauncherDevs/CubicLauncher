@@ -125,7 +125,11 @@
 	<div class="notification-gloss" aria-hidden="true"></div>
 
 	<div class="notification-icon-wrap">
-		<svg class="progress-ring" viewBox="0 0 32 32" aria-hidden="true">
+		<svg
+			class="progress-ring preserve-motion"
+			viewBox="0 0 32 32"
+			aria-hidden="true"
+		>
 			<circle class="track" cx="16" cy="16" r={R} />
 			<circle
 				class="fill"

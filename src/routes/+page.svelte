@@ -69,6 +69,18 @@
 
 	const sidebarTransitionDuration = $derived(animDuration(0.35, 0.05));
 
+	$effect(() => {
+		if (typeof document === "undefined") return;
+		const html = document.documentElement;
+		const s = launcherStore.settings;
+		html.toggleAttribute("data-reduce-motion", s.reduce_animations);
+		html.toggleAttribute("data-no-blur", s.disable_blur_effects);
+		html.toggleAttribute(
+			"data-no-infinite-animations",
+			s.disable_infinite_animations,
+		);
+	});
+
 	let unlistenDragDrop: (() => void) | undefined;
 	let checkUpdatesTimer: ReturnType<typeof setTimeout> | undefined;
 	let editingTimer: ReturnType<typeof setTimeout> | undefined;

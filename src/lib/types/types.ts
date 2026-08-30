@@ -79,6 +79,10 @@ export interface Settings {
 	license_accepted: boolean;
 	market_filter_collapsed: boolean;
 	reduce_animations: boolean;
+	disable_blur_effects: boolean;
+	disable_infinite_animations: boolean;
+	disable_skin3d_animations: boolean;
+	reduce_log_animations: boolean;
 }
 
 export interface JreStatus {

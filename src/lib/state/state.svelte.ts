@@ -68,6 +68,10 @@ export const launcherStore = $state<LauncherState>({
 		license_accepted: false,
 		market_filter_collapsed: true,
 		reduce_animations: false,
+		disable_blur_effects: false,
+		disable_infinite_animations: false,
+		disable_skin3d_animations: false,
+		reduce_log_animations: false,
 	},
 });
 

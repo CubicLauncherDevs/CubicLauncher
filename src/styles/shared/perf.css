@@ -1,0 +1,54 @@
+/* ==========================================================================
+   perf.css — Performance-related overrides toggled from settings.
+   These rules are intentionally broad so a single checkbox disables expensive
+   effects across the whole UI without editing every component.
+   ========================================================================== */
+
+/* Reduce interface motion (entrance/exit transitions, hover transitions...) */
+html[data-reduce-motion] *,
+html[data-reduce-motion] *::before,
+html[data-reduce-motion] *::after {
+	animation-duration: 0.001ms !important;
+	animation-iteration-count: 1 !important;
+	transition-duration: 0.001ms !important;
+	scroll-behavior: auto !important;
+}
+
+/* Keep functional progress transitions mostly intact */
+html[data-reduce-motion] .preserve-motion,
+html[data-reduce-motion] .preserve-motion *,
+html[data-reduce-motion] .preserve-motion *::before,
+html[data-reduce-motion] .preserve-motion *::after {
+	transition-duration: inherit !important;
+}
+
+/* Disable blur / frosted-glass effects */
+html[data-no-blur] .background-overlay {
+	filter: brightness(0.4);
+}
+
+html[data-no-blur] *,
+html[data-no-blur] *::before,
+html[data-no-blur] *::after {
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+}
+
+/* Pause continuous CSS animations (spinners, pulses, etc.) */
+html[data-no-infinite-animations] *,
+html[data-no-infinite-animations] *::before,
+html[data-no-infinite-animations] *::after {
+	animation-play-state: paused !important;
+}
+
+/* Preserve finite/functional animations (toast timeout, progress bars, etc.) */
+html[data-no-infinite-animations] .preserve-motion,
+html[data-no-infinite-animations] .preserve-motion *,
+html[data-no-infinite-animations] .preserve-motion *::before,
+html[data-no-infinite-animations] .preserve-motion *::after,
+html[data-reduce-motion] .preserve-motion,
+html[data-reduce-motion] .preserve-motion *,
+html[data-reduce-motion] .preserve-motion *::before,
+html[data-reduce-motion] .preserve-motion *::after {
+	animation-play-state: running !important;
+}

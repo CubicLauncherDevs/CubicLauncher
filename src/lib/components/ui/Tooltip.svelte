@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { fly } from "svelte/transition";
 	import type { Snippet } from "svelte";
+	import { animDuration } from "$lib/utils/animations";
 
 	interface Props {
 		open?: boolean;
@@ -21,6 +22,8 @@
 	let containerEl = $state<HTMLDivElement>();
 	let adjustedX = $state(0);
 	let adjustedY = $state(0);
+
+	const flyDuration = $derived(animDuration(120));
 
 	const GAP = 8;
 	const PADDING = 8;
@@ -66,7 +69,7 @@
 			class="tooltip"
 			role="tooltip"
 			style="left: {adjustedX}px; top: {adjustedY}px;"
-			transition:fly={{ y: -4, duration: 120 }}
+			transition:fly={{ y: -4, duration: flyDuration }}
 		>
 			{@render children?.()}
 		</div>

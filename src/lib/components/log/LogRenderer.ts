@@ -5,6 +5,7 @@ import {
 	type LogLine,
 } from "./logHelpers";
 import type { LogState } from "./logState.svelte";
+import { launcherStore } from "$lib/state/state.svelte";
 
 export class LogRenderer {
 	private viewport?: HTMLDivElement;
@@ -45,6 +46,10 @@ export class LogRenderer {
 			this.poolNode(container.removeChild(child) as HTMLDivElement);
 			child = next;
 		}
+	}
+
+	private shouldReduceLogAnimations(): boolean {
+		return launcherStore.settings.reduce_log_animations;
 	}
 
 	private initLineNode(
@@ -124,7 +129,12 @@ export class LogRenderer {
 			const line = newLines[i];
 			if (this.state.lineVisible(line)) {
 				const div = this.acquireNode();
-				this.initLineNode(div, line, startIndex + i, true);
+				this.initLineNode(
+					div,
+					line,
+					startIndex + i,
+					!this.shouldReduceLogAnimations(),
+				);
 				frag.appendChild(div);
 				inserted.push(div);
 			}
