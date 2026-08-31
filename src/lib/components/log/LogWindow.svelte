@@ -169,41 +169,39 @@
 </script>
 
 <div class="log-window">
-	<div class="log-card">
-		<LogHeader
-			{instanceName}
-			totalLines={log.totalLines}
-			{isAtBottom}
-			uploading={log.uploading}
-			{onClear}
-			onCopy={copyLog}
-			onUpload={uploadToMclogs}
-			onScrollBottom={() => renderer.scrollToBottom()}
-		/>
+	<LogHeader
+		{instanceName}
+		totalLines={log.totalLines}
+		{isAtBottom}
+		uploading={log.uploading}
+		{onClear}
+		onCopy={copyLog}
+		onUpload={uploadToMclogs}
+		onScrollBottom={() => renderer.scrollToBottom()}
+	/>
 
-		<LogControls
-			activeLevels={log.activeLevels}
-			query={log.inputQuery}
-			matchCount={log.matchCount}
-			currentMatchIndex={log.currentMatchIndex}
-			{showLevelTags}
-			onQueryInput={(v) => log.searchInput(v)}
-			onQueryKeydown={handleSearchKeydown}
-			onClearQuery={() => log.resetSearch()}
-			onPrev={() => {
-				log.flushSearch();
-				renderer.prevMatch();
-			}}
-			onNext={() => {
-				log.flushSearch();
-				renderer.nextMatch();
-			}}
-			onToggleLevel={(l) => log.toggleLevel(l)}
-			onSetAllLevels={(a) => log.setAllLevels(a)}
-		/>
+	<LogControls
+		activeLevels={log.activeLevels}
+		query={log.inputQuery}
+		matchCount={log.matchCount}
+		currentMatchIndex={log.currentMatchIndex}
+		{showLevelTags}
+		onQueryInput={(v) => log.searchInput(v)}
+		onQueryKeydown={handleSearchKeydown}
+		onClearQuery={() => log.resetSearch()}
+		onPrev={() => {
+			log.flushSearch();
+			renderer.prevMatch();
+		}}
+		onNext={() => {
+			log.flushSearch();
+			renderer.nextMatch();
+		}}
+		onToggleLevel={(l) => log.toggleLevel(l)}
+		onSetAllLevels={(a) => log.setAllLevels(a)}
+	/>
 
-		<LogViewport {renderer} {onScrollState} />
-	</div>
+	<LogViewport {renderer} {onScrollState} />
 
 	{#if !isAtBottom && unseenCount > 0}
 		<button
@@ -211,8 +209,17 @@
 			class="jump-bottom"
 			onclick={() => renderer.scrollToBottom()}
 		>
+<<<<<<< HEAD
 			<Icon name="log:arrow-down" class="jump-icon" size={14} />
 			{unseenCount} líneas nuevas
+=======
+			<img
+				class="jump-icon"
+				src="/images/icons/log/arrow-down.svg"
+				alt=""
+			/>
+			{unseenCount} nuevas
+>>>>>>> af33d64 (Simplificar logwindow)
 		</button>
 	{/if}
 </div>
@@ -223,55 +230,48 @@
 		display: flex;
 		flex-direction: column;
 		height: 100vh;
-		padding: 16px;
-		box-sizing: border-box;
 		background: var(--bg-main);
 		color: var(--text-primary);
-		font-size: 0.8rem;
-	}
-
-	.log-card {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		min-height: 0;
-		background: var(--bg-card-gradient), var(--bg-card);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius);
-		box-shadow: var(--shadow-sm);
+		font-size: 0.75rem;
 		overflow: hidden;
-		contain: layout paint;
 	}
 
 	.jump-bottom {
 		position: absolute;
-		bottom: 28px;
+		bottom: 12px;
 		left: 50%;
 		transform: translateX(-50%);
-		background: var(--bg-card-gradient), var(--bg-card);
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		background: var(--bg-card);
 		border: 1px solid var(--border);
 		color: var(--text-primary);
-		padding: 8px 18px;
+		padding: 6px 14px;
 		border-radius: 20px;
-		font-size: 0.72rem;
+		font-size: 0.68rem;
 		font-family: inherit;
 		font-weight: 600;
 		cursor: pointer;
-		backdrop-filter: blur(var(--backdrop-blur-float, 4px));
 		box-shadow: var(--shadow-md);
 		transition: all 0.2s ease;
 		z-index: 10;
 	}
 
 	.jump-bottom:hover {
-		background: var(--bg-card);
 		border-color: var(--accent);
 		color: var(--accent);
 	}
 
+<<<<<<< HEAD
 	:global(.jump-icon) {
 		width: 14px;
 		height: 14px;
+=======
+	.jump-icon {
+		width: 12px;
+		height: 12px;
+>>>>>>> af33d64 (Simplificar logwindow)
 		flex-shrink: 0;
 		filter: var(--icon-filter);
 	}
@@ -279,14 +279,14 @@
 	:global(.log-line) {
 		display: flex;
 		align-items: flex-start;
-		gap: 12px;
-		padding: 1px 18px;
-		min-height: 18px;
+		gap: 10px;
+		padding: 1px 12px;
+		min-height: 16px;
 		font-family:
 			ui-monospace, SFMono-Regular, "SF Mono", Consolas,
 			"Liberation Mono", Menlo, monospace;
 		content-visibility: auto;
-		contain-intrinsic-size: auto 18px;
+		contain-intrinsic-size: auto 16px;
 	}
 
 	:global(.log-line.hidden) {
@@ -298,7 +298,7 @@
 	}
 
 	:global(.log-line.new) {
-		animation: logSlideIn 0.2s ease-out;
+		animation: logSlideIn 0.15s ease-out;
 	}
 
 	:global(.log-line.search-active) {
@@ -312,14 +312,14 @@
 
 	:global(.line-ts) {
 		color: var(--text-muted);
-		font-size: 0.65rem;
+		font-size: 0.6rem;
 		flex-shrink: 0;
-		width: 72px;
+		width: 60px;
 		text-align: right;
 		user-select: none;
 		opacity: 0.75;
 		padding-top: 1px;
-		line-height: 1.45;
+		line-height: 1.4;
 	}
 
 	:global(.line-text) {
@@ -327,8 +327,8 @@
 		white-space: pre-wrap;
 		word-break: break-all;
 		min-width: 0;
-		font-size: 0.72rem;
-		line-height: 1.45;
+		font-size: 0.7rem;
+		line-height: 1.4;
 	}
 
 	:global(.line-text mark) {
@@ -370,7 +370,7 @@
 	}
 
 	:global(.log-line.trace .line-text) {
-		font-size: 0.65rem;
+		font-size: 0.62rem;
 	}
 
 	:global(.log-line.message .line-text) {
@@ -384,21 +384,11 @@
 	@keyframes logSlideIn {
 		from {
 			opacity: 0;
-			transform: translateY(4px);
+			transform: translateY(3px);
 		}
 		to {
 			opacity: 1;
 			transform: translateY(0);
-		}
-	}
-
-	@media (min-width: 1100px) {
-		.log-window {
-			padding: 24px;
-		}
-
-		.jump-bottom {
-			bottom: 36px;
 		}
 	}
 </style>

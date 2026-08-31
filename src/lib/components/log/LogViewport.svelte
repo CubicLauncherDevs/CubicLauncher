@@ -35,7 +35,7 @@
 		overflow-y: auto;
 		contain: layout style;
 		background: var(--bg-input);
-		padding: 8px 0;
+		padding: 4px 0;
 	}
 
 	.log-viewport::-webkit-scrollbar {

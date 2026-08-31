@@ -108,9 +108,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 16px;
-		padding: 18px 20px;
-		background: var(--bg-card-gradient), var(--bg-card);
+		gap: 12px;
+		padding: 10px 14px;
+		background: var(--bg-card);
 		border-bottom: 1px solid var(--border);
 		flex-shrink: 0;
 	}
@@ -118,13 +118,19 @@
 	.header-main {
 		display: flex;
 		align-items: center;
-		gap: 14px;
+		gap: 10px;
 		min-width: 0;
 	}
 
+<<<<<<< HEAD
 	:global(.log-icon) {
 		width: 38px;
 		height: 38px;
+=======
+	.log-icon {
+		width: 28px;
+		height: 28px;
+>>>>>>> af33d64 (Simplificar logwindow)
 		border-radius: var(--border-radius-sm);
 		flex-shrink: 0;
 		opacity: 0.85;
@@ -133,15 +139,15 @@
 	.title-area {
 		display: flex;
 		flex-direction: column;
-		gap: 5px;
+		gap: 2px;
 		min-width: 0;
 	}
 
 	.log-title {
-		font-size: 1.05rem;
-		font-weight: 800;
+		font-size: 0.92rem;
+		font-weight: 700;
 		color: var(--text-primary);
-		letter-spacing: -0.3px;
+		letter-spacing: -0.2px;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -151,14 +157,14 @@
 	.meta-row {
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		font-size: 0.72rem;
+		gap: 5px;
+		font-size: 0.65rem;
 		color: var(--text-tertiary);
 	}
 
 	.meta-dot {
-		width: 7px;
-		height: 7px;
+		width: 6px;
+		height: 6px;
 		border-radius: 50%;
 		background: var(--text-muted);
 		transition: all 0.3s ease;
@@ -182,7 +188,7 @@
 
 	.meta-count {
 		background: var(--surface-active);
-		padding: 1px 7px;
+		padding: 1px 6px;
 		border-radius: var(--border-radius-sm);
 		color: var(--text-secondary);
 		font-weight: 600;
@@ -191,20 +197,27 @@
 	.log-toolbar {
 		display: flex;
 		align-items: center;
-		gap: 6px;
+		gap: 5px;
 		flex-shrink: 0;
 	}
 
+<<<<<<< HEAD
 	:global(.toolbar-icon) {
 		width: 15px;
 		height: 15px;
+=======
+	.toolbar-icon {
+		width: 13px;
+		height: 13px;
+>>>>>>> af33d64 (Simplificar logwindow)
 		flex-shrink: 0;
 		filter: var(--icon-filter);
 	}
 
 	.toolbar-btn {
-		height: 34px;
-		padding: 0 8px;
+		height: 28px;
+		width: 28px;
+		padding: 0;
 		border-radius: var(--border-radius-sm);
 		background: transparent;
 		border: 1px solid var(--border);
@@ -213,9 +226,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 5px;
 		transition: all 0.15s ease;
-		font-size: 0.75rem;
+		font-size: 0.7rem;
 		font-weight: 600;
 	}
 
@@ -245,22 +257,7 @@
 	}
 
 	.btn-label {
-		white-space: nowrap;
-		max-width: 0;
-		min-width: 0;
-		opacity: 0;
-		overflow: hidden;
-		transition:
-			max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-			opacity 0.25s ease,
-			margin 0.25s ease;
-		pointer-events: none;
-	}
-
-	.toolbar-btn:hover:not(:disabled) .btn-label {
-		max-width: 90px;
-		opacity: 1;
-		margin-right: 1px;
+		display: none;
 	}
 
 	@keyframes pulse {
@@ -286,16 +283,13 @@
 		}
 	}
 
-	@media (max-width: 600px) {
+	@media (max-width: 520px) {
 		.log-header {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: 12px;
+			gap: 10px;
 		}
 
-		.log-toolbar {
-			width: 100%;
-			justify-content: flex-end;
+		.log-title {
+			font-size: 0.85rem;
 		}
 	}
 </style>
