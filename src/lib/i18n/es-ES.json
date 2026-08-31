@@ -80,9 +80,13 @@
 			"title": "Sobre Nosotros",
 			"description": "CubicLauncher es un lanzador de código abierto, libre y hecho por voluntarios.",
 			"discord": "Únete a nuestro Discord",
+			"openSource": "Código abierto",
+			"reportIssue": "Reportar problema",
 			"creditMadeBy": "hecho por",
 			"creditAnd": "y",
-			"creditSuffix": "(mitkomm)"
+			"creditSuffix": "(mitkomm)",
+			"themeCreditStart": "Temas Rosé Pine de",
+			"themeCreditName": "Rosé Pine"
 		},
 		"java": {
 			"configTitle": "Configuración de Java",

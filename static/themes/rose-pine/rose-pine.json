@@ -1,0 +1,79 @@
+{
+	"name": "Rosé Pine",
+	"author": "CubicLauncher",
+	"version": "1.0",
+	"type": "builtin",
+	"bg_image": "/themes/rose-pine/rose-pine.webp",
+	"bg_image_blur": 0.0,
+	"bg_image_opacity": 0.15,
+	"variables": {
+		"--bg-main": "#191724",
+		"--bg-sidebar": "#1f1d2e",
+		"--bg-card": "#1f1d2e",
+		"--bg-item-active": "#26233a",
+		"--bg-overlay": "rgba(25,23,36,0.75)",
+		"--bg-input": "#26233a",
+
+		"--bg-sidebar-gradient": "linear-gradient(180deg, #1f1d2e 0%, #191724 100%)",
+		"--bg-card-gradient": "linear-gradient(135deg, rgba(235,188,186,0.05) 0%, rgba(0,0,0,0) 100%)",
+
+		"--text-primary": "#e0def4",
+		"--text-secondary": "#908caa",
+		"--text-muted": "#6e6a86",
+		"--text-tertiary": "#6e6a86",
+
+		"--border": "#2a273f",
+		"--border-color": "#2a273f",
+		"--border-width": "1px",
+		"--border-radius": "8px",
+		"--border-radius-sm": "4px",
+		"--border-radius-lg": "12px",
+
+		"--accent": "#ebbcba",
+		"--accent-rgb": "235,188,186",
+		"--accent-hover": "#f0cec9",
+		"--accent-text": "#191724",
+		"--accent-primary": "#ebbcba",
+
+		"--shadow-sm": "0 1px 3px rgba(0,0,0,0.4)",
+		"--shadow-md": "0 4px 12px rgba(0,0,0,0.5)",
+		"--shadow-lg": "0 8px 28px rgba(0,0,0,0.6)",
+		"--glow-accent": "0 0 12px rgba(235,188,186,0.18)",
+		"--glow-error": "0 0 12px rgba(235,111,146,0.25)",
+		"--glow-success": "0 0 12px rgba(49,116,143,0.25)",
+
+		"--color-success": "#31748f",
+		"--color-success-rgb": "49,116,143",
+		"--color-error": "#eb6f92",
+		"--color-error-rgb": "235,111,146",
+		"--color-warning": "#f6c177",
+		"--color-warning-rgb": "246,193,119",
+		"--color-status-starting": "#31748f",
+		"--color-status-started": "#9ccfd8",
+
+		"--icon-filter": "invert(1)",
+		"--icon-filter-error": "invert(16%) sepia(89%) saturate(4668%) hue-rotate(0deg) brightness(96%) contrast(112%)",
+		"--cubic-logo": "url(\"/images/cubic-white.svg\")",
+		"--cubic-logo-fallback": "url(\"/images/cubic-white.svg\")",
+
+		"--clr-loader-vanilla": "#908caa",
+		"--clr-loader-fabric": "#9ccfd8",
+		"--clr-loader-forge": "#f6c177",
+		"--clr-loader-quilt": "#c4a7e7",
+
+		"--sidebar-width": "260px",
+
+		"--scrollbar-track": "#191724",
+		"--scrollbar-thumb": "#2a273f",
+
+		"--bg-surface": "#26233a",
+		"--surface-rgb": "255, 255, 255",
+		"--surface-dropdown": "#26233a",
+		"--toast-bg": "rgba(31,29,46,0.92)",
+
+		"--font-family": "Cantarell, sans-serif",
+		"--font-size-base": "14px",
+		"--font-size-sm": "12px",
+		"--font-size-lg": "16px"
+	}
+}

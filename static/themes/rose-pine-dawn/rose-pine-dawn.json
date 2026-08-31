@@ -1,0 +1,79 @@
+{
+	"name": "Rosé Pine Dawn",
+	"author": "CubicLauncher",
+	"version": "1.0",
+	"type": "builtin",
+	"bg_image": "/themes/rose-pine-dawn/rose-pine-dawn.webp",
+	"bg_image_blur": 0.0,
+	"bg_image_opacity": 0.12,
+	"variables": {
+		"--bg-main": "#faf4ed",
+		"--bg-sidebar": "#fffaf3",
+		"--bg-card": "#fffaf3",
+		"--bg-item-active": "#f2e9e1",
+		"--bg-overlay": "rgba(87,82,121,0.35)",
+		"--bg-input": "#f2e9e1",
+
+		"--bg-sidebar-gradient": "linear-gradient(180deg, #fffaf3 0%, #faf4ed 100%)",
+		"--bg-card-gradient": "linear-gradient(135deg, rgba(215,130,122,0.05) 0%, rgba(0,0,0,0) 100%)",
+
+		"--text-primary": "#575279",
+		"--text-secondary": "#9893a5",
+		"--text-muted": "#797593",
+		"--text-tertiary": "#797593",
+
+		"--border": "#dfdad9",
+		"--border-color": "#dfdad9",
+		"--border-width": "1px",
+		"--border-radius": "8px",
+		"--border-radius-sm": "4px",
+		"--border-radius-lg": "12px",
+
+		"--accent": "#d7827a",
+		"--accent-rgb": "215,130,122",
+		"--accent-hover": "#c56a61",
+		"--accent-text": "#fffaf3",
+		"--accent-primary": "#d7827a",
+
+		"--shadow-sm": "0 1px 3px rgba(87,82,121,0.08)",
+		"--shadow-md": "0 4px 12px rgba(87,82,121,0.1)",
+		"--shadow-lg": "0 8px 28px rgba(87,82,121,0.12)",
+		"--glow-accent": "0 0 12px rgba(215,130,122,0.2)",
+		"--glow-error": "0 0 12px rgba(180,99,122,0.2)",
+		"--glow-success": "0 0 12px rgba(40,105,131,0.2)",
+
+		"--color-success": "#286983",
+		"--color-success-rgb": "40,105,131",
+		"--color-error": "#b4637a",
+		"--color-error-rgb": "180,99,122",
+		"--color-warning": "#ea9d34",
+		"--color-warning-rgb": "234,157,52",
+		"--color-status-starting": "#286983",
+		"--color-status-started": "#56949f",
+
+		"--icon-filter": "none",
+		"--icon-filter-error": "none",
+		"--cubic-logo": "url(\"/images/cubic.svg\")",
+		"--cubic-logo-fallback": "url(\"/images/cubic.svg\")",
+
+		"--clr-loader-vanilla": "#78909c",
+		"--clr-loader-fabric": "#56949f",
+		"--clr-loader-forge": "#ea9d34",
+		"--clr-loader-quilt": "#907aa9",
+
+		"--sidebar-width": "260px",
+
+		"--scrollbar-track": "#faf4ed",
+		"--scrollbar-thumb": "#dfdad9",
+
+		"--bg-surface": "#f2e9e1",
+		"--surface-rgb": "0, 0, 0",
+		"--surface-dropdown": "#fffaf3",
+		"--toast-bg": "rgba(255,250,243,0.92)",
+
+		"--font-family": "Cantarell, sans-serif",
+		"--font-size-base": "14px",
+		"--font-size-sm": "12px",
+		"--font-size-lg": "16px"
+	}
+}

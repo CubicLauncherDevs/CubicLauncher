@@ -440,22 +440,50 @@
 						<p class="about-desc">
 							{t("settings.about.description")}
 						</p>
-						<div
-							role="button"
-							tabindex="0"
-							onclick={() =>
-								openUrl("https://discord.gg/XQrRFWRyp")}
-							onkeydown={(e) => {
-								if (e.key === "Enter")
-									openUrl("https://discord.gg/XQrRFWRyp");
-							}}
-						>
-							<img
-								src="/images/icons/brand/discord.svg"
-								alt="Discord"
-								class="about-discord-icon"
-								tabindex="-1    "
-							/>
+						<div class="about-icons">
+							<button
+								type="button"
+								class="about-icon-btn"
+								aria-label={t("settings.about.discord")}
+								onclick={() =>
+									openUrl("https://discord.gg/XQrRFWRyp")}
+							>
+								<img
+									src="/images/icons/brand/discord.svg"
+									alt={t("settings.about.discord")}
+									class="about-icon-img"
+								/>
+							</button>
+							<button
+								type="button"
+								class="about-icon-btn"
+								aria-label={t("settings.about.openSource")}
+								onclick={() =>
+									openUrl(
+										"https://github.com/CubicLauncherDevs/CubicLauncher",
+									)}
+							>
+								<img
+									src="/images/icons/brand/github.svg"
+									alt={t("settings.about.openSource")}
+									class="about-icon-img"
+								/>
+							</button>
+							<button
+								type="button"
+								class="about-icon-btn"
+								aria-label={t("settings.about.reportIssue")}
+								onclick={() =>
+									openUrl(
+										"https://github.com/CubicLauncherDevs/CubicLauncher/issues",
+									)}
+							>
+								<img
+									src="/images/icons/ui/flag.svg"
+									alt={t("settings.about.reportIssue")}
+									class="about-icon-img"
+								/>
+							</button>
 						</div>
 						<p class="about-credit">
 							{t("settings.about.creditMadeBy")}
@@ -477,6 +505,17 @@
 								Santiagolxx
 							</button>
 							{t("settings.about.creditSuffix")}
+						</p>
+						<p class="about-theme-credit">
+							{t("settings.about.themeCreditStart")}
+							<button
+								type="button"
+								class="about-link"
+								onclick={() =>
+									openUrl("https://github.com/rose-pine")}
+							>
+								{t("settings.about.themeCreditName")}
+							</button>
 						</p>
 					</div>
 				</CollapsibleSection>
@@ -1118,21 +1157,44 @@
 		margin: 0;
 	}
 
-	.about-discord-icon {
+	.about-icons {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 14px;
+	}
+
+	.about-icon-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.about-icon-img {
 		width: 20px;
 		height: 20px;
-		cursor: pointer;
 		opacity: 0.5;
 		filter: var(--icon-filter);
 		flex-shrink: 0;
 		transition: opacity 0.15s;
 	}
 
-	.about-discord-icon:hover {
+	.about-icon-btn:hover .about-icon-img {
 		opacity: 0.8;
 	}
 
 	.about-credit {
+		font-size: 0.7rem;
+		color: var(--text-muted);
+		margin: 0;
+		opacity: 0.7;
+	}
+
+	.about-theme-credit {
 		font-size: 0.7rem;
 		color: var(--text-muted);
 		margin: 0;

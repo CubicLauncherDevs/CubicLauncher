@@ -27,6 +27,30 @@ const builtinThemes: ThemeEntry[] = [
 		type: "builtin",
 		preview: { bg: "#f5f5f5", accent: "#2563eb", text: "#1a1a1a" },
 	},
+	{
+		id: "catppuccin-latte",
+		name: "Catppuccin Latte",
+		author: "Catppuccin / CubicLauncher",
+		version: "1.0",
+		type: "builtin",
+		preview: { bg: "#eff1f5", accent: "#dc8a78", text: "#4c4f69" },
+	},
+	{
+		id: "rose-pine",
+		name: "Rosé Pine",
+		author: "CubicLauncher",
+		version: "1.0",
+		type: "builtin",
+		preview: { bg: "#191724", accent: "#ebbcba", text: "#e0def4" },
+	},
+	{
+		id: "rose-pine-dawn",
+		name: "Rosé Pine Dawn",
+		author: "CubicLauncher",
+		version: "1.0",
+		type: "builtin",
+		preview: { bg: "#faf4ed", accent: "#d7827a", text: "#575279" },
+	},
 ];
 
 export interface ThemeFontFace {

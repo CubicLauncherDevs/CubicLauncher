@@ -80,9 +80,13 @@
 			"title": "About",
 			"description": "CubicLauncher is an open-source launcher, free and built by volunteers.",
 			"discord": "Join our Discord",
+			"openSource": "Open source",
+			"reportIssue": "Report issue",
 			"creditMadeBy": "made by",
 			"creditAnd": "and",
-			"creditSuffix": "(mitkomm)"
+			"creditSuffix": "(mitkomm)",
+			"themeCreditStart": "Rosé Pine themes by",
+			"themeCreditName": "Rosé Pine"
 		},
 		"java": {
 			"configTitle": "Java Configuration",
