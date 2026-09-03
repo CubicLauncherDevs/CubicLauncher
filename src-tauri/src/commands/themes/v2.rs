@@ -109,16 +109,7 @@ impl Theme for V2Theme {
     }
     fn to_theme_res(&self) -> super::ThemeResponse {
         let vars = flatten_variables(&self.theme);
-
-        let mut icons = HashMap::new();
-        if let Some(ref preview) = self.theme.icons.preview {
-            icons.insert("preview".to_string(), preview.clone());
-        }
-        for (group, items) in &self.theme.icons.groups {
-            for (name, path) in items {
-                icons.insert(format!("{group}:{name}"), path.clone());
-            }
-        }
+        let icons = collect_icons(&self.theme.icons);
 
         super::ThemeResponse {
             name: self.get_name().to_string(),
@@ -143,6 +134,25 @@ fn insert_var(vars: &mut HashMap<String, String>, key: String, value: String) {
             key, old
         );
     }
+}
+
+/// Toma la definición de íconos del theme y la aplana a un mapa de
+/// clave única. `preview` se guarda bajo `"preview"` y los grupos se
+/// serializan como `"<group>:<name>"`.
+pub fn collect_icons(icons: &Icons) -> HashMap<String, String> {
+    let mut collected = HashMap::new();
+
+    if let Some(ref preview) = icons.preview {
+        collected.insert("preview".to_string(), preview.clone());
+    }
+
+    for (group, items) in &icons.groups {
+        for (name, path) in items {
+            collected.insert(format!("{group}:{name}"), path.clone());
+        }
+    }
+
+    collected
 }
 
 pub fn flatten_variables(theme: &ThemeDef) -> HashMap<String, String> {
@@ -473,6 +483,88 @@ mod tests {
         assert_eq!(v2.get_name().as_str(), "MyTheme");
         assert_eq!(v2.get_author().as_str(), "testauthor");
         assert_eq!(v2.get_version().as_str(), "1.0");
+    }
+
+    #[test]
+    fn collect_icons_preview_and_groups() {
+        let mut ui = HashMap::new();
+        ui.insert("play".into(), "ui/play.svg".into());
+        ui.insert("trash".into(), "ui/trash.svg".into());
+
+        let mut nav = HashMap::new();
+        nav.insert("settings".into(), "nav/settings.svg".into());
+
+        let icons = Icons {
+            preview: Some("preview.png".into()),
+            groups: {
+                let mut groups = HashMap::new();
+                groups.insert("ui".into(), ui);
+                groups.insert("nav".into(), nav);
+                groups
+            },
+        };
+
+        let collected = collect_icons(&icons);
+        assert_eq!(collected.len(), 4);
+        assert_eq!(
+            collected.get("preview").map(String::as_str),
+            Some("preview.png")
+        );
+        assert_eq!(
+            collected.get("ui:play").map(String::as_str),
+            Some("ui/play.svg")
+        );
+        assert_eq!(
+            collected.get("ui:trash").map(String::as_str),
+            Some("ui/trash.svg")
+        );
+        assert_eq!(
+            collected.get("nav:settings").map(String::as_str),
+            Some("nav/settings.svg")
+        );
+    }
+
+    #[test]
+    fn collect_icons_empty() {
+        let icons = Icons::default();
+        let collected = collect_icons(&icons);
+        assert!(collected.is_empty());
+    }
+
+    #[test]
+    fn collect_icons_only_preview() {
+        let icons = Icons {
+            preview: Some("icon.png".into()),
+            groups: HashMap::new(),
+        };
+        let collected = collect_icons(&icons);
+        assert_eq!(collected.len(), 1);
+        assert_eq!(
+            collected.get("preview").map(String::as_str),
+            Some("icon.png")
+        );
+    }
+
+    #[test]
+    fn collect_icons_only_groups() {
+        let mut group = HashMap::new();
+        group.insert("box".into(), "instance/box.svg".into());
+
+        let icons = Icons {
+            preview: None,
+            groups: {
+                let mut groups = HashMap::new();
+                groups.insert("instance".into(), group);
+                groups
+            },
+        };
+
+        let collected = collect_icons(&icons);
+        assert_eq!(collected.len(), 1);
+        assert_eq!(
+            collected.get("instance:box").map(String::as_str),
+            Some("instance/box.svg")
+        );
     }
 
     #[test]
