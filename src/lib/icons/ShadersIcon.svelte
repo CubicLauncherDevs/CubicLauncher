@@ -10,9 +10,4 @@
 	} = $props();
 </script>
 
-<Icon
-	name="ui:shaders"
-	src="/images/icons/ui/shaders.svg"
-	{size}
-	class={className}
-/>
+<Icon name="ui:shaders" {size} class={className} />

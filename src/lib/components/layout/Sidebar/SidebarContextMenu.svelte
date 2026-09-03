@@ -76,7 +76,7 @@
 		return [
 			{
 				label: instance.pinned ? t("sidebar.unpin") : t("sidebar.pin"),
-				icon: "/images/icons/ui/pin.svg",
+				iconName: "ui:pin",
 				action: async () => {
 					const previousPinned = instance.pinned;
 					const newPinned = !previousPinned;
@@ -90,23 +90,23 @@
 			},
 			{
 				label: t("sidebar.edit"),
-				icon: "/images/icons/nav/edit.svg",
+				iconName: "nav:edit",
 				action: () => onedit(instance),
 			},
 			{
 				label: t("sidebar.openFolder"),
-				icon: "/images/icons/instance/folder.svg",
+				iconName: "instance:folder",
 				action: () => openInstanceDir(instance.uuid),
 			},
 			{
 				label: t("sidebar.export"),
-				icon: "/images/icons/ui/download.svg",
+				iconName: "ui:download",
 				action: () => void handleExport(instance),
 			},
 			{ separator: true, label: "" },
 			{
 				label: t("sidebar.delete"),
-				icon: "/images/icons/ui/trash.svg",
+				iconName: "ui:trash",
 				variant: "danger",
 				action: () => ondelete(instance),
 			},

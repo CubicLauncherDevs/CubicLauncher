@@ -12,7 +12,7 @@
 
 <div class="state-container">
 	<div class="icon-wrapper success">
-		<Icon src="/images/icons/ui/check-circle.svg" size={32} />
+		<Icon name="ui:check-circle" size={32} />
 	</div>
 	<h3 class="state-title">{title}</h3>
 	{#if subtitle}

@@ -3,6 +3,8 @@
 	import { onMount } from "svelte";
 	import CheckIcon from "$lib/icons/CheckIcon.svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
+	import { getIconPath } from "$lib/icons/registry";
 	import { animDuration } from "$lib/utils/animations";
 
 	interface Option {
@@ -143,6 +145,8 @@
 				<span class="option-icon">
 					{#if selectedIcon.startsWith("/")}
 						<img src={selectedIcon} alt="" class="option-img" />
+					{:else if getIconPath(selectedIcon)}
+						<Icon name={selectedIcon} class="option-img" />
 					{:else}
 						{selectedIcon}
 					{/if}
@@ -182,6 +186,8 @@
 									alt=""
 									class="option-img"
 								/>
+							{:else if getIconPath(option.icon)}
+								<Icon name={option.icon} class="option-img" />
 							{:else}
 								{option.icon}
 							{/if}

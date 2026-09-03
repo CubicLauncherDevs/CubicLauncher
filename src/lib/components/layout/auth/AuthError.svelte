@@ -15,7 +15,7 @@
 
 <div class="state-container">
 	<div class="icon-wrapper error">
-		<Icon src="/images/icons/ui/error.svg" size={32} />
+		<Icon name="ui:error" size={32} />
 	</div>
 	<h3 class="state-title">{title}</h3>
 	<p class="state-subtitle error-text">{message}</p>

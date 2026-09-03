@@ -26,7 +26,7 @@
 		<span class="badge {statusClass}">{statusLabel}</span>
 	</div>
 	<div class="path-row">
-		<Icon src="/images/icons/instance/folder.svg" size={12} />
+		<Icon name="instance:folder" size={12} />
 		<span class="path-text" title={instance.path}>{instance.path}</span>
 		<button
 			type="button"
@@ -34,7 +34,7 @@
 			onclick={() => onOpenDir()}
 			title={t("instanceView.details.location")}
 		>
-			<Icon src="/images/icons/instance/external-link.svg" size={13} />
+			<Icon name="instance:external-link" size={13} />
 		</button>
 	</div>
 </div>

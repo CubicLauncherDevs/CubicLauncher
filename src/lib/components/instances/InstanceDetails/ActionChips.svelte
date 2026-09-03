@@ -18,7 +18,7 @@
 		onclick={() => onOpenDir()}
 		title={t("instanceView.options.folder")}
 	>
-		<Icon src="/images/icons/instance/folder.svg" size={16} />
+		<Icon name="instance:folder" size={16} />
 	</button>
 	<button
 		type="button"
@@ -26,7 +26,7 @@
 		onclick={() => onOpenDir("mods")}
 		title={t("instanceView.tabs.mods")}
 	>
-		<Icon src="/images/icons/instance/grid.svg" size={16} />
+		<Icon name="instance:grid" size={16} />
 	</button>
 	<button
 		type="button"
@@ -34,7 +34,7 @@
 		onclick={() => onOpenDir("screenshots")}
 		title={t("instanceView.tabs.screenshots")}
 	>
-		<Icon src="/images/icons/instance/image.svg" size={16} />
+		<Icon name="instance:image" size={16} />
 	</button>
 	<button
 		type="button"
@@ -42,7 +42,7 @@
 		onclick={() => onOpenDir("resourcepacks")}
 		title={t("instanceView.tabs.resources")}
 	>
-		<Icon src="/images/icons/instance/database.svg" size={16} />
+		<Icon name="instance:database" size={16} />
 	</button>
 	<button
 		type="button"
@@ -50,7 +50,7 @@
 		onclick={() => onOpenLogs()}
 		title={t("instanceView.tabs.logs")}
 	>
-		<Icon src="/images/icons/instance/code.svg" size={16} />
+		<Icon name="instance:code" size={16} />
 	</button>
 </div>
 

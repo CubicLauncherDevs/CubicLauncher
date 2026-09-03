@@ -49,7 +49,7 @@
 
 		{#if draggingPng && dropTargetActive}
 			<div class="drop-overlay">
-				<Icon src="/images/icons/ui/upload.svg" size={32} />
+				<Icon name="ui:upload" size={32} />
 				<span>{t("userMenu.skinCape.dropSkinHere")}</span>
 			</div>
 		{/if}

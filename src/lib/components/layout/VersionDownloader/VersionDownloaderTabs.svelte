@@ -1,11 +1,13 @@
 <script lang="ts">
+	import Icon from "$lib/icons/Icon.svelte";
+
 	let {
 		loaderTab = $bindable("vanilla"),
 		LOADERS = [],
 		onswitch,
 	}: {
 		loaderTab: string;
-		LOADERS: Array<{ value: string; label: string; icon: string }>;
+		LOADERS: Array<{ value: string; label: string; iconName: string }>;
 		onswitch: (tab: string) => void;
 	} = $props();
 
@@ -25,7 +27,7 @@
 			onclick={() => handleClick(loader.value)}
 		>
 			<span class="loader-icon-wrap">
-				<img src={loader.icon} alt="" />
+				<Icon name={loader.iconName} size={26} />
 			</span>
 			<span class="loader-label">{loader.label}</span>
 		</button>
@@ -103,13 +105,6 @@
 	.loader-btn:hover .loader-icon-wrap,
 	.loader-btn.active .loader-icon-wrap {
 		background: var(--bg-main);
-	}
-
-	.loader-btn img {
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-		display: block;
 	}
 
 	.loader-label {

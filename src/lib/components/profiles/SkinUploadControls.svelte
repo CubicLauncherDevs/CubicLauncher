@@ -43,7 +43,7 @@
 				onclick={onFileSelect}
 				disabled={processing}
 			>
-				<Icon src="/images/icons/ui/upload.svg" size={14} />
+				<Icon name="ui:upload" size={14} />
 				<span>{t("userMenu.skinCape.uploadSkin")}</span>
 			</button>
 		</div>

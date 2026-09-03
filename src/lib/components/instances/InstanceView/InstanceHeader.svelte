@@ -122,10 +122,7 @@
 						class="action-btn"
 						onclick={() => openDir()}
 					>
-						<Icon
-							src="/images/icons/instance/folder.svg"
-							size={15}
-						/>
+						<Icon name="instance:folder" size={15} />
 						<span class="action-label"
 							>{t("instanceView.options.folder")}</span
 						>
@@ -135,7 +132,7 @@
 						class="action-btn"
 						onclick={() => openDir("mods")}
 					>
-						<Icon src="/images/icons/instance/grid.svg" size={15} />
+						<Icon name="instance:grid" size={15} />
 						<span class="action-label"
 							>{t("instanceView.tabs.mods")}</span
 						>
@@ -145,10 +142,7 @@
 						class="action-btn"
 						onclick={() => openDir("screenshots")}
 					>
-						<Icon
-							src="/images/icons/instance/image.svg"
-							size={15}
-						/>
+						<Icon name="instance:image" size={15} />
 						<span class="action-label"
 							>{t("instanceView.tabs.screenshots")}</span
 						>
@@ -158,10 +152,7 @@
 						class="action-btn"
 						onclick={() => openDir("resourcepacks")}
 					>
-						<Icon
-							src="/images/icons/instance/database.svg"
-							size={15}
-						/>
+						<Icon name="instance:database" size={15} />
 						<span class="action-label"
 							>{t("instanceView.tabs.resources")}</span
 						>
@@ -171,7 +162,7 @@
 						class="action-btn"
 						onclick={() => openLogs()}
 					>
-						<Icon src="/images/icons/instance/code.svg" size={15} />
+						<Icon name="instance:code" size={15} />
 						<span class="action-label"
 							>{t("instanceView.tabs.logs")}</span
 						>
@@ -210,7 +201,7 @@
 								/>
 							</svg>
 						{:else if bannerState === "Started"}
-							<Icon src="/images/icons/ui/check.svg" size={12} />
+							<Icon name="ui:check" size={12} />
 						{/if}
 						<span class="status-text">{statusLabel}</span>
 						{#if bannerState === "Idle" || bannerState === "Error"}
@@ -255,7 +246,7 @@
 
 			<div class="details-row">
 				<div class="path-row">
-					<Icon src="/images/icons/instance/folder.svg" size={12} />
+					<Icon name="instance:folder" size={12} />
 					<span class="path-text" title={instance.path}
 						>{instance.path}</span
 					>
@@ -265,14 +256,11 @@
 						onclick={() => openDir()}
 						title={t("instanceView.details.location")}
 					>
-						<Icon
-							src="/images/icons/instance/external-link.svg"
-							size={13}
-						/>
+						<Icon name="instance:external-link" size={13} />
 					</button>
 				</div>
 				<div class="last-played">
-					<Icon src="/images/icons/instance/clock.svg" size={12} />
+					<Icon name="instance:clock" size={12} />
 					<span
 						>{t("instanceView.lastPlayed", {
 							date: lastPlayedLabel,
@@ -291,7 +279,7 @@
 				aria-label={t("instanceView.tabs.details")}
 				onclick={() => (activeSection = "detalles")}
 			>
-				<Icon src="/images/icons/ui/chevron-left.svg" size={18} />
+				<Icon name="ui:chevron-left" size={18} />
 			</button>
 			<img
 				class="compact-icon"

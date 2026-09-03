@@ -84,7 +84,7 @@
 		onclick={handleUpload}
 		title={t("createInstance.uploadIcon")}
 	>
-		<Icon src="/images/icons/ui/upload.svg" size={16} />
+		<Icon name="ui:upload" size={16} />
 	</button>
 </div>
 <div class="name-section">

@@ -135,7 +135,7 @@
 		</button>
 		<button type="button" class="browse-btn" onclick={handleBrowse}>
 			<span>{t("settings.launcher.themesBrowse")}</span>
-			<Icon src="/images/icons/instance/external-link.svg" size={14} />
+			<Icon name="instance:external-link" size={14} />
 		</button>
 	</div>
 

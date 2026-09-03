@@ -12,10 +12,4 @@
 	} = $props();
 </script>
 
-<Icon
-	name="ui:search"
-	src="/images/icons/ui/search.svg"
-	{width}
-	{height}
-	class={className}
-/>
+<Icon name="ui:search" {width} {height} class={className} />

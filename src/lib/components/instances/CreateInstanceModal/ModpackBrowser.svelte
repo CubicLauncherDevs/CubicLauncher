@@ -261,7 +261,7 @@
 	{#if selectedItem}
 		<div class="detail-view">
 			<button type="button" class="back-btn" onclick={onBack}>
-				<Icon src="/images/icons/ui/chevron-left.svg" size={16} />
+				<Icon name="ui:chevron-left" size={16} />
 				{t("createInstance.backBtn")}
 			</button>
 

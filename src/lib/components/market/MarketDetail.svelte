@@ -229,7 +229,7 @@
 			onclick={onClose}
 			aria-label={t("market.detail.close")}
 		>
-			<Icon src="/images/icons/ui/close.svg" size={14} />
+			<Icon name="ui:close" size={14} />
 		</button>
 	</div>
 

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Icon from "$lib/icons/Icon.svelte";
+
 	interface Props {
 		instanceName: string;
 		totalLines: number;
@@ -30,10 +32,10 @@
 
 <header class="log-header">
 	<div class="header-main">
-		<img
+		<Icon
+			name="log:logs"
 			class="log-icon"
-			src="/images/icons/log/logs.svg"
-			alt=""
+			size={38}
 			style="filter: var(--icon-filter);"
 		/>
 		<div class="title-area">
@@ -57,11 +59,7 @@
 			title="Limpiar log"
 			aria-label="Limpiar log"
 		>
-			<img
-				class="toolbar-icon"
-				src="/images/icons/log/clear.svg"
-				alt=""
-			/>
+			<Icon name="log:clear" class="toolbar-icon" size={15} />
 			<span class="btn-label">Limpiar</span>
 		</button>
 		<button
@@ -72,7 +70,7 @@
 			title="Copiar log"
 			aria-label="Copiar log"
 		>
-			<img class="toolbar-icon" src="/images/icons/log/copy.svg" alt="" />
+			<Icon name="log:copy" class="toolbar-icon" size={15} />
 			<span class="btn-label">Copiar</span>
 		</button>
 		<button
@@ -84,17 +82,9 @@
 			aria-label={uploadLabel}
 		>
 			{#if uploading}
-				<img
-					class="toolbar-icon spin"
-					src="/images/icons/log/spinner.svg"
-					alt=""
-				/>
+				<Icon name="log:spinner" class="toolbar-icon spin" size={15} />
 			{:else}
-				<img
-					class="toolbar-icon"
-					src="/images/icons/log/upload.svg"
-					alt=""
-				/>
+				<Icon name="log:upload" class="toolbar-icon" size={15} />
 			{/if}
 			<span class="btn-label">Subir</span>
 		</button>
@@ -107,11 +97,7 @@
 			aria-label="Ir al final"
 			aria-pressed={isAtBottom}
 		>
-			<img
-				class="toolbar-icon"
-				src="/images/icons/log/scroll-down.svg"
-				alt=""
-			/>
+			<Icon name="log:scroll-down" class="toolbar-icon" size={15} />
 			<span class="btn-label">Auto-scroll</span>
 		</button>
 	</div>
@@ -136,11 +122,10 @@
 		min-width: 0;
 	}
 
-	.log-icon {
+	:global(.log-icon) {
 		width: 38px;
 		height: 38px;
 		border-radius: var(--border-radius-sm);
-		object-fit: contain;
 		flex-shrink: 0;
 		opacity: 0.85;
 	}
@@ -210,7 +195,7 @@
 		flex-shrink: 0;
 	}
 
-	.toolbar-icon {
+	:global(.toolbar-icon) {
 		width: 15px;
 		height: 15px;
 		flex-shrink: 0;

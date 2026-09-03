@@ -10,9 +10,4 @@
 	} = $props();
 </script>
 
-<Icon
-	name="ui:close"
-	src="/images/icons/ui/close.svg"
-	{size}
-	class={className}
-/>
+<Icon name="ui:close" {size} class={className} />

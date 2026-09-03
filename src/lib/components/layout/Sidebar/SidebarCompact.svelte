@@ -277,10 +277,7 @@
 								{/if}
 								{#if instance.pinned}
 									<span class="sc-instance-pin"
-										><Icon
-											src="/images/icons/ui/pin.svg"
-											size={12}
-										/></span
+										><Icon name="ui:pin" size={12} /></span
 									>
 								{/if}
 							</button>
@@ -298,12 +295,7 @@
 			onclick={onopencreateinstance}
 			title={t("sidebar.createInstance")}
 		>
-			<img
-				src="/images/icons/nav/create.svg"
-				alt={t("sidebar.createInstance")}
-				width="16"
-				height="16"
-			/>
+			<Icon name="nav:create" size={16} />
 		</button>
 		<button
 			type="button"
@@ -311,12 +303,7 @@
 			onclick={onopenversiondownloader}
 			title={t("sidebar.downloadVersions")}
 		>
-			<img
-				src="/images/icons/ui/download.svg"
-				alt={t("sidebar.downloadVersions")}
-				width="16"
-				height="16"
-			/>
+			<Icon name="ui:download" size={16} />
 			{#if activeDownloads > 0}
 				<span class="sc-download-badge">{activeDownloads}</span>
 			{/if}
@@ -327,12 +314,7 @@
 			onclick={onopenquickmenu}
 			title={t("sidebar.settings")}
 		>
-			<img
-				src="/images/icons/nav/settings.svg"
-				alt={t("sidebar.settings")}
-				width="16"
-				height="16"
-			/>
+			<Icon name="nav:settings" size={16} />
 		</button>
 	</div>
 
@@ -611,7 +593,7 @@
 		color: var(--text-primary);
 	}
 
-	.sc-tool-btn img {
+	.sc-tool-btn :global(.icon-svg) {
 		filter: var(--icon-filter);
 	}
 

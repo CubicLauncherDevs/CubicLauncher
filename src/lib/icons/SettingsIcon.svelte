@@ -10,9 +10,4 @@
 	} = $props();
 </script>
 
-<Icon
-	name="nav:settings"
-	src="/images/icons/nav/settings.svg"
-	{size}
-	class={className}
-/>
+<Icon name="nav:settings" {size} class={className} />

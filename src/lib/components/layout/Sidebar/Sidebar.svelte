@@ -148,7 +148,7 @@
 		<div class="section-full">
 			<CollapsibleSection
 				title={t("sidebar.tools")}
-				iconSrc="/images/icons/nav/sliders.svg"
+				iconName="nav:sliders"
 				storageKey="sidebar-tools"
 			>
 				<div class="tools-group" data-tutorial="tools-group">
@@ -158,12 +158,7 @@
 						onclick={onopencreateinstance}
 						data-tutorial="create-instance"
 					>
-						<img
-							src="/images/icons/nav/create.svg"
-							alt=""
-							width="14"
-							height="14"
-						/>
+						<Icon name="nav:create" size={14} />
 						{t("sidebar.createInstance")}
 					</button>
 					<button
@@ -172,12 +167,7 @@
 						onclick={onopenversiondownloader}
 						data-tutorial="download-versions"
 					>
-						<img
-							src="/images/icons/ui/download.svg"
-							alt=""
-							width="14"
-							height="14"
-						/>
+						<Icon name="ui:download" size={14} />
 						{t("sidebar.downloadVersions")}
 					</button>
 					<button
@@ -186,12 +176,7 @@
 						onclick={onopenquickmenu}
 						data-tutorial="settings"
 					>
-						<img
-							src="/images/icons/nav/settings.svg"
-							alt=""
-							width="14"
-							height="14"
-						/>
+						<Icon name="nav:settings" size={14} />
 						{t("sidebar.settings")}
 					</button>
 				</div>
@@ -215,7 +200,7 @@
 		onclick={oncollapse}
 		title={t("sidebar.collapse")}
 	>
-		<Icon src="/images/icons/ui/chevron-left.svg" size={14} />
+		<Icon name="ui:chevron-left" size={14} />
 	</button>
 </aside>
 
@@ -390,7 +375,7 @@
 		color: var(--text-primary);
 	}
 
-	.tools-btn img {
+	.tools-btn :global(.icon-svg) {
 		filter: var(--icon-filter);
 		flex-shrink: 0;
 	}

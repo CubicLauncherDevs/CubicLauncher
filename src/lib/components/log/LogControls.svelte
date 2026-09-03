@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { SvelteSet } from "svelte/reactivity";
+	import Icon from "$lib/icons/Icon.svelte";
 	import { LEVEL_ORDER, levelColor } from "./logHelpers";
 
 	interface Props {
@@ -36,11 +37,7 @@
 <div class="log-controls">
 	<div class="controls-row">
 		<div class="search-group">
-			<img
-				class="search-icon"
-				src="/images/icons/log/search.svg"
-				alt=""
-			/>
+			<Icon name="log:search" class="search-icon" size={16} />
 			<div class="input-wrap">
 				<input
 					type="text"
@@ -68,11 +65,7 @@
 				disabled={matchCount === 0}
 				title="Anterior (Shift+Enter)"
 			>
-				<img
-					class="nav-icon"
-					src="/images/icons/log/chevron-up.svg"
-					alt=""
-				/>
+				<Icon name="log:chevron-up" class="nav-icon" size={14} />
 			</button>
 			<button
 				type="button"
@@ -81,11 +74,7 @@
 				disabled={matchCount === 0}
 				title="Siguiente (Enter)"
 			>
-				<img
-					class="nav-icon"
-					src="/images/icons/log/chevron-down.svg"
-					alt=""
-				/>
+				<Icon name="log:chevron-down" class="nav-icon" size={14} />
 			</button>
 			<span class="match-count">
 				{matchCount > 0 ? `${currentMatchIndex}/${matchCount}` : "0/0"}
@@ -149,7 +138,7 @@
 		max-width: 520px;
 	}
 
-	.search-icon {
+	:global(.search-icon) {
 		width: 16px;
 		height: 16px;
 		flex-shrink: 0;
@@ -157,7 +146,7 @@
 		opacity: 0.7;
 	}
 
-	.nav-icon {
+	:global(.nav-icon) {
 		width: 14px;
 		height: 14px;
 		flex-shrink: 0;

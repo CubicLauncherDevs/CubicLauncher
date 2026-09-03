@@ -11,7 +11,7 @@
 
 <div class="market-empty">
 	<div class="market-empty-icon">
-		<Icon src="/images/icons/instance/box.svg" size={40} />
+		<Icon name="instance:box" size={40} />
 	</div>
 	<p class="market-empty-title">{title}</p>
 	{#if subtitle}

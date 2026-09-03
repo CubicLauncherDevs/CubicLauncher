@@ -12,6 +12,7 @@
 	import { LogState } from "./logState.svelte";
 	import { LogRenderer } from "./LogRenderer";
 	import { CONSOLE_HISTORY_MAX } from "./logHelpers";
+	import Icon from "$lib/icons/Icon.svelte";
 	import LogHeader from "./LogHeader.svelte";
 	import LogControls from "./LogControls.svelte";
 	import LogViewport from "./LogViewport.svelte";
@@ -210,11 +211,7 @@
 			class="jump-bottom"
 			onclick={() => renderer.scrollToBottom()}
 		>
-			<img
-				class="jump-icon"
-				src="/images/icons/log/arrow-down.svg"
-				alt=""
-			/>
+			<Icon name="log:arrow-down" class="jump-icon" size={14} />
 			{unseenCount} líneas nuevas
 		</button>
 	{/if}
@@ -272,7 +269,7 @@
 		color: var(--accent);
 	}
 
-	.jump-icon {
+	:global(.jump-icon) {
 		width: 14px;
 		height: 14px;
 		flex-shrink: 0;

@@ -6,7 +6,7 @@
 
 	export interface ContextMenuItem {
 		label: string;
-		icon?: string;
+		iconName?: string;
 		action?: () => void | Promise<void>;
 		variant?: "default" | "danger";
 		separator?: boolean;
@@ -102,9 +102,9 @@
 							open = false;
 						}}
 					>
-						{#if item.icon}
+						{#if item.iconName}
 							<span class="ctx-icon"
-								><Icon src={item.icon} size={14} /></span
+								><Icon name={item.iconName} size={14} /></span
 							>
 						{/if}
 						<span class="ctx-label">{item.label}</span>

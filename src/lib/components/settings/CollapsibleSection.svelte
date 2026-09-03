@@ -2,17 +2,18 @@
 	import { slide } from "svelte/transition";
 	import type { Snippet } from "svelte";
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 	import { animDuration } from "$lib/utils/animations";
 
 	let {
 		title,
-		iconSrc,
+		iconName,
 		storageKey,
 		defaultOpen = true,
 		children,
 	}: {
 		title: string;
-		iconSrc?: string;
+		iconName?: string;
 		storageKey?: string;
 		defaultOpen?: boolean;
 		children: Snippet;
@@ -56,11 +57,12 @@
 		aria-expanded={open}
 	>
 		<span class="cs-header-left">
-			{#if iconSrc}
-				<span
+			{#if iconName}
+				<Icon
+					name={iconName}
+					size={18}
 					class={"cs-icon" + (open ? " open" : "")}
-					style="mask-image: url({iconSrc}); -webkit-mask-image: url({iconSrc});"
-				></span>
+				/>
 			{/if}
 			<span class="cs-title">{title}</span>
 		</span>
@@ -113,22 +115,11 @@
 		flex: 1;
 	}
 
-	.cs-icon {
-		display: block;
-		width: 18px;
-		height: 18px;
-		background: var(--text-primary);
-		mask-size: contain;
-		mask-repeat: no-repeat;
-		mask-position: center;
-		-webkit-mask-size: contain;
-		-webkit-mask-repeat: no-repeat;
-		-webkit-mask-position: center;
-		flex-shrink: 0;
+	:global(.cs-icon) {
 		transition: transform 0.5s;
 	}
 
-	.cs-icon.open {
+	:global(.cs-icon.open) {
 		transform: rotate(360deg);
 	}
 

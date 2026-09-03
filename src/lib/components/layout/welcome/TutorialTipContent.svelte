@@ -59,10 +59,7 @@
 				onclick={() =>
 					openUrl("https://www.gnu.org/licenses/gpl-3.0.html")}
 			>
-				<Icon
-					src="/images/icons/instance/external-link.svg"
-					size={14}
-				/>
+				<Icon name="instance:external-link" size={14} />
 				{t("tutorial.viewLicense")}
 			</button>
 		</div>

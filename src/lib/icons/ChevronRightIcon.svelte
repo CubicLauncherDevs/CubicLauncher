@@ -10,9 +10,4 @@
 	} = $props();
 </script>
 
-<Icon
-	name="ui:chevron-right"
-	src="/images/icons/ui/chevron-right.svg"
-	{size}
-	class={className}
-/>
+<Icon name="ui:chevron-right" {size} class={className} />

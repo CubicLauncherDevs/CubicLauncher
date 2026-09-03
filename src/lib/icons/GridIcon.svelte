@@ -10,9 +10,4 @@
 	} = $props();
 </script>
 
-<Icon
-	name="instance:grid"
-	src="/images/icons/instance/grid.svg"
-	{size}
-	class={className}
-/>
+<Icon name="instance:grid" {size} class={className} />

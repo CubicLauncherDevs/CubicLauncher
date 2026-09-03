@@ -19,7 +19,7 @@
 		<div class="step-item">
 			<div class="step-dot" class:active class:done>
 				{#if done}
-					<Icon src="/images/icons/ui/check.svg" size={12} />
+					<Icon name="ui:check" size={12} />
 				{:else}
 					<span>{i + 1}</span>
 				{/if}

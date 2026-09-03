@@ -10,4 +10,4 @@
 	} = $props();
 </script>
 
-<Icon name="ui:copy" src="/images/icons/ui/copy.svg" {size} class={className} />
+<Icon name="ui:copy" {size} class={className} />

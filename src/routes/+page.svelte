@@ -303,7 +303,7 @@
 			<div class="drag-overlay">
 				<div class="drag-overlay-content">
 					<div class="drag-icon">
-						<Icon src="/images/icons/instance/box.svg" size={48} />
+						<Icon name="instance:box" size={48} />
 					</div>
 					<h2>Suelta tu modpack o theme aquí</h2>
 					<p>

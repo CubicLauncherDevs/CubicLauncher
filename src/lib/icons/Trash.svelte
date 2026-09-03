@@ -12,10 +12,4 @@
 	} = $props();
 </script>
 
-<Icon
-	name="ui:trash"
-	src="/images/icons/ui/trash.svg"
-	{width}
-	{height}
-	class={className}
-/>
+<Icon name="ui:trash" {width} {height} class={className} />

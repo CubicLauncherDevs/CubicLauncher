@@ -267,7 +267,7 @@
 			{#if loading}
 				<span class="spinner"></span>
 			{:else}
-				<Icon src="/images/icons/ui/refresh.svg" size={14} />
+				<Icon name="ui:refresh" size={14} />
 			{/if}
 		</button>
 	</div>

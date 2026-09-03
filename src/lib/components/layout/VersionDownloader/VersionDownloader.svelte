@@ -64,20 +64,28 @@
 		{
 			value: "vanilla",
 			label: "Vanilla",
-			icon: "/images/instances/vanilla.png",
+			iconName: "brand:vanilla",
 		},
 		{
 			value: "fabric",
 			label: "Fabric",
-			icon: "/images/instances/fabric.png",
+			iconName: "brand:fabric",
 		},
-		{ value: "forge", label: "Forge", icon: "/images/instances/forge.png" },
+		{
+			value: "forge",
+			label: "Forge",
+			iconName: "brand:forge",
+		},
 		{
 			value: "neoforge",
 			label: "NeoForge",
-			icon: "/images/instances/neoforged.png",
+			iconName: "brand:neoforged",
 		},
-		{ value: "quilt", label: "Quilt", icon: "/images/instances/quilt.png" },
+		{
+			value: "quilt",
+			label: "Quilt",
+			iconName: "brand:quilt",
+		},
 	];
 
 	let loaderTab = $state("vanilla");
@@ -622,7 +630,7 @@
 														onblur={hideStableTooltip}
 													>
 														<Icon
-															src="/images/icons/ui/check-circle.svg"
+															name="ui:check-circle"
 															size={14}
 														/>
 													</span>

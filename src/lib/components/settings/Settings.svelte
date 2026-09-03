@@ -14,6 +14,7 @@
 	} from "$lib/api/updaterServices";
 	import { listThemes } from "$lib/api/themeManager";
 	import ThemeSelector from "./ThemeSelector.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 	import {
 		getJreVersions,
 		installJre,
@@ -165,7 +166,7 @@
 					? "⏳"
 					: i18nLoader.fetched.has(l.code)
 						? l.flag
-						: "/images/icons/ui/download.svg",
+						: "ui:download",
 		})),
 	);
 	let availableThemes = $state<ThemeEntry[]>([]);
@@ -253,7 +254,7 @@
 			<div class="section-group">
 				<CollapsibleSection
 					title={t("settings.launcher.generalTitle")}
-					iconSrc="/images/icons/nav/sliders.svg"
+					iconName="nav:sliders"
 					storageKey="section_general"
 				>
 					<Select
@@ -307,7 +308,7 @@
 
 				<CollapsibleSection
 					title={t("settings.launcher.themes")}
-					iconSrc="/images/icons/nav/pencil.svg"
+					iconName="nav:pencil"
 					storageKey="section_themes"
 				>
 					<ThemeSelector
@@ -326,7 +327,7 @@
 
 				<CollapsibleSection
 					title={t("settings.launcher.performanceTitle")}
-					iconSrc="/images/icons/ui/performance.svg"
+					iconName="ui:performance"
 					storageKey="section_performance"
 				>
 					<div class="qm-field-checkbox">
@@ -403,7 +404,7 @@
 
 				<CollapsibleSection
 					title={t("settings.launcher.updatesTitle")}
-					iconSrc="/images/icons/ui/download.svg"
+					iconName="ui:download"
 					storageKey="section_updates"
 				>
 					<div class="qm-field-checkbox">
@@ -433,7 +434,7 @@
 
 				<CollapsibleSection
 					title={t("settings.about.title")}
-					iconSrc="/images/cubic.svg"
+					iconName="brand:cubic"
 					storageKey="section_about"
 				>
 					<div class="about-content">
@@ -448,9 +449,9 @@
 								onclick={() =>
 									openUrl("https://discord.gg/XQrRFWRyp")}
 							>
-								<img
-									src="/images/icons/brand/discord.svg"
-									alt={t("settings.about.discord")}
+								<Icon
+									name="brand:discord"
+									size={20}
 									class="about-icon-img"
 								/>
 							</button>
@@ -463,9 +464,9 @@
 										"https://github.com/CubicLauncherDevs/CubicLauncher",
 									)}
 							>
-								<img
-									src="/images/icons/brand/github.svg"
-									alt={t("settings.about.openSource")}
+								<Icon
+									name="brand:github"
+									size={20}
 									class="about-icon-img"
 								/>
 							</button>
@@ -478,9 +479,9 @@
 										"https://github.com/CubicLauncherDevs/CubicLauncher/issues",
 									)}
 							>
-								<img
-									src="/images/icons/ui/flag.svg"
-									alt={t("settings.about.reportIssue")}
+								<Icon
+									name="ui:flag"
+									size={20}
 									class="about-icon-img"
 								/>
 							</button>
@@ -526,7 +527,7 @@
 			<div class="section-group">
 				<CollapsibleSection
 					title={t("settings.minecraft.perfTitle")}
-					iconSrc="/images/icons/instance/database.svg"
+					iconName="instance:database"
 					storageKey="section_performance"
 				>
 					<div class="qm-field-group">
@@ -641,7 +642,7 @@
 
 				<CollapsibleSection
 					title={t("settings.minecraft.optionsTitle")}
-					iconSrc="/images/icons/instance/check-square.svg"
+					iconName="instance:check-square"
 					storageKey="section_options"
 				>
 					<div class="qm-field-checkbox">
@@ -685,7 +686,7 @@
 
 				<CollapsibleSection
 					title={t("settings.minecraft.consoleTitle")}
-					iconSrc="/images/icons/instance/terminal.svg"
+					iconName="instance:terminal"
 					storageKey="section_console"
 				>
 					<div class="qm-field">
@@ -751,7 +752,7 @@
 			<div class="section-group">
 				<CollapsibleSection
 					title={t("settings.java.runtimesTitle")}
-					iconSrc="/images/icons/instance/terminal.svg"
+					iconName="instance:terminal"
 					storageKey="section_runtimes"
 				>
 					<JreCard
@@ -842,7 +843,7 @@
 
 				<CollapsibleSection
 					title={t("settings.advanced")}
-					iconSrc="/images/icons/nav/settings.svg"
+					iconName="nav:settings"
 					storageKey="section_advanced"
 				>
 					<div class="qm-field">
@@ -1174,7 +1175,7 @@
 		justify-content: center;
 	}
 
-	.about-icon-img {
+	:global(.about-icon-img) {
 		width: 20px;
 		height: 20px;
 		opacity: 0.5;
@@ -1183,7 +1184,7 @@
 		transition: opacity 0.15s;
 	}
 
-	.about-icon-btn:hover .about-icon-img {
+	.about-icon-btn:hover :global(.about-icon-img) {
 		opacity: 0.8;
 	}
 

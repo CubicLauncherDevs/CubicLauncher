@@ -309,7 +309,7 @@
 
 	<div class="rp-search-bar-wrap">
 		<span class="rp-search-icon">
-			<Icon src="/images/icons/ui/search.svg" size={15} />
+			<Icon name="ui:search" size={15} />
 		</span>
 		<input
 			class="rp-search-input"
@@ -481,7 +481,7 @@
 				aria-label={t("instanceView.downloadMods.closeDetails")}
 				onclick={() => (selectedMod = null)}
 			>
-				<Icon src="/images/icons/ui/close.svg" size={14} />
+				<Icon name="ui:close" size={14} />
 			</button>
 			<div class="rp-details-scroll">
 				<div class="rp-details-icon">

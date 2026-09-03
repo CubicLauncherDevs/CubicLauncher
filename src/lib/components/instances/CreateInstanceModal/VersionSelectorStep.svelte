@@ -6,6 +6,7 @@
 		loadInstalledVersions,
 	} from "$lib/state/versionsState.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 	import { t } from "$lib/i18n";
 
 	let {
@@ -42,20 +43,28 @@
 		{
 			value: "vanilla",
 			label: "Vanilla",
-			icon: "/images/instances/vanilla.png",
+			iconName: "brand:vanilla",
 		},
 		{
 			value: "fabric",
 			label: "Fabric",
-			icon: "/images/instances/fabric.png",
+			iconName: "brand:fabric",
 		},
-		{ value: "forge", label: "Forge", icon: "/images/instances/forge.png" },
+		{
+			value: "forge",
+			label: "Forge",
+			iconName: "brand:forge",
+		},
 		{
 			value: "neoforge",
 			label: "NeoForge",
-			icon: "/images/instances/neoforged.png",
+			iconName: "brand:neoforged",
 		},
-		{ value: "quilt", label: "Quilt", icon: "/images/instances/quilt.png" },
+		{
+			value: "quilt",
+			label: "Quilt",
+			iconName: "brand:quilt",
+		},
 	];
 
 	function compareVersions(a: string, b: string): number {
@@ -171,7 +180,7 @@
 				class:active={selectedLoader === loader.value}
 				onclick={() => (selectedLoader = loader.value)}
 			>
-				<img src={loader.icon} alt={loader.label} />
+				<Icon name={loader.iconName} size={20} />
 				<span>{loader.label}</span>
 			</button>
 		{/each}
@@ -262,10 +271,9 @@
 		z-index: 2;
 	}
 
-	.loader-btn img {
+	.loader-btn :global(.icon-svg) {
 		width: 20px;
 		height: 20px;
-		object-fit: contain;
 	}
 
 	.loader-btn span {
@@ -315,7 +323,7 @@
 		gap: 4px;
 	}
 
-	.version-selector.compact .loader-btn img {
+	.version-selector.compact .loader-btn :global(.icon-svg) {
 		width: 16px;
 		height: 16px;
 	}

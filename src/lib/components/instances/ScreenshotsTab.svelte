@@ -72,7 +72,7 @@
 						}}
 						title="Eliminar"
 					>
-						<Icon src="/images/icons/ui/trash.svg" size={18} />
+						<Icon name="ui:trash" size={18} />
 					</button>
 				</div>
 			</div>

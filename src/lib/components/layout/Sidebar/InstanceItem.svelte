@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { InstanceDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
+	import Icon from "$lib/icons/Icon.svelte";
 	import Trash from "$lib/icons/Trash.svelte";
 	import { getDisplayIconSrc } from "$lib/icons/logos";
 
@@ -85,11 +86,9 @@
 			}}
 			title={t("sidebar.rename")}
 		>
-			<img
-				src="/images/icons/nav/edit.svg"
-				alt={t("sidebar.rename")}
-				width="14"
-				height="14"
+			<Icon
+				name="nav:edit"
+				size={14}
 				style="filter: var(--icon-filter);"
 			/>
 		</button>

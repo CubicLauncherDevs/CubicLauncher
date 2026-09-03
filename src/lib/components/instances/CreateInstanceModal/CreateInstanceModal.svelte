@@ -17,6 +17,7 @@
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import { t } from "$lib/i18n";
 	import Icon from "$lib/icons/Icon.svelte";
+	import { getIconPath } from "$lib/icons/registry";
 	import IconPicker from "./IconPicker.svelte";
 	import VersionSelectorStep from "./VersionSelectorStep.svelte";
 	import StepIndicator from "./StepIndicator.svelte";
@@ -44,26 +45,26 @@
 	let tab = $state<Tab>("manual");
 	let manualStep = $state(0);
 
-	const TABS: { id: Tab; label: string; icon: string }[] = [
+	const TABS: { id: Tab; label: string; iconName: string }[] = [
 		{
 			id: "manual",
 			label: t("createInstance.manualTab"),
-			icon: "/images/icons/nav/create.svg",
+			iconName: "nav:create",
 		},
 		{
 			id: "modrinth",
 			label: "Modrinth",
-			icon: "/images/instances/modth.png",
+			iconName: "brand:modrinth",
 		},
 		{
 			id: "curseforge",
 			label: t("createInstance.curseforgeTab"),
-			icon: "/images/instances/curseforge.png",
+			iconName: "brand:curseforge",
 		},
 		{
 			id: "local",
 			label: t("createInstance.localTab"),
-			icon: "/images/icons/instance/folder.svg",
+			iconName: "instance:folder",
 		},
 	];
 
@@ -151,11 +152,11 @@
 	function selectIconForLoader(loader: string | null): string | null {
 		if (!loader) return null;
 		const l = loader.toLowerCase();
-		if (l === "fabric") return "/images/instances/fabric.png";
-		if (l === "forge") return "/images/instances/forge.png";
+		if (l === "fabric") return getIconPath("brand:fabric");
+		if (l === "forge") return getIconPath("brand:forge");
 		if (l === "neoforge" || l === "neo")
-			return "/images/instances/neoforged.png";
-		if (l === "quilt") return "/images/instances/vanilla.png";
+			return getIconPath("brand:neoforged");
+		if (l === "quilt") return getIconPath("brand:vanilla");
 		return null;
 	}
 
@@ -278,7 +279,7 @@
 				class:active={tab === tabItem.id}
 				onclick={() => (tab = tabItem.id)}
 			>
-				<Icon src={tabItem.icon} size={18} />
+				<Icon name={tabItem.iconName} size={18} />
 				<span>{tabItem.label}</span>
 			</button>
 		{/each}

@@ -113,7 +113,7 @@
 					onclick={onCheck}
 					title={t("settings.launcher.searchBtn")}
 				>
-					<Icon src="/images/icons/instance/clock.svg" size={18} />
+					<Icon name="instance:clock" size={18} />
 				</button>
 			{/if}
 		</div>

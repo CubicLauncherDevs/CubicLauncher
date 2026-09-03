@@ -47,14 +47,14 @@
 				title="Quitar icono"
 				{disabled}
 			>
-				<Icon src="/images/icons/ui/close.svg" size={10} />
+				<Icon name="ui:close" size={10} />
 			</button>
 		{:else}
-			<Icon src="/images/icons/instance/image.svg" size={28} />
+			<Icon name="instance:image" size={28} />
 		{/if}
 	</div>
 	<button type="button" class="upload-btn" onclick={handleUpload} {disabled}>
-		<Icon src="/images/icons/ui/upload.svg" size={12} />
+		<Icon name="ui:upload" size={12} />
 		{t("createInstance.uploadIcon")}
 	</button>
 	<div class="icon-grid">

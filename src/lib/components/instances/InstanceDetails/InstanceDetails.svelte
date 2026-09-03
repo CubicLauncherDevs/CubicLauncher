@@ -81,7 +81,7 @@
 	/>
 
 	<div class="last-played-row">
-		<Icon src="/images/icons/instance/clock.svg" size={14} />
+		<Icon name="instance:clock" size={14} />
 		<span>{t("instanceView.lastPlayed", { date: lastPlayedLabel })}</span>
 	</div>
 

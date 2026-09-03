@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { SvelteHTMLElements } from "svelte/elements";
 	import { themeIcons } from "$lib/api/themeManager";
-	import { isRasterIcon } from "$lib/icons/registry";
+	import { getIconPath, isRasterIcon } from "$lib/icons/registry";
 
 	type SpanProps = SvelteHTMLElements["span"];
 
@@ -25,7 +25,7 @@
 		...rest
 	}: {
 		class?: string;
-		src: string;
+		src?: string;
 		name?: string;
 		size?: number;
 		width?: string | number;
@@ -41,7 +41,12 @@
 		return themeIcons.get(name) ?? null;
 	});
 
-	const resolvedSrc = $derived(customIcon ?? src);
+	const resolvedSrc = $derived.by(() => {
+		if (customIcon) return customIcon;
+		if (src) return src;
+		if (name) return getIconPath(name) ?? "";
+		return "";
+	});
 	const raster = $derived(isRasterIcon(resolvedSrc));
 
 	const style = $derived.by(() => {

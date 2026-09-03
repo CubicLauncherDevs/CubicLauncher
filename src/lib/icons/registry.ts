@@ -16,6 +16,9 @@ export const ICON_REGISTRY: Record<string, string> = {
 	"ui:success": "/images/icons/ui/success.svg",
 	"ui:trash": "/images/icons/ui/trash.svg",
 	"ui:upload": "/images/icons/ui/upload.svg",
+	"ui:pin": "/images/icons/ui/pin.svg",
+	"ui:flag": "/images/icons/ui/flag.svg",
+	"ui:performance": "/images/icons/ui/performance.svg",
 
 	"nav:create": "/images/icons/nav/create.svg",
 	"nav:edit": "/images/icons/nav/edit.svg",
@@ -49,9 +52,16 @@ export const ICON_REGISTRY: Record<string, string> = {
 	"log:chevron-up": "/images/icons/log/chevron-up.svg",
 	"log:chevron-down": "/images/icons/log/chevron-down.svg",
 
+	"brand:curseforge": "/images/instances/curseforge.png",
 	"brand:discord": "/images/icons/brand/discord.svg",
+	"brand:fabric": "/images/instances/fabric.png",
+	"brand:forge": "/images/instances/forge.png",
+	"brand:github": "/images/icons/brand/github.svg",
 	"brand:microsoft": "/images/icons/brand/microsoft.svg",
 	"brand:modrinth": "/images/instances/modth.png",
+	"brand:neoforged": "/images/instances/neoforged.png",
+	"brand:quilt": "/images/instances/quilt.png",
+	"brand:vanilla": "/images/instances/vanilla.png",
 
 	"ui:shaders": "/images/icons/ui/shaders.svg",
 	"ui:resources": "/images/icons/ui/resources.svg",

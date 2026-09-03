@@ -12,10 +12,4 @@
 	} = $props();
 </script>
 
-<Icon
-	name="brand:cubic"
-	src="/images/cubic.svg"
-	{width}
-	{height}
-	class={className}
-/>
+<Icon name="brand:cubic" {width} {height} class={className} />
