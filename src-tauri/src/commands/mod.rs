@@ -14,4 +14,5 @@ pub mod others;
 pub mod pack;
 pub mod profile;
 pub mod settings;
+pub mod skin_closet;
 pub mod themes;

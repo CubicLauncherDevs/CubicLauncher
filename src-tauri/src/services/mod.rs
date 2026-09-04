@@ -10,6 +10,7 @@ mod instance_manager;
 pub(crate) mod java_manager;
 pub(crate) mod launcher;
 pub(crate) mod settings_manager;
+pub mod skin_closet_manager;
 
 pub use addon_manager::*;
 pub use download_queue::{DownloadQueue, DownloadState};

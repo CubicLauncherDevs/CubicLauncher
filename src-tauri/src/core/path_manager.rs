@@ -12,6 +12,7 @@ pub struct PathManager {
     shared_dir: Box<Path>,
     settings_dir: Box<Path>,
     themes_dir: Box<Path>,
+    skin_closet_dir: Box<Path>,
 }
 
 impl PathManager {
@@ -31,6 +32,9 @@ impl PathManager {
     pub fn get_themes_dir(&self) -> &Path {
         &self.themes_dir
     }
+    pub fn get_skin_closet_dir(&self) -> &Path {
+        &self.skin_closet_dir
+    }
 
     pub fn ensure_dirs() -> Result<(), SmallVec<[String; 4]>> {
         let dirs = [
@@ -38,6 +42,7 @@ impl PathManager {
             Self::get().get_shared_dir(),
             Self::get().get_settings_dir(),
             Self::get().get_themes_dir(),
+            Self::get().get_skin_closet_dir(),
         ];
 
         let mut errors = SmallVec::<[String; 4]>::new();
@@ -65,6 +70,7 @@ impl PathManager {
             shared_dir: base_dir.join(".cubic").join("shared").into_boxed_path(),
             settings_dir: base_dir.join(".cubic").join("settings").into_boxed_path(),
             themes_dir: base_dir.join(".cubic").join("themes").into_boxed_path(),
+            skin_closet_dir: base_dir.join(".cubic").join("skins").into_boxed_path(),
         }
     }
 }
