@@ -8,8 +8,12 @@ use base64::Engine as _;
 use base64::engine::general_purpose;
 use launchwerk::auth::AccountType;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::{Arc, LazyLock};
+use std::time::{Duration, Instant};
 use tauri::command;
+use tokio::sync::Mutex as TokioMutex;
 use tracing::{error, info};
 
 pub(crate) const MSA_SKIN_URL: &str = "https://api.minecraftservices.com/minecraft/profile/skins";
@@ -47,6 +51,102 @@ pub struct MinecraftProfileResponse {
     #[serde(default)]
     pub profile_actions: Vec<String>,
 }
+
+/// Cache con TTL y coalescing de requests en vuelo para evitar ráfagas de
+/// peticiones al endpoint de perfil de Minecraft Services y prevenir 429.
+#[derive(Clone)]
+struct CachedProfile {
+    profile: Result<MinecraftProfileResponse, String>,
+    fetched_at: Instant,
+}
+
+struct ProfileCacheState {
+    entries: HashMap<String, CachedProfile>,
+    in_flight: HashMap<String, Arc<tokio::sync::Notify>>,
+}
+
+#[derive(Clone)]
+struct ProfileCache {
+    state: Arc<TokioMutex<ProfileCacheState>>,
+}
+
+impl ProfileCache {
+    const TTL: Duration = Duration::from_secs(30);
+
+    fn new() -> Self {
+        Self {
+            state: Arc::new(TokioMutex::new(ProfileCacheState {
+                entries: HashMap::new(),
+                in_flight: HashMap::new(),
+            })),
+        }
+    }
+
+    /// Borra la entrada de caché de un UUID sin bloquear. Si no puede tomar el
+    /// lock inmediatamente, deja que el TTL expire por sí solo.
+    fn invalidate(&self, uuid: &str) {
+        if let Ok(mut state) = self.state.try_lock() {
+            state.entries.remove(uuid);
+        }
+    }
+
+    async fn get_or_fetch<F, Fut>(
+        &self,
+        uuid: String,
+        fetch: F,
+    ) -> Result<MinecraftProfileResponse, String>
+    where
+        F: FnOnce() -> Fut + Send,
+        Fut: std::future::Future<Output = Result<MinecraftProfileResponse, String>> + Send,
+    {
+        loop {
+            let in_flight_notify = {
+                let state = self.state.lock().await;
+                if let Some(entry) = state.entries.get(&uuid) {
+                    if entry.fetched_at.elapsed() < Self::TTL {
+                        return entry.profile.clone();
+                    }
+                }
+                state.in_flight.get(&uuid).cloned()
+            };
+
+            if let Some(notify) = in_flight_notify {
+                notify.notified().await;
+                continue;
+            }
+
+            let our_notify = {
+                let mut state = self.state.lock().await;
+                if let Some(entry) = state.entries.get(&uuid) {
+                    if entry.fetched_at.elapsed() < Self::TTL {
+                        return entry.profile.clone();
+                    }
+                }
+                if state.in_flight.contains_key(&uuid) {
+                    continue;
+                }
+                let arc = Arc::new(tokio::sync::Notify::new());
+                state.in_flight.insert(uuid.clone(), arc.clone());
+                arc
+            };
+
+            let result = fetch().await;
+            let cached = CachedProfile {
+                profile: result.clone(),
+                fetched_at: Instant::now(),
+            };
+            {
+                let mut state = self.state.lock().await;
+                state.entries.insert(uuid.clone(), cached);
+                state.in_flight.remove(&uuid);
+            }
+            our_notify.notify_waiters();
+            return result;
+        }
+    }
+}
+
+static PROFILE_CACHE: LazyLock<ProfileCache> = LazyLock::new(ProfileCache::new);
 
 pub(crate) fn mojang_error_message(status: reqwest::StatusCode, body: String) -> String {
     if body.trim().is_empty() {
@@ -186,20 +286,25 @@ pub(crate) async fn capture_active_skin_to_closet(uuid: &str) {
 pub(crate) async fn get_minecraft_profile_impl(
     uuid: &str,
 ) -> Result<MinecraftProfileResponse, String> {
-    info!("Obteniendo perfil de Minecraft Services para {}", uuid);
+    let uuid = uuid.to_string();
+    PROFILE_CACHE
+        .get_or_fetch(uuid.clone(), move || async move {
+            info!("Obteniendo perfil de Minecraft Services para {}", uuid);
 
-    let (status, body) =
-        send_msa_request(uuid, |token| HTTP.get(MSA_PROFILE_URL).bearer_auth(token)).await?;
+            let (status, body) =
+                send_msa_request(&uuid, |token| HTTP.get(MSA_PROFILE_URL).bearer_auth(token)).await?;
 
-    if !status.is_success() {
-        error!("Error obteniendo perfil: HTTP {}", status);
-        return Err(mojang_error_message(status, body));
-    }
+            if !status.is_success() {
+                error!("Error obteniendo perfil: HTTP {}", status);
+                return Err(mojang_error_message(status, body));
+            }
 
-    serde_json::from_str(&body).map_err(|e| {
-        error!("Error parseando perfil: {}", e);
-        format!("Respuesta inválida: {}", e)
-    })
+            serde_json::from_str(&body).map_err(|e| {
+                error!("Error parseando perfil: {}", e);
+                format!("Respuesta inválida: {}", e)
+            })
+        })
+        .await
 }
 
 pub(crate) async fn upload_skin_file_impl(
@@ -298,6 +403,7 @@ pub async fn upload_skin_file(
     model: String,
 ) -> Result<(), String> {
     upload_skin_file_impl(&uuid, &file_path, &model).await?;
+    PROFILE_CACHE.invalidate(&uuid);
     capture_active_skin_to_closet(&uuid).await;
     Ok(())
 }
@@ -309,6 +415,7 @@ pub async fn upload_skin_url(
     variant: String,
 ) -> Result<(), String> {
     upload_skin_url_impl(&uuid, &skin_url, &variant).await?;
+    PROFILE_CACHE.invalidate(&uuid);
     capture_active_skin_to_closet(&uuid).await;
     Ok(())
 }
@@ -329,6 +436,7 @@ pub async fn equip_cape(uuid: String, cape_id: String) -> Result<(), String> {
         return Err(mojang_error_message(status, res_body));
     }
 
+    PROFILE_CACHE.invalidate(&uuid);
     info!("Capa equipada correctamente");
     Ok(())
 }
@@ -345,6 +453,7 @@ pub async fn unequip_cape(uuid: String) -> Result<(), String> {
         return Err(mojang_error_message(status, res_body));
     }
 
+    PROFILE_CACHE.invalidate(&uuid);
     info!("Capa desequipada correctamente");
     Ok(())
 }
