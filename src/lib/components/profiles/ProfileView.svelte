@@ -385,7 +385,7 @@
 						{#if selectedUser.user_type === "Microsoft"}
 							<div
 								class="hero-skin-cape"
-								in:fade={{ duration: 150 }}
+								in:fly={{ y: 40, duration: flyDuration }}
 							>
 								<SkinCapeManager uuid={selectedUser.uuid} />
 							</div>

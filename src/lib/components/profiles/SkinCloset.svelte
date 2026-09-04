@@ -28,14 +28,20 @@
 
 	let entries = $state<SkinClosetEntry[]>([]);
 	let loading = $state(false);
+	// Flag no reactivo para evitar que Svelte rastree `loading` dentro de los
+	// $effect y genere rerenders/reintentos infinitos.
+	let fetching = false;
 
 	async function loadCloset(silent = false) {
+		if (fetching) return;
+		fetching = true;
 		if (!silent) loading = true;
 		try {
 			entries = await syncSkinCloset(uuid);
 		} catch (err) {
 			showError(t("errors.title"), String(err));
 		} finally {
+			fetching = false;
 			if (!silent) loading = false;
 		}
 	}

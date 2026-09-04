@@ -31,6 +31,8 @@
 
 	let profile = $state<MinecraftProfileResponse | null>(null);
 	let loading = $state(false);
+	// Flag no reactivo para evitar rerenders/reintentos infinitos en Svelte 5.
+	let fetchingProfile = false;
 	let skinModel = $state<"classic" | "slim">("classic");
 	let processing = $state(false);
 	let draggingPng = $state(false);
@@ -52,18 +54,24 @@
 	const hasPending = $derived(pendingSkin !== null || pendingCape !== null);
 
 	async function loadProfile(silent = false) {
+		if (fetchingProfile) return;
+		fetchingProfile = true;
 		if (!silent) loading = true;
-		const p = await getMinecraftProfile(uuid);
-		if (p) {
-			profile = p;
-			const activeSkin = p.skins.find((s) => s.state === "ACTIVE");
-			if (activeSkin?.variant === "SLIM") {
-				skinModel = "slim";
-			} else {
-				skinModel = "classic";
+		try {
+			const p = await getMinecraftProfile(uuid);
+			if (p) {
+				profile = p;
+				const activeSkin = p.skins.find((s) => s.state === "ACTIVE");
+				if (activeSkin?.variant === "SLIM") {
+					skinModel = "slim";
+				} else {
+					skinModel = "classic";
+				}
 			}
+		} finally {
+			fetchingProfile = false;
+			if (!silent) loading = false;
 		}
-		if (!silent) loading = false;
 	}
 
 	function discardChanges() {
