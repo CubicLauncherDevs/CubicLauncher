@@ -208,6 +208,7 @@
 			"active": "Active",
 			"equip": "Equip",
 			"unequip": "Unequip",
+			"none": "None",
 			"skinUpdated": "Skin updated",
 			"skinUpdatedDesc": "Your skin was applied successfully.",
 			"capeUpdated": "Cape updated",

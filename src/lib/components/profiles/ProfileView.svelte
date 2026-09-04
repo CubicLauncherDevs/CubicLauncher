@@ -661,6 +661,10 @@
 	.hero-skin-cape {
 		width: 100%;
 		padding-top: 4px;
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.btn-icon {

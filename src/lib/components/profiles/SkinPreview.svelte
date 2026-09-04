@@ -41,10 +41,6 @@
 	ondrop={onDrop}
 >
 	{#if skinUrl}
-		<span class="model-badge">
-			{variant}
-		</span>
-
 		<Skin3dViewer {skinUrl} {capeUrl} {model} />
 
 		{#if draggingPng && dropTargetActive}
@@ -82,22 +78,6 @@
 	.preview-zone.drop-ready {
 		border-color: var(--accent);
 		background: rgba(var(--accent-rgb), 0.04);
-	}
-
-	.model-badge {
-		position: absolute;
-		top: 10px;
-		right: 10px;
-		z-index: 3;
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		padding: 3px 8px;
-		font-size: 0.62rem;
-		font-weight: 700;
-		color: var(--accent);
-		text-transform: uppercase;
-		letter-spacing: 0.4px;
 	}
 
 	.drop-overlay {

@@ -208,6 +208,7 @@
 			"active": "Activa",
 			"equip": "Equipar",
 			"unequip": "Desequipar",
+			"none": "Ninguna",
 			"skinUpdated": "Skin actualizada",
 			"skinUpdatedDesc": "La skin se aplicó correctamente a tu cuenta.",
 			"capeUpdated": "Capa actualizada",

@@ -68,10 +68,6 @@
 		onRemove();
 	}
 
-	function formatDate(ts: number): string {
-		return new Date(ts * 1000).toLocaleDateString();
-	}
-
 	const displayName = $derived(entry.alias || entry.id.slice(0, 8));
 	const variantLabel = $derived(
 		entry.variant.toUpperCase() === "SLIM"
@@ -119,18 +115,6 @@
 				</button>
 			</div>
 
-			{#if !isActive}
-				<button
-					type="button"
-					class="equip-overlay"
-					onclick={onEquip}
-					disabled={processing}
-				>
-					<span class="equip-label">
-						{t("userMenu.skinCape.skinCloset.equipSkin")}
-					</span>
-				</button>
-			{/if}
 		{/if}
 
 		{#if isActive}
@@ -175,8 +159,19 @@
 				</button>
 			</div>
 		{:else}
-			<span class="card-name" title={displayName}>{displayName}</span>
-			<span class="card-date">{formatDate(entry.saved_at)}</span>
+			<div class="card-name-row">
+				<span class="card-name" title={displayName}>{displayName}</span>
+				{#if !isActive}
+					<button
+						type="button"
+						class="equip-btn"
+						onclick={onEquip}
+						disabled={processing}
+					>
+						{t("userMenu.skinCape.skinCloset.equipSkin")}
+					</button>
+				{/if}
+			</div>
 		{/if}
 	</div>
 </div>
@@ -325,6 +320,15 @@
 		min-height: 52px;
 	}
 
+	.card-name-row {
+		position: relative;
+		width: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 1.2em;
+	}
+
 	.card-name {
 		font-size: 0.8rem;
 		font-weight: 600;
@@ -333,11 +337,7 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		width: 100%;
-	}
-
-	.card-date {
-		font-size: 0.6rem;
-		color: var(--text-muted);
+		transition: opacity 0.15s ease;
 	}
 
 	.alias-input {
@@ -368,57 +368,62 @@
 		border: 1px solid transparent;
 	}
 
-	.equip-overlay {
+	.equip-btn {
 		position: absolute;
 		inset: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: rgba(0, 0, 0, 0.45);
-		backdrop-filter: blur(2px);
-		border: none;
-		cursor: pointer;
-		opacity: 0;
-		transition: opacity 0.15s ease;
-	}
-
-	.closet-card:hover .equip-overlay,
-	.closet-card:focus-within .equip-overlay {
-		opacity: 1;
-	}
-
-	@media (hover: none) {
-		.equip-overlay {
-			opacity: 1;
-			background: linear-gradient(
-				to top,
-				rgba(0, 0, 0, 0.6) 0%,
-				rgba(0, 0, 0, 0) 60%
-			);
-			align-items: flex-end;
-			justify-content: center;
-			padding-bottom: 12px;
-		}
-	}
-
-	.equip-overlay:disabled {
-		opacity: 0;
-		cursor: not-allowed;
-	}
-
-	.equip-label {
+		width: 100%;
+		height: 100%;
 		font-family: inherit;
 		font-size: 0.75rem;
 		font-weight: 700;
-		padding: 6px 14px;
+		padding: 2px 10px;
 		background: var(--accent);
 		color: var(--accent-text);
-		border-radius: var(--border-radius);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-		transition: background 0.15s ease;
+		border: none;
+		border-radius: var(--border-radius-sm);
+		cursor: pointer;
+		opacity: 0;
+		pointer-events: none;
+		transition:
+			opacity 0.15s ease,
+			background 0.15s ease;
 	}
 
-	.equip-overlay:hover:not(:disabled) .equip-label {
+	.closet-card:hover .equip-btn,
+	.closet-card:focus-within .equip-btn,
+	.card-name-row:focus-within .equip-btn {
+		opacity: 1;
+		pointer-events: auto;
+	}
+
+	.closet-card:hover .card-name,
+	.closet-card:focus-within .card-name,
+	.card-name-row:focus-within .card-name {
+		opacity: 0;
+	}
+
+	@media (hover: none) {
+		.equip-btn {
+			opacity: 1;
+			pointer-events: auto;
+			position: relative;
+			inset: auto;
+			padding: 4px 10px;
+		}
+
+		.closet-card:hover .card-name,
+		.closet-card:focus-within .card-name,
+		.card-name-row:focus-within .card-name {
+			opacity: 1;
+		}
+	}
+
+	.equip-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.equip-btn:hover:not(:disabled) {
 		background: var(--accent-hover);
 	}
 
@@ -434,11 +439,6 @@
 
 		.card-name {
 			font-size: 0.75rem;
-		}
-
-		.equip-label {
-			font-size: 0.7rem;
-			padding: 5px 10px;
 		}
 	}
 </style>

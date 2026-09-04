@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import { fly } from "svelte/transition";
 	import { t } from "$lib/i18n";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	import {
 		getMinecraftProfile,
 		getSkinPreviewData,
 		uploadSkinFile,
+		uploadSkinUrl,
 		equipCape,
 		unequipCape,
 	} from "$lib/api/cubicApi";
@@ -13,14 +15,11 @@
 	import { bumpAvatarVersion } from "$lib/state/avatarCache.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
 	import SkinPreview from "./SkinPreview.svelte";
-	import SkinUploadControls from "./SkinUploadControls.svelte";
 	import CapeList from "./CapeList.svelte";
-	import SkinCloset from "./SkinCloset.svelte";
 	import type {
 		MinecraftProfileCape,
 		MinecraftProfileResponse,
 		MinecraftProfileSkin,
-		SkinClosetEntry,
 	} from "$lib/types/types";
 
 	interface Props {
@@ -37,6 +36,9 @@
 	let processing = $state(false);
 	let draggingPng = $state(false);
 	let dropTargetActive = $state(false);
+	let originalCapeId = $state<string | null>(null);
+	let selectedCapeId = $state<string | null>(null);
+	let originalVariant = $state<"classic" | "slim">("classic");
 
 	interface PendingSkin {
 		filePath: string;
@@ -44,14 +46,7 @@
 		previewUrl: string;
 	}
 
-	type PendingCape = { type: "equip"; capeId: string } | { type: "unequip" };
-
 	let pendingSkin = $state<PendingSkin | null>(null);
-	let pendingCape = $state<PendingCape | null>(null);
-	let closetRevision = $state(0);
-	let equippedClosetSkin = $state<SkinClosetEntry | null>(null);
-
-	const hasPending = $derived(pendingSkin !== null || pendingCape !== null);
 
 	async function loadProfile(silent = false) {
 		if (fetchingProfile) return;
@@ -64,9 +59,15 @@
 				const activeSkin = p.skins.find((s) => s.state === "ACTIVE");
 				if (activeSkin?.variant === "SLIM") {
 					skinModel = "slim";
+					originalVariant = "slim";
 				} else {
 					skinModel = "classic";
+					originalVariant = "classic";
 				}
+				const activeCape = p.capes.find((c) => c.state === "ACTIVE");
+				originalCapeId = activeCape?.id ?? null;
+				selectedCapeId = originalCapeId;
+				pendingSkin = null;
 			}
 		} finally {
 			fetchingProfile = false;
@@ -76,7 +77,8 @@
 
 	function discardChanges() {
 		pendingSkin = null;
-		pendingCape = null;
+		selectedCapeId = originalCapeId;
+		skinModel = originalVariant;
 	}
 
 	async function handleFileUpload(filePath?: string) {
@@ -106,7 +108,6 @@
 			variant: skinModel === "slim" ? "SLIM" : "CLASSIC",
 			previewUrl,
 		};
-		equippedClosetSkin = null;
 	}
 
 	async function handleDroppedSkinFile(paths: string[]) {
@@ -121,12 +122,15 @@
 		await handleFileUpload(png);
 	}
 
-	function handleEquipCape(capeId: string) {
-		pendingCape = { type: "equip", capeId };
+	function handleModelChange(model: "classic" | "slim") {
+		skinModel = model;
+		if (pendingSkin) {
+			pendingSkin.variant = model === "slim" ? "SLIM" : "CLASSIC";
+		}
 	}
 
-	function handleUnequipCape() {
-		pendingCape = { type: "unequip" };
+	function handleSelectCape(capeId: string | null) {
+		selectedCapeId = capeId;
 	}
 
 	function isRateLimitError(err: unknown): boolean {
@@ -141,29 +145,44 @@
 	async function handleSaveChanges() {
 		processing = true;
 		try {
+			let skinChanged = false;
 			if (pendingSkin) {
 				await uploadSkinFile(
 					uuid,
 					pendingSkin.filePath,
 					pendingSkin.variant === "SLIM" ? "slim" : "classic",
 				);
-			}
-			if (pendingCape) {
-				if (pendingCape.type === "equip") {
-					await equipCape(uuid, pendingCape.capeId);
-				} else {
-					await unequipCape(uuid);
+				skinChanged = true;
+			} else if (skinModel !== originalVariant) {
+				const activeSkin = profile?.skins.find(
+					(s) => s.state === "ACTIVE",
+				);
+				if (activeSkin?.url) {
+					await uploadSkinUrl(uuid, activeSkin.url, skinModel);
+					skinChanged = true;
 				}
 			}
-			showSuccess(
-				t("userMenu.skinCape.changesSaved"),
-				t("userMenu.skinCape.changesSavedDesc"),
-			);
+
+			if (selectedCapeId !== originalCapeId) {
+				if (selectedCapeId === null) {
+					await unequipCape(uuid);
+				} else {
+					await equipCape(uuid, selectedCapeId);
+				}
+			}
+
+			const changedAnything =
+				skinChanged || selectedCapeId !== originalCapeId;
+			if (changedAnything) {
+				showSuccess(
+					t("userMenu.skinCape.changesSaved"),
+					t("userMenu.skinCape.changesSavedDesc"),
+				);
+				bumpAvatarVersion(uuid);
+			}
+
 			discardChanges();
-			equippedClosetSkin = null;
 			await loadProfile(true);
-			closetRevision += 1;
-			bumpAvatarVersion(uuid);
 		} catch (err) {
 			if (isRateLimitError(err)) {
 				showError(
@@ -178,49 +197,25 @@
 		}
 	}
 
-	function handleModelChange(model: "classic" | "slim") {
-		skinModel = model;
-		if (pendingSkin)
-			pendingSkin.variant = model === "slim" ? "SLIM" : "CLASSIC";
-	}
-
 	const activeSkin = $derived(
 		profile?.skins.find((s: MinecraftProfileSkin) => s.state === "ACTIVE"),
 	);
 	const activeCape = $derived(
 		profile?.capes.find((c: MinecraftProfileCape) => c.state === "ACTIVE"),
 	);
-	const viewerModel = $derived(
-		activeSkin?.variant === "SLIM" ? "slim" : "default",
-	);
 
 	const previewSkinUrl = $derived(
-		pendingSkin?.previewUrl ??
-			equippedClosetSkin?.url ??
-			activeSkin?.url ??
-			"",
+		pendingSkin?.previewUrl ?? activeSkin?.url ?? "",
 	);
-	const previewModel = $derived(
-		pendingSkin?.variant === "SLIM"
-			? "slim"
-			: equippedClosetSkin?.variant.toUpperCase() === "SLIM"
-				? "slim"
-				: viewerModel,
+	const previewCapeUrl = $derived(
+		profile?.capes.find((c) => c.id === selectedCapeId)?.url ?? null,
 	);
-	const previewCapeUrl = $derived.by(() => {
-		const pc = pendingCape;
-		if (pc?.type === "equip") {
-			return profile?.capes.find((c) => c.id === pc.capeId)?.url ?? null;
-		}
-		if (pc?.type === "unequip") return null;
-		return activeCape?.url ?? null;
-	});
-	const previewActiveCapeId = $derived.by(() => {
-		const pc = pendingCape;
-		if (pc?.type === "equip") return pc.capeId;
-		if (pc?.type === "unequip") return null;
-		return activeCape?.id ?? null;
-	});
+
+	const hasPending = $derived(
+		pendingSkin !== null ||
+			selectedCapeId !== originalCapeId ||
+			skinModel !== originalVariant,
+	);
 
 	$effect(() => {
 		loadProfile();
@@ -300,97 +295,101 @@
 			<span>{t("userMenu.skinCape.loading")}</span>
 		</div>
 	{:else if profile}
-		<div class="content-grid">
-			<div class="left-col">
-				<div class="viewer-card">
-					<div class="preview-panel">
-						<SkinPreview
-							skinUrl={previewSkinUrl}
-							capeUrl={previewCapeUrl}
-							model={previewModel}
-							variant={pendingSkin?.variant ??
-								activeSkin?.variant}
-							{draggingPng}
-							{dropTargetActive}
-							onDragEnter={(e) => {
-								e.preventDefault();
-								dropTargetActive = true;
-							}}
-							onDragLeave={(e) => {
-								e.preventDefault();
-								dropTargetActive = false;
-							}}
-							onDragOver={(e) => e.preventDefault()}
-							onDrop={(e) => e.preventDefault()}
-						/>
-					</div>
-
-					<div class="controls-panel">
-						<SkinUploadControls
-							{skinModel}
-							{processing}
-							onModelChange={handleModelChange}
-							onFileSelect={() => handleFileUpload()}
-						/>
-					</div>
-				</div>
+		<div class="preview-card">
+			<div class="model-selector">
+				<button
+					type="button"
+					class="model-btn"
+					class:active={skinModel === "classic"}
+					onclick={() => handleModelChange("classic")}
+					disabled={processing}
+				>
+					{t("userMenu.skinCape.classic")}
+				</button>
+				<button
+					type="button"
+					class="model-btn"
+					class:active={skinModel === "slim"}
+					onclick={() => handleModelChange("slim")}
+					disabled={processing}
+				>
+					{t("userMenu.skinCape.slim")}
+				</button>
 			</div>
 
-			<div class="right-col">
-				<div class="capes-panel">
-					<CapeList
-						capes={profile.capes}
-						activeCapeId={previewActiveCapeId}
-						showUnequipPending={pendingCape?.type === "unequip"}
-						{processing}
-						onEquip={handleEquipCape}
-						onUnequip={handleUnequipCape}
-					/>
+			<SkinPreview
+				skinUrl={previewSkinUrl}
+				capeUrl={previewCapeUrl}
+				model={skinModel === "slim" ? "slim" : "default"}
+				variant={pendingSkin?.variant ?? activeSkin?.variant}
+				{draggingPng}
+				{dropTargetActive}
+				onDragEnter={(e) => {
+					e.preventDefault();
+					dropTargetActive = true;
+				}}
+				onDragLeave={(e) => {
+					e.preventDefault();
+					dropTargetActive = false;
+				}}
+				onDragOver={(e) => e.preventDefault()}
+				onDrop={(e) => e.preventDefault()}
+			/>
+
+			{#if hasPending}
+				<div
+					class="save-actions-float"
+					in:fly={{ y: 10, duration: 200 }}
+				>
+					<button
+						type="button"
+						class="icon-btn discard-icon"
+						onclick={discardChanges}
+						disabled={processing}
+						aria-label={t("userMenu.skinCape.discardChanges")}
+						title={t("userMenu.skinCape.discardChanges")}
+					>
+						<Icon name="ui:close" size={14} />
+					</button>
+					<button
+						type="button"
+						class="icon-btn save-icon"
+						onclick={handleSaveChanges}
+						disabled={processing}
+						aria-label={t("userMenu.skinCape.saveChanges")}
+						title={t("userMenu.skinCape.saveChanges")}
+					>
+						{#if processing}
+							<span class="spinner"></span>
+						{:else}
+							<Icon name="ui:check" size={14} />
+						{/if}
+					</button>
 				</div>
-			</div>
+			{/if}
 		</div>
 
-		<SkinCloset
-			{uuid}
-			activeSkinId={equippedClosetSkin?.id ?? activeSkin?.id ?? null}
-			processing={processing || loading}
-			refreshTrigger={closetRevision}
-			onEquipped={(entry) => {
-				equippedClosetSkin = entry;
-				bumpAvatarVersion(uuid);
-			}}
+		<CapeList
+			capes={profile.capes}
+			selectedCapeId={selectedCapeId}
+			activeCapeId={activeCape?.id ?? null}
+			{processing}
+			onSelect={handleSelectCape}
 		/>
+
+		<div class="upload-panel">
+			<button
+				type="button"
+				class="upload-btn"
+				onclick={() => handleFileUpload()}
+				disabled={processing}
+			>
+				<Icon name="ui:upload" size={14} />
+				<span>{t("userMenu.skinCape.uploadSkin")}</span>
+			</button>
+		</div>
 	{/if}
 </div>
-
-{#if hasPending}
-	<div class="save-bar">
-		<span class="pending-info">
-			{t("userMenu.skinCape.pendingChanges")}
-		</span>
-		<div class="save-actions">
-			<button
-				type="button"
-				class="btn-secondary discard-btn"
-				onclick={discardChanges}
-				disabled={processing}
-			>
-				{t("userMenu.skinCape.discardChanges")}
-			</button>
-			<button
-				type="button"
-				class="btn-primary save-btn"
-				onclick={handleSaveChanges}
-				disabled={processing}
-			>
-				{#if processing}
-					<span class="spinner"></span>
-				{/if}
-				{t("userMenu.skinCape.saveChanges")}
-			</button>
-		</div>
-	</div>
-{/if}
 
 <style>
 	.skin-cape-manager {
@@ -398,6 +397,8 @@
 		flex-direction: column;
 		gap: 12px;
 		width: 100%;
+		min-height: 0;
+		flex: 1;
 	}
 
 	.section-header {
@@ -469,114 +470,130 @@
 		}
 	}
 
-	.content-grid {
-		display: grid;
-		grid-template-columns: 1fr 320px;
-		gap: 14px;
-		align-items: start;
-	}
-
-	.left-col,
-	.right-col {
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-		min-width: 0;
-	}
-
-	.right-col {
-		position: sticky;
-		top: 0;
-		max-height: 100%;
-	}
-
-	.viewer-card {
+	.preview-card {
+		flex: 1;
+		min-height: 0;
 		background: var(--bg-card);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius);
 		overflow: hidden;
+		position: relative;
 		display: flex;
 		flex-direction: column;
 	}
 
-	.preview-panel :global(.preview-zone) {
+	.preview-card :global(.preview-zone) {
+		flex: 1;
+		min-height: auto;
 		border: none;
 		border-radius: 0;
-		box-shadow: inset 0 -1px 0 0 var(--border);
+		height: 100%;
 	}
 
-	.preview-panel :global(.preview-zone.drop-ready) {
-		box-shadow:
-			inset 0 -1px 0 0 var(--border),
-			inset 0 0 0 2px var(--accent);
+	.model-selector {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+		z-index: 5;
+		display: inline-flex;
+		gap: 4px;
+		background: rgba(var(--bg-card-rgb, 0, 0, 0), 0.6);
+		backdrop-filter: blur(4px);
+		border-radius: var(--border-radius-sm);
+		padding: 3px;
+		border: 1px solid rgba(255, 255, 255, 0.08);
 	}
 
-	.controls-panel {
-		padding: 12px;
-		border-top: 1px solid var(--border);
+	.model-btn {
+		background: transparent;
+		border: 1px solid transparent;
+		color: var(--text-secondary);
+		padding: 4px 10px;
+		border-radius: var(--border-radius-sm);
+		font-family: inherit;
+		font-size: 0.65rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.4px;
+		cursor: pointer;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease,
+			color 0.15s ease;
 	}
 
-	.capes-panel {
+	.model-btn:hover:not(:disabled, .active) {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	.model-btn.active {
+		background: rgba(var(--accent-rgb), 0.15);
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+
+	.model-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.upload-panel {
+		display: flex;
+		justify-content: center;
+		padding: 4px 0;
+	}
+
+	.upload-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		padding: 6px 12px;
+		border-radius: var(--border-radius-sm);
+		font-family: inherit;
+		font-size: 0.72rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease,
+			color 0.15s ease;
+		background: var(--bg-card);
+		color: var(--text-secondary);
+		border: 1px solid var(--border);
+	}
+
+	.upload-btn:hover:not(:disabled) {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+
+	.upload-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.save-actions-float {
+		position: absolute;
+		bottom: 12px;
+		right: 12px;
+		z-index: 5;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.save-actions-float .icon-btn {
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
 		background: var(--bg-card);
 		border: 1px solid var(--border);
-		border-radius: var(--border-radius);
-		overflow: hidden;
-		overflow-y: auto;
-	}
-
-	@media (max-width: 720px) {
-		.content-grid {
-			grid-template-columns: 1fr;
-		}
-
-		.right-col {
-			position: static;
-			max-height: none;
-		}
-	}
-
-	.save-bar {
-		position: sticky;
-		bottom: 12px;
-		width: fit-content;
-		min-width: 360px;
-		margin: 16px auto 0;
+		color: var(--text-secondary);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 12px;
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		border-radius: 999px;
-		padding: 6px 8px 6px 14px;
-		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-	}
-
-	.pending-info {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		font-size: 0.7rem;
-		font-weight: 600;
-		color: var(--text-secondary);
-		white-space: nowrap;
-	}
-
-	.save-actions {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-	}
-
-	.save-btn,
-	.discard-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		font-size: 0.7rem;
-		padding: 4px 10px;
-		border-radius: var(--border-radius-sm);
-		font-weight: 600;
 		cursor: pointer;
 		transition:
 			background 0.15s ease,
@@ -584,36 +601,50 @@
 			opacity 0.15s ease;
 	}
 
-	.save-btn {
-		background: var(--accent);
-		color: var(--accent-text);
-		border: 1px solid var(--accent);
-	}
-
-	.save-btn:hover:not(:disabled) {
-		background: var(--accent-hover);
-	}
-
-	.discard-btn {
-		background: transparent;
-		color: var(--text-secondary);
-		border: 1px solid var(--border);
-	}
-
-	.discard-btn:hover:not(:disabled) {
+	.save-actions-float .icon-btn:hover:not(:disabled) {
 		background: var(--surface-hover);
 		color: var(--text-primary);
 	}
 
-	.save-btn:disabled,
-	.discard-btn:disabled {
+	.save-actions-float .icon-btn:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
 
-	.save-actions .spinner {
-		width: 12px;
-		height: 12px;
-		margin: 0;
+	.save-actions-float .save-icon {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-text);
+	}
+
+	.save-actions-float .save-icon:hover:not(:disabled) {
+		background: var(--accent-hover);
+		border-color: var(--accent-hover);
+	}
+
+	.save-actions-float .spinner {
+		width: 14px;
+		height: 14px;
+		border: 2px solid var(--border);
+		border-top-color: var(--accent);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+
+	@media (max-width: 520px) {
+		.preview-card :global(.preview-zone) {
+			min-height: 260px;
+			height: 260px;
+		}
+
+		.model-selector {
+			top: 8px;
+			right: 8px;
+		}
+
+		.save-actions-float {
+			bottom: 8px;
+			right: 8px;
+		}
 	}
 </style>

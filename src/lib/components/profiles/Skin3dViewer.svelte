@@ -47,11 +47,12 @@
 			const width = container.clientWidth;
 			const height = container.clientHeight || width;
 
-			const instance = new Render({
-				width,
-				height,
-				enableControls: true,
-			});
+		const instance = new Render({
+			width,
+			height,
+			enableControls: true,
+			zoom: 0.7,
+		});
 
 			instance.autoRotate = shouldAnimate;
 			instance.animation = shouldAnimate ? new IdleAnimation() : null;

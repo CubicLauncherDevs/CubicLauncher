@@ -958,6 +958,18 @@ export async function uploadSkinFile(
 	});
 }
 
+export async function uploadSkinUrl(
+	uuid: string,
+	skinUrl: string,
+	variant: "slim" | "classic",
+): Promise<void> {
+	return invokeThrowingSilent("upload_skin_url", {
+		uuid,
+		skinUrl,
+		variant,
+	});
+}
+
 export async function getSkinCloset(uuid: string): Promise<SkinClosetEntry[]> {
 	return (
 		(await invokeWithFallback<SkinClosetEntry[]>("get_skin_closet", {
