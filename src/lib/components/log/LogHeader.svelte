@@ -122,15 +122,9 @@
 		min-width: 0;
 	}
 
-<<<<<<< HEAD
 	:global(.log-icon) {
 		width: 38px;
 		height: 38px;
-=======
-	.log-icon {
-		width: 28px;
-		height: 28px;
->>>>>>> af33d64 (Simplificar logwindow)
 		border-radius: var(--border-radius-sm);
 		flex-shrink: 0;
 		opacity: 0.85;
@@ -201,15 +195,9 @@
 		flex-shrink: 0;
 	}
 
-<<<<<<< HEAD
 	:global(.toolbar-icon) {
 		width: 15px;
 		height: 15px;
-=======
-	.toolbar-icon {
-		width: 13px;
-		height: 13px;
->>>>>>> af33d64 (Simplificar logwindow)
 		flex-shrink: 0;
 		filter: var(--icon-filter);
 	}

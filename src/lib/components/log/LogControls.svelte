@@ -138,29 +138,17 @@
 		max-width: 460px;
 	}
 
-<<<<<<< HEAD
 	:global(.search-icon) {
 		width: 16px;
 		height: 16px;
-=======
-	.search-icon {
-		width: 14px;
-		height: 14px;
->>>>>>> af33d64 (Simplificar logwindow)
 		flex-shrink: 0;
 		filter: var(--icon-filter);
 		opacity: 0.7;
 	}
 
-<<<<<<< HEAD
 	:global(.nav-icon) {
 		width: 14px;
 		height: 14px;
-=======
-	.nav-icon {
-		width: 12px;
-		height: 12px;
->>>>>>> af33d64 (Simplificar logwindow)
 		flex-shrink: 0;
 		filter: var(--icon-filter);
 	}

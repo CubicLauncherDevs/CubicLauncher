@@ -209,17 +209,8 @@
 			class="jump-bottom"
 			onclick={() => renderer.scrollToBottom()}
 		>
-<<<<<<< HEAD
 			<Icon name="log:arrow-down" class="jump-icon" size={14} />
 			{unseenCount} líneas nuevas
-=======
-			<img
-				class="jump-icon"
-				src="/images/icons/log/arrow-down.svg"
-				alt=""
-			/>
-			{unseenCount} nuevas
->>>>>>> af33d64 (Simplificar logwindow)
 		</button>
 	{/if}
 </div>
@@ -263,15 +254,9 @@
 		color: var(--accent);
 	}
 
-<<<<<<< HEAD
 	:global(.jump-icon) {
 		width: 14px;
 		height: 14px;
-=======
-	.jump-icon {
-		width: 12px;
-		height: 12px;
->>>>>>> af33d64 (Simplificar logwindow)
 		flex-shrink: 0;
 		filter: var(--icon-filter);
 	}
