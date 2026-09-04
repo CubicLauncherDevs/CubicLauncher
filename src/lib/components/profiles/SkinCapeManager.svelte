@@ -15,10 +15,12 @@
 	import SkinPreview from "./SkinPreview.svelte";
 	import SkinUploadControls from "./SkinUploadControls.svelte";
 	import CapeList from "./CapeList.svelte";
+	import SkinCloset from "./SkinCloset.svelte";
 	import type {
 		MinecraftProfileCape,
 		MinecraftProfileResponse,
 		MinecraftProfileSkin,
+		SkinClosetEntry,
 	} from "$lib/types/types";
 
 	interface Props {
@@ -44,6 +46,8 @@
 
 	let pendingSkin = $state<PendingSkin | null>(null);
 	let pendingCape = $state<PendingCape | null>(null);
+	let closetRevision = $state(0);
+	let equippedClosetSkin = $state<SkinClosetEntry | null>(null);
 
 	const hasPending = $derived(pendingSkin !== null || pendingCape !== null);
 
@@ -94,6 +98,7 @@
 			variant: skinModel === "slim" ? "SLIM" : "CLASSIC",
 			previewUrl,
 		};
+		equippedClosetSkin = null;
 	}
 
 	async function handleDroppedSkinFile(paths: string[]) {
@@ -147,7 +152,9 @@
 				t("userMenu.skinCape.changesSavedDesc"),
 			);
 			discardChanges();
+			equippedClosetSkin = null;
 			await loadProfile(true);
+			closetRevision += 1;
 			bumpAvatarVersion(uuid);
 		} catch (err) {
 			if (isRateLimitError(err)) {
@@ -180,10 +187,17 @@
 	);
 
 	const previewSkinUrl = $derived(
-		pendingSkin?.previewUrl ?? activeSkin?.url ?? "",
+		pendingSkin?.previewUrl ??
+			equippedClosetSkin?.url ??
+			activeSkin?.url ??
+			"",
 	);
 	const previewModel = $derived(
-		pendingSkin?.variant === "SLIM" ? "slim" : viewerModel,
+		pendingSkin?.variant === "SLIM"
+			? "slim"
+			: equippedClosetSkin?.variant.toUpperCase() === "SLIM"
+				? "slim"
+				: viewerModel,
 	);
 	const previewCapeUrl = $derived.by(() => {
 		const pc = pendingCape;
@@ -327,6 +341,17 @@
 				</div>
 			</div>
 		</div>
+
+		<SkinCloset
+			{uuid}
+			activeSkinId={equippedClosetSkin?.id ?? activeSkin?.id ?? null}
+			processing={processing || loading}
+			refreshTrigger={closetRevision}
+			onEquipped={(entry) => {
+				equippedClosetSkin = entry;
+				bumpAvatarVersion(uuid);
+			}}
+		/>
 	{/if}
 </div>
 

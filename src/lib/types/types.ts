@@ -131,6 +131,15 @@ export interface MinecraftProfileResponse {
 	profileActions: string[];
 }
 
+export interface SkinClosetEntry {
+	id: string;
+	url: string;
+	local_path: string;
+	variant: string;
+	alias: string;
+	saved_at: number;
+}
+
 export interface JreInstallPrompt {
 	version: number;
 	instance: InstanceDto;

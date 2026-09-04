@@ -219,7 +219,26 @@
 			"changesSavedDesc": "Tus cambios se aplicaron correctamente a tu cuenta.",
 			"rateLimitTitle": "Demasiados cambios",
 			"rateLimitMessage": "Estás haciendo cambios muy rápido. Esperá unos segundos antes de volver a intentarlo.",
-			"unequipPending": "Capa desequipada (pendiente de guardar)"
+			"unequipPending": "Capa desequipada (pendiente de guardar)",
+			"skinCloset": {
+				"title": "Armario de skins",
+				"savedSkins": "Skins guardadas",
+				"noSavedSkins": "Todavía no guardaste ninguna skin.",
+				"equipSkin": "Equipar",
+				"renameSkin": "Renombrar",
+				"deleteSkin": "Eliminar",
+				"saveAlias": "Guardar",
+				"cancelAlias": "Cancelar",
+				"skinNamePlaceholder": "Nombre de la skin",
+				"addedTitle": "Skin guardada",
+				"addedDesc": "La skin se añadió a tu armario.",
+				"removedTitle": "Skin eliminada",
+				"removedDesc": "La skin se eliminó de tu armario.",
+				"equippedTitle": "Skin equipada",
+				"equippedDesc": "La skin se aplicó correctamente a tu cuenta.",
+				"renamedTitle": "Skin renombrada",
+				"renamedDesc": "El nombre de la skin se actualizó."
+			}
 		},
 		"authModal": {
 			"title": "Inicio de Sesión Microsoft",

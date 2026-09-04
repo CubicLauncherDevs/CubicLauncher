@@ -22,6 +22,7 @@ import {
 	type InstanceImportPlan,
 	type YggdrasilServerInfo,
 	type MinecraftProfileResponse,
+	type SkinClosetEntry,
 } from "../types/types";
 
 import { invoke } from "@tauri-apps/api/core";
@@ -955,6 +956,44 @@ export async function uploadSkinFile(
 		filePath,
 		model,
 	});
+}
+
+export async function getSkinCloset(uuid: string): Promise<SkinClosetEntry[]> {
+	return (
+		(await invokeWithFallback<SkinClosetEntry[]>("get_skin_closet", {
+			uuid,
+		})) ?? []
+	);
+}
+
+export async function syncSkinCloset(uuid: string): Promise<SkinClosetEntry[]> {
+	return (
+		(await invokeWithFallback<SkinClosetEntry[]>("sync_skin_closet", {
+			uuid,
+		})) ?? []
+	);
+}
+
+export async function removeSkinFromCloset(
+	uuid: string,
+	entryId: string,
+): Promise<void> {
+	return invokeThrowing("remove_skin_from_closet", { uuid, entryId });
+}
+
+export async function renameSkinInCloset(
+	uuid: string,
+	entryId: string,
+	alias: string,
+): Promise<void> {
+	return invokeThrowing("rename_skin_in_closet", { uuid, entryId, alias });
+}
+
+export async function equipSkinFromCloset(
+	uuid: string,
+	entryId: string,
+): Promise<void> {
+	return invokeThrowing("equip_skin_from_closet", { uuid, entryId });
 }
 
 export async function equipCape(uuid: string, capeId: string): Promise<void> {

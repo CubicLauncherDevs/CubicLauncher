@@ -7,9 +7,15 @@
 		skinUrl: string;
 		capeUrl?: string | null;
 		model?: "default" | "slim";
+		animated?: boolean;
 	}
 
-	let { skinUrl, capeUrl = null, model = "default" }: Props = $props();
+	let {
+		skinUrl,
+		capeUrl = null,
+		model = "default",
+		animated = true,
+	}: Props = $props();
 
 	let container: HTMLElement;
 	let viewer = $state<Render | null>(null);
@@ -17,8 +23,8 @@
 	let error = $state<string | null>(null);
 	let IdleAnimationClass: typeof IdleAnimation | null = null;
 
-	const disable3dAnimations = $derived(
-		launcherStore.settings.disable_skin3d_animations,
+	const shouldAnimate = $derived(
+		animated && !launcherStore.settings.disable_skin3d_animations,
 	);
 
 	function bustCache(url: string): string {
@@ -47,10 +53,8 @@
 				enableControls: true,
 			});
 
-			instance.autoRotate = !disable3dAnimations;
-			instance.animation = disable3dAnimations
-				? null
-				: new IdleAnimation();
+			instance.autoRotate = shouldAnimate;
+			instance.animation = shouldAnimate ? new IdleAnimation() : null;
 			// eslint-disable-next-line svelte/no-dom-manipulating
 			container.appendChild(instance.canvas);
 
@@ -86,10 +90,9 @@
 		const v = viewer;
 		if (!v || v.disposed) return;
 
-		v.autoRotate = !disable3dAnimations;
-		v.animation = disable3dAnimations
-			? null
-			: IdleAnimationClass
+		v.autoRotate = shouldAnimate;
+		v.animation =
+			shouldAnimate && IdleAnimationClass
 				? new IdleAnimationClass()
 				: null;
 	});
