@@ -927,6 +927,10 @@ export async function getUserList(): Promise<MinecraftUser[]> {
 	);
 }
 
+export async function getAvatarSvg(uuid: string): Promise<string> {
+	return invoke<string>("get_avatar_svg", { uuid });
+}
+
 // ─────────────────────────────────────────────────────────────
 // Profile (skins & capes)
 // ─────────────────────────────────────────────────────────────

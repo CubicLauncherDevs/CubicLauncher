@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { launcherStore, showError } from "$lib/state/state.svelte";
 	import {
-		getAvatar,
-		setAvatar,
-		buildAvatarUrl,
+		fetchAvatarSvg,
+		DEFAULT_AVATAR_SVG,
 	} from "$lib/state/avatarCache.svelte";
 	import { SvelteMap } from "svelte/reactivity";
 	import { fade, fly } from "svelte/transition";
@@ -137,25 +136,28 @@
 		uuid: string;
 		username: string;
 		user_type: string;
+		yggdrasil_server_url?: string | null;
 	}): Promise<void> {
 		const key = userKey(u);
-		const url = buildAvatarUrl(u.uuid, u.username, u.user_type);
 
-		const cached = getAvatar(url);
-		if (cached !== undefined) {
-			if (avatarSvgs.get(key) !== cached) {
-				avatarSvgs.set(key, cached);
-			}
-			return;
+		if (!avatarSvgs.has(key)) {
+			avatarSvgs.set(key, DEFAULT_AVATAR_SVG);
 		}
 
 		try {
-			const res = await fetch(url);
-			const svg = await res.text();
-			setAvatar(url, svg);
-			avatarSvgs.set(key, svg);
+			const svg = await fetchAvatarSvg(
+				u.uuid,
+				u.user_type,
+				u.yggdrasil_server_url,
+				u.username,
+			);
+			if (avatarSvgs.get(key) !== svg) {
+				avatarSvgs.set(key, svg);
+			}
 		} catch {
-			avatarSvgs.set(key, "");
+			if (avatarSvgs.get(key) !== DEFAULT_AVATAR_SVG) {
+				avatarSvgs.set(key, DEFAULT_AVATAR_SVG);
+			}
 		}
 	}
 
@@ -204,7 +206,9 @@
 	const selectedUser = $derived(launcherStore.settings.user[selectedIdx]);
 	const selectedUserKey = $derived(selectedUser ? userKey(selectedUser) : "");
 	const selectedAvatarSvg = $derived(
-		selectedUserKey ? (avatarSvgs.get(selectedUserKey) ?? "") : "",
+		selectedUserKey
+			? (avatarSvgs.get(selectedUserKey) ?? DEFAULT_AVATAR_SVG)
+			: DEFAULT_AVATAR_SVG,
 	);
 	const activeUserIdx = $derived(launcherStore.settings.active_user_idx ?? 0);
 	const totalAccounts = $derived(launcherStore.settings.user.length);
@@ -429,7 +433,7 @@
 							)}
 							isActive={i === activeUserIdx}
 							isSelected={i === selectedIdx}
-							avatarSvg={avatarSvgs.get(userKey(u)) ?? ""}
+							avatarSvg={avatarSvgs.get(userKey(u)) ?? DEFAULT_AVATAR_SVG}
 							onselect={() => {
 								selectedIdx = i;
 								editingIdx = null;

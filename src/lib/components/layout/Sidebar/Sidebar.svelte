@@ -3,9 +3,8 @@
 	import { pinInstance } from "$lib/api/cubicApi";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import {
-		getAvatar,
-		setAvatar,
-		buildAvatarUrl,
+		fetchAvatarSvg,
+		DEFAULT_AVATAR_SVG,
 	} from "$lib/state/avatarCache.svelte";
 	import type { InstanceDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
@@ -56,27 +55,27 @@
 				: t("userMenu.offline"),
 	);
 
-	let avatarSvg = $state("");
+	let avatarSvg = $state(DEFAULT_AVATAR_SVG);
 
 	$effect(() => {
 		const user = activeUser;
 		if (!user) return;
 
-		const url = buildAvatarUrl(user.uuid, user.username, user.user_type);
+		let cancelled = false;
+		fetchAvatarSvg(
+			user.uuid,
+			user.user_type,
+			user.yggdrasil_server_url,
+			user.username,
+		).then(
+			(svg) => {
+				if (!cancelled) avatarSvg = svg;
+			},
+		);
 
-		const cached = getAvatar(url);
-		if (cached !== undefined) {
-			avatarSvg = cached;
-			return;
-		}
-
-		fetch(url)
-			.then((r) => r.text())
-			.then((svg) => {
-				setAvatar(url, svg);
-				avatarSvg = svg;
-			})
-			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	function openDeleteModal(instance: InstanceDto) {

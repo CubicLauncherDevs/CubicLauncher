@@ -75,6 +75,7 @@ pub fn run() {
             commands::auth::get_yggdrasil_server_info,
             commands::auth::yggdrasil_authenticate,
             commands::auth::yggdrasil_refresh_token,
+            commands::avatar::get_avatar_svg,
             commands::themes::list_themes,
             commands::themes::get_user_theme,
             commands::themes::set_theme,

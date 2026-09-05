@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod avatar;
 pub mod dependencies;
 pub mod discord;
 pub mod download;
