@@ -240,7 +240,7 @@ impl DownloadQueue {
 
         let result = if version.contains("-neoforge-") {
             Self::process_neoforge_version(shared_dir, &manager, queue, version.clone()).await
-        } else if version.contains("-forge-") {
+        } else if version.contains("-forge-") && !version.contains("-neoforge-") {
             Self::process_forge_version(shared_dir, &manager, queue, version.clone()).await
         } else if let Some((game_version, loader_version)) = parse_fabric_version(&version) {
             Self::process_fabric_version(
