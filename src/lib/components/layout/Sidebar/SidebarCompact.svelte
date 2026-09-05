@@ -182,11 +182,9 @@
 			user.user_type,
 			user.yggdrasil_server_url,
 			user.username,
-		).then(
-			(svg) => {
-				if (!cancelled) avatarSvg = svg;
-			},
-		);
+		).then((svg) => {
+			if (!cancelled) avatarSvg = svg;
+		});
 
 		return () => {
 			cancelled = true;

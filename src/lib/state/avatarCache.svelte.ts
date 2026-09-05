@@ -82,10 +82,7 @@ export function buildAvatarUrl(
 	return `https://skins.cubiclauncher.org/api/${endpoint}/head/${username}?t=${version}${serverParam}`;
 }
 
-export const DEFAULT_AVATAR_SVG = cubicLogoSvg.replace(
-	/<\?xml[^?]*\?>/i,
-	"",
-);
+export const DEFAULT_AVATAR_SVG = cubicLogoSvg.replace(/<\?xml[^?]*\?>/i, "");
 
 export async function fetchAvatarSvg(
 	uuid: string,

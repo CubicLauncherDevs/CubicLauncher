@@ -433,7 +433,8 @@
 							)}
 							isActive={i === activeUserIdx}
 							isSelected={i === selectedIdx}
-							avatarSvg={avatarSvgs.get(userKey(u)) ?? DEFAULT_AVATAR_SVG}
+							avatarSvg={avatarSvgs.get(userKey(u)) ??
+								DEFAULT_AVATAR_SVG}
 							onselect={() => {
 								selectedIdx = i;
 								editingIdx = null;

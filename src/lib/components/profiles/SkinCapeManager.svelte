@@ -371,7 +371,7 @@
 
 		<CapeList
 			capes={profile.capes}
-			selectedCapeId={selectedCapeId}
+			{selectedCapeId}
 			activeCapeId={activeCape?.id ?? null}
 			{processing}
 			onSelect={handleSelectCape}

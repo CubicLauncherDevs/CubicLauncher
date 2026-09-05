@@ -114,7 +114,6 @@
 					<Icon name="ui:trash" size={12} />
 				</button>
 			</div>
-
 		{/if}
 
 		{#if isActive}
