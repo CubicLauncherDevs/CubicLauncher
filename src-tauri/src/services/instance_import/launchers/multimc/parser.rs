@@ -21,7 +21,24 @@ pub struct MmcPack {
 #[derive(Debug, Deserialize, Clone)]
 pub struct MmcComponent {
     pub uid: String,
+    #[serde(default)]
     pub version: String,
+    #[serde(alias = "cachedVersion", default)]
+    pub cached_version: Option<String>,
+}
+
+impl MmcComponent {
+    /// Devuelve la versión útil del componente.
+    ///
+    /// Algunos forks de MultiMC / Prism Launcher guardan la versión en
+    /// `cachedVersion` en lugar de `version`, o dejan `version` vacía. Usamos
+    /// `version` si tiene contenido; si no, recurrimos a `cachedVersion`.
+    pub fn effective_version(&self) -> Option<&str> {
+        if !self.version.is_empty() {
+            return Some(&self.version);
+        }
+        self.cached_version.as_deref().filter(|v| !v.is_empty())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -96,19 +113,33 @@ pub fn resolve_game_version(pack: &MmcPack) -> (Option<zellkern::GameVersion>, V
     let mut unsupported = Vec::new();
 
     for component in &pack.components {
+        let Some(version) = component.effective_version() else {
+            tracing::debug!(
+                "Ignorando componente MMC sin versión usable: uid={}",
+                component.uid
+            );
+            continue;
+        };
+
+        tracing::debug!(
+            "Componente MMC detectado: uid={}, version={}",
+            component.uid,
+            version
+        );
+
         match component.uid.as_str() {
-            UID_MINECRAFT => mc_version = Some(component.version.clone()),
+            UID_MINECRAFT => mc_version = Some(version.to_string()),
             UID_FABRIC => {
-                loader = Some(zellkern::Loader::Fabric(component.version.clone()));
+                loader = Some(zellkern::Loader::Fabric(version.to_string()));
             }
             UID_QUILT => {
-                loader = Some(zellkern::Loader::Quilt(component.version.clone()));
+                loader = Some(zellkern::Loader::Quilt(version.to_string()));
             }
             UID_FORGE => {
-                loader = Some(zellkern::Loader::Forge(component.version.clone()));
+                loader = Some(zellkern::Loader::Forge(version.to_string()));
             }
             UID_NEOFORGE => {
-                loader = Some(zellkern::Loader::NeoForge(component.version.clone()));
+                loader = Some(zellkern::Loader::NeoForge(version.to_string()));
             }
             "org.lwjgl" | "org.lwjgl3" => {}
             _ => {
@@ -116,15 +147,23 @@ pub fn resolve_game_version(pack: &MmcPack) -> (Option<zellkern::GameVersion>, V
                     || component.uid.contains("optifine")
                     || component.uid.contains("modloader")
                 {
-                    unsupported.push(format!("{} {}", component.uid, component.version));
+                    unsupported.push(format!("{} {}", component.uid, version));
                 }
             }
         }
     }
 
-    let game_version = mc_version.map(|mc| zellkern::GameVersion {
-        mc_version: mc,
-        loader: loader.unwrap_or(zellkern::Loader::Vanilla),
+    let game_version = mc_version.map(|mc| {
+        let detected_loader = loader.clone().unwrap_or(zellkern::Loader::Vanilla);
+        tracing::info!(
+            "Versión de juego resuelta: {} con loader {:?}",
+            mc,
+            detected_loader
+        );
+        zellkern::GameVersion {
+            mc_version: mc,
+            loader: detected_loader,
+        }
     });
 
     (game_version, unsupported)
@@ -178,10 +217,12 @@ mod tests {
                 MmcComponent {
                     uid: UID_MINECRAFT.into(),
                     version: "1.20.1".into(),
+                    cached_version: None,
                 },
                 MmcComponent {
                     uid: UID_FABRIC.into(),
                     version: "0.15.11".into(),
+                    cached_version: None,
                 },
             ],
         };
@@ -198,10 +239,12 @@ mod tests {
                 MmcComponent {
                     uid: UID_MINECRAFT.into(),
                     version: "1.20.1".into(),
+                    cached_version: None,
                 },
                 MmcComponent {
                     uid: UID_FORGE.into(),
                     version: "47.2.0".into(),
+                    cached_version: None,
                 },
             ],
         };
@@ -209,5 +252,98 @@ mod tests {
         assert!(unsupported.is_empty());
         let gv = gv.unwrap();
         assert_eq!(gv.to_version_id(), "1.20.1-forge-47.2.0");
+    }
+
+    #[test]
+    fn test_resolve_game_version_fabric_from_cached_version() {
+        let pack = MmcPack {
+            components: vec![
+                MmcComponent {
+                    uid: UID_MINECRAFT.into(),
+                    version: String::new(),
+                    cached_version: Some("1.20.1".into()),
+                },
+                MmcComponent {
+                    uid: UID_FABRIC.into(),
+                    version: String::new(),
+                    cached_version: Some("0.15.11".into()),
+                },
+            ],
+        };
+        let (gv, unsupported) = resolve_game_version(&pack);
+        assert!(unsupported.is_empty());
+        let gv = gv.unwrap();
+        assert_eq!(gv.to_version_id(), "fabric-loader-0.15.11-1.20.1");
+    }
+
+    #[test]
+    fn test_resolve_game_version_with_extra_components() {
+        let pack = MmcPack {
+            components: vec![
+                MmcComponent {
+                    uid: UID_MINECRAFT.into(),
+                    version: "1.21".into(),
+                    cached_version: None,
+                },
+                MmcComponent {
+                    uid: "org.lwjgl3".into(),
+                    version: "3.3.2".into(),
+                    cached_version: None,
+                },
+                MmcComponent {
+                    uid: UID_NEOFORGE.into(),
+                    version: "21.0.0".into(),
+                    cached_version: None,
+                },
+            ],
+        };
+        let (gv, unsupported) = resolve_game_version(&pack);
+        assert!(unsupported.is_empty());
+        let gv = gv.unwrap();
+        assert_eq!(gv.to_version_id(), "1.21-neoforge-21.0.0");
+    }
+
+    #[test]
+    fn test_resolve_game_version_empty_version_is_skipped() {
+        let pack = MmcPack {
+            components: vec![
+                MmcComponent {
+                    uid: UID_MINECRAFT.into(),
+                    version: String::new(),
+                    cached_version: None,
+                },
+                MmcComponent {
+                    uid: UID_FABRIC.into(),
+                    version: "0.15.11".into(),
+                    cached_version: None,
+                },
+            ],
+        };
+        let (gv, unsupported) = resolve_game_version(&pack);
+        assert!(unsupported.is_empty());
+        // Sin versión de Minecraft no se debe fabricar un GameVersion.
+        assert!(gv.is_none());
+    }
+
+    #[test]
+    fn test_resolve_game_version_quilt() {
+        let pack = MmcPack {
+            components: vec![
+                MmcComponent {
+                    uid: UID_MINECRAFT.into(),
+                    version: "1.20.1".into(),
+                    cached_version: None,
+                },
+                MmcComponent {
+                    uid: UID_QUILT.into(),
+                    version: "0.25.0".into(),
+                    cached_version: None,
+                },
+            ],
+        };
+        let (gv, unsupported) = resolve_game_version(&pack);
+        assert!(unsupported.is_empty());
+        let gv = gv.unwrap();
+        assert_eq!(gv.to_version_id(), "quilt-loader-0.25.0-1.20.1");
     }
 }
