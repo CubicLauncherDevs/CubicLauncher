@@ -2,6 +2,9 @@
 	import { t } from "$lib/i18n";
 	import Icon from "$lib/icons/Icon.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
+	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
+	import { animateHeight } from "$lib/utils/animateHeight";
+	import { animDuration } from "$lib/utils/animations";
 	import Select from "$lib/components/layout/Select.svelte";
 	import { MAX_INSTANCE_NAME_LEN } from "$lib/utils/instanceName";
 	import type { Snippet } from "svelte";
@@ -92,6 +95,7 @@
 	} = $props();
 
 	let sentinelEl: HTMLDivElement | undefined = $state();
+	const resizeDuration = $derived(animDuration(220));
 
 	function handleSearch() {
 		onSearch?.();
@@ -141,165 +145,211 @@
 </script>
 
 <div class="modpack-browser">
-	<div class="search-bar">
-		<input
-			type="text"
-			class="search-input"
-			bind:value={query}
-			placeholder={searchPlaceholder}
-			onkeydown={(e) => e.key === "Enter" && handleSearch()}
-		/>
-		<button
-			type="button"
-			class="btn-primary search-btn"
-			onclick={handleSearch}
-			disabled={searching || !query.trim()}
-		>
-			{#if searching}
-				<Loading />
-			{/if}
-			{t("createInstance.searchBtn")}
-		</button>
-	</div>
-
-	<div class="filter-bar">
-		<div class="filter-group">
-			<span class="filter-label"
-				>{t("createInstance.filterSortLabel")}</span
+	{#if !selectedItem}
+		<div class="search-bar">
+			<input
+				type="text"
+				class="search-input"
+				bind:value={query}
+				placeholder={searchPlaceholder}
+				onkeydown={(e) => e.key === "Enter" && handleSearch()}
+			/>
+			<button
+				type="button"
+				class="btn-primary search-btn"
+				onclick={handleSearch}
+				disabled={searching || !query.trim()}
 			>
-			<div class="filter-chips">
-				<button
-					type="button"
-					class="filter-chip"
-					class:active={filters.sort === "relevance"}
-					onclick={() => setSort("relevance")}
+				{#if searching}
+					<Loading />
+				{/if}
+				{t("createInstance.searchBtn")}
+			</button>
+		</div>
+
+		<div class="filter-bar">
+			<div class="filter-group">
+				<span class="filter-label"
+					>{t("createInstance.filterSortLabel")}</span
 				>
-					{t("createInstance.sortRelevance")}
-				</button>
-				<button
-					type="button"
-					class="filter-chip"
-					class:active={filters.sort === "downloads"}
-					onclick={() => setSort("downloads")}
-				>
-					{t("createInstance.sortDownloads")}
-				</button>
-				<button
-					type="button"
-					class="filter-chip"
-					class:active={filters.sort === "newest"}
-					onclick={() => setSort("newest")}
-				>
-					{t("createInstance.sortNewest")}
-				</button>
+				<div class="filter-chips">
+					<button
+						type="button"
+						class="filter-chip"
+						class:active={filters.sort === "relevance"}
+						onclick={() => setSort("relevance")}
+					>
+						{t("createInstance.sortRelevance")}
+					</button>
+					<button
+						type="button"
+						class="filter-chip"
+						class:active={filters.sort === "downloads"}
+						onclick={() => setSort("downloads")}
+					>
+						{t("createInstance.sortDownloads")}
+					</button>
+					<button
+						type="button"
+						class="filter-chip"
+						class:active={filters.sort === "newest"}
+						onclick={() => setSort("newest")}
+					>
+						{t("createInstance.sortNewest")}
+					</button>
+				</div>
 			</div>
-		</div>
 
-		<div class="filter-selects">
-			<Select
-				value={filters.category ?? ""}
-				options={[
-					{
-						value: "",
-						label: t("createInstance.filterAllCategories"),
-					},
-					...categoryOptions,
-				]}
-				placeholder={t("createInstance.filterCategoryLabel")}
-				label={t("createInstance.filterCategoryLabel")}
-				onchange={(value) => setCategory(value || null)}
-			/>
-			<Select
-				value={filters.gameVersion ?? ""}
-				options={[
-					{ value: "", label: t("createInstance.filterAllVersions") },
-					...gameVersionOptions,
-				]}
-				placeholder={t("createInstance.filterVersionLabel")}
-				label={t("createInstance.filterVersionLabel")}
-				onchange={(value) => setGameVersion(value || null)}
-			/>
-		</div>
-	</div>
-
-	{#if installError}
-		<div class="error-msg">{installError}</div>
-	{/if}
-
-	{#if installing}
-		<div class="installing-overlay">
-			<Loading />
-			<span>{installStep}</span>
+			<div class="filter-selects">
+				<Select
+					value={filters.category ?? ""}
+					options={[
+						{
+							value: "",
+							label: t("createInstance.filterAllCategories"),
+						},
+						...categoryOptions,
+					]}
+					placeholder={t("createInstance.filterCategoryLabel")}
+					label={t("createInstance.filterCategoryLabel")}
+					onchange={(value) => setCategory(value || null)}
+				/>
+				<Select
+					value={filters.gameVersion ?? ""}
+					options={[
+						{
+							value: "",
+							label: t("createInstance.filterAllVersions"),
+						},
+						...gameVersionOptions,
+					]}
+					placeholder={t("createInstance.filterVersionLabel")}
+					label={t("createInstance.filterVersionLabel")}
+					onchange={(value) => setGameVersion(value || null)}
+				/>
+			</div>
 		</div>
 	{/if}
 
 	{#if selectedItem}
 		<div class="detail-view">
-			<button type="button" class="back-btn" onclick={onBack}>
+			<button
+				type="button"
+				class="back-btn"
+				onclick={onBack}
+				disabled={installing}
+			>
 				<Icon name="ui:chevron-left" size={16} />
 				{t("createInstance.backBtn")}
 			</button>
 
 			<div class="detail-header">
-				{#if selectedItem.iconUrl}
-					<img
-						src={selectedItem.iconUrl}
-						alt=""
-						class="detail-icon"
-						loading="lazy"
-						decoding="async"
-						onerror={(e) => {
-							(
-								e.currentTarget as HTMLImageElement
-							).style.display = "none";
-						}}
-					/>
-				{/if}
+				<div class="detail-icon-wrap" aria-hidden="true">
+					<Icon name="instance:box" size={40} />
+					{#if selectedItem.iconUrl}
+						<img
+							src={selectedItem.iconUrl}
+							alt=""
+							class="detail-icon"
+							loading="lazy"
+							decoding="async"
+							onerror={(e) => {
+								(
+									e.currentTarget as HTMLImageElement
+								).style.display = "none";
+							}}
+						/>
+					{/if}
+				</div>
 				<div class="detail-title-group">
 					<h3>{selectedItem.title}</h3>
-					<span class="detail-author"
-						>{selectedItem.author ?? ""}</span
-					>
-				</div>
-			</div>
-
-			<p class="detail-desc">{selectedItem.description}</p>
-
-			<div class="detail-actions">
-				<div class="version-select">
-					<span class="version-label">
-						{t("createInstance.versionLabel")}
+					{#if selectedItem.author}
+						<span class="detail-author">{selectedItem.author}</span>
+					{/if}
+					<p class="detail-desc">{selectedItem.description}</p>
+					<span class="detail-downloads">
+						{formatDownloads(selectedItem.downloads)}
+						{t("createInstance.downloads")}
 					</span>
-					<Select
-						bind:value={selectedVersion}
-						options={versionOptions}
-						placeholder={t("createInstance.selectLoaderVersion")}
-						loading={loadingVersions}
-						disabled={versionOptions.length === 0 || installing}
-					/>
-				</div>
 
-				{#if needsCustomName}
-					<button
-						type="button"
-						class="btn-secondary install-btn"
-						onclick={onCancelCustomName}
-						disabled={installing}
+					<div
+						class="install-card"
+						use:animateHeight={resizeDuration}
 					>
-						{t("createInstance.cancel")}
-					</button>
-				{:else}
-					<button
-						type="button"
-						class="btn-primary install-btn"
-						onclick={onInstall}
-						disabled={installing || !selectedVersion}
-					>
-						{installing
-							? t("createInstance.installingModpack")
-							: t("createInstance.installBtn")}
-					</button>
-				{/if}
+						<div class="install-card-content">
+							<div class="detail-actions">
+								<div class="version-select">
+									<span class="version-label">
+										{t("createInstance.versionLabel")}
+									</span>
+									<Select
+										bind:value={selectedVersion}
+										options={versionOptions}
+										placeholder={t(
+											"createInstance.versionLabel",
+										)}
+										loading={loadingVersions}
+										disabled={versionOptions.length === 0 ||
+											installing}
+									/>
+								</div>
+
+								<div class="install-action">
+									{#if needsCustomName}
+										<button
+											type="button"
+											class="install-btn"
+											onclick={onCancelCustomName}
+											disabled={installing}
+										>
+											{t("createInstance.cancel")}
+										</button>
+									{:else}
+										<button
+											type="button"
+											class="install-btn"
+											onclick={onInstall}
+											aria-label={installing
+												? t(
+														"createInstance.installingModpack",
+													)
+												: t(
+														"createInstance.installBtn",
+													)}
+											aria-busy={installing}
+											disabled={installing ||
+												loadingVersions ||
+												!selectedVersion ||
+												versionOptions.length === 0}
+										>
+											{#if installing}
+												<Loading />
+											{:else}
+												<DownloadIcon size={16} />
+												<span
+													>{t(
+														"createInstance.installBtn",
+													)}</span
+												>
+											{/if}
+										</button>
+									{/if}
+								</div>
+							</div>
+							{#if installing}
+								<div class="install-status" role="status">
+									{installStep ||
+										t("createInstance.installingModpack")}
+								</div>
+							{/if}
+							{#if installError}
+								<div class="error-msg" role="alert">
+									{installError}
+								</div>
+							{/if}
+						</div>
+					</div>
+				</div>
 			</div>
 
 			{#if needsCustomName}
@@ -338,6 +388,8 @@
 					{/if}
 				</div>
 			{/if}
+
+			<h4 class="detail-separator">{t("createInstance.detailsTitle")}</h4>
 
 			{#if detailExtra}
 				{@render detailExtra(selectedItem)}
@@ -404,6 +456,7 @@
 
 <style>
 	.modpack-browser {
+		container-type: inline-size;
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
@@ -507,17 +560,14 @@
 		font-size: 0.8rem;
 		padding: 8px 12px;
 		background: rgba(var(--color-error-rgb), 0.1);
-		border-radius: var(--border-radius-sm);
+		border-top: 1px solid var(--border-color);
 	}
 
-	.installing-overlay {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 10px;
-		padding: 16px;
+	.install-status {
+		border-top: 1px solid var(--border-color);
+		padding: 10px 14px;
 		color: var(--text-secondary);
-		font-size: 0.85rem;
+		font-size: 0.75rem;
 	}
 
 	.results-panel {
@@ -624,11 +674,11 @@
 
 	.detail-view {
 		flex: 1;
-		overflow-y: auto;
-		max-height: 440px;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 14px;
+		gap: 18px;
+		overflow-wrap: anywhere;
 		animation: slideIn 0.2s ease-out;
 	}
 
@@ -661,68 +711,186 @@
 			border-color 0.15s;
 	}
 
-	.back-btn:hover {
+	.back-btn:hover:not(:disabled) {
 		color: var(--text-primary);
 		border-color: var(--text-secondary);
 	}
 
-	.detail-header {
+	.back-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.detail-separator {
 		display: flex;
 		align-items: center;
 		gap: 12px;
+		margin: 0;
+		color: var(--text-muted);
+		font-size: 0.75rem;
+		font-style: italic;
+		font-weight: 500;
+	}
+
+	.detail-separator::before,
+	.detail-separator::after {
+		content: "";
+		height: 1px;
+		background: var(--border-color);
+	}
+
+	.detail-separator::before {
+		width: 20px;
+	}
+
+	.detail-separator::after {
+		flex: 1;
+	}
+
+	.detail-header {
+		display: flex;
+		align-items: flex-start;
+		gap: 20px;
+	}
+
+	.detail-icon-wrap {
+		position: relative;
+		width: 144px;
+		aspect-ratio: 1;
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--bg-card);
+		border: 1px solid var(--border-color);
+		border-radius: var(--border-radius-sm);
+		color: var(--text-muted);
+		overflow: hidden;
 	}
 
 	.detail-icon {
-		width: 48px;
-		height: 48px;
-		border-radius: var(--border-radius-sm);
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		background: var(--bg-card);
 		object-fit: cover;
+	}
+
+	.detail-title-group {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		min-width: 0;
+		flex: 1;
 	}
 
 	.detail-title-group h3 {
 		margin: 0;
-		font-size: 1rem;
+		font-size: 1.25rem;
+		line-height: 1.2;
+		color: var(--text-primary);
 		font-weight: 700;
 	}
 
 	.detail-author {
 		font-size: 0.75rem;
+		line-height: 1.2;
 		color: var(--text-secondary);
+	}
+
+	.detail-downloads {
+		font-size: 0.7rem;
+		line-height: 1.2;
+		color: var(--text-muted);
 	}
 
 	.detail-desc {
 		font-size: 0.78rem;
 		color: var(--text-secondary);
-		line-height: 1.4;
+		line-height: 1.35;
 		margin: 0;
+	}
+
+	.install-card {
+		box-sizing: border-box;
+		width: 100%;
+		background: var(--bg-card);
+		border: 1px solid var(--border-color);
+		border-radius: var(--border-radius-sm);
+		box-shadow:
+			var(--shadow-sm),
+			inset 0 1px 0 var(--surface-selected);
+		overflow: hidden;
 	}
 
 	.detail-actions {
 		display: flex;
-		gap: 12px;
-		align-items: flex-end;
 	}
 
 	.version-select {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
+		justify-content: center;
+		gap: 2px;
 		flex: 1;
+		min-width: 0;
+		padding: 8px;
+	}
+
+	.version-select :global(.select-trigger) {
+		padding: 5px 8px;
+		font-size: 0.75rem;
 	}
 
 	.version-label {
-		font-size: 0.7rem;
+		font-size: 0.6rem;
 		font-weight: 600;
-		color: var(--text-secondary);
+		color: var(--text-muted);
 		text-transform: uppercase;
-		letter-spacing: 0.5px;
+		letter-spacing: 0.8px;
+	}
+
+	.install-action {
+		border-left: 1px solid var(--border-color);
+		display: flex;
+		flex-shrink: 0;
+		width: 96px;
 	}
 
 	.install-btn {
-		flex-shrink: 0;
-		height: fit-content;
-		padding: 8px 20px;
+		background: transparent;
+		border: none;
+		color: var(--text-secondary);
+		width: 100%;
+		padding: 8px;
+		display: flex;
+		align-items: center;
 		justify-content: center;
+		gap: 6px;
+		font-family: inherit;
+		font-size: 0.75rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition:
+			color 0.15s,
+			background 0.15s;
+	}
+
+	.install-btn:hover:not(:disabled) {
+		color: var(--text-primary);
+		background: var(--surface-selected);
+	}
+
+	.install-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.install-btn:focus-visible,
+	.back-btn:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: -2px;
 	}
 
 	.custom-name-section {
@@ -750,6 +918,7 @@
 
 	.custom-name-input-row :global(.text-input) {
 		flex: 1;
+		min-width: 0;
 		padding: 8px 12px;
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
@@ -773,5 +942,35 @@
 		font-size: 0.7rem;
 		color: var(--color-error);
 		display: block;
+	}
+
+	@container (max-width: 480px) {
+		.detail-header {
+			gap: 14px;
+		}
+
+		.detail-icon-wrap {
+			width: 112px;
+		}
+
+		.detail-title-group h3 {
+			font-size: 1.05rem;
+		}
+	}
+
+	@container (max-width: 340px) {
+		.detail-header {
+			flex-direction: column;
+			align-items: flex-start;
+		}
+
+		.detail-title-group {
+			align-self: stretch;
+		}
+
+		.custom-name-input-row {
+			flex-direction: column;
+			align-items: stretch;
+		}
 	}
 </style>

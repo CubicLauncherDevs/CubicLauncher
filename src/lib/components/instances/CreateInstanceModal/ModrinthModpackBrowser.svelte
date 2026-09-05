@@ -356,7 +356,6 @@
 			</div>
 		{:else if fullProject}
 			<div class="detail-readme">
-				<span class="readme-label">README</span>
 				<div class="readme-content">
 					<MarkdownRenderer
 						source={fullProject}
@@ -379,19 +378,9 @@
 	}
 
 	.detail-readme {
-		border-top: 1px solid var(--border);
-		padding-top: 12px;
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
-	}
-
-	.readme-label {
-		font-size: 0.7rem;
-		font-weight: 600;
-		color: var(--text-secondary);
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
 	}
 
 	.readme-content {

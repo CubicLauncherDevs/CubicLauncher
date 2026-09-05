@@ -3,11 +3,13 @@
 	import type { Snippet } from "svelte";
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
 	import { animDuration } from "$lib/utils/animations";
+	import { animateHeight } from "$lib/utils/animateHeight";
 
 	let {
 		open = $bindable(),
 		title,
 		width,
+		animateResize = false,
 		onclose,
 		children,
 		footer,
@@ -15,6 +17,7 @@
 		open: boolean;
 		title?: string;
 		width?: string;
+		animateResize?: boolean;
 		onclose?: () => void;
 		children?: Snippet;
 		footer?: Snippet;
@@ -27,6 +30,7 @@
 
 	const fadeDuration = $derived(animDuration(150));
 	const flyDuration = $derived(animDuration(250));
+	const resizeDuration = $derived(animateResize ? animDuration(220) : 0);
 </script>
 
 {#if open}
@@ -39,6 +43,9 @@
 	>
 		<div
 			class="modal"
+			class:animate-resize={animateResize}
+			use:animateHeight={resizeDuration}
+			style:--resize-duration={`${resizeDuration}ms`}
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -47,29 +54,31 @@
 			style={width ? `width: min(${width}, 90vw)` : undefined}
 			transition:fly={{ y: 20, duration: flyDuration }}
 		>
-			<div class="modal-header">
-				{#if title}
-					<span class="modal-title">{title}</span>
-				{/if}
-				<button
-					type="button"
-					class="action-btn"
-					onclick={close}
-					aria-label="Close"
-				>
-					<CloseIcon size={20} />
-				</button>
-			</div>
-
-			<div class="modal-body">
-				{@render children?.()}
-			</div>
-
-			{#if footer}
-				<div class="modal-footer">
-					{@render footer()}
+			<div class="modal-content">
+				<div class="modal-header">
+					{#if title}
+						<span class="modal-title">{title}</span>
+					{/if}
+					<button
+						type="button"
+						class="action-btn"
+						onclick={close}
+						aria-label="Close"
+					>
+						<CloseIcon size={20} />
+					</button>
 				</div>
-			{/if}
+
+				<div class="modal-body">
+					{@render children?.()}
+				</div>
+
+				{#if footer}
+					<div class="modal-footer">
+						{@render footer()}
+					</div>
+				{/if}
+			</div>
 		</div>
 	</div>
 {/if}
@@ -87,17 +96,32 @@
 	}
 
 	.modal {
+		box-sizing: border-box;
 		background: var(--bg-sidebar);
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius, 8px);
 		width: min(400px, 90vw);
 		max-height: 90vh;
 		overflow-y: auto;
+		box-shadow: var(--shadow-lg, 0 20px 40px rgba(0, 0, 0, 0.4));
+		transition: width var(--resize-duration) cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	.modal.animate-resize {
+		scrollbar-gutter: stable;
+	}
+
+	.modal-content {
 		padding: 24px;
 		display: flex;
 		flex-direction: column;
 		gap: 20px;
-		box-shadow: var(--shadow-lg, 0 20px 40px rgba(0, 0, 0, 0.4));
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.modal {
+			transition: none;
+		}
 	}
 
 	:global(.modal::-webkit-scrollbar) {

@@ -460,6 +460,7 @@
 		"nameLabel": "Instance Name",
 		"namePlaceholder": "E.g. My Instance",
 		"versionLabel": "Version",
+		"detailsTitle": "Details",
 		"iconLabel": "Instance Logo",
 		"noVersionsErr": "No downloaded versions found",
 		"cancel": "Cancel",

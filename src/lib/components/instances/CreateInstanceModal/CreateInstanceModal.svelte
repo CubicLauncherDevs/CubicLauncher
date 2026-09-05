@@ -261,6 +261,7 @@
 
 <ModalBase
 	bind:open
+	animateResize
 	title={t("createInstance.title")}
 	width={tab === "modrinth" ? "800px" : "700px"}
 	onclose={reset}

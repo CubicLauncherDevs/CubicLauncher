@@ -460,6 +460,7 @@
 		"nameLabel": "Nombre de la Instancia",
 		"namePlaceholder": "Ej. Mi instancia",
 		"versionLabel": "Versión",
+		"detailsTitle": "Detalles",
 		"iconLabel": "Logo de la Instancia",
 		"noVersionsErr": "No hay versiones descargadas",
 		"cancel": "Cancelar",
