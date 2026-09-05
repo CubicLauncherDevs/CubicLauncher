@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onDestroy } from "svelte";
 	import { t } from "$lib/i18n";
 	import Icon from "$lib/icons/Icon.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
@@ -93,30 +92,12 @@
 	} = $props();
 
 	let sentinelEl: HTMLDivElement | undefined = $state();
-	let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-	function clearSearchDebounce() {
-		if (searchDebounceTimer) {
-			clearTimeout(searchDebounceTimer);
-			searchDebounceTimer = null;
-		}
-	}
-
-	function queueSearch(delayMs = 350) {
-		clearSearchDebounce();
-		searchDebounceTimer = setTimeout(() => {
-			searchDebounceTimer = null;
-			handleSearch();
-		}, delayMs);
-	}
 
 	function handleSearch() {
-		clearSearchDebounce();
 		onSearch?.();
 	}
 
 	function handleFilterChange() {
-		clearSearchDebounce();
 		onFilterChange?.();
 	}
 
@@ -157,10 +138,6 @@
 		observer.observe(el);
 		return () => observer.disconnect();
 	});
-
-	onDestroy(() => {
-		clearSearchDebounce();
-	});
 </script>
 
 <div class="modpack-browser">
@@ -170,9 +147,7 @@
 			class="search-input"
 			bind:value={query}
 			placeholder={searchPlaceholder}
-			oninput={() => queueSearch()}
 			onkeydown={(e) => e.key === "Enter" && handleSearch()}
-			disabled={searching}
 		/>
 		<button
 			type="button"
