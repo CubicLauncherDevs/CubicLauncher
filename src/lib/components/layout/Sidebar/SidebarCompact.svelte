@@ -506,29 +506,6 @@
 		box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.08);
 	}
 
-	.sc-instance-icon {
-		width: 30px;
-		height: 30px;
-		background: rgba(var(--surface-rgb), 0.04);
-		border: 1px solid var(--border);
-		border-radius: 8px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 0.8rem;
-		font-weight: 600;
-		flex-shrink: 0;
-		color: var(--text-primary);
-		overflow: hidden;
-	}
-
-	.sc-instance-icon img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		display: block;
-	}
-
 	.sc-instance-running {
 		position: absolute;
 		bottom: 3px;
