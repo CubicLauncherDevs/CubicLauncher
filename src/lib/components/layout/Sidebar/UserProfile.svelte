@@ -25,6 +25,8 @@
 	<div class="user-avatar-wrapper">
 		{#if avatarSvg}
 			{@html avatarSvg}
+		{:else}
+			<img src="/images/cubic.svg" alt={username} />
 		{/if}
 	</div>
 	<div class="user-info">
@@ -44,14 +46,15 @@
 		border-radius: var(--border-radius-sm);
 		border: 1px solid var(--border);
 		flex-shrink: 0;
-		background: var(--cubic-logo) center/60% no-repeat;
+		background-color: var(--bg-card);
 		overflow: hidden;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 	}
 
-	.user-avatar-wrapper :global(svg) {
+	.user-avatar-wrapper :global(svg),
+	.user-avatar-wrapper :global(img) {
 		width: 100%;
 		height: 100%;
 		display: block;

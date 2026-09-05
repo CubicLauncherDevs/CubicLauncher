@@ -239,6 +239,8 @@
 						<div class="hero-avatar">
 							{#if selectedAvatarSvg}
 								{@html selectedAvatarSvg}
+							{:else}
+								<img src="/images/cubic.svg" alt={selectedUser?.username} />
 							{/if}
 						</div>
 						<div class="hero-meta">
@@ -542,7 +544,6 @@
 		height: 64px;
 		border-radius: var(--border-radius);
 		border: 2px solid var(--bg-main);
-		background: var(--cubic-logo) center/50% no-repeat;
 		background-color: var(--bg-card);
 		overflow: hidden;
 		display: flex;
@@ -551,7 +552,8 @@
 		flex-shrink: 0;
 	}
 
-	.hero-avatar :global(svg) {
+	.hero-avatar :global(svg),
+	.hero-avatar :global(img) {
 		width: 100%;
 		height: 100%;
 		display: block;

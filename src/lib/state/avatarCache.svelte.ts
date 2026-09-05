@@ -1,6 +1,5 @@
 import { SvelteMap } from "svelte/reactivity";
 import { getAvatarSvg } from "$lib/api/cubicApi";
-import cubicLogoSvg from "../../../static/images/cubic.svg?raw";
 
 interface CacheEntry {
 	svg: string;
@@ -82,7 +81,7 @@ export function buildAvatarUrl(
 	return `https://skins.cubiclauncher.org/api/${endpoint}/head/${username}?t=${version}${serverParam}`;
 }
 
-export const DEFAULT_AVATAR_SVG = cubicLogoSvg.replace(/<\?xml[^?]*\?>/i, "");
+export const DEFAULT_AVATAR_SVG = "";
 
 export async function fetchAvatarSvg(
 	uuid: string,
