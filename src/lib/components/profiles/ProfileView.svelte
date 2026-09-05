@@ -5,7 +5,7 @@
 		DEFAULT_AVATAR_SVG,
 	} from "$lib/state/avatarCache.svelte";
 	import { SvelteMap } from "svelte/reactivity";
-	import { fade, fly } from "svelte/transition";
+	import { fly } from "svelte/transition";
 	import { animDuration } from "$lib/utils/animations";
 	import {
 		saveSettings,

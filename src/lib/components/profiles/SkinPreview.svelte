@@ -20,7 +20,6 @@
 		skinUrl,
 		capeUrl,
 		model,
-		variant,
 		draggingPng,
 		dropTargetActive,
 		onDragEnter,
