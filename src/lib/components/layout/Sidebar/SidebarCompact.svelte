@@ -248,22 +248,18 @@
 								onblur={hideTooltip}
 								onclick={() => selectInstance(instance)}
 							>
-								<div class="sc-instance-icon">
-									{#if instance.icon}
-										<img
-											src={getDisplayIconSrc(
-												instance.icon,
-											)}
-											alt={instance.name}
-											loading="lazy"
-											decoding="async"
-											width="20"
-											height="20"
-										/>
-									{:else}
-										{instance.name.charAt(0).toUpperCase()}
-									{/if}
-								</div>
+								{#if instance.icon}
+									<img
+										src={getDisplayIconSrc(instance.icon)}
+										alt={instance.name}
+										loading="lazy"
+										decoding="async"
+										width="32"
+										height="32"
+									/>
+								{:else}
+									{instance.name.charAt(0).toUpperCase()}
+								{/if}
 								{#if instance.status === "started"}
 									<span
 										class="sc-instance-running"
