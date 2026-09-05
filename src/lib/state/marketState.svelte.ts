@@ -145,6 +145,7 @@ export function createMarketState(
 	let searchGen = 0;
 	let localSearchGen = 0;
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
+	let pendingLocalRename: { from: string; to: string } | null = null;
 
 	const selectedProject = $derived<MarketProject | null>(
 		items.find((i) => i.id === selectedId) ?? null,
@@ -191,6 +192,7 @@ export function createMarketState(
 		filters.localSource = "all";
 		resetPagination();
 		selectedId = null;
+		pendingLocalRename = null;
 		overrideVersionId = null;
 		detail.fullProject = undefined;
 		detail.curseforgeDescription = "";
@@ -235,31 +237,6 @@ export function createMarketState(
 		}
 	}
 
-	function isSameProject(
-		item: MarketProject,
-		project: MarketProject,
-	): boolean {
-		if (item.id === project.id) return true;
-
-		const modrinthId = project.modrinthProjectId;
-		if (modrinthId != null && item.modrinthProjectId === modrinthId)
-			return true;
-
-		const curseId = project.curseforgeProjectId;
-		if (curseId != null && item.curseforgeProjectId === curseId)
-			return true;
-
-		const filename = project.installed?.filename;
-		if (
-			filename != null &&
-			filename !== "" &&
-			item.installed?.filename === filename
-		)
-			return true;
-
-		return false;
-	}
-
 	function toggleDisabledSuffix(filename: string, enabled: boolean): string {
 		if (enabled) {
 			return filename.replace(/\.disabled$/i, "");
@@ -267,17 +244,6 @@ export function createMarketState(
 		return /\.disabled$/i.test(filename)
 			? filename
 			: `${filename}.disabled`;
-	}
-
-	function patchRawLocalItem(project: MarketProject) {
-		if (!project.installed) return;
-		const idx = rawLocalItems.findIndex((i) => i.id === project.id);
-		if (idx !== -1) rawLocalItems[idx] = project;
-	}
-
-	function removeRawLocalItem(project: MarketProject) {
-		const idx = rawLocalItems.findIndex((i) => i.id === project.id);
-		if (idx !== -1) rawLocalItems.splice(idx, 1);
 	}
 
 	function setLocalItems(sorted: MarketProject[], merge = false) {
@@ -321,9 +287,8 @@ export function createMarketState(
 	async function scanLocalItems(silent = false) {
 		if (!silent) {
 			loadingLocal = true;
-			localSearchGen++;
 		}
-		const gen = localSearchGen;
+		const gen = ++localSearchGen;
 		error = null;
 
 		try {
@@ -334,6 +299,18 @@ export function createMarketState(
 			if (gen !== localSearchGen) return;
 
 			rawLocalItems = mapped;
+			// Reconcile against the winning scan, even if enrichment superseded a toggle's scan.
+			if (pendingLocalRename) {
+				const { from, to } = pendingLocalRename;
+				if (
+					selectedId === from &&
+					!mapped.some((item) => item.id === from) &&
+					mapped.some((item) => item.id === to)
+				) {
+					selectedId = to;
+				}
+				pendingLocalRename = null;
+			}
 			localModsById.clear();
 			for (const item of mapped) {
 				const id = item.installed?.project_id;
@@ -350,7 +327,7 @@ export function createMarketState(
 				error = String(e ?? "Error loading local items");
 			}
 		} finally {
-			if (!silent && gen === localSearchGen) {
+			if (gen === localSearchGen) {
 				loadingLocal = false;
 			}
 		}
@@ -414,10 +391,14 @@ export function createMarketState(
 			offset = items.length;
 			hasMore = items.length < result.total_hits;
 		} catch (e) {
-			error = String(e ?? "Error searching Modrinth");
+			if (gen === searchGen) {
+				error = String(e ?? "Error searching Modrinth");
+			}
 		} finally {
-			loadingRemote = false;
-			loadingMore = false;
+			if (gen === searchGen) {
+				loadingRemote = false;
+				loadingMore = false;
+			}
 		}
 	}
 
@@ -480,10 +461,14 @@ export function createMarketState(
 			offset = items.length;
 			hasMore = items.length < result.pagination.totalCount;
 		} catch (e) {
-			error = String(e ?? "Error searching CurseForge");
+			if (gen === searchGen) {
+				error = String(e ?? "Error searching CurseForge");
+			}
 		} finally {
-			loadingRemote = false;
-			loadingMore = false;
+			if (gen === searchGen) {
+				loadingRemote = false;
+				loadingMore = false;
+			}
 		}
 	}
 
@@ -501,6 +486,7 @@ export function createMarketState(
 	function debouncedSearch(reset = true) {
 		clearTimeout(searchTimer);
 		searchTimer = setTimeout(() => {
+			searchTimer = undefined;
 			performSearch(reset);
 		}, 250);
 	}
@@ -584,6 +570,7 @@ export function createMarketState(
 	}
 
 	function selectProject(id: string | null) {
+		pendingLocalRename = null;
 		selectedId = id;
 		if (selectedProject) {
 			loadDetail(selectedProject);
@@ -685,33 +672,19 @@ export function createMarketState(
 			return;
 		}
 		if (!project.installed) return;
+		const filename = project.installed.filename;
 		try {
-			await deleteInstanceFile(
-				instance.uuid,
-				subDir,
-				project.installed.filename,
-			);
-			// Remove installed state from all matching items
-			for (const item of items) {
-				if (isSameProject(item, project)) {
-					item.installed = undefined;
-					item.installedVersion = undefined;
-					item.modrinthVersionId = undefined;
-					item.modrinthProjectId = undefined;
-					item.curseforgeVersionId = undefined;
-					item.curseforgeProjectId = undefined;
-				}
+			await deleteInstanceFile(instance.uuid, subDir, filename);
+			// Refresh by file; another version of this project may still be installed.
+			await scanLocalItems(true);
+			if (
+				selectedId === project.id &&
+				!rawLocalItems.some(
+					(item) => item.installed?.filename === filename,
+				)
+			) {
+				selectProject(null);
 			}
-			if (filters.source === "local") {
-				const installedId =
-					project.modrinthProjectId ?? project.curseforgeProjectId;
-				if (installedId) localModsById.delete(installedId);
-				removeRawLocalItem(project);
-				const idx = items.findIndex((i) => i.id === project.id);
-				if (idx !== -1) items.splice(idx, 1);
-				total = items.length;
-			}
-			selectProject(null);
 		} catch (e) {
 			console.error(e);
 		}
@@ -724,26 +697,22 @@ export function createMarketState(
 		}
 		if (!project.installed || !isModContent) return;
 		const newEnabled = !project.installed.enabled;
+		const filename = project.installed.filename;
 		try {
-			await toggleInstanceMod(
-				instance.uuid,
-				project.installed.filename,
-				newEnabled,
-			);
-			// Update enabled state and filename in all matching items
-			for (const item of items) {
-				if (item.installed && isSameProject(item, project)) {
-					item.installed.enabled = newEnabled;
-					item.installed.filename = toggleDisabledSuffix(
-						item.installed.filename,
-						newEnabled,
-					);
-					item.disabled = !newEnabled;
-				}
+			await toggleInstanceMod(instance.uuid, filename, newEnabled);
+			if (filters.source === "local" && selectedId === project.id) {
+				pendingLocalRename = {
+					from: project.id,
+					to: `local-${toggleDisabledSuffix(filename, newEnabled)}`,
+				};
 			}
-			patchRawLocalItem(project);
-			if (selectedId && filters.source !== "local") {
-				await loadDetail(project);
+			await scanLocalItems(true);
+			if (
+				selectedId === project.id &&
+				filters.source !== "local" &&
+				selectedProject
+			) {
+				await loadDetail(selectedProject);
 			}
 		} catch (e) {
 			console.error(e);
@@ -753,6 +722,7 @@ export function createMarketState(
 	function loadMore() {
 		if (
 			filters.source !== "local" &&
+			searchTimer === undefined &&
 			hasMore &&
 			!loadingRemote &&
 			!loadingMore
@@ -763,10 +733,17 @@ export function createMarketState(
 
 	function setSource(source: MarketSource) {
 		if (source === "curseforge" && !isModContent) return;
+		// Invalidate in-flight pages before changing the list's source.
+		searchGen++;
+		loadingRemote = false;
+		loadingMore = false;
+		error = null;
+		resetPagination();
 		filters.source = source;
-		selectedId = null;
+		selectProject(null);
 		clearTimeout(searchTimer);
 		searchTimer = setTimeout(async () => {
+			searchTimer = undefined;
 			if (source === "local") {
 				if (rawLocalItems.length === 0) {
 					await scanLocalItems();
@@ -827,6 +804,7 @@ export function createMarketState(
 	);
 
 	function destroy() {
+		pendingLocalRename = null;
 		searchGen++;
 		localSearchGen++;
 		clearTimeout(searchTimer);

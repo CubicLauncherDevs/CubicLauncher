@@ -149,7 +149,7 @@ export function localModToMarket(mod: ModDto): MarketProject {
 	const source: MarketSource = (mod.source as MarketSource) ?? "local";
 
 	return {
-		id: mod.project_id ?? `local-${mod.filename}`,
+		id: `local-${mod.filename}`,
 		title: mod.name,
 		description: mod.description ?? "",
 		author: mod.authors?.join(", ") ?? "",
@@ -170,7 +170,9 @@ export function localModToMarket(mod: ModDto): MarketProject {
 }
 
 export function getMarketProjectId(project: MarketProject): string {
-	return project.modrinthProjectId ?? project.id;
+	return (
+		project.modrinthProjectId ?? project.curseforgeProjectId ?? project.id
+	);
 }
 
 export function isMarketProjectInstalled(project: MarketProject): boolean {
