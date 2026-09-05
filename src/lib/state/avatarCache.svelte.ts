@@ -2,6 +2,7 @@ import { SvelteMap } from "svelte/reactivity";
 import { getAvatarSvg } from "$lib/api/cubicApi";
 
 interface CacheEntry {
+	// Render SVGs as <img> data URLs, never as inline HTML from the fallback service.
 	svg: string;
 	fetchedAt: number;
 }
@@ -78,7 +79,7 @@ export function buildAvatarUrl(
 		user_type === "Yggdrasil" && serverUrl
 			? `&server=${encodeURIComponent(serverUrl)}`
 			: "";
-	return `https://skins.cubiclauncher.org/api/${endpoint}/head/${username}?t=${version}${serverParam}`;
+	return `https://skins.cubiclauncher.org/api/${endpoint}/head/${encodeURIComponent(username)}?t=${version}${serverParam}`;
 }
 
 export const DEFAULT_AVATAR_SVG = "";
@@ -113,6 +114,7 @@ export async function fetchAvatarSvg(
 		);
 		try {
 			const res = await fetch(fallbackUrl);
+			if (!res.ok) return cached?.svg ?? DEFAULT_AVATAR_SVG;
 			const svg = await res.text();
 			setAvatarFor(uuid, version, svg);
 			return svg;

@@ -238,7 +238,10 @@
 					<div class="hero-identity">
 						<div class="hero-avatar">
 							{#if selectedAvatarSvg}
-								{@html selectedAvatarSvg}
+								<img
+									src={`data:image/svg+xml,${encodeURIComponent(selectedAvatarSvg)}`}
+									alt={selectedUser.username}
+								/>
 							{:else}
 								<img
 									src="/images/cubic.svg"

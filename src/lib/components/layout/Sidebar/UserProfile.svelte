@@ -24,7 +24,10 @@
 >
 	<div class="user-avatar-wrapper">
 		{#if avatarSvg}
-			{@html avatarSvg}
+			<img
+				src={`data:image/svg+xml,${encodeURIComponent(avatarSvg)}`}
+				alt={username}
+			/>
 		{:else}
 			<img src="/images/cubic.svg" alt={username} />
 		{/if}

@@ -3,7 +3,7 @@ use crate::core::http_client::HTTP;
 use crate::services::SettingsManager;
 use base64::Engine as _;
 use base64::engine::general_purpose;
-use image::{ImageBuffer, Rgba};
+use image::{ImageBuffer, ImageDecoder, Rgba};
 use launchwerk::auth::AccountType;
 use reqwest::StatusCode;
 use serde::Deserialize;
@@ -11,6 +11,11 @@ use std::io::Cursor;
 use tracing::{error, info};
 
 const DEFAULT_AVATAR_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#8a8a8a"/><circle cx="32" cy="24" r="10" fill="#c2c2c2"/><ellipse cx="32" cy="52" rx="18" ry="12" fill="#c2c2c2"/></svg>"##;
+
+// Support up to 16x HD skins, with bounded transfer and PNG decoding memory.
+const MAX_SKIN_DIMENSION: u32 = 1024;
+const MAX_SKIN_BYTES: usize = 8 * 1024 * 1024;
+const MAX_SKIN_DECODE_BYTES: u64 = 16 * 1024 * 1024;
 
 #[tauri::command]
 pub async fn get_avatar_svg(uuid: String) -> Result<String, String> {
@@ -145,7 +150,7 @@ async fn render_yggdrasil_avatar(uuid: &str, server_url: &str) -> Result<String,
 }
 
 async fn render_head_svg(skin_url: &str) -> Result<String, String> {
-    let response = HTTP
+    let mut response = HTTP
         .get(skin_url)
         .send()
         .await
@@ -158,19 +163,51 @@ async fn render_head_svg(skin_url: &str) -> Result<String, String> {
         ));
     }
 
-    let bytes = response
-        .bytes()
+    if response
+        .content_length()
+        .is_some_and(|len| len > MAX_SKIN_BYTES as u64)
+    {
+        return Err("La descarga de skin supera el limite de 8 MiB".to_string());
+    }
+
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
         .await
-        .map_err(|e| format!("Error leyendo skin: {}", e))?;
+        .map_err(|e| format!("Error leyendo skin: {}", e))?
+    {
+        // Enforce the cap even when Content-Length is absent or inaccurate.
+        if chunk.len() > MAX_SKIN_BYTES - bytes.len() {
+            return Err("La descarga de skin supera el limite de 8 MiB".to_string());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
 
-    let img = image::load_from_memory(&bytes)
-        .map_err(|e| format!("Error decodificando imagen de skin: {}", e))?
-        .to_rgba8();
+    skin_bytes_to_svg(&bytes)
+}
 
-    let (width, _height) = (img.width(), img.height());
-    if width == 0 || width % 64 != 0 {
+fn skin_bytes_to_svg(bytes: &[u8]) -> Result<String, String> {
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(MAX_SKIN_DIMENSION);
+    limits.max_image_height = Some(MAX_SKIN_DIMENSION);
+    limits.max_alloc = Some(MAX_SKIN_DECODE_BYTES);
+    let mut decoder =
+        image::codecs::png::PngDecoder::with_limits(Cursor::new(bytes), limits.clone())
+            .map_err(|e| format!("Error decodificando imagen de skin: {}", e))?;
+
+    let (width, height) = decoder.dimensions();
+    // Modern skins are square; legacy skins have half the width as their height.
+    if width == 0 || width % 64 != 0 || (height != width && height != width / 2) {
         return Err("La imagen de skin tiene dimensiones inesperadas".to_string());
     }
+
+    limits
+        .reserve(decoder.total_bytes())
+        .and_then(|()| decoder.set_limits(limits))
+        .map_err(|e| format!("Error limitando imagen de skin: {}", e))?;
+    let img = image::DynamicImage::from_decoder(decoder)
+        .map_err(|e| format!("Error decodificando imagen de skin: {}", e))?
+        .to_rgba8();
 
     let scale = width / 64;
     let head_size = 8 * scale;
@@ -213,4 +250,77 @@ async fn render_head_svg(skin_url: &str) -> Result<String, String> {
         size = output_size,
         b64 = b64
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn skin_png(width: u32, height: u32) -> Vec<u8> {
+        let mut skin = ImageBuffer::<Rgba<u8>, Vec<u8>>::new(width, height);
+        let scale = width / 64;
+        if scale > 0 && height >= 16 * scale {
+            for y in 8 * scale..16 * scale {
+                for x in 8 * scale..16 * scale {
+                    skin.put_pixel(x, y, Rgba([10, 20, 30, 255]));
+                }
+            }
+            skin.put_pixel(40 * scale, 8 * scale, Rgba([40, 50, 60, 255]));
+        }
+        let mut png = Cursor::new(Vec::new());
+        skin.write_to(&mut png, image::ImageFormat::Png).unwrap();
+        png.into_inner()
+    }
+
+    #[test]
+    fn renders_legacy_and_modern_hd_skins() {
+        for width in [64, 128, MAX_SKIN_DIMENSION] {
+            for height in [width / 2, width] {
+                let svg = skin_bytes_to_svg(&skin_png(width, height)).unwrap();
+                assert!(svg.starts_with("<svg "));
+                assert!(svg.contains("viewBox=\"0 0 128 128\""));
+                let b64 = svg
+                    .split("data:image/png;base64,")
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap();
+                let png = general_purpose::STANDARD.decode(b64).unwrap();
+                let avatar = image::load_from_memory(&png).unwrap().to_rgba8();
+                assert_eq!(avatar.dimensions(), (128, 128));
+                assert_eq!(*avatar.get_pixel(0, 0), Rgba([40, 50, 60, 255]));
+                assert_eq!(*avatar.get_pixel(127, 127), Rgba([10, 20, 30, 255]));
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_short_and_invalid_skin_dimensions() {
+        for (width, height) in [
+            (64, 1),
+            (64, 15),
+            (128, 31),
+            (64, 48),
+            (64, 128),
+            (32, 32),
+            (65, 65),
+        ] {
+            assert_eq!(
+                skin_bytes_to_svg(&skin_png(width, height)).unwrap_err(),
+                "La imagen de skin tiene dimensiones inesperadas",
+                "{width}x{height}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_oversized_skin_dimensions() {
+        for (width, height) in [(1088, 544), (1088, 1088), (64, 1025)] {
+            assert!(
+                skin_bytes_to_svg(&skin_png(width, height)).is_err(),
+                "{width}x{height}"
+            );
+        }
+    }
 }

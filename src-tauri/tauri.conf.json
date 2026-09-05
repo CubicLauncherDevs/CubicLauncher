@@ -21,22 +21,28 @@
 			}
 		],
 		"security": {
-			"dangerousDisableAssetCspModification": true,
+			"dangerousDisableAssetCspModification": ["style-src"],
 			"csp": {
-				"default-src": "'self' tauri: http://localhost:* https://tauri.localhost",
-				"img-src": "'self' asset: http://asset.localhost https: http://textures.minecraft.net blob: data: http://localhost:*",
-				"style-src": "'self' 'unsafe-inline' blob: http://localhost:* https://tauri.localhost",
-				"font-src": "'self' asset: https: https://asset.localhost http://asset.localhost http://localhost:*",
-				"script-src": "'self' 'unsafe-inline' http://localhost:*",
-				"connect-src": "'self' tauri://localhost ipc://localhost http://ipc.localhost http://localhost:* https://tauri.localhost https://i18n.cubiclauncher.org https://skins.cubiclauncher.org https://api.modrinth.com https://api.curseforge.com"
+				"default-src": "'self' tauri: https://tauri.localhost",
+				"base-uri": "'self'",
+				"object-src": "'none'",
+				"img-src": "'self' asset: http://asset.localhost https: http://textures.minecraft.net blob: data:",
+				"style-src": "'self' 'unsafe-inline' blob: https://tauri.localhost",
+				"font-src": "'self' asset: https: http://asset.localhost",
+				"script-src": "'self'",
+				"script-src-attr": "'none'",
+				"connect-src": "'self' tauri://localhost ipc://localhost http://ipc.localhost https://tauri.localhost https://i18n.cubiclauncher.org https://skins.cubiclauncher.org"
 			},
 			"devCsp": {
 				"default-src": "'self' tauri: http://localhost:* https://tauri.localhost",
+				"base-uri": "'self'",
+				"object-src": "'none'",
 				"img-src": "'self' asset: http://asset.localhost https: http://textures.minecraft.net blob: data: http://localhost:*",
 				"style-src": "'self' 'unsafe-inline' blob: http://localhost:* https://tauri.localhost",
 				"font-src": "'self' asset: https: https://asset.localhost http://asset.localhost http://localhost:*",
 				"script-src": "'self' 'unsafe-inline' http://localhost:*",
-				"connect-src": "'self' tauri://localhost ipc://localhost http://ipc.localhost http://localhost:* https://tauri.localhost https://i18n.cubiclauncher.org https://skins.cubiclauncher.org https://api.modrinth.com https://api.curseforge.com"
+				"script-src-attr": "'none'",
+				"connect-src": "'self' tauri://localhost ipc://localhost http://ipc.localhost http://localhost:* ws://localhost:* https://tauri.localhost https://i18n.cubiclauncher.org https://skins.cubiclauncher.org"
 			},
 			"assetProtocol": {
 				"enable": true,

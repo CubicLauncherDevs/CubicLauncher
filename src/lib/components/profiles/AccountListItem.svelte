@@ -38,7 +38,10 @@
 >
 	<div class="account-avatar">
 		{#if avatarSvg}
-			{@html avatarSvg}
+			<img
+				src={`data:image/svg+xml,${encodeURIComponent(avatarSvg)}`}
+				alt={user.username}
+			/>
 		{:else}
 			<img src="/images/cubic.svg" alt={user.username} />
 		{/if}

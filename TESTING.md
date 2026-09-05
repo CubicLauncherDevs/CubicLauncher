@@ -27,6 +27,18 @@ bun run tauri build
 
 ## Flujos manuales a verificar
 
+### CSP y avatares
+
+- Ejecutar `cargo test -p cubiclauncher --lib commands::avatar::tests` para validar skins modernas, legacy, HD y dimensiones invalidas.
+- Compilar con `bun run tauri build --debug --no-bundle` y abrir el ejecutable generado. Vite por si solo no comprueba los hashes CSP que inyecta Tauri.
+- En DevTools, comprobar que el arranque de SvelteKit funciona sin bloqueos de `script-src` y que la politica de produccion no permite scripts inline arbitrarios ni `http://localhost:*`.
+- Verificar avatar Microsoft, Yggdrasil y offline en ambas barras laterales, lista de cuentas y cabecera del perfil. Forzar un fallo del comando `get_avatar_svg` para comprobar el fallback HTTP y una respuesta de error del fallback para comprobar el avatar en cache/predeterminado.
+- Confirmar que los avatares se renderizan como `<img src="data:image/svg+xml,...">`, no como SVG insertado con `{@html}`. Los scripts y recursos externos del SVG no deben ejecutarse/cargarse en este contexto; los PNG embebidos deben seguir visibles.
+- Cambiar temas, incluidas fuentes locales y CSS personalizado, y revisar skins/capas 3D, capturas, traducciones e imagenes del marketplace sin nuevas violaciones CSP.
+- Ejecutar `bun run tauri dev` y comprobar la conexion WebSocket de HMR tras editar un componente.
+
+`dangerousDisableAssetCspModification` excluye solo `style-src`: los temas crean estilos inline dinamicos. Inyectar hashes/nonces en esa directiva haria que el navegador ignorase `'unsafe-inline'` y bloqueara esos estilos. La modificacion automatica de `script-src` permanece activa.
+
 ### Instancias
 
 - [ ] Crear instancia Vanilla y lanzarla.
