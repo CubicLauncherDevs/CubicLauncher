@@ -9,6 +9,7 @@ Lista de verificaciones para correr antes de mergear una PR o antes de lanzar un
 bun install
 bun run lint
 bun run check
+bun test
 bun run build
 
 # Rust
@@ -59,6 +60,9 @@ bun run tauri build
 - [ ] Agregar mods al basket y descargarlos.
 - [ ] Verificar que aparezcan en la pestaña "Mods" de la instancia.
 - [ ] Repetir para Resource Packs y Shaders si aplica.
+- [ ] En Local, mostrar dos archivos del mismo proyecto y seleccionar cada uno sin errores de claves duplicadas. Eliminar uno debe conservar el otro y sus metadatos.
+- [ ] Activar/desactivar un mod con otra version instalada: solo debe renombrarse el archivo seleccionado, conservando la seleccion tras el refresco.
+- [ ] Cambiar de Modrinth/CurseForge a Local con una peticion pendiente: la respuesta tardia no debe reemplazar ni mezclarse con los archivos locales.
 
 ### Autenticación
 
