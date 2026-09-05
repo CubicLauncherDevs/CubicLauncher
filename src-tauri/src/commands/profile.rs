@@ -102,10 +102,10 @@ impl ProfileCache {
         loop {
             let in_flight_notify = {
                 let state = self.state.lock().await;
-                if let Some(entry) = state.entries.get(&uuid) {
-                    if entry.fetched_at.elapsed() < Self::TTL {
-                        return entry.profile.clone();
-                    }
+                if let Some(entry) = state.entries.get(&uuid)
+                    && entry.fetched_at.elapsed() < Self::TTL
+                {
+                    return entry.profile.clone();
                 }
                 state.in_flight.get(&uuid).cloned()
             };
@@ -117,10 +117,10 @@ impl ProfileCache {
 
             let our_notify = {
                 let mut state = self.state.lock().await;
-                if let Some(entry) = state.entries.get(&uuid) {
-                    if entry.fetched_at.elapsed() < Self::TTL {
-                        return entry.profile.clone();
-                    }
+                if let Some(entry) = state.entries.get(&uuid)
+                    && entry.fetched_at.elapsed() < Self::TTL
+                {
+                    return entry.profile.clone();
                 }
                 if state.in_flight.contains_key(&uuid) {
                     continue;
@@ -292,7 +292,8 @@ pub(crate) async fn get_minecraft_profile_impl(
             info!("Obteniendo perfil de Minecraft Services para {}", uuid);
 
             let (status, body) =
-                send_msa_request(&uuid, |token| HTTP.get(MSA_PROFILE_URL).bearer_auth(token)).await?;
+                send_msa_request(&uuid, |token| HTTP.get(MSA_PROFILE_URL).bearer_auth(token))
+                    .await?;
 
             if !status.is_success() {
                 error!("Error obteniendo perfil: HTTP {}", status);
