@@ -240,7 +240,10 @@
 							{#if selectedAvatarSvg}
 								{@html selectedAvatarSvg}
 							{:else}
-								<img src="/images/cubic.svg" alt={selectedUser?.username} />
+								<img
+									src="/images/cubic.svg"
+									alt={selectedUser?.username}
+								/>
 							{/if}
 						</div>
 						<div class="hero-meta">
