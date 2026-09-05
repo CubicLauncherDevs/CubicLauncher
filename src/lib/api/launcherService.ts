@@ -83,10 +83,43 @@ export function getActiveUser(): MinecraftUser | null {
 	return null;
 }
 
+/** Debounce "trailing" con límite máximo de espera (`maxWait`).
+ *  Ejecuta `fn` después de `wait` ms de silencio, pero forzará la ejecución
+ *  si transcurren `maxWait` ms desde el primer disparo. Incluye `cancel()`. */
+function createDebounce(fn: () => void, wait: number, maxWait: number) {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	let maxTimer: ReturnType<typeof setTimeout> | undefined;
+
+	const clearAll = () => {
+		clearTimeout(timer);
+		clearTimeout(maxTimer);
+		timer = undefined;
+		maxTimer = undefined;
+	};
+
+	const run = () => {
+		clearTimeout(timer);
+		timer = setTimeout(() => {
+			clearAll();
+			fn();
+		}, wait);
+
+		if (!maxTimer) {
+			maxTimer = setTimeout(() => {
+				clearAll();
+				fn();
+			}, maxWait);
+		}
+	};
+
+	run.cancel = clearAll;
+	return run;
+}
+
 let _listenerInitialized = false;
 let _unlistenAppEvent: Promise<UnlistenFn> | null = null;
-let _instanceTimer: ReturnType<typeof setTimeout>;
-let _settingsTimer: ReturnType<typeof setTimeout>;
+const _debouncedGetVersions = createDebounce(getVersions, 80, 300);
+const _debouncedSyncSettings = createDebounce(syncSettings, 60, 250);
 let _localSettingsChange = false;
 
 export function markLocalSettingsChange(): void {
@@ -109,12 +142,12 @@ export function initEventListeners(): void {
 				sortInstances(launcherStore.loadedInstances);
 				break;
 			case "InstanceEdited": {
-				clearTimeout(_instanceTimer);
 				const dto = payload.data.dto;
 				if (dto) {
+					_debouncedGetVersions.cancel();
 					updateInstanceInStore(dto);
 				} else {
-					_instanceTimer = setTimeout(() => getVersions(), 100);
+					_debouncedGetVersions();
 				}
 				break;
 			}
@@ -149,8 +182,7 @@ export function initEventListeners(): void {
 				break;
 			}
 			case "STChanged":
-				clearTimeout(_settingsTimer);
-				_settingsTimer = setTimeout(() => syncSettings(), 80);
+				_debouncedSyncSettings();
 				break;
 			case "ThemeChanged":
 				if (payload.data.id === launcherStore.settings.theme) {
@@ -177,8 +209,8 @@ export function initEventListeners(): void {
 
 /** Libera event listeners y timers — llamar en onDestroy */
 export function destroyEventListeners(): void {
-	clearTimeout(_instanceTimer);
-	clearTimeout(_settingsTimer);
+	_debouncedGetVersions.cancel();
+	_debouncedSyncSettings.cancel();
 	if (_unlistenAppEvent) {
 		_unlistenAppEvent.then((u) => u()).catch(() => {});
 		_unlistenAppEvent = null;

@@ -4,7 +4,7 @@ import DOMPurify, { type Config } from "dompurify";
 const sanitizer = DOMPurify;
 
 const DEFAULT_MAX_SOURCE_LENGTH = 120_000;
-const CACHE_MAX_SIZE = 50;
+const CACHE_MAX_SIZE = 18;
 
 interface RenderOptions {
 	baseUrl?: string;

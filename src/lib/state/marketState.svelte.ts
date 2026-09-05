@@ -45,6 +45,7 @@ import { showWarning } from "$lib/state/state.svelte";
 import { t } from "$lib/i18n";
 
 const PAGE_SIZE = 20;
+const MAX_MARKET_ITEMS = 300;
 
 export type MarketSource = "local" | "modrinth" | "curseforge";
 
@@ -406,6 +407,9 @@ export function createMarketState(
 				items.length = 0;
 			}
 			items.push(...mapped);
+			if (items.length > MAX_MARKET_ITEMS) {
+				items.splice(0, items.length - MAX_MARKET_ITEMS);
+			}
 			total = result.total_hits;
 			offset = items.length;
 			hasMore = items.length < result.total_hits;
@@ -469,6 +473,9 @@ export function createMarketState(
 				items.length = 0;
 			}
 			items.push(...mapped);
+			if (items.length > MAX_MARKET_ITEMS) {
+				items.splice(0, items.length - MAX_MARKET_ITEMS);
+			}
 			total = result.pagination.totalCount;
 			offset = items.length;
 			hasMore = items.length < result.pagination.totalCount;
