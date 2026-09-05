@@ -25,9 +25,7 @@
 	onMount(() => {
 		const observer = new IntersectionObserver(
 			(observed) => {
-				if (observed[0]?.isIntersecting) {
-					visible = true;
-				}
+				visible = observed[0]?.isIntersecting ?? false;
 			},
 			{ rootMargin: "80px", threshold: 0 },
 		);
@@ -86,6 +84,7 @@
 				skinUrl={entry.url}
 				model={viewerModel}
 				animated={false}
+				interactive={false}
 			/>
 		{:else}
 			<div class="preview-placeholder"></div>

@@ -8,6 +8,7 @@
 		capeUrl?: string | null;
 		model?: "default" | "slim";
 		animated?: boolean;
+		interactive?: boolean;
 	}
 
 	let {
@@ -15,6 +16,7 @@
 		capeUrl = null,
 		model = "default",
 		animated = true,
+		interactive = true,
 	}: Props = $props();
 
 	let container: HTMLElement;
@@ -23,9 +25,39 @@
 	let error = $state<string | null>(null);
 	let IdleAnimationClass: typeof IdleAnimation | null = null;
 
+	let isIntersecting = $state(true);
+	let isTabVisible = $state(true);
+	let pendingRaf: number | null = null;
+	let isInteracting = false;
+	const isVisible = $derived(isIntersecting && isTabVisible);
+
 	const shouldAnimate = $derived(
 		animated && !launcherStore.settings.disable_skin3d_animations,
 	);
+
+	function scheduleRender() {
+		const v = viewer;
+		if (!v || v.disposed || !v.renderPaused || pendingRaf !== null) return;
+		pendingRaf = requestAnimationFrame(() => {
+			pendingRaf = null;
+			v.render();
+		});
+	}
+
+	function syncRenderPause() {
+		const v = viewer;
+		if (!v || v.disposed) return;
+		const shouldPause = !isVisible || !shouldAnimate;
+		const wasPaused = v.renderPaused;
+		v.renderPaused = shouldPause;
+		if (shouldPause && !wasPaused) {
+			scheduleRender();
+		}
+	}
+
+	function handleVisibilityChange() {
+		isTabVisible = !document.hidden;
+	}
 
 	function bustCache(url: string): string {
 		if (url.startsWith("data:")) return url;
@@ -37,6 +69,9 @@
 		let mounted = true;
 		let resizeObserver: ResizeObserver | null = null;
 		let intersectionObserver: IntersectionObserver | null = null;
+		let controlsStartHandler: (() => void) | null = null;
+		let controlsChangeHandler: (() => void) | null = null;
+		let controlsEndHandler: (() => void) | null = null;
 
 		async function init() {
 			const { Render, IdleAnimation } = await import("skin3d");
@@ -52,37 +87,115 @@
 				height,
 				enableControls: true,
 				zoom: 0.7,
+				enableFXAA: false,
+				maxPixelRatio: 1,
+				pixelRatio: 1,
+				renderPaused: !shouldAnimate,
 			});
 
 			instance.autoRotate = shouldAnimate;
 			instance.animation = shouldAnimate ? new IdleAnimation() : null;
+			if (!interactive) {
+				instance.controls.enabled = false;
+			}
+
+			// Reducir FPS del loop animado a ~30 cuando no hay interacción
+			const instanceAny = instance as unknown as {
+				draw: () => void;
+				animationID: number | null;
+			};
+			const originalDraw = instanceAny.draw.bind(instance);
+			let lastDrawTime = performance.now();
+			const targetFrameInterval = 1000 / 30;
+			instanceAny.draw = function () {
+				const now = performance.now();
+				if (
+					!isInteracting &&
+					now - lastDrawTime < targetFrameInterval
+				) {
+					instanceAny.animationID = requestAnimationFrame(() =>
+						instanceAny.draw(),
+					);
+					return;
+				}
+				lastDrawTime = now;
+				originalDraw();
+			};
+
 			// eslint-disable-next-line svelte/no-dom-manipulating
 			container.appendChild(instance.canvas);
+
+			controlsStartHandler = () => {
+				isInteracting = true;
+				scheduleRender();
+			};
+			controlsChangeHandler = () => scheduleRender();
+			controlsEndHandler = () => {
+				isInteracting = false;
+			};
+			instance.controls.addEventListener("start", controlsStartHandler);
+			instance.controls.addEventListener("change", controlsChangeHandler);
+			instance.controls.addEventListener("end", controlsEndHandler);
 
 			resizeObserver = new ResizeObserver(() => {
 				if (instance && !instance.disposed) {
 					instance.width = container.clientWidth;
 					instance.height = container.clientHeight;
+					if (instance.renderPaused) scheduleRender();
 				}
 			});
 			resizeObserver.observe(container);
 
 			intersectionObserver = new IntersectionObserver((entries) => {
-				if (instance && !instance.disposed) {
-					instance.renderPaused = !entries[0]?.isIntersecting;
-				}
+				isIntersecting = entries[0]?.isIntersecting ?? true;
+				syncRenderPause();
 			});
 			intersectionObserver.observe(container);
 
+			document.addEventListener(
+				"visibilitychange",
+				handleVisibilityChange,
+			);
+			isTabVisible = !document.hidden;
+
 			viewer = instance;
+			syncRenderPause();
 		}
 
 		init();
 
 		return () => {
 			mounted = false;
+			document.removeEventListener(
+				"visibilitychange",
+				handleVisibilityChange,
+			);
+			if (viewer && !viewer.disposed) {
+				if (controlsStartHandler) {
+					viewer.controls.removeEventListener(
+						"start",
+						controlsStartHandler,
+					);
+				}
+				if (controlsChangeHandler) {
+					viewer.controls.removeEventListener(
+						"change",
+						controlsChangeHandler,
+					);
+				}
+				if (controlsEndHandler) {
+					viewer.controls.removeEventListener(
+						"end",
+						controlsEndHandler,
+					);
+				}
+			}
 			resizeObserver?.disconnect();
 			intersectionObserver?.disconnect();
+			if (pendingRaf !== null) {
+				cancelAnimationFrame(pendingRaf);
+				pendingRaf = null;
+			}
 			viewer?.dispose();
 		};
 	});
@@ -96,6 +209,7 @@
 			shouldAnimate && IdleAnimationClass
 				? new IdleAnimationClass()
 				: null;
+		syncRenderPause();
 	});
 
 	$effect(() => {
@@ -122,6 +236,7 @@
 			})
 			.finally(() => {
 				loading = false;
+				scheduleRender();
 			});
 	});
 </script>
