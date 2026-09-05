@@ -119,12 +119,11 @@
 	.ctx-menu {
 		position: fixed;
 		z-index: 9999;
-		min-width: 180px;
-		max-width: 260px;
+		min-width: 140px;
+		max-width: 210px;
 		background: var(--bg-surface, #1e1e1e);
-		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm, 6px);
-		padding: 5px;
+		padding: 0;
 		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 		backdrop-filter: blur(var(--backdrop-blur-dropdown, 4px));
 	}
@@ -134,7 +133,7 @@
 		align-items: center;
 		gap: 8px;
 		width: 100%;
-		padding: 8px 12px;
+		padding: 5px 14px;
 		background: transparent;
 		border: none;
 		color: var(--text-primary);
