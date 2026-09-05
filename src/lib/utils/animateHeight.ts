@@ -39,7 +39,7 @@ export const animateHeight: Action<HTMLElement, number> = (
 
 		animation = node.animate(
 			{ height: [`${from}px`, `${height}px`] },
-			{ duration, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+			{ duration, easing: "cubic-bezier(0.25, 0.8, 0.25, 1)" },
 		);
 		animation.onfinish = () => {
 			animation = null;

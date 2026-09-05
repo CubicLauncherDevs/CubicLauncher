@@ -30,7 +30,7 @@
 
 	const fadeDuration = $derived(animDuration(150));
 	const flyDuration = $derived(animDuration(250));
-	const resizeDuration = $derived(animateResize ? animDuration(220) : 0);
+	const resizeDuration = $derived(animateResize ? animDuration(300) : 0);
 </script>
 
 {#if open}
@@ -104,7 +104,8 @@
 		max-height: 90vh;
 		overflow-y: auto;
 		box-shadow: var(--shadow-lg, 0 20px 40px rgba(0, 0, 0, 0.4));
-		transition: width var(--resize-duration) cubic-bezier(0.22, 1, 0.36, 1);
+		transition: width var(--resize-duration)
+			cubic-bezier(0.25, 0.8, 0.25, 1);
 	}
 
 	.modal.animate-resize {

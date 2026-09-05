@@ -34,11 +34,11 @@ html[data-no-blur] *::after {
 	-webkit-backdrop-filter: none !important;
 }
 
-/* Pause continuous CSS animations (spinners, pulses, etc.) */
+/* Stop repetition without freezing finite entrances at opacity: 0. */
 html[data-no-infinite-animations] *,
 html[data-no-infinite-animations] *::before,
 html[data-no-infinite-animations] *::after {
-	animation-play-state: paused !important;
+	animation-iteration-count: 1 !important;
 }
 
 /* Preserve finite/functional animations (toast timeout, progress bars, etc.) */

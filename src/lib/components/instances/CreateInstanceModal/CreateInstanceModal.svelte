@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { fade } from "svelte/transition";
+	import { MediaQuery } from "svelte/reactivity";
+	import { animDuration } from "$lib/utils/animations";
 	import {
 		createInstance,
 		uploadCustomIcon,
@@ -44,6 +47,10 @@
 	type Tab = "manual" | "modrinth" | "curseforge" | "local";
 	let tab = $state<Tab>("manual");
 	let manualStep = $state(0);
+	const reducedMotion = new MediaQuery("(prefers-reduced-motion: reduce)");
+	const contentDuration = $derived(
+		reducedMotion.current ? 0 : animDuration(180),
+	);
 
 	const TABS: { id: Tab; label: string; iconName: string }[] = [
 		{
@@ -286,69 +293,72 @@
 		{/each}
 	</div>
 
-	<div class="step-content">
-		{#if tab === "modrinth"}
-			<ModrinthModpackBrowser onInstalled={reset} />
-		{:else if tab === "curseforge"}
-			<CurseForgeModpackBrowser onInstalled={reset} />
-		{:else if tab === "local"}
-			<LocalImportStep
-				bind:name
-				onImported={reset}
-				initialMrpackPath={mrpackPath}
-				initialInstanceZipPath={instanceZipPath}
-			/>
-		{:else}
-			<div class="create-layout">
-				<StepIndicator
-					currentStep={manualStep}
-					totalSteps={2}
-					labels={[
-						t("createInstance.stepInfo"),
-						t("createInstance.stepVersion"),
-					]}
+	{#key tab === "manual" ? `${tab}:${manualStep}` : tab}
+		<div class="step-content" in:fade={{ duration: contentDuration }}>
+			{#if tab === "modrinth"}
+				<ModrinthModpackBrowser onInstalled={reset} />
+			{:else if tab === "curseforge"}
+				<CurseForgeModpackBrowser onInstalled={reset} />
+			{:else if tab === "local"}
+				<LocalImportStep
+					bind:name
+					onImported={reset}
+					initialMrpackPath={mrpackPath}
+					initialInstanceZipPath={instanceZipPath}
 				/>
+			{:else}
+				<div class="create-layout">
+					<StepIndicator
+						currentStep={manualStep}
+						totalSteps={2}
+						labels={[
+							t("createInstance.stepInfo"),
+							t("createInstance.stepVersion"),
+						]}
+					/>
 
-				{#if manualStep === 0}
-					<div class="create-header">
-						<IconPicker
-							bind:selectedIcon
-							disabled={loading}
-							onupload={handleIconUpload}
-						/>
-						<div class="fields-column">
-							<div class="input-group">
-								<span class="input-label">
-									{t("createInstance.nameLabel")}
-								</span>
-								<input
-									type="text"
-									class="text-input"
-									class:error={nameMsg}
-									maxlength={MAX_INSTANCE_NAME_LEN}
-									bind:value={name}
-									disabled={loading}
-									oninput={() => (nameMsg = null)}
-									onkeydown={(e) =>
-										e.key === "Enter" && handleNext()}
-								/>
-								{#if nameMsg}
-									<span class="input-error">{t(nameMsg)}</span
-									>
-								{/if}
+					{#if manualStep === 0}
+						<div class="create-header">
+							<IconPicker
+								bind:selectedIcon
+								disabled={loading}
+								onupload={handleIconUpload}
+							/>
+							<div class="fields-column">
+								<div class="input-group">
+									<span class="input-label">
+										{t("createInstance.nameLabel")}
+									</span>
+									<input
+										type="text"
+										class="text-input"
+										class:error={nameMsg}
+										maxlength={MAX_INSTANCE_NAME_LEN}
+										bind:value={name}
+										disabled={loading}
+										oninput={() => (nameMsg = null)}
+										onkeydown={(e) =>
+											e.key === "Enter" && handleNext()}
+									/>
+									{#if nameMsg}
+										<span class="input-error"
+											>{t(nameMsg)}</span
+										>
+									{/if}
+								</div>
 							</div>
 						</div>
-					</div>
-				{:else}
-					<VersionSelectorStep
-						bind:selectedLoader
-						bind:selectedMcVersion
-						bind:selectedLoaderVersion
-					/>
-				{/if}
-			</div>
-		{/if}
-	</div>
+					{:else}
+						<VersionSelectorStep
+							bind:selectedLoader
+							bind:selectedMcVersion
+							bind:selectedLoaderVersion
+						/>
+					{/if}
+				</div>
+			{/if}
+		</div>
+	{/key}
 
 	{#snippet footer()}
 		<div class="footer-actions">

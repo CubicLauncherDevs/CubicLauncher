@@ -179,7 +179,10 @@ test("growth and shrinkage include padding and borders and respect max-height", 
 	resize(240, 210);
 	expect(node.animate).toHaveBeenLastCalledWith(
 		{ height: ["130px", "210px"] },
-		expect.objectContaining({ duration: 200 }),
+		expect.objectContaining({
+			duration: 200,
+			easing: "cubic-bezier(0.25, 0.8, 0.25, 1)",
+		}),
 	);
 	animations[0].finish();
 	expect(node.style.height).toBe("210px");

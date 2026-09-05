@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
+	import { animDuration } from "$lib/utils/animations";
 	import ModpackImportStep from "./ModpackImportStep.svelte";
 	import InstanceImportStep from "./InstanceImportStep.svelte";
 
@@ -17,6 +18,7 @@
 
 	type SubTab = "modpack" | "instance";
 	let subTab = $state<SubTab>("modpack");
+	const contentDuration = $derived(animDuration(180));
 
 	$effect(() => {
 		if (initialMrpackPath) {
@@ -27,7 +29,10 @@
 	});
 </script>
 
-<div class="local-import-step">
+<div
+	class="local-import-step"
+	style:--content-duration={`${contentDuration}ms`}
+>
 	<div class="sub-tab-bar" role="tablist">
 		<button
 			type="button"
@@ -112,5 +117,24 @@
 
 	.sub-tab-panel.hidden {
 		display: none;
+	}
+
+	.sub-tab-panel:not(.hidden) {
+		animation: contentIn var(--content-duration) ease-out;
+	}
+
+	@keyframes contentIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.sub-tab-panel:not(.hidden) {
+			animation: none;
+		}
 	}
 </style>

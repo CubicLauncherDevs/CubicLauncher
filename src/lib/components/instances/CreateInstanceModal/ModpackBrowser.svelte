@@ -95,7 +95,8 @@
 	} = $props();
 
 	let sentinelEl: HTMLDivElement | undefined = $state();
-	const resizeDuration = $derived(animDuration(220));
+	const resizeDuration = $derived(animDuration(300));
+	const detailDuration = $derived(animDuration(200));
 
 	function handleSearch() {
 		onSearch?.();
@@ -144,7 +145,7 @@
 	});
 </script>
 
-<div class="modpack-browser">
+<div class="modpack-browser" style:--detail-duration={`${detailDuration}ms`}>
 	{#if !selectedItem}
 		<div class="search-bar">
 			<input
@@ -679,17 +680,26 @@
 		flex-direction: column;
 		gap: 18px;
 		overflow-wrap: anywhere;
-		animation: slideIn 0.2s ease-out;
 	}
 
-	@keyframes slideIn {
+	.detail-view,
+	.results-panel {
+		animation: contentIn var(--detail-duration) ease-out;
+	}
+
+	@keyframes contentIn {
 		from {
-			opacity: 0.5;
-			transform: translateX(24px);
+			opacity: 0;
 		}
 		to {
 			opacity: 1;
-			transform: translateX(0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.detail-view,
+		.results-panel {
+			animation: none;
 		}
 	}
 
