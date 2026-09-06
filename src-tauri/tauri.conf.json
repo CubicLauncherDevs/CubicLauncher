@@ -12,12 +12,19 @@
 	"app": {
 		"windows": [
 			{
+				"label": "main",
 				"title": "CubicLauncher @33",
 				"width": 800,
 				"height": 600,
 				"minWidth": 800,
 				"minHeight": 600,
-				"devtools": true
+				"create": false,
+				"devtools": false,
+				"browserExtensionsEnabled": false,
+				"generalAutofillEnabled": false,
+				"zoomHotkeysEnabled": false,
+				"backgroundThrottling": "throttle",
+				"additionalBrowserArgs": "--disable-features=PDFViewer,PdfOopif,msSmartScreenProtection,HardwareMediaKeyHandling,EdgeSidebar,EdgeShopping,EdgeWallet,EdgeRewards,EdgeDrop,EdgeCollections,EdgeTour,EdgeFollow,EdgeDiscover,OptimizationGuideModelDownloading,OptimizationGuideOnDeviceModel"
 			}
 		],
 		"security": {

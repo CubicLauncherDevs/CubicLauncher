@@ -52,3 +52,53 @@ html[data-reduce-motion] .preserve-motion *::before,
 html[data-reduce-motion] .preserve-motion *::after {
 	animation-play-state: running !important;
 }
+
+/* ========================================================================
+   Respect OS-level reduced-motion preference in addition to the app setting.
+   This mirrors the existing data-reduce-motion rules for spinners, the
+   sidebar transition and blur effects without adding JavaScript business logic.
+   ======================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+	.spinner,
+	.spinner::before,
+	.spinner::after {
+		animation: none !important;
+	}
+
+	.sidebar-container {
+		transition: none !important;
+	}
+
+	.background-overlay {
+		filter: brightness(0.4) !important;
+	}
+
+	*,
+	*::before,
+	*::after {
+		backdrop-filter: none !important;
+		-webkit-backdrop-filter: none !important;
+	}
+}
+
+html[data-reduce-motion] .spinner,
+html[data-reduce-motion] .spinner::before,
+html[data-reduce-motion] .spinner::after {
+	animation: none !important;
+}
+
+html[data-reduce-motion] .sidebar-container {
+	transition: none !important;
+}
+
+html[data-reduce-motion] .background-overlay {
+	filter: brightness(0.4) !important;
+}
+
+html[data-reduce-motion] *,
+html[data-reduce-motion] *::before,
+html[data-reduce-motion] *::after {
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+}

@@ -150,6 +150,11 @@ pub fn run() {
                 return Err("Error de inicialización: no se pudieron crear los directorios".into());
             }
 
+            let window_config = &app.config().app.windows[0];
+            let _window = tauri::WebviewWindowBuilder::from_config(app.handle(), window_config)?
+                .devtools(cfg!(debug_assertions))
+                .build()?;
+
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 tokio::join!(
