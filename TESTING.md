@@ -70,6 +70,13 @@ bun run tauri build
 - [ ] Agregar cuenta offline.
 - [ ] (Si se puede) probar Microsoft / Yggdrasil.
 
+### Ventanas WebView2 (Windows)
+
+- Ejecutar `cargo test -p cubiclauncher --lib core::webview::tests` para comprobar que Microsoft y logs heredan las opciones de entorno de `main` sin copiar sus ajustes de ventana.
+- [ ] Abrir Microsoft y la consola de logs con la ventana principal abierta. Ambas deben permanecer abiertas y cargar su contenido, sin errores `0x8007139F` de WebView2.
+- [ ] Cerrar y volver a abrir ambas ventanas. Completar o cancelar el login de Microsoft.
+- [ ] Activar el cierre del launcher al iniciar un juego, mantener la consola de logs abierta y salir del juego. La ventana principal debe reaparecer y permitir abrir Microsoft y logs otra vez.
+
 ### Modpacks y themes
 
 - [ ] Arrastrar un `.mrpack` o `.zip` al launcher e importarlo.

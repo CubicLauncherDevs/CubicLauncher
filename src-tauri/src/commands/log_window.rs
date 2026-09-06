@@ -1,4 +1,5 @@
 use crate::core::http_client::HTTP;
+use crate::core::webview::secondary_window_config;
 use crate::services::launcher::{LogLine, get_log_history};
 use dashmap::DashMap;
 use std::sync::OnceLock;
@@ -38,7 +39,10 @@ pub async fn open_log_window_for_instance(
     let encoded_name = urlencoding::encode(&instance_name);
     let path = format!("/?log={}&name={}", encoded_id, encoded_name);
 
-    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(path.into()))
+    let window_config =
+        secondary_window_config(app.config(), &label, WebviewUrl::App(path.into()))?;
+    let window = WebviewWindowBuilder::from_config(&app, &window_config)
+        .map_err(|e| e.to_string())?
         .title(format!("Logs — {}", instance_name))
         .inner_size(800.0, 500.0)
         .min_inner_size(400.0, 300.0)

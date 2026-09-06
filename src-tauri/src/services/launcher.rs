@@ -25,7 +25,7 @@ use std::collections::VecDeque;
 use std::mem;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
-use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager, WebviewWindowBuilder};
 use tokio::fs;
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, trace, warn};
@@ -837,17 +837,16 @@ impl Launcher {
                     if hide_on_launch {
                         KEEP_ALIVE.store(false, Ordering::Relaxed);
                         if let Some(app) = app_for_show {
-                            let _ = WebviewWindowBuilder::new(
-                                &app,
-                                "main",
-                                WebviewUrl::App("index.html".into()),
-                            )
-                            .title("CubicLauncher @34")
-                            .inner_size(800.0, 600.0)
-                            .min_inner_size(800.0, 600.0)
-                            .build();
-                            if let Some(w) = app.get_webview_window("main") {
-                                let _ = w.set_focus();
+                            let window_config = &app.config().app.windows[0];
+                            match WebviewWindowBuilder::from_config(&app, window_config).and_then(
+                                |builder| builder.devtools(cfg!(debug_assertions)).build(),
+                            ) {
+                                Ok(window) => {
+                                    let _ = window.set_focus();
+                                }
+                                Err(err) => {
+                                    error!("No se pudo recrear la ventana principal: {err}")
+                                }
                             }
                         }
                     }

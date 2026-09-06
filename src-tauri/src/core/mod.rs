@@ -3,6 +3,7 @@ pub(crate) mod event_bus;
 pub(crate) mod http_client;
 pub(crate) mod path_manager;
 pub(crate) mod path_security;
+pub(crate) mod webview;
 
 pub use errors::*;
 pub use event_bus::{AppEvent, emit, init};

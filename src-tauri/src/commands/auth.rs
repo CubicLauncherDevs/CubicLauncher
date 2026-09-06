@@ -1,5 +1,6 @@
 use crate::commands::others::open_url;
 use crate::core::errors::{AuthError, CoreError};
+use crate::core::webview::secondary_window_config;
 use crate::services::SettingsManager;
 use launchwerk::auth::MinecraftUser;
 use launchwerk::auth::microsoft::MicrosoftAuth;
@@ -92,49 +93,51 @@ pub async fn start_webview_auth(app_handle: tauri::AppHandle) -> Result<Minecraf
 
     let label = format!("microsoft_auth_{}", uuid::Uuid::new_v4());
     let redirect_for_nav = redirect_uri.clone();
-    let window = WebviewWindowBuilder::new(
-        &app_handle,
+    let window_config = secondary_window_config(
+        app_handle.config(),
         &label,
         WebviewUrl::External(
             auth_url
                 .parse()
                 .map_err(|e: url::ParseError| e.to_string())?,
         ),
-    )
-    .title("Iniciar sesión con Microsoft")
-    .inner_size(800.0, 700.0)
-    .resizable(true)
-    .center()
-    .on_navigation(move |url| {
-        let url_str = url.as_str();
-        if url_str.starts_with(&redirect_for_nav) {
-            if let Some(code) = url
-                .query_pairs()
-                .find(|(key, _)| key == "code")
-                .map(|(_, value)| value.to_string())
-            {
-                // Validate state
-                let returned_state = url
+    )?;
+    let window = WebviewWindowBuilder::from_config(&app_handle, &window_config)
+        .map_err(|e| AuthError::SpawnBlocking(e.to_string()).to_string())?
+        .title("Iniciar sesión con Microsoft")
+        .inner_size(800.0, 700.0)
+        .resizable(true)
+        .center()
+        .on_navigation(move |url| {
+            let url_str = url.as_str();
+            if url_str.starts_with(&redirect_for_nav) {
+                if let Some(code) = url
                     .query_pairs()
-                    .find(|(key, _)| key == "state")
+                    .find(|(key, _)| key == "code")
                     .map(|(_, value)| value.to_string())
-                    .unwrap_or_default();
-                if returned_state == nav_state {
-                    drop(tx_nav.send(code));
+                {
+                    // Validate state
+                    let returned_state = url
+                        .query_pairs()
+                        .find(|(key, _)| key == "state")
+                        .map(|(_, value)| value.to_string())
+                        .unwrap_or_default();
+                    if returned_state == nav_state {
+                        drop(tx_nav.send(code));
+                    }
+                } else if let Some(error) = url
+                    .query_pairs()
+                    .find(|(key, _)| key == "error")
+                    .map(|(_, value)| value.to_string())
+                {
+                    drop(tx_nav.send(format!("ERROR:{}", error)));
                 }
-            } else if let Some(error) = url
-                .query_pairs()
-                .find(|(key, _)| key == "error")
-                .map(|(_, value)| value.to_string())
-            {
-                drop(tx_nav.send(format!("ERROR:{}", error)));
+                return false;
             }
-            return false;
-        }
-        true
-    })
-    .build()
-    .map_err(|e| AuthError::SpawnBlocking(e.to_string()).to_string())?;
+            true
+        })
+        .build()
+        .map_err(|e| AuthError::SpawnBlocking(e.to_string()).to_string())?;
 
     let close_tx = tx_window;
     window.on_window_event(move |event| {
