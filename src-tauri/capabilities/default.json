@@ -4,11 +4,13 @@
   "description": "Capability for the main window",
   "windows": [
     "main",
-    "log-*"
+    "log-*",
+    "microsoft_auth_*"
   ],
   "permissions": [
     "core:default",
     "core:window:default",
+    "core:window:allow-create",
     "core:window:allow-close",
     "core:window:allow-set-focus",
     "core:event:default",
