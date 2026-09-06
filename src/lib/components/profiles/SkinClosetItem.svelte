@@ -27,7 +27,7 @@
 			(observed) => {
 				visible = observed[0]?.isIntersecting ?? false;
 			},
-			{ rootMargin: "80px", threshold: 0 },
+			{ threshold: 0 },
 		);
 
 		if (previewContainer) {

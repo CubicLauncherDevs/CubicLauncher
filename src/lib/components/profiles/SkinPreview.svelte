@@ -40,7 +40,7 @@
 	ondrop={onDrop}
 >
 	{#if skinUrl}
-		<Skin3dViewer {skinUrl} {capeUrl} {model} />
+		<Skin3dViewer {skinUrl} {capeUrl} {model} quality="high" />
 
 		{#if draggingPng && dropTargetActive}
 			<div class="drop-overlay">

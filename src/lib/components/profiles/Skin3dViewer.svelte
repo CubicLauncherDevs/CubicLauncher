@@ -3,12 +3,15 @@
 	import type { Render, IdleAnimation } from "skin3d";
 	import { launcherStore } from "$lib/state/state.svelte";
 
+	const IDLE_MS = 5000;
+
 	interface Props {
 		skinUrl: string;
 		capeUrl?: string | null;
 		model?: "default" | "slim";
 		animated?: boolean;
 		interactive?: boolean;
+		quality?: "low" | "high";
 	}
 
 	let {
@@ -17,6 +20,7 @@
 		model = "default",
 		animated = true,
 		interactive = true,
+		quality = "low",
 	}: Props = $props();
 
 	let container: HTMLElement;
@@ -28,7 +32,9 @@
 	let isIntersecting = $state(true);
 	let isTabVisible = $state(true);
 	let pendingRaf: number | null = null;
+	let idleTimeout: ReturnType<typeof setTimeout> | null = null;
 	let isInteracting = false;
+	let isIdle = false;
 	const isVisible = $derived(isIntersecting && isTabVisible);
 
 	const shouldAnimate = $derived(
@@ -47,7 +53,7 @@
 	function syncRenderPause() {
 		const v = viewer;
 		if (!v || v.disposed) return;
-		const shouldPause = !isVisible || !shouldAnimate;
+		const shouldPause = !isVisible || !shouldAnimate || isIdle;
 		const wasPaused = v.renderPaused;
 		v.renderPaused = shouldPause;
 		if (shouldPause && !wasPaused) {
@@ -55,8 +61,32 @@
 		}
 	}
 
+	function stopIdleTimer() {
+		if (idleTimeout !== null) {
+			clearTimeout(idleTimeout);
+			idleTimeout = null;
+		}
+	}
+
+	function resetIdleTimer() {
+		stopIdleTimer();
+		isIdle = false;
+		if (shouldAnimate && isVisible) {
+			idleTimeout = setTimeout(() => {
+				isIdle = true;
+				syncRenderPause();
+			}, IDLE_MS);
+		}
+	}
+
+	function wakeFromIdle() {
+		resetIdleTimer();
+		syncRenderPause();
+	}
+
 	function handleVisibilityChange() {
 		isTabVisible = !document.hidden;
+		resetIdleTimer();
 	}
 
 	function bustCache(url: string): string {
@@ -72,6 +102,7 @@
 		let controlsStartHandler: (() => void) | null = null;
 		let controlsChangeHandler: (() => void) | null = null;
 		let controlsEndHandler: (() => void) | null = null;
+		let activityHandler: (() => void) | null = null;
 
 		async function init() {
 			const { Render, IdleAnimation } = await import("skin3d");
@@ -88,8 +119,8 @@
 				enableControls: true,
 				zoom: 0.7,
 				enableFXAA: false,
-				maxPixelRatio: 1,
-				pixelRatio: 1,
+				maxPixelRatio: quality === "high" ? 2 : 1,
+				pixelRatio: quality === "high" ? "match-device" : 1,
 				renderPaused: !shouldAnimate,
 			});
 
@@ -125,17 +156,39 @@
 			// eslint-disable-next-line svelte/no-dom-manipulating
 			container.appendChild(instance.canvas);
 
-			controlsStartHandler = () => {
-				isInteracting = true;
-				scheduleRender();
-			};
-			controlsChangeHandler = () => scheduleRender();
-			controlsEndHandler = () => {
-				isInteracting = false;
-			};
-			instance.controls.addEventListener("start", controlsStartHandler);
-			instance.controls.addEventListener("change", controlsChangeHandler);
-			instance.controls.addEventListener("end", controlsEndHandler);
+			activityHandler = () => wakeFromIdle();
+			const activityEvents = [
+				"pointerenter",
+				"pointerdown",
+				"pointermove",
+				"wheel",
+				"touchstart",
+			];
+			for (const event of activityEvents) {
+				container.addEventListener(event, activityHandler, {
+					passive: true,
+				});
+			}
+
+			if (interactive) {
+				controlsStartHandler = () => {
+					isInteracting = true;
+					scheduleRender();
+				};
+				controlsChangeHandler = () => scheduleRender();
+				controlsEndHandler = () => {
+					isInteracting = false;
+				};
+				instance.controls.addEventListener(
+					"start",
+					controlsStartHandler,
+				);
+				instance.controls.addEventListener(
+					"change",
+					controlsChangeHandler,
+				);
+				instance.controls.addEventListener("end", controlsEndHandler);
+			}
 
 			resizeObserver = new ResizeObserver(() => {
 				if (instance && !instance.disposed) {
@@ -149,6 +202,7 @@
 			intersectionObserver = new IntersectionObserver((entries) => {
 				isIntersecting = entries[0]?.isIntersecting ?? true;
 				syncRenderPause();
+				resetIdleTimer();
 			});
 			intersectionObserver.observe(container);
 
@@ -160,16 +214,30 @@
 
 			viewer = instance;
 			syncRenderPause();
+			resetIdleTimer();
 		}
 
 		init();
 
 		return () => {
 			mounted = false;
+			stopIdleTimer();
 			document.removeEventListener(
 				"visibilitychange",
 				handleVisibilityChange,
 			);
+			if (activityHandler && container) {
+				const activityEvents = [
+					"pointerenter",
+					"pointerdown",
+					"pointermove",
+					"wheel",
+					"touchstart",
+				];
+				for (const event of activityEvents) {
+					container.removeEventListener(event, activityHandler);
+				}
+			}
 			if (viewer && !viewer.disposed) {
 				if (controlsStartHandler) {
 					viewer.controls.removeEventListener(
@@ -210,6 +278,7 @@
 				? new IdleAnimationClass()
 				: null;
 		syncRenderPause();
+		resetIdleTimer();
 	});
 
 	$effect(() => {
