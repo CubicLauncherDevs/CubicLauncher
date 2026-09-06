@@ -595,19 +595,7 @@ impl Launcher {
 
         if !java_path.exists() {
             let reason = InstanceError::JreNotFound(java_version.to_string()).to_string();
-            handle.set_status(InstanceStatus::Error(reason.clone()));
-            emit(AppEvent::InstanceCrashed {
-                id: handle.uuid.to_compact_string(),
-                name: name.to_compact_string(),
-                exit_code: None,
-                reason: Some(CompactString::new(reason.clone())),
-            });
-            let app_handle = self
-                .app_handle
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .clone();
-            spawn_open_log_window(app_handle, handle.uuid.to_string(), name.to_string());
+            handle.set_status(InstanceStatus::Error(reason));
             Err(AppError::Instance(InstanceError::JreNotFound(
                 java_version.to_string(),
             )))?;
@@ -745,6 +733,8 @@ impl Launcher {
         match lw_handle.launch().await {
             Ok(_) => {
                 info!("Handle {} lanzado", lw_handle.id().to_string());
+                let (kill_tx, mut kill_rx) = tokio::sync::oneshot::channel::<()>();
+                let kill_requested = register_kill_sender(&handle.uuid, kill_tx);
                 handle.set_status(InstanceStatus::Started);
 
                 let loader = handle.to_dto().await.loader;
@@ -784,16 +774,14 @@ impl Launcher {
                     warn!("AppHandle no disponible, no se reenviará stdout/stderr");
                 }
 
-                let (kill_tx, kill_rx) = tokio::sync::oneshot::channel::<()>();
-                register_kill_sender(&handle.uuid, kill_tx);
-
                 let uuid = handle.uuid.clone();
                 let h = handle.clone();
                 let inst_name = instance_name.clone();
                 let app_for_show = app_handle.clone();
                 tokio::spawn(async move {
                     let result = tokio::select! {
-                        _ = kill_rx => {
+                        biased;
+                        Ok(()) = &mut kill_rx => {
                             info!("Kill signal received for {}", uuid);
                             if let Err(e) = lw_handle.kill().await {
                                 warn!("Error al matar proceso {}: {:?}", uuid, e);
@@ -808,7 +796,8 @@ impl Launcher {
                     unregister_kill_sender(&uuid);
                     push_launcher_message(&uuid, format!("El proceso terminó: {:?}", result)).await;
 
-                    let crashed = matches!(result, Some(code) if code != 0);
+                    let crashed =
+                        is_unexpected_exit(result, kill_requested.load(Ordering::Acquire));
                     if crashed {
                         let code = result.unwrap_or(-1);
                         push_launcher_message(&uuid, format!("Crash detectado (código {})", code))
@@ -856,19 +845,7 @@ impl Launcher {
                 let msg = e.to_string();
                 error!("{}", msg);
                 push_launcher_message(&handle.uuid, format!("Error al iniciar: {}", msg)).await;
-                handle.set_status(InstanceStatus::Error(msg.clone()));
-                emit(AppEvent::InstanceCrashed {
-                    id: handle.uuid.to_compact_string(),
-                    name: name.to_compact_string(),
-                    exit_code: None,
-                    reason: Some(CompactString::new(msg.clone())),
-                });
-                let app_handle = self
-                    .app_handle
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .clone();
-                spawn_open_log_window(app_handle, handle.uuid.to_string(), name.to_string());
+                handle.set_status(InstanceStatus::Error(msg));
             }
         }
         Ok(())
@@ -998,6 +975,10 @@ async fn refresh_yggdrasil_token(mut user: MinecraftUser) -> Result<MinecraftUse
             ))))
         }
     }
+}
+
+fn is_unexpected_exit(exit_code: Option<i32>, kill_requested: bool) -> bool {
+    !kill_requested && matches!(exit_code, Some(code) if code != 0)
 }
 
 fn spawn_open_log_window(
@@ -1131,5 +1112,48 @@ fn resolve_java_path(
                 (21, settings.get_jre21_path().to_path_buf())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::instance_manager::signal_kill;
+
+    #[test]
+    fn only_unsolicited_nonzero_exits_are_crashes() {
+        for (exit_code, kill_requested, expected) in [
+            (None, false, false),
+            (None, true, false),
+            (Some(0), false, false),
+            (Some(0), true, false),
+            (Some(1), false, true),
+            (Some(1), true, false),
+            (Some(-1), false, true),
+            (Some(-1), true, false),
+            (Some(-1073741819), false, true),
+            (Some(-1073741819), true, false),
+        ] {
+            assert_eq!(
+                is_unexpected_exit(exit_code, kill_requested),
+                expected,
+                "exit_code={exit_code:?}, kill_requested={kill_requested}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_exit_observed_before_receiving_kill_is_still_intentional() {
+        let id = uuid::Uuid::new_v4().to_string();
+        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let requested = register_kill_sender(&id, tx);
+        assert!(signal_kill(&id));
+        unregister_kill_sender(&id);
+
+        // Simulate wait() completing without the kill branch consuming its signal.
+        assert!(!is_unexpected_exit(
+            Some(1),
+            requested.load(Ordering::Acquire)
+        ));
     }
 }

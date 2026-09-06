@@ -47,6 +47,16 @@ bun run tauri build
 - [ ] Crear instancia Forge, descargarla y lanzarla.
 - [ ] Crear instancia Quilt, descargarla y lanzarla.
 
+### Consola y crashes
+
+- Ejecutar `cargo test -p cubiclauncher --lib services::launcher::tests` y `cargo test -p cubiclauncher --lib services::instance_manager::manager::tests`.
+- [ ] Con "abrir consola al iniciar" desactivado, lanzar sin el Java requerido: debe aparecer el modal de Java, sin ventana de logs ni evento de crash.
+- [ ] Probar un fallo anterior a la creacion del proceso (por ejemplo, ejecutable Java invalido): debe conservarse el error de la instancia sin abrir logs ni emitir un crash.
+- [ ] Forzar el cierre desde el launcher: no debe abrirse una consola ni generarse un evento o snapshot de crash. Una consola ya abierta puede permanecer visible.
+- [ ] Provocar un crash real de un proceso iniciado: debe abrirse la consola y conservarse el snapshot. La salida normal no debe abrirla.
+- [ ] Volver a lanzar una instancia que se cerro por la fuerza y provocar un crash: debe detectarse como un nuevo crash.
+- [ ] Verificar que la apertura manual y la preferencia "abrir consola al iniciar" siguen funcionando.
+
 ### Descarga de versiones
 
 - [ ] Abrir el drawer "Descargar Versiones" desde la sidebar.

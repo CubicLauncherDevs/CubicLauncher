@@ -3,6 +3,7 @@ use crate::core::{AppEvent, FsError, InstanceError, emit};
 use crate::services::launcher::remove_log_ring;
 use compact_str::ToCompactString;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use tokio::fs as tokio_fs;
 use tokio::sync::RwLock;
@@ -22,14 +23,27 @@ pub struct InstanceManager {
 
 static INSTANCE_MANAGER: OnceLock<Arc<InstanceManager>> = OnceLock::new();
 
-static KILL_SENDERS: LazyLock<Mutex<HashMap<String, oneshot::Sender<()>>>> =
+struct KillSender {
+    tx: oneshot::Sender<()>,
+    requested: Arc<AtomicBool>,
+}
+
+static KILL_SENDERS: LazyLock<Mutex<HashMap<String, KillSender>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-pub fn register_kill_sender(uuid: &str, tx: oneshot::Sender<()>) {
+pub fn register_kill_sender(uuid: &str, tx: oneshot::Sender<()>) -> Arc<AtomicBool> {
+    let requested = Arc::new(AtomicBool::new(false));
     KILL_SENDERS
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .insert(uuid.to_string(), tx);
+        .insert(
+            uuid.to_string(),
+            KillSender {
+                tx,
+                requested: requested.clone(),
+            },
+        );
+    requested
 }
 
 pub fn unregister_kill_sender(uuid: &str) {
@@ -41,11 +55,15 @@ pub fn unregister_kill_sender(uuid: &str) {
 
 /// Envía la señal de kill. Retorna `true` si el proceso estaba corriendo.
 pub fn signal_kill(uuid: &str) -> bool {
-    let tx = KILL_SENDERS
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .remove(uuid);
-    tx.is_some_and(|tx| tx.send(()).is_ok())
+    let mut senders = KILL_SENDERS.lock().unwrap_or_else(|e| e.into_inner());
+    let Some(sender) = senders.remove(uuid) else {
+        return false;
+    };
+    // Publish the intent before exit cleanup can unregister this execution,
+    // even if wait() wins the race against receiving the kill signal.
+    sender.requested.store(true, Ordering::Release);
+    drop(senders);
+    sender.tx.send(()).is_ok()
 }
 
 impl InstanceManager {
@@ -264,5 +282,59 @@ impl InstanceManager {
             .map_err(|e| format!("Error al guardar la instancia: {}", e))?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kill_request_survives_cleanup_before_the_signal_is_received() {
+        let id = uuid::Uuid::new_v4().to_string();
+        let (tx, mut rx) = oneshot::channel();
+        let requested = register_kill_sender(&id, tx);
+
+        assert!(!requested.load(Ordering::Acquire));
+        assert!(signal_kill(&id));
+        unregister_kill_sender(&id);
+        assert!(requested.load(Ordering::Acquire));
+        assert_eq!(rx.try_recv(), Ok(()));
+        assert!(!signal_kill(&id));
+    }
+
+    #[test]
+    fn unregistering_does_not_count_as_a_kill_request() {
+        let id = uuid::Uuid::new_v4().to_string();
+        let (tx, mut rx) = oneshot::channel();
+        let requested = register_kill_sender(&id, tx);
+
+        unregister_kill_sender(&id);
+        assert!(!requested.load(Ordering::Acquire));
+        assert_eq!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed));
+        assert!(!signal_kill(&id));
+    }
+
+    #[test]
+    fn a_new_execution_does_not_inherit_a_previous_kill_request() {
+        let id = uuid::Uuid::new_v4().to_string();
+        let (old_tx, _old_rx) = oneshot::channel();
+        let old_requested = register_kill_sender(&id, old_tx);
+        assert!(signal_kill(&id));
+
+        let (new_tx, _new_rx) = oneshot::channel();
+        let new_requested = register_kill_sender(&id, new_tx);
+        unregister_kill_sender(&id);
+        assert!(old_requested.load(Ordering::Acquire));
+        assert!(!new_requested.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn signaling_a_closed_receiver_returns_false() {
+        let id = uuid::Uuid::new_v4().to_string();
+        let (tx, rx) = oneshot::channel();
+        register_kill_sender(&id, tx);
+        drop(rx);
+        assert!(!signal_kill(&id));
     }
 }
