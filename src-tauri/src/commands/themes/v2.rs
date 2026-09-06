@@ -548,7 +548,7 @@ mod tests {
     #[test]
     fn collect_icons_only_groups() {
         let mut group = HashMap::new();
-        group.insert("box".into(), "instance/puzzle.svg".into());
+        group.insert("puzzle".into(), "instance/puzzle.svg".into());
 
         let icons = Icons {
             preview: None,
@@ -562,8 +562,8 @@ mod tests {
         let collected = collect_icons(&icons);
         assert_eq!(collected.len(), 1);
         assert_eq!(
-            collected.get("instance:box").map(String::as_str),
-            Some("instance/box.svg")
+            collected.get("instance:puzzle").map(String::as_str),
+            Some("instance/puzzle.svg")
         );
     }
 
