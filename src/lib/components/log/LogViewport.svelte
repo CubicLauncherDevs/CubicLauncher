@@ -18,7 +18,12 @@
 		renderer.attach(viewport);
 		const handler = () => renderer.handleScroll(onScrollState);
 		viewport.addEventListener("scroll", handler, { passive: true });
+		const observer = new ResizeObserver(handler);
+		observer.observe(viewport);
+		const lines = viewport.querySelector(".log-lines");
+		if (lines) observer.observe(lines);
 		return () => {
+			observer.disconnect();
 			renderer.detach();
 			viewport?.removeEventListener("scroll", handler);
 		};
@@ -32,6 +37,7 @@
 <style>
 	.log-viewport {
 		flex: 1;
+		min-height: 0;
 		overflow-y: auto;
 		contain: layout style;
 		background: var(--bg-input);

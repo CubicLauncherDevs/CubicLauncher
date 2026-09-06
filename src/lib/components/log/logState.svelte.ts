@@ -129,29 +129,11 @@ export class LogState {
 		this.renderer?.rebuild();
 	}
 
-	toggleLevel(level: string) {
-		if (this.activeLevels.has(level)) this.activeLevels.delete(level);
-		else this.activeLevels.add(level);
-
-		if (this.normalizedQuery) {
-			this.currentMatchIndex = 0;
-			this.renderer?.rebuild();
-		} else {
-			this.renderer?.applyLevelVisibility();
-		}
-	}
-
-	setAllLevels(active: boolean) {
+	setLevels(levels: string[]) {
 		this.activeLevels.clear();
-		if (active) {
-			for (const level of LEVEL_ORDER) this.activeLevels.add(level);
-		}
-		if (this.normalizedQuery) {
-			this.currentMatchIndex = 0;
-			this.renderer?.rebuild();
-		} else {
-			this.renderer?.applyLevelVisibility();
-		}
+		for (const level of levels) this.activeLevels.add(level);
+		this.currentMatchIndex = 0;
+		this.renderer?.rebuild();
 	}
 
 	clear() {

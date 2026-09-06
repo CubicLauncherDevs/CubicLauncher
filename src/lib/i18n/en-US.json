@@ -1,5 +1,21 @@
 {
 	"id": "en-US",
+	"logWindow": {
+		"actions": "Actions",
+		"copy": "Copy log",
+		"upload": "Upload to mclo.gs",
+		"uploading": "Uploading log...",
+		"clear": "Clear log",
+		"search": "Search logs...",
+		"clearSearch": "Clear search",
+		"previousMatch": "Previous match (Shift+Enter)",
+		"nextMatch": "Next match (Enter)",
+		"levels": "Levels",
+		"all": "All logs",
+		"warnings": "Warnings and errors",
+		"errors": "Errors only",
+		"scrollBottom": "Go to bottom"
+	},
 	"common": {
 		"cancel": "Cancel",
 		"save": "Save",

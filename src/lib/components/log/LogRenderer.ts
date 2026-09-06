@@ -94,6 +94,7 @@ export class LogRenderer {
 		if (!viewport) return;
 		const container = this.getLinesContainer();
 		if (!container) return;
+		const atBottom = this.isAtBottom();
 
 		this.clearContainer(container);
 		this.state.currentMatchIndex = 0;
@@ -111,7 +112,7 @@ export class LogRenderer {
 		requestAnimationFrame(() => {
 			if (!this.viewport) return;
 			this.updateMatches(false);
-			if (this.isAtBottom()) {
+			if (atBottom) {
 				viewport.scrollTop = viewport.scrollHeight;
 			}
 		});
@@ -121,6 +122,7 @@ export class LogRenderer {
 		const viewport = this.viewport;
 		const container = this.getLinesContainer();
 		if (!container || !viewport) return;
+		const atBottom = this.isAtBottom();
 
 		const startIndex = this.state.lines.length - newLines.length;
 		const frag = document.createDocumentFragment();
@@ -147,7 +149,7 @@ export class LogRenderer {
 				div.classList.remove("new");
 			}
 			this.updateMatches(false);
-			if (this.isAtBottom()) {
+			if (atBottom) {
 				viewport.scrollTop = viewport.scrollHeight;
 			}
 		});

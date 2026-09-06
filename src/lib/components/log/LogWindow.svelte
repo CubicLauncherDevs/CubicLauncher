@@ -59,7 +59,6 @@
 	});
 
 	let isAtBottom = $state(true);
-	let unseenCount = $state(0);
 	let destroyed = false;
 	let unlistenFn: (() => void) | undefined;
 
@@ -68,7 +67,6 @@
 		unseenCount: number;
 	}) {
 		isAtBottom = state.isAtBottom;
-		unseenCount = state.unseenCount;
 	}
 
 	function handleSearchKeydown(e: KeyboardEvent) {
@@ -172,45 +170,42 @@
 	<LogHeader
 		{instanceName}
 		totalLines={log.totalLines}
-		{isAtBottom}
 		uploading={log.uploading}
 		{onClear}
 		onCopy={copyLog}
 		onUpload={uploadToMclogs}
-		onScrollBottom={() => renderer.scrollToBottom()}
-	/>
-
-	<LogControls
-		activeLevels={log.activeLevels}
-		query={log.inputQuery}
-		matchCount={log.matchCount}
-		currentMatchIndex={log.currentMatchIndex}
-		{showLevelTags}
-		onQueryInput={(v) => log.searchInput(v)}
-		onQueryKeydown={handleSearchKeydown}
-		onClearQuery={() => log.resetSearch()}
-		onPrev={() => {
-			log.flushSearch();
-			renderer.prevMatch();
-		}}
-		onNext={() => {
-			log.flushSearch();
-			renderer.nextMatch();
-		}}
-		onToggleLevel={(l) => log.toggleLevel(l)}
-		onSetAllLevels={(a) => log.setAllLevels(a)}
-	/>
+	>
+		<LogControls
+			activeLevels={log.activeLevels}
+			query={log.inputQuery}
+			matchCount={log.matchCount}
+			currentMatchIndex={log.currentMatchIndex}
+			{showLevelTags}
+			onQueryInput={(v) => log.searchInput(v)}
+			onQueryKeydown={handleSearchKeydown}
+			onClearQuery={() => log.resetSearch()}
+			onPrev={() => {
+				log.flushSearch();
+				renderer.prevMatch();
+			}}
+			onNext={() => {
+				log.flushSearch();
+				renderer.nextMatch();
+			}}
+			onSetLevels={(levels) => log.setLevels(levels)}
+		/>
+	</LogHeader>
 
 	<LogViewport {renderer} {onScrollState} />
 
-	{#if !isAtBottom && unseenCount > 0}
+	{#if !isAtBottom}
 		<button
 			type="button"
 			class="jump-bottom"
 			onclick={() => renderer.scrollToBottom()}
 		>
 			<Icon name="log:arrow-down" class="jump-icon" size={14} />
-			{unseenCount} líneas nuevas
+			{t("logWindow.scrollBottom")}
 		</button>
 	{/if}
 </div>
@@ -264,14 +259,12 @@
 	:global(.log-line) {
 		display: flex;
 		align-items: flex-start;
-		gap: 10px;
-		padding: 1px 12px;
-		min-height: 16px;
+		gap: 12px;
+		padding: 2px 14px;
+		min-height: 22px;
 		font-family:
 			ui-monospace, SFMono-Regular, "SF Mono", Consolas,
 			"Liberation Mono", Menlo, monospace;
-		content-visibility: auto;
-		contain-intrinsic-size: auto 16px;
 	}
 
 	:global(.log-line.hidden) {
@@ -282,38 +275,29 @@
 		background: var(--surface-hover);
 	}
 
-	:global(.log-line.new) {
-		animation: logSlideIn 0.15s ease-out;
-	}
-
 	:global(.log-line.search-active) {
 		background: color-mix(in srgb, var(--accent) 10%, transparent);
 		box-shadow: inset 2px 0 0 0 var(--accent);
 	}
 
-	:global(.log-line.stderr) {
-		background: color-mix(in srgb, var(--color-error) 5%, transparent);
-	}
-
 	:global(.line-ts) {
 		color: var(--text-muted);
-		font-size: 0.6rem;
+		font-size: 0.65rem;
 		flex-shrink: 0;
 		width: 60px;
 		text-align: right;
 		user-select: none;
-		opacity: 0.75;
 		padding-top: 1px;
-		line-height: 1.4;
+		line-height: 1.5;
 	}
 
 	:global(.line-text) {
 		color: var(--text-primary);
 		white-space: pre-wrap;
-		word-break: break-all;
+		overflow-wrap: anywhere;
 		min-width: 0;
-		font-size: 0.7rem;
-		line-height: 1.4;
+		font-size: 0.75rem;
+		line-height: 1.5;
 	}
 
 	:global(.line-text mark) {
@@ -321,10 +305,6 @@
 		color: inherit;
 		padding: 0 2px;
 		border-radius: 2px;
-	}
-
-	:global(.log-line.info .line-text) {
-		color: var(--color-success);
 	}
 
 	:global(.log-line.warn .line-text) {
@@ -344,36 +324,12 @@
 		color: var(--color-error);
 	}
 
-	:global(.log-line.launcher .line-text) {
-		color: var(--color-info);
-		font-style: italic;
-	}
-
 	:global(.log-line.trace .line-text),
 	:global(.log-line.debug .line-text) {
 		color: var(--text-muted);
 	}
 
-	:global(.log-line.trace .line-text) {
-		font-size: 0.62rem;
-	}
-
-	:global(.log-line.message .line-text) {
-		color: var(--text-primary);
-	}
-
 	:global(.log-line.unknown .line-text) {
 		color: var(--text-tertiary);
-	}
-
-	@keyframes logSlideIn {
-		from {
-			opacity: 0;
-			transform: translateY(3px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
 	}
 </style>
