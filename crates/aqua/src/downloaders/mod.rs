@@ -204,7 +204,7 @@ async fn run_download(
         .map(|_| ProgressState::new(total_items, bytes_total));
 
     // Spawn a lightweight forwarder so byte-level progress is smooth.
-    let _forwarder = if let (Some(state), Some(tx)) = (&progress_state, &progress_tx) {
+    let forwarder = if let (Some(state), Some(tx)) = (&progress_state, &progress_tx) {
         let state = Arc::clone(state);
         let tx = tx.clone();
         Some(tokio::spawn(async move {
@@ -225,6 +225,32 @@ async fn run_download(
         None
     };
 
+    // Run the actual download work in a separate block so we can always shut
+    // the forwarder down on success, error, or cancellation. Otherwise a
+    // required item that fails leaves the forwarder looping forever, keeping
+    // the watch channel alive and blocking any monitor waiting on it.
+    let result = run_download_impl(
+        Arc::clone(&inner),
+        progress_state.clone(),
+        progress_tx.clone(),
+    )
+    .await;
+
+    // The forwarder may still be looping if we exited early (error or cancel),
+    // so abort and wait for it to release its cloned sender.
+    if let Some(handle) = forwarder {
+        handle.abort();
+        let _ = handle.await;
+    }
+
+    result
+}
+
+async fn run_download_impl(
+    inner: Arc<DownloadInner>,
+    progress_state: Option<Arc<ProgressState>>,
+    progress_tx: Option<ProgressSender>,
+) -> Result<(), AquaError> {
     // Pre-create unique parent directories once
     let mut parents: Vec<&Path> = inner
         .batch
@@ -341,4 +367,55 @@ async fn run_download(
     inner_for_finalize.batch.finalize(progress_tx).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::progress::DownloadProgress;
+    use std::time::Duration;
+    use tokio::sync::watch;
+
+    #[tokio::test]
+    async fn required_item_failure_does_not_hang() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "aqua-test-failure-{}",
+            uuid::Uuid::new_v4()
+        ));
+        tokio::fs::create_dir_all(&temp_dir).await.unwrap();
+
+        let manager = DownloadManager::new(temp_dir.clone());
+
+        // Empty URL + required item forces `download_file_with_headers` to
+        // fail immediately, which previously left the progress forwarder
+        // looping forever and blocked callers waiting on the watch channel.
+        let item = DownloadItemSpec::new(
+            "",
+            temp_dir.join("missing.jar"),
+            "missing-library",
+        )
+        .with_hash("deadbeef");
+        let batch = GenericBatch::new("test-batch", vec![item]);
+
+        let handle = manager.prepare_batch(Box::new(batch)).await.unwrap();
+
+        let (tx, _rx) = watch::channel(DownloadProgress::empty(handle.progress().1));
+
+        let result = tokio::time::timeout(
+            Duration::from_secs(5),
+            handle.download_all(Some(tx)),
+        )
+        .await;
+
+        let _ = tokio::fs::remove_dir_all(&temp_dir).await;
+
+        assert!(
+            result.is_ok(),
+            "download_all timed out (progress forwarder deadlock?)"
+        );
+        assert!(
+            result.unwrap().is_err(),
+            "download_all should have returned an error"
+        );
+    }
 }
