@@ -548,7 +548,7 @@ mod tests {
     #[test]
     fn collect_icons_only_groups() {
         let mut group = HashMap::new();
-        group.insert("box".into(), "instance/box.svg".into());
+        group.insert("box".into(), "instance/puzzle.svg".into());
 
         let icons = Icons {
             preview: None,

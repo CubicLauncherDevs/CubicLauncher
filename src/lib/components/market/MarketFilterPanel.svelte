@@ -147,15 +147,16 @@
 			value={filters.query}
 			oninput={(e) => onQueryChange(e.currentTarget.value)}
 		/>
-		{#if filters.query}
-			<button
-				type="button"
-				class="search-clear"
-				onclick={() => onQueryChange("")}
-			>
-				<CloseIcon size={14} />
-			</button>
-		{/if}
+		<button
+			type="button"
+			class="search-clear"
+			aria-label={t("market.filter.clearSearch")}
+			title={t("market.filter.clearSearch")}
+			disabled={!filters.query}
+			onclick={() => onQueryChange("")}
+		>
+			<CloseIcon size={14} />
+		</button>
 	</div>
 
 	{#if !collapsed}
@@ -358,7 +359,18 @@
 
 	.search-row {
 		position: relative;
-		gap: 6px;
+		gap: 0;
+		background: var(--bg-card);
+		border: 1px solid var(--border-color);
+		border-radius: var(--border-radius-sm);
+		box-shadow:
+			var(--shadow-sm),
+			inset 0 1px 0 var(--surface-selected);
+		overflow: hidden;
+	}
+
+	.search-row:focus-within {
+		border-color: var(--accent);
 	}
 
 	.search-icon {
@@ -374,20 +386,15 @@
 
 	.search-input {
 		flex: 1;
-		padding: 7px 36px 7px 34px;
-		background: var(--surface-input);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
+		min-width: 0;
+		padding: 7px 10px 7px 34px;
+		background: transparent;
+		border: none;
+		border-radius: 0;
 		color: var(--text-primary);
 		font-size: 0.85rem;
 		outline: none;
-		transition: all 0.2s ease;
 		font-family: inherit;
-	}
-
-	.search-input:focus {
-		border-color: var(--accent);
-		background: rgba(var(--surface-rgb), 0.06);
 	}
 
 	.search-input::placeholder {
@@ -396,25 +403,37 @@
 	}
 
 	.search-clear {
-		width: 28px;
-		height: 28px;
-		background: var(--surface-card);
-		border: 1px solid var(--border);
+		width: 36px;
+		flex-shrink: 0;
+		align-self: stretch;
+		padding: 0;
+		background: transparent;
+		border: none;
+		border-left: 1px solid var(--border-color);
 		color: var(--text-secondary);
-		border-radius: var(--border-radius-sm);
+		border-radius: 0;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: all 0.15s ease;
-		position: absolute;
-		right: 36px;
+		transition:
+			color 0.15s ease,
+			background 0.15s ease;
 	}
 
-	.search-clear:hover {
+	.search-clear:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: -2px;
+	}
+
+	.search-clear:hover:not(:disabled) {
 		color: var(--text-primary);
-		background: var(--surface-hover);
-		border-color: var(--accent);
+		background: var(--surface-selected);
+	}
+
+	.search-clear:disabled {
+		color: var(--text-muted);
+		cursor: not-allowed;
 	}
 
 	.filter-advanced {

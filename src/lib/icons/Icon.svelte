@@ -22,6 +22,7 @@
 		width,
 		height,
 		color,
+		style: customStyle,
 		...rest
 	}: {
 		class?: string;
@@ -53,9 +54,11 @@
 		let base = `width: ${w}; height: ${h};`;
 		if (color) base += ` color: ${color};`;
 		if (raster) {
-			return `${base} background-image: url("${resolvedSrc}");`;
+			base += ` background-image: url("${resolvedSrc}");`;
+		} else {
+			base += ` mask-image: url("${resolvedSrc}"); -webkit-mask-image: url("${resolvedSrc}");`;
 		}
-		return `${base} mask-image: url("${resolvedSrc}"); -webkit-mask-image: url("${resolvedSrc}");`;
+		return `${base} ${customStyle ?? ""}`;
 	});
 </script>
 

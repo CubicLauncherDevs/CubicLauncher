@@ -35,11 +35,11 @@ export const ICON_REGISTRY: Record<string, string> = {
 	"instance:folder": "/images/icons/instance/folder.svg",
 	"instance:grid": "/images/icons/instance/grid.svg",
 	"instance:image": "/images/icons/instance/image.svg",
+	"instance:puzzle": "/images/icons/instance/puzzle.svg",
 	"instance:resources": "/images/icons/instance/resources.svg",
 	"instance:screenshots": "/images/icons/instance/screenshots.svg",
 	"instance:shader": "/images/icons/instance/shader.svg",
 	"instance:terminal": "/images/icons/instance/terminal.svg",
-	"instance:wrench": "/images/icons/instance/wrench.svg",
 
 	"log:arrow-down": "/images/icons/log/arrow-down.svg",
 	"log:clear": "/images/icons/log/clear.svg",

@@ -86,11 +86,7 @@
 			}}
 			title={t("sidebar.rename")}
 		>
-			<Icon
-				name="nav:edit"
-				size={14}
-				style="filter: var(--icon-filter);"
-			/>
+			<Icon name="nav:edit" size={14} />
 		</button>
 		<button
 			type="button"
