@@ -1,7 +1,6 @@
 import {
 	launcherStore,
 	showErrorParsed,
-	showSuccess,
 	clearPendingJreLaunch,
 } from "../state/state.svelte";
 
@@ -70,7 +69,6 @@ import {
 	initDownloadQueueState,
 	destroyDownloadQueueState,
 } from "$lib/state/downloadQueueState.svelte";
-import { t } from "$lib/i18n";
 
 import { invoke } from "@tauri-apps/api/core";
 
@@ -222,12 +220,6 @@ export function destroyEventListeners(): void {
 }
 
 async function handleJreInstalled(version: number, instance: InstanceDto) {
-	const versionStr = String(version);
-	showSuccess(
-		t("settings.java.installedVersion", { version: versionStr }),
-		"",
-	);
-
 	if (version === 8 && !launcherStore.settings.jre8_managed) {
 		launcherStore.settings.jre8_managed = true;
 		await updateSettings(launcherStore.settings);
