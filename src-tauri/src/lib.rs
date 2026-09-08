@@ -169,10 +169,10 @@ pub fn run() {
                     theme_watcher::ThemeWatcher::start(),
                 );
                 services::settings_manager::init_auto_save();
-                let theme = services::SettingsManager::read().theme.clone();
-                if let Some(dir) = theme.strip_prefix("user:") {
-                    theme_watcher::ThemeWatcher::watch(Some(dir.to_string()));
-                }
+                let settings = services::SettingsManager::read();
+                theme_watcher::ThemeWatcher::watch(
+                    settings.theme.strip_prefix("user:").map(str::to_owned),
+                );
             });
             Ok(())
         })

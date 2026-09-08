@@ -229,7 +229,14 @@ impl SettingsManager {
 
     pub fn write(f: impl FnOnce(&mut SettingsManager)) -> Result<(), CoreError> {
         let mut settings = SETTINGS.write();
+        let previous_theme = settings.theme.clone();
         f(&mut settings);
+        if settings.theme != previous_theme {
+            // Follow write order, not the completion order of asynchronous saves.
+            crate::theme_watcher::ThemeWatcher::watch(
+                settings.theme.strip_prefix("user:").map(str::to_owned),
+            );
+        }
         settings.dirty = true;
         if let Some(tx) = SAVE_TX.get() {
             let _ = tx.send(());

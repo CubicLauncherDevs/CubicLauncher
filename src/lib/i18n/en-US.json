@@ -546,7 +546,14 @@
 		"importSuccess": "Theme imported",
 		"importSuccessMessage": "The theme has been imported and applied successfully.",
 		"importError": "Error importing theme",
-		"deleteConfirm": "Are you sure you want to delete {name}?"
+		"deleteConfirm": "Are you sure you want to delete {name}?",
+		"diagnostics": {
+			"title": "Theme resource advisory",
+			"advisory": "These resource counts and estimates are not measured performance. All theme resources and visuals are preserved.",
+			"fonts": "This theme declares {count} font faces. Loading many fonts may increase startup time and memory use.",
+			"css": "Custom CSS is {kib} KiB (UTF-8). A large stylesheet may add parsing work; size alone does not indicate rendering cost.",
+			"background": "Background: {width} x {height} pixels, approximately {mib} MiB for one decoded RGBA image (4 bytes/pixel). Actual memory use varies and may be higher."
+		}
 	},
 	"downloadProgress": {
 		"statusLibs": "Downloading libraries",

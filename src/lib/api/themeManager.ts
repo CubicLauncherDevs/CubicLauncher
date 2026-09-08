@@ -1,6 +1,10 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { SvelteMap } from "svelte/reactivity";
 import type { ThemeEntry } from "../types/types";
+import {
+	setThemeBackgroundDimensions,
+	setThemeDiagnostics,
+} from "../state/themeDiagnostics.svelte";
 
 const builtinThemes: ThemeEntry[] = [
 	{
@@ -77,6 +81,12 @@ let currentGeneration = 0;
 let currentBlobUrl: string | null = null;
 const addedFonts: Set<globalThis.FontFace> = new Set();
 let appliedThemeId: string | null = null;
+let requestGeneration = 0;
+let pendingTheme: {
+	id: string;
+	promise: Promise<void>;
+	controller: AbortController;
+} | null = null;
 
 export const themeIcons = new SvelteMap<string, string>();
 
@@ -224,131 +234,167 @@ function clearThemeResources() {
 	themeIcons.clear();
 }
 
-export async function applyTheme(themeId: string, opts?: { force?: boolean }) {
+export function applyTheme(
+	themeId: string,
+	opts?: { force?: boolean },
+): Promise<void> {
+	if (!opts?.force && pendingTheme?.id === themeId) {
+		return pendingTheme.promise;
+	}
+
+	const request = ++requestGeneration;
+	pendingTheme?.controller.abort();
 	if (!opts?.force && themeId === appliedThemeId) {
-		return;
+		pendingTheme = null;
+		return Promise.resolve();
 	}
 
-	const gen = ++currentGeneration;
+	const controller = new AbortController();
+	const promise = (async () => {
+		let theme: ThemeResponse | null = null;
 
-	clearThemeResources();
-
-	if (gen !== currentGeneration) return;
-
-	let theme: ThemeResponse | null = null;
-
-	if (builtinThemes.find((t) => t.id === themeId)) {
-		const res = await fetch(`/themes/${themeId}/${themeId}.json`);
-		if (!res.ok) return;
-		theme = await res.json();
-	} else if (themeId.startsWith("user:")) {
-		const id = themeId.slice(5);
-		try {
+		if (builtinThemes.find((t) => t.id === themeId)) {
+			const res = await fetch(`/themes/${themeId}/${themeId}.json`, {
+				signal: controller.signal,
+			});
+			if (!res.ok) throw new Error(`Theme request failed: ${res.status}`);
+			theme = await res.json();
+		} else if (themeId.startsWith("user:")) {
+			const id = themeId.slice(5);
 			theme = await invoke<ThemeResponse>("get_user_theme", { id });
-		} catch (e) {
-			console.error("Error loading user theme:", e);
-			return;
 		}
-	}
 
-	if (!theme) return;
-	if (gen !== currentGeneration) return;
+		if (!theme) return;
+		if (request !== requestGeneration) return;
 
-	setThemeStyle(buildThemeCSS(theme));
+		const css = buildThemeCSS(theme);
+		// A file can change without changing its path, including while inactive.
+		const revision = `${Date.now()}-${request}`;
+		const assetUrl = (path: string) =>
+			themeId.startsWith("user:")
+				? `${convertFileSrc(path)}?theme-revision=${revision}`
+				: path;
+		const icons = Object.entries(theme.icons ?? {})
+			.filter(([, path]) => path)
+			.map(([key, path]) => [key, assetUrl(path)] as const);
+		const bgImg = theme.bg_image;
+		const imgUrl = bgImg && assetUrl(bgImg);
 
-	if (theme.icons) {
-		for (const [key, val] of Object.entries(theme.icons)) {
-			if (!val) continue;
-			const url = themeId.startsWith("user:") ? convertFileSrc(val) : val;
+		// Pending reads do not own the displayed resources until they commit.
+		const gen = ++currentGeneration;
+		clearThemeResources();
+		setThemeStyle(css);
+		setThemeDiagnostics(themeId, theme);
+		for (const [key, url] of icons) {
 			themeIcons.set(key, url);
 		}
-	}
 
-	const root = document.documentElement;
+		const root = document.documentElement;
 
-	const bgImg = theme.bg_image;
-	if (bgImg) {
-		const imgUrl = themeId.startsWith("user:")
-			? convertFileSrc(bgImg)
-			: bgImg;
+		if (imgUrl) {
+			root.style.setProperty("--bg-image-loaded", "0");
 
-		root.style.setProperty("--bg-image-loaded", "0");
-
-		const img = new Image();
-		currentImage = img;
-		img.onload = () => {
-			img.onload = null;
-			img.onerror = null;
-			if (gen !== currentGeneration || currentImage !== img) return;
-			currentImage = null;
-			root.style.setProperty("--bg-image", `url("${imgUrl}")`);
-			root.style.setProperty("--bg-image-loaded", "1");
-		};
-		img.onerror = () => {
-			img.onload = null;
-			img.onerror = null;
-			if (gen !== currentGeneration || currentImage !== img) return;
-			currentImage = null;
-			root.style.setProperty("--bg-image", "none");
-		};
-		img.src = imgUrl;
-	}
-
-	if (theme.fonts && theme.fonts.length > 0) {
-		root.style.setProperty("--font-loaded", "0");
-
-		const loaded: Promise<void>[] = [];
-
-		for (const font of theme.fonts) {
-			const fontSrc = themeId.startsWith("user:")
-				? convertFileSrc(font.src)
-				: font.src;
-
-			const descriptors: FontFaceDescriptors = {};
-			if (font.weight) descriptors.weight = font.weight;
-			if (font.style) descriptors.style = font.style;
-
-			const face = new FontFace(
-				font.family,
-				`url(${fontSrc})`,
-				descriptors,
-			);
-			face.display = "swap";
-
-			loaded.push(
-				face
-					.load()
-					.then(() => {
-						document.fonts.add(face);
-						addedFonts.add(face);
-					})
-					.catch((err) => {
-						console.warn(
-							`Font "${font.family}" failed to load:`,
-							err,
-							`src: ${fontSrc}`,
-						);
-					}),
-			);
+			const img = new Image();
+			currentImage = img;
+			img.onload = () => {
+				img.onload = null;
+				img.onerror = null;
+				if (gen !== currentGeneration || currentImage !== img) return;
+				currentImage = null;
+				root.style.setProperty("--bg-image", `url("${imgUrl}")`);
+				root.style.setProperty("--bg-image-loaded", "1");
+				setThemeBackgroundDimensions(
+					themeId,
+					img.naturalWidth,
+					img.naturalHeight,
+				);
+			};
+			img.onerror = () => {
+				img.onload = null;
+				img.onerror = null;
+				if (gen !== currentGeneration || currentImage !== img) return;
+				currentImage = null;
+				root.style.setProperty("--bg-image", "none");
+			};
+			img.src = imgUrl;
 		}
 
-		Promise.allSettled(loaded).then(() => {
-			document.documentElement.style.setProperty("--font-loaded", "1");
+		if (theme.fonts && theme.fonts.length > 0) {
+			root.style.setProperty("--font-loaded", "0");
+
+			const loaded: Promise<void>[] = [];
+
+			for (const font of theme.fonts) {
+				try {
+					const fontSrc = assetUrl(font.src);
+
+					const descriptors: FontFaceDescriptors = {};
+					if (font.weight) descriptors.weight = font.weight;
+					if (font.style) descriptors.style = font.style;
+
+					const face = new FontFace(
+						font.family,
+						`url(${fontSrc})`,
+						descriptors,
+					);
+					face.display = "swap";
+
+					loaded.push(
+						face
+							.load()
+							.then(() => {
+								if (gen !== currentGeneration) return;
+								document.fonts.add(face);
+								addedFonts.add(face);
+							})
+							.catch((err) => {
+								console.warn(
+									`Font "${font.family}" failed to load:`,
+									err,
+									`src: ${fontSrc}`,
+								);
+							}),
+					);
+				} catch (err) {
+					console.warn(
+						`Font "${font.family}" could not be created:`,
+						err,
+					);
+				}
+			}
+
+			Promise.allSettled(loaded).then(() => {
+				if (gen !== currentGeneration) return;
+				document.documentElement.style.setProperty(
+					"--font-loaded",
+					"1",
+				);
+			});
+		} else {
+			injectDefaultFonts();
+		}
+
+		if (theme.inject_css) {
+			const blob = new Blob([theme.inject_css], { type: "text/css" });
+			const url = URL.createObjectURL(blob);
+			currentBlobUrl = url;
+			const link = document.createElement("link");
+			link.rel = "stylesheet";
+			link.href = url;
+			link.id = CUSTOM_CSS_ID;
+			document.head.appendChild(link);
+		}
+
+		appliedThemeId = themeId;
+	})()
+		.catch((err) => {
+			if (request === requestGeneration) {
+				console.error("Error loading theme:", err);
+			}
+		})
+		.finally(() => {
+			if (request === requestGeneration) pendingTheme = null;
 		});
-	} else {
-		injectDefaultFonts();
-	}
-
-	if (theme.inject_css) {
-		const blob = new Blob([theme.inject_css], { type: "text/css" });
-		const url = URL.createObjectURL(blob);
-		currentBlobUrl = url;
-		const link = document.createElement("link");
-		link.rel = "stylesheet";
-		link.href = url;
-		link.id = CUSTOM_CSS_ID;
-		document.head.appendChild(link);
-	}
-
-	appliedThemeId = themeId;
+	pendingTheme = { id: themeId, promise, controller };
+	return promise;
 }

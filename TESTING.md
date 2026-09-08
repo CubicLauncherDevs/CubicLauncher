@@ -9,7 +9,7 @@ Lista de verificaciones para correr antes de mergear una PR o antes de lanzar un
 bun install
 bun run lint
 bun run check
-bun test
+bun test --conditions=browser
 bun run build
 
 # Rust
@@ -89,9 +89,19 @@ bun run tauri build
 
 ### Modpacks y themes
 
+- Ejecutar `bun test --conditions=browser tests/themeManager.test.mjs tests/themeDiagnostics.test.mjs` y `cargo test -p cubiclauncher --lib theme` para comprobar cargas concurrentes, limpieza de recursos, avisos, importacion con rollback y watcher.
 - [ ] Arrastrar un `.mrpack` o `.zip` al launcher e importarlo.
 - [ ] Cambiar de tema y verificar que apliquen las variables CSS.
 - [ ] Importar un theme `.zip` o `.cbth`.
+- [ ] Comparar temas V1/V2 con fondos, fuentes, iconos y `Inject.css`: deben conservar su apariencia, incluso con `injects_css` ausente o desactivado.
+- [ ] Cambiar rapidamente A -> B -> A y simular un fallo de lectura: el tema anterior debe conservarse y las cargas tardias no deben mezclar fuentes o imagenes.
+- [ ] Reimportar el tema activo desde ajustes y arrastrando el archivo, reemplazando iconos y fondos sin cambiar sus nombres. Comprobar la actualizacion en la ventana principal y una consola abierta.
+- [ ] Editar y eliminar recursos en subcarpetas del tema activo; comprobar que el watcher sigue funcionando despues de reimportar. Importar otro tema por arrastre no debe cambiar ni recargar el activo.
+- [ ] Importar un reemplazo corrupto: la instalacion anterior debe seguir intacta. Comprobar tambien paquetes antiguos exportados en Windows con separadores inversos.
+- [ ] Comprobar avisos no bloqueantes en ajustes con mas de 12 fuentes, `Inject.css` mayor de 256 KiB o un fondo de mas de 16.777.216 pixeles. Los recursos no deben recortarse ni rechazarse por estos avisos; las validaciones anteriores siguen vigentes.
+- [ ] Verificar watcher e importaciones en Windows/macOS y con el directorio de temas enlazado o montado en otro disco.
+
+Los avisos de temas son orientativos, no mediciones de CPU/GPU. La estimacion del fondo cuenta una superficie RGBA (cuatro bytes por pixel), no toda la memoria del WebView. No se incorporan nuevos limites de rendimiento ni proteccion estricta frente a paquetes de descompresion extrema.
 
 ### Ajustes generales
 

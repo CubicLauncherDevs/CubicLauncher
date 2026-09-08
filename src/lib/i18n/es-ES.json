@@ -546,7 +546,14 @@
 		"importSuccess": "Theme importado",
 		"importSuccessMessage": "El theme se ha importado y aplicado correctamente.",
 		"importError": "Error al importar theme",
-		"deleteConfirm": "¿Estás seguro de que quieres eliminar {name}?"
+		"deleteConfirm": "¿Estás seguro de que quieres eliminar {name}?",
+		"diagnostics": {
+			"title": "Aviso sobre recursos del tema",
+			"advisory": "Estos recuentos y estimaciones no son mediciones de rendimiento. Se conservan todos los recursos y la apariencia del tema.",
+			"fonts": "Este tema declara {count} variantes de fuentes. Cargar muchas fuentes puede aumentar el tiempo de inicio y el uso de memoria.",
+			"css": "El CSS personalizado ocupa {kib} KiB (UTF-8). Una hoja de estilos grande puede requerir más trabajo de análisis; su tamaño por sí solo no indica el coste de renderizado.",
+			"background": "Fondo: {width} x {height} píxeles, aproximadamente {mib} MiB para una imagen RGBA decodificada (4 bytes/píxel). El uso real de memoria varía y puede ser mayor."
+		}
 	},
 	"downloadProgress": {
 		"statusLibs": "Descargando librerías",

@@ -184,7 +184,7 @@ export function initEventListeners(): void {
 				break;
 			case "ThemeChanged":
 				if (payload.data.id === launcherStore.settings.theme) {
-					applyTheme(payload.data.id);
+					applyTheme(payload.data.id, { force: true });
 				}
 				break;
 			case "ModsEnriched":

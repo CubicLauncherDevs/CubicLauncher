@@ -203,7 +203,6 @@
 				t("themes.importSuccess"),
 				t("themes.importSuccessMessage"),
 			);
-			applyTheme(launcherStore.settings.theme, { force: true });
 		} catch (e) {
 			const msg = String(e);
 			if (
@@ -227,7 +226,6 @@
 				t("themes.importSuccess"),
 				t("themes.importSuccessMessage"),
 			);
-			applyTheme(launcherStore.settings.theme, { force: true });
 		} catch (e) {
 			const msg = String(e);
 			if (

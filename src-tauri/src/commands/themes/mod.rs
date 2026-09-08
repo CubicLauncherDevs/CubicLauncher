@@ -1,7 +1,7 @@
 use crate::commands::themes::v1::{ThemeEntry, ThemeFile, ThemePreview};
 use crate::commands::themes::v2::{ThemeDef, ThemeMeta, V2Theme, flatten_variables};
 use crate::core::errors::{CoreError, FsError};
-use crate::core::{AppEvent, PathManager, emit, safe_join, sanitize_path, validate_identifier};
+use crate::core::{PathManager, safe_join, sanitize_path, validate_identifier};
 use crate::services::SettingsManager;
 use crate::theme_watcher::ThemeWatcher;
 use compact_str::CompactString;
@@ -167,7 +167,89 @@ fn validate_theme_icon(path: &str) -> bool {
     }
 }
 
+// Serialize installation/removal, not extraction. Transactions are siblings of
+// installed themes on the same filesystem, with no listable metadata at their root.
+static INSTALL_LOCK: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
+
+struct StagedTheme {
+    root: PathBuf,
+}
+
+impl StagedTheme {
+    fn new(themes_dir: &Path) -> Result<Self, String> {
+        std::fs::create_dir_all(themes_dir).map_err(|e| e.to_string())?;
+        let root = themes_dir.join(format!(".theme-import-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&root).map_err(|e| e.to_string())?;
+        let staged = Self { root };
+        std::fs::create_dir(staged.root.join("theme")).map_err(|e| e.to_string())?;
+        Ok(staged)
+    }
+
+    fn install(&self, destination: &Path) -> Result<(), String> {
+        let backup = self.root.join("backup");
+        let had_previous = match std::fs::symlink_metadata(destination) {
+            Ok(meta) if meta.is_dir() => true,
+            Ok(_) => {
+                return Err(format!(
+                    "Destino de theme no es un directorio: {:?}",
+                    destination
+                ));
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
+            Err(e) => return Err(e.to_string()),
+        };
+        if had_previous {
+            std::fs::rename(destination, &backup).map_err(|e| e.to_string())?;
+        }
+        if let Err(e) = std::fs::rename(self.root.join("theme"), destination) {
+            if had_previous && let Err(rollback) = std::fs::rename(&backup, destination) {
+                // Never delete the only remaining copy if the filesystem also
+                // refuses rollback; report its recovery path to the caller.
+                return Err(format!(
+                    "Error instalando theme: {e}; error restaurando: {rollback}. Copia conservada en {}",
+                    backup.display()
+                ));
+            }
+            return Err(format!("Error instalando theme: {e}"));
+        }
+        if had_previous && let Err(e) = std::fs::remove_dir_all(&backup) {
+            warn!(
+                "Theme instalado; no se pudo limpiar backup {:?}: {}",
+                backup, e
+            );
+        }
+        Ok(())
+    }
+}
+
+impl Drop for StagedTheme {
+    fn drop(&mut self) {
+        if self.root.join("backup").exists() {
+            warn!("Backup de theme conservado en {:?}", self.root);
+        } else if let Err(e) = std::fs::remove_dir_all(&self.root) {
+            warn!("No se pudo limpiar staging {:?}: {}", self.root, e);
+        }
+    }
+}
+
 fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntry>, String> {
+    let themes_dir = PathManager::get().get_themes_dir();
+    let Some((entry, staged)) = stage_zip::<T>(zip_path, themes_dir)? else {
+        return Ok(None);
+    };
+    let _install = INSTALL_LOCK.lock();
+    let destination = themes_dir.join(entry.id.as_str());
+    let watch = ThemeWatcher::pause_import(&destination);
+    staged.install(&destination)?;
+    watch.finish();
+    info!("Theme importado: id='{}'", entry.id);
+    Ok(Some(entry))
+}
+
+fn stage_zip<T: ZipImportable>(
+    zip_path: &str,
+    themes_dir: &Path,
+) -> Result<Option<(ThemeEntry, StagedTheme)>, String> {
     let source = std::path::Path::new(zip_path);
     if !source.exists() {
         return Err(FsError::NotFound(zip_path.to_string()).to_string());
@@ -185,51 +267,31 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
         .map_err(|e| CoreError::Other(format!("Archivo ZIP inválido: {}", e)).to_string())?;
 
     let target = T::ZIP_TARGET_FILE;
-    let entry_name = {
-        let mut found_root = false;
-        let mut found_subdir: Option<String> = None;
-        let mut invalid = false;
-
-        for i in 0..archive.len() {
-            let entry = archive
-                .by_index(i)
-                .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
-            let name = entry.name().to_string();
-
-            if name == target {
-                found_root = true;
-            } else if name.ends_with(&format!("/{}", target)) {
-                if found_subdir.is_some() || found_root {
-                    invalid = true;
-                    break;
-                }
-                found_subdir = Some(name);
+    let mut manifest = None;
+    for i in 0..archive.len() {
+        let entry = archive
+            .by_index(i)
+            .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
+        // Older Windows exports used native separators, including in wrappers.
+        let name = entry.name().replace('\\', "/");
+        if name == target || name.ends_with(&format!("/{target}")) {
+            if manifest.is_some() {
+                return Err(CoreError::Other(format!(
+                    "ZIP inválido: múltiples {} encontrados",
+                    target
+                ))
+                .to_string());
             }
+            manifest = Some((i, name));
         }
-
-        if invalid || (found_root && found_subdir.is_some()) {
-            return Err(CoreError::Other(format!(
-                "ZIP inválido: múltiples {} encontrados",
-                target
-            ))
-            .to_string());
-        }
-
-        match (found_root, found_subdir) {
-            (true, _) => Some(target.to_string()),
-            (_, Some(sub)) => Some(sub),
-            _ => None,
-        }
-    };
-
-    let entry_name = match entry_name {
-        Some(name) => name,
-        None => return Ok(None),
+    }
+    let Some((entry_index, entry_name)) = manifest else {
+        return Ok(None);
     };
 
     let content = {
         let mut buf = String::new();
-        let mut entry = archive.by_name(&entry_name).map_err(|e| {
+        let mut entry = archive.by_index(entry_index).map_err(|e| {
             CoreError::Other(format!("Error leyendo {}: {}", target, e)).to_string()
         })?;
         entry.read_to_string(&mut buf).map_err(|e| {
@@ -249,27 +311,6 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
 
     let theme_id = build_theme_id(&name_str, &author_str)?;
 
-    let theme_dir = PathManager::get().get_themes_dir().join(&theme_id);
-
-    if theme_dir.exists() {
-        info!("Sobreescribiendo theme existente '{}'", theme_id);
-        if let Err(e) = std::fs::remove_dir_all(&theme_dir) {
-            return Err(FsError::Remove {
-                path: theme_dir.to_string_lossy().to_string(),
-                source: e,
-            }
-            .to_string());
-        }
-    }
-
-    std::fs::create_dir_all(&theme_dir).map_err(|e| {
-        FsError::CreateDir {
-            path: theme_dir.to_string_lossy().to_string(),
-            source: e,
-        }
-        .to_string()
-    })?;
-
     let prefix = if entry_name == target {
         String::new()
     } else {
@@ -285,36 +326,60 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
             }
         }
     }
+    let prefix_path: PathBuf = prefix_path
+        .components()
+        .filter_map(|component| match component {
+            Component::Normal(name) => Some(name),
+            _ => None,
+        })
+        .collect();
 
+    let staged = StagedTheme::new(themes_dir)?;
+    let theme_dir = staged.root.join("theme");
     for i in 0..archive.len() {
         let mut entry = archive
             .by_index(i)
             .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
 
-        // `enclosed_name()` rejects paths that escape the current directory, including
-        // entries with `..` or absolute paths.
-        let Some(enclosed) = entry.enclosed_name() else {
-            warn!("Entrada ZIP con ruta insegura ignorada: {}", entry.name());
-            continue;
-        };
+        let name = entry.name().replace('\\', "/");
+        // Reject drive prefixes and links on every OS. Validate before lexical
+        // normalization: ZIP 8's enclosed_name() removes roots and internal `..`.
+        if name.contains([':', '\0'])
+            || entry
+                .unix_mode()
+                .is_some_and(|mode| mode & 0o170000 == 0o120000)
+        {
+            return Err(format!("Entrada ZIP insegura: {}", entry.name()));
+        }
+        sanitize_path(&theme_dir, Path::new(&name))?;
+        let enclosed: PathBuf = Path::new(&name)
+            .components()
+            .filter_map(|component| match component {
+                Component::Normal(name) => Some(name),
+                _ => None,
+            })
+            .collect();
 
-        let relative = match enclosed.strip_prefix(prefix_path) {
+        let relative = match enclosed.strip_prefix(&prefix_path) {
             Ok(r) => r,
             Err(_) => continue,
         };
 
-        if relative.as_os_str().is_empty() || entry.is_dir() {
+        if relative.as_os_str().is_empty() {
             continue;
         }
 
         // Double-check the resolved path stays under the theme directory.
         let out_path = sanitize_path(&theme_dir, relative)?;
 
-        if let Some(parent) = out_path.parent()
-            && let Err(e) = std::fs::create_dir_all(parent)
-        {
-            warn!("Error creando directorio {:?}: {}", parent, e);
+        if name.ends_with('/') {
+            std::fs::create_dir_all(&out_path)
+                .map_err(|e| format!("Error creando directorio {:?}: {}", out_path, e))?;
             continue;
+        }
+        if let Some(parent) = out_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Error creando directorio {:?}: {}", parent, e))?;
         }
 
         let mut out_file = std::fs::File::create(&out_path).map_err(|e| {
@@ -334,16 +399,20 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
         })?;
     }
 
-    info!("Theme importado: id='{}'", theme_id);
-    Ok(Some(ThemeEntry {
-        id: theme_id.into(),
-        name: name_str.into(),
-        author: author_str.to_lowercase().into(),
-        version: version_str.into(),
-        r#type: "user".into(),
-        preview: None,
-        icon: None,
-    }))
+    load_user_theme(&theme_dir, &theme_id)?;
+
+    Ok(Some((
+        ThemeEntry {
+            id: theme_id.into(),
+            name: name_str.into(),
+            author: author_str.to_lowercase().into(),
+            version: version_str.into(),
+            r#type: "user".into(),
+            preview: None,
+            icon: None,
+        },
+        staged,
+    )))
 }
 
 #[command]
@@ -442,6 +511,10 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
     info!("Leyendo theme '{}'", id);
     validate_identifier(&id)?;
     let theme_base = PathManager::get().get_themes_dir().join(&id);
+    load_user_theme(&theme_base, &id)
+}
+
+fn load_user_theme(theme_base: &Path, id: &str) -> Result<ThemeResponse, String> {
     let meta_path = theme_base.join("Meta.toml");
     let exists_meta_toml = match exists(&meta_path) {
         Ok(e) => e,
@@ -468,7 +541,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
 
         //verificar si existe la referencia al backgroudn
         if let Some(ref bg) = definitions.background.reference_path
-            && let Some(resolved) = resolve_theme_asset(&theme_base, bg.as_ref())?
+            && let Some(resolved) = resolve_theme_asset(theme_base, bg.as_ref())?
         {
             definitions.background.reference_path = Some(resolved.to_string_lossy().to_string());
         }
@@ -493,7 +566,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
 
         // Resolver y validar iconos del theme
         if let Some(ref preview) = definitions.icons.preview
-            && let Some(resolved) = resolve_theme_asset(&theme_base, preview.as_ref())?
+            && let Some(resolved) = resolve_theme_asset(theme_base, preview.as_ref())?
         {
             definitions.icons.preview = Some(resolved.to_string_lossy().to_string());
         }
@@ -506,7 +579,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
 
         for items in definitions.icons.groups.values_mut() {
             for path in items.values_mut() {
-                if let Some(resolved) = resolve_theme_asset(&theme_base, path.as_ref())? {
+                if let Some(resolved) = resolve_theme_asset(theme_base, path.as_ref())? {
                     *path = resolved.to_string_lossy().to_string();
                 }
             }
@@ -526,7 +599,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
         });
 
         for font in &mut definitions.fonts {
-            if let Some(resolved) = resolve_theme_asset(&theme_base, font.src.as_ref())? {
+            if let Some(resolved) = resolve_theme_asset(theme_base, font.src.as_ref())? {
                 font.src = resolved.to_string_lossy().to_string().into();
             }
         }
@@ -570,7 +643,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
 
         // Resolver bg_image relativa al directorio del theme si no es absoluta
         if let Some(ref bg) = theme.bg_image
-            && let Some(resolved) = resolve_theme_asset(&theme_base, bg.as_ref())?
+            && let Some(resolved) = resolve_theme_asset(theme_base, bg.as_ref())?
         {
             theme.bg_image = Some(resolved.to_string_lossy().to_string());
         }
@@ -597,7 +670,7 @@ pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
 
         // Resolver rutas de fuentes relativas al directorio del theme
         for font in &mut theme.fonts {
-            if let Some(resolved) = resolve_theme_asset(&theme_base, font.src.as_ref())? {
+            if let Some(resolved) = resolve_theme_asset(theme_base, font.src.as_ref())? {
                 font.src = resolved.to_string_lossy().to_string().into();
             }
         }
@@ -614,16 +687,7 @@ pub async fn set_theme(id: String) -> Result<(), String> {
 
     SettingsManager::save().await?;
 
-    if let Some(dir) = id.strip_prefix("user:") {
-        info!("Iniciando watcher para tema de usuario: {}", dir);
-        ThemeWatcher::watch(Some(dir.to_string()));
-    } else {
-        info!("Tema built-in seleccionado, deteniendo watcher");
-        ThemeWatcher::watch(None);
-    }
-
     info!("Tema cambiado a '{}'", id);
-    emit(AppEvent::ThemeChanged { id: id.into() });
     Ok(())
 }
 
@@ -667,6 +731,7 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
 
     let theme_id = build_theme_id(&theme_file.name, &theme_file.author)?;
     let theme_dir = PathManager::get().get_themes_dir().join(&theme_id);
+    let _install = INSTALL_LOCK.lock();
 
     if theme_dir.exists() {
         error!("El theme '{}' ya existe", theme_file.name);
@@ -677,15 +742,9 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
         .to_string());
     }
 
-    std::fs::create_dir_all(&theme_dir).map_err(|e| {
-        FsError::CreateDir {
-            path: theme_dir.to_string_lossy().to_string(),
-            source: e,
-        }
-        .to_string()
-    })?;
-
-    let dest_path = theme_dir.join("theme.json");
+    let staged = StagedTheme::new(PathManager::get().get_themes_dir())?;
+    let staged_dir = staged.root.join("theme");
+    let dest_path = staged_dir.join("theme.json");
     std::fs::write(&dest_path, &content).map_err(|e| {
         FsError::WriteFile {
             path: dest_path.to_string_lossy().to_string(),
@@ -699,7 +758,7 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
         && !bg.starts_with('/')
         && !bg.starts_with("file:")
         && let Some(resolved_src) = source.parent().and_then(|p| safe_join(p, bg.as_ref()).ok())
-        && let Some(resolved_dest) = resolve_theme_asset(&theme_dir, bg.as_ref())?
+        && let Some(resolved_dest) = resolve_theme_asset(&staged_dir, bg.as_ref())?
     {
         info!("Copiando bg_image a {:?}", resolved_dest);
         if let Err(e) = std::fs::copy(&resolved_src, &resolved_dest) {
@@ -707,6 +766,10 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
         }
     }
 
+    load_user_theme(&staged_dir, &theme_id)?;
+    let watch = ThemeWatcher::pause_import(&theme_dir);
+    staged.install(&theme_dir)?;
+    watch.finish();
     info!(
         "Theme importado: id='{}', name='{}'",
         theme_id, theme_file.name
@@ -748,6 +811,7 @@ pub fn import_theme_zip(zip_path: String) -> Result<ThemeEntry, String> {
 pub fn remove_theme(id: String) -> Result<(), String> {
     info!("Eliminando theme '{}'", id);
     validate_identifier(&id)?;
+    let _install = INSTALL_LOCK.lock();
     let theme_dir = PathManager::get().get_themes_dir().join(&id);
     if !theme_dir.exists() {
         return Err(FsError::NotFound(theme_dir.to_string_lossy().to_string()).to_string());
@@ -786,7 +850,14 @@ pub fn export_theme(id: String, dest: String) -> Result<String, String> {
         return Err(FsError::NotFound(theme_dir.to_string_lossy().to_string()).to_string());
     }
 
-    let file = std::fs::File::create(&output).map_err(|e| FsError::WriteFile {
+    export_theme_directory(&theme_dir, &output)?;
+    let out_path = output.to_string_lossy().to_string();
+    info!("Theme exportado a '{}'", out_path);
+    Ok(out_path)
+}
+
+fn export_theme_directory(theme_dir: &Path, output: &Path) -> Result<(), String> {
+    let file = std::fs::File::create(output).map_err(|e| FsError::WriteFile {
         path: output.to_string_lossy().to_string(),
         source: e,
     })?;
@@ -813,7 +884,7 @@ pub fn export_theme(id: String, dest: String) -> Result<String, String> {
                 .strip_prefix(prefix)
                 .map_err(|_| CoreError::Other("Error calculando ruta relativa".into()))?;
             if path.is_dir() {
-                zip.add_directory(relative.to_string_lossy(), options)
+                zip.add_directory(relative.to_string_lossy().replace('\\', "/"), options)
                     .map_err(|e| CoreError::Other(format!("Error agregando directorio: {}", e)))?;
                 add_dir_to_zip(zip, &path, prefix, options)?;
             } else {
@@ -821,7 +892,7 @@ pub fn export_theme(id: String, dest: String) -> Result<String, String> {
                     path: path.to_string_lossy().to_string(),
                     source: e,
                 })?;
-                zip.start_file(relative.to_string_lossy(), options)
+                zip.start_file(relative.to_string_lossy().replace('\\', "/"), options)
                     .map_err(|e| CoreError::Other(format!("Error agregando archivo: {}", e)))?;
                 std::io::Write::write_all(&mut *zip, &data)
                     .map_err(|e| CoreError::Other(format!("Error escribiendo ZIP: {}", e)))?;
@@ -830,13 +901,405 @@ pub fn export_theme(id: String, dest: String) -> Result<String, String> {
         Ok(())
     }
 
-    add_dir_to_zip(&mut zip_writer, &theme_dir, &theme_dir, options)?;
+    add_dir_to_zip(&mut zip_writer, theme_dir, theme_dir, options)?;
 
     zip_writer
         .finish()
         .map_err(|e| CoreError::Other(format!("Error finalizando ZIP: {}", e)))?;
 
-    let out_path = output.to_string_lossy().to_string();
-    info!("Theme exportado a '{}'", out_path);
-    Ok(out_path)
+    Ok(())
+}
+
+#[cfg(test)]
+mod import_tests {
+    use super::*;
+    use std::io::Write;
+
+    struct TestDir(PathBuf);
+
+    impl TestDir {
+        fn new() -> Self {
+            let path =
+                std::env::temp_dir().join(format!("cubic-theme-test-{}", uuid::Uuid::new_v4()));
+            std::fs::create_dir(&path).unwrap();
+            Self(path)
+        }
+
+        fn zip(&self, entries: &[(&str, &str)]) -> String {
+            let path = self.0.join("input.zip");
+            let mut zip = zip::ZipWriter::new(std::fs::File::create(&path).unwrap());
+            for (name, content) in entries {
+                zip.start_file(*name, zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                zip.write_all(content.as_bytes()).unwrap();
+            }
+            zip.finish().unwrap();
+            path.to_str().unwrap().to_owned()
+        }
+
+        fn existing(&self) -> PathBuf {
+            let destination = self.0.join("themes/test_author");
+            std::fs::create_dir_all(&destination).unwrap();
+            std::fs::write(destination.join("old.txt"), "keep me").unwrap();
+            destination
+        }
+    }
+
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    const V1: &str = r#"{"name":"Test","author":"Author","variables":{}}"#;
+    const V2: &str = "name = 'Test'\nauthor = 'Author'\ninjects_css = false\n";
+
+    fn imports_layout<T: ZipImportable>(prefix: &str, metadata: &str) {
+        let dir = TestDir::new();
+        let themes = dir.0.join("themes");
+        let destination = dir.existing();
+        let zip = dir.zip(&[
+            (&format!("{prefix}{}", T::ZIP_TARGET_FILE), metadata),
+            (
+                &format!("{prefix}Definition.toml"),
+                "[colors]\naccent = 'red'",
+            ),
+            (&format!("{prefix}Inject.css"), "body { color: red; }"),
+            (&format!("{prefix}assets/nested/font.woff2"), "font bytes"),
+        ]);
+        let (entry, staged) = stage_zip::<T>(&zip, &themes).unwrap().unwrap();
+        assert_eq!(entry.id, "test_author");
+        assert_eq!(staged.root.parent(), Some(themes.as_path()));
+        assert!(!staged.root.join("theme.json").exists());
+        assert!(!staged.root.join("Meta.toml").exists());
+        assert_eq!(std::fs::read_dir(&themes).unwrap().count(), 2);
+        assert!(destination.join("old.txt").exists());
+        let staging_root = staged.root.clone();
+        staged.install(&destination).unwrap();
+        drop(staged);
+        assert!(!staging_root.exists());
+        assert!(!destination.join("old.txt").exists());
+        assert_eq!(
+            std::fs::read_to_string(destination.join(T::ZIP_TARGET_FILE)).unwrap(),
+            metadata
+        );
+        assert_eq!(
+            std::fs::read_to_string(destination.join("Inject.css")).unwrap(),
+            "body { color: red; }"
+        );
+        assert_eq!(
+            std::fs::read_to_string(destination.join("assets/nested/font.woff2")).unwrap(),
+            "font bytes"
+        );
+    }
+
+    #[test]
+    fn imports_v1_root() {
+        imports_layout::<ThemeFile>("", V1);
+    }
+
+    #[test]
+    fn imports_v1_wrapped() {
+        imports_layout::<ThemeFile>("wrapper/", V1);
+        imports_layout::<ThemeFile>("./wrapper/", V1);
+    }
+
+    #[test]
+    fn imports_v2_root() {
+        imports_layout::<ThemeMeta>("", V2);
+    }
+
+    #[test]
+    fn imports_v2_wrapped() {
+        imports_layout::<ThemeMeta>("wrapper/nested/", V2);
+    }
+
+    #[test]
+    fn imports_legacy_windows_root_and_wrapped_archives() {
+        for prefix in ["", "wrapper\\nested\\"] {
+            for (manifest, content) in [("theme.json", V1), ("Meta.toml", V2)] {
+                let dir = TestDir::new();
+                let themes = dir.0.join("themes");
+                let zip = dir.zip(&[
+                    (&format!("{prefix}{manifest}"), content),
+                    (&format!("{prefix}Definition.toml"), ""),
+                    (&format!("{prefix}assets\\nested\\"), ""),
+                    (&format!("{prefix}assets\\nested\\font.woff2"), "font bytes"),
+                ]);
+                let staged = if manifest == "theme.json" {
+                    stage_zip::<ThemeFile>(&zip, &themes)
+                } else {
+                    stage_zip::<ThemeMeta>(&zip, &themes)
+                }
+                .unwrap()
+                .unwrap()
+                .1;
+                assert_eq!(
+                    std::fs::read_to_string(staged.root.join("theme/assets/nested/font.woff2"))
+                        .unwrap(),
+                    "font bytes"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn exports_canonical_zip_names_and_roundtrips() {
+        let dir = TestDir::new();
+        let theme = dir.0.join("source");
+        std::fs::create_dir_all(theme.join("assets/nested")).unwrap();
+        std::fs::write(theme.join("theme.json"), V1).unwrap();
+        std::fs::write(theme.join("assets/nested/font.woff2"), "font bytes").unwrap();
+        let output = dir.0.join("export.zip");
+        export_theme_directory(&theme, &output).unwrap();
+        let archive = zip::ZipArchive::new(std::fs::File::open(&output).unwrap()).unwrap();
+        assert!(archive.file_names().all(|name| !name.contains('\\')));
+        assert!(
+            archive
+                .file_names()
+                .any(|name| name == "assets/nested/font.woff2")
+        );
+        let (_, staged) = stage_zip::<ThemeFile>(output.to_str().unwrap(), &dir.0.join("themes"))
+            .unwrap()
+            .unwrap();
+        assert!(staged.root.join("theme/assets/nested/font.woff2").exists());
+    }
+
+    #[test]
+    fn runtime_metadata_precedence_preserves_existing_on_invalid_v2() {
+        let dir = TestDir::new();
+        let destination = dir.existing();
+        let zip = dir.zip(&[
+            ("theme.json", V1),
+            ("Meta.toml", "[invalid"),
+            ("Definition.toml", ""),
+        ]);
+        assert!(stage_zip::<ThemeFile>(&zip, &dir.0.join("themes")).is_err());
+        assert_eq!(
+            std::fs::read_to_string(destination.join("old.txt")).unwrap(),
+            "keep me"
+        );
+    }
+
+    #[test]
+    fn runtime_fatal_asset_checks_preserve_existing() {
+        let dir = TestDir::new();
+        let destination = dir.existing();
+        for definition in [
+            "[[fonts]]\nfamily = 'Unsafe'\nsrc = '../outside'",
+            "[background]\nreference_path = '../outside'",
+            "[icons]\npreview = '../outside'",
+            "[icons.ui]\nplay = '../outside'",
+        ] {
+            let zip = dir.zip(&[("Meta.toml", V2), ("Definition.toml", definition)]);
+            assert!(stage_zip::<ThemeMeta>(&zip, &dir.0.join("themes")).is_err());
+            assert!(destination.join("old.txt").exists());
+        }
+        let zip = dir.zip(&[("theme.json", r#"{"name":"Test","author":"Author","variables":{},"fonts":[{"family":"Unsafe","src":"../outside"}]}"#)]);
+        assert!(stage_zip::<ThemeFile>(&zip, &dir.0.join("themes")).is_err());
+        assert!(destination.join("old.txt").exists());
+    }
+
+    #[test]
+    fn runtime_tolerates_missing_assets_and_keeps_inject_css_without_flag() {
+        let dir = TestDir::new();
+        let themes = dir.0.join("themes");
+        let zip = dir.zip(&[
+            ("theme.json", V1),
+            ("Meta.toml", V2),
+            ("Definition.toml", "[[fonts]]\nfamily = 'Missing'\nsrc = 'missing.woff2'\n[background]\nreference_path = 'missing.png'\n[icons]\npreview = 'missing.png'\n[icons.ui]\nplay = 'missing.svg'"),
+            ("Inject.css", "body { color: red; }"),
+        ]);
+        // V1 discovery must still validate/load using runtime V2 precedence.
+        let (entry, staged) = stage_zip::<ThemeFile>(&zip, &themes).unwrap().unwrap();
+        let loaded = load_user_theme(&staged.root.join("theme"), &entry.id).unwrap();
+        assert!(loaded.bg_image.is_none());
+        assert!(loaded.icons.is_empty());
+        assert_eq!(loaded.fonts.len(), 1);
+        assert_eq!(loaded.inject_css.as_deref(), Some("body { color: red; }"));
+        staged.install(&themes.join(entry.id.as_str())).unwrap();
+        assert!(load_user_theme(&themes.join(entry.id.as_str()), &entry.id).is_ok());
+    }
+
+    #[test]
+    fn failed_extraction_preserves_existing_and_cleans_staging() {
+        let dir = TestDir::new();
+        let destination = dir.existing();
+        let zip = dir.zip(&[
+            ("theme.json", V1),
+            ("assets", "not a directory"),
+            ("assets/font", "font"),
+        ]);
+        assert!(stage_zip::<ThemeFile>(&zip, &dir.0.join("themes")).is_err());
+        assert_eq!(
+            std::fs::read_to_string(destination.join("old.txt")).unwrap(),
+            "keep me"
+        );
+        assert_eq!(std::fs::read_dir(&dir.0).unwrap().count(), 2);
+        assert_eq!(std::fs::read_dir(dir.0.join("themes")).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn corrupt_asset_preserves_existing() {
+        let dir = TestDir::new();
+        let destination = dir.existing();
+        let path = dir.0.join("corrupt.zip");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&path).unwrap());
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored);
+        zip.start_file("theme.json", options).unwrap();
+        zip.write_all(V1.as_bytes()).unwrap();
+        zip.start_file("asset.bin", options).unwrap();
+        zip.write_all(b"unique asset contents").unwrap();
+        zip.finish().unwrap();
+        let mut bytes = std::fs::read(&path).unwrap();
+        let offset = bytes
+            .windows(b"unique asset contents".len())
+            .position(|window| window == b"unique asset contents")
+            .unwrap();
+        bytes[offset] ^= 1;
+        std::fs::write(&path, bytes).unwrap();
+        assert!(stage_zip::<ThemeFile>(path.to_str().unwrap(), &dir.0.join("themes")).is_err());
+        assert_eq!(
+            std::fs::read_to_string(destination.join("old.txt")).unwrap(),
+            "keep me"
+        );
+    }
+
+    #[test]
+    fn ambiguous_metadata_preserves_existing() {
+        let dir = TestDir::new();
+        let destination = dir.existing();
+        for paths in [
+            ["theme.json", "wrapped/theme.json"],
+            ["a/theme.json", "b/theme.json"],
+        ] {
+            let zip = dir.zip(&[(paths[0], V1), (paths[1], V1)]);
+            assert!(stage_zip::<ThemeFile>(&zip, &dir.0.join("themes")).is_err());
+            assert!(destination.join("old.txt").exists());
+        }
+    }
+
+    #[test]
+    fn invalid_definition_preserves_existing() {
+        let dir = TestDir::new();
+        let destination = dir.existing();
+        for definition in [None, Some("[invalid")] {
+            let mut entries = vec![("Meta.toml", V2)];
+            if let Some(definition) = definition {
+                entries.push(("Definition.toml", definition));
+            }
+            let zip = dir.zip(&entries);
+            assert!(stage_zip::<ThemeMeta>(&zip, &dir.0.join("themes")).is_err());
+            assert!(destination.join("old.txt").exists());
+        }
+    }
+
+    #[test]
+    fn failed_replacement_rolls_back_existing() {
+        let dir = TestDir::new();
+        let destination = dir.existing();
+        let staged = StagedTheme::new(&dir.0.join("themes")).unwrap();
+        // Force the second rename to fail after the old installation is backed up.
+        std::fs::remove_dir(staged.root.join("theme")).unwrap();
+        assert!(staged.install(&destination).is_err());
+        assert_eq!(
+            std::fs::read_to_string(destination.join("old.txt")).unwrap(),
+            "keep me"
+        );
+        assert!(!staged.root.join("backup").exists());
+    }
+
+    #[test]
+    fn unsafe_paths_and_ids_never_replace_existing() {
+        let dir = TestDir::new();
+        let destination = dir.existing();
+        for path in [
+            "../escaped",
+            "/absolute",
+            "assets/../../escaped",
+            "assets/../escaped",
+            "..\\escaped",
+            "assets\\..\\escaped",
+            "assets/..\\escaped",
+            "\\absolute",
+            "\\\\server\\share\\escaped",
+            "C:/escaped",
+            "C:\\escaped",
+            "C:escaped",
+        ] {
+            let zip = dir.zip(&[("theme.json", V1), (path, "unsafe")]);
+            assert!(
+                stage_zip::<ThemeFile>(&zip, &dir.0.join("themes")).is_err(),
+                "{path}"
+            );
+            assert!(destination.join("old.txt").exists());
+            assert!(!dir.0.join("escaped").exists());
+        }
+        for manifest in [
+            "../theme.json",
+            "..\\theme.json",
+            "wrapper\\..\\theme.json",
+            "C:\\wrapper\\theme.json",
+        ] {
+            let zip = dir.zip(&[(manifest, V1)]);
+            assert!(stage_zip::<ThemeFile>(&zip, &dir.0.join("themes")).is_err());
+        }
+        for name in ["../escape", "/absolute", "a\\b", ".."] {
+            assert!(build_theme_id(name, "").is_err());
+        }
+    }
+
+    #[test]
+    fn non_theme_zip_allows_v1_v2_fallback() {
+        let dir = TestDir::new();
+        let zip = dir.zip(&[("readme.txt", "not a theme")]);
+        assert!(
+            stage_zip::<ThemeFile>(&zip, &dir.0.join("themes"))
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            stage_zip::<ThemeMeta>(&zip, &dir.0.join("themes"))
+                .unwrap()
+                .is_none()
+        );
+        assert!(!dir.0.join("themes").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stages_on_symlinked_theme_filesystem_without_hiding_dot_themes() {
+        let dir = TestDir::new();
+        let storage = TestDir::new();
+        let themes = dir.0.join("themes");
+        std::os::unix::fs::symlink(&storage.0, &themes).unwrap();
+        let zip = dir.zip(&[("theme.json", r#"{"name":".Hidden","variables":{}}"#)]);
+        let (entry, staged) = stage_zip::<ThemeFile>(&zip, &themes).unwrap().unwrap();
+        assert!(
+            std::fs::canonicalize(&staged.root)
+                .unwrap()
+                .starts_with(std::fs::canonicalize(&storage.0).unwrap())
+        );
+        assert!(!staged.root.join("theme.json").exists());
+        assert!(!staged.root.join("Meta.toml").exists());
+        assert_eq!(entry.id, ".hidden");
+        staged.install(&themes.join(entry.id.as_str())).unwrap();
+        drop(staged);
+        assert!(themes.join(".hidden/theme.json").exists());
+        assert_eq!(std::fs::read_dir(&themes).unwrap().count(), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn refuses_symlink_destination_without_touching_target() {
+        let dir = TestDir::new();
+        let destination = dir.existing();
+        let link = dir.0.join("themes/link");
+        std::os::unix::fs::symlink(&destination, &link).unwrap();
+        let staged = StagedTheme::new(&dir.0.join("themes")).unwrap();
+        assert!(staged.install(&link).is_err());
+        assert!(destination.join("old.txt").exists());
+        assert!(link.is_symlink());
+    }
 }

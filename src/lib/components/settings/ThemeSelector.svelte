@@ -10,6 +10,7 @@
 	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
 	import Trash from "$lib/icons/Trash.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
+	import { themeDiagnostics } from "$lib/state/themeDiagnostics.svelte";
 
 	let {
 		themes = $bindable(),
@@ -139,6 +140,21 @@
 		</button>
 	</div>
 
+	{#if value === themeDiagnostics.themeId && themeDiagnostics.warnings.length > 0}
+		<aside
+			class="theme-diagnostics"
+			aria-label={t("themes.diagnostics.title")}
+		>
+			<strong>{t("themes.diagnostics.title")}</strong>
+			<p>{t("themes.diagnostics.advisory")}</p>
+			<ul>
+				{#each themeDiagnostics.warnings as warning (warning.key)}
+					<li>{t(warning.key, warning.params)}</li>
+				{/each}
+			</ul>
+		</aside>
+	{/if}
+
 	{#each [...groups.entries()] as [author, themes] (author)}
 		<div class="group">
 			<span class="group-title">{author}</span>
@@ -246,6 +262,30 @@
 	.theme-header-actions {
 		display: flex;
 		gap: 4px;
+	}
+
+	.theme-diagnostics {
+		padding: 8px 10px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--bg-card);
+		color: var(--text-secondary);
+		font-size: 0.7rem;
+		line-height: 1.5;
+		overflow-wrap: anywhere;
+	}
+
+	.theme-diagnostics strong {
+		color: var(--text-primary);
+	}
+
+	.theme-diagnostics p {
+		margin: 4px 0;
+	}
+
+	.theme-diagnostics ul {
+		margin: 0;
+		padding-left: 16px;
 	}
 
 	.theme-header-actions .import-btn,
