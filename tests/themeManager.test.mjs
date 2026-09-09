@@ -29,7 +29,7 @@ plugin({
 	},
 });
 
-const { applyTheme, themeIcons } =
+const { applyTheme, themeIcons, invalidateThemeCache } =
 	await import("../src/lib/api/themeManager.ts");
 const { themeDiagnostics } =
 	await import("../src/lib/state/themeDiagnostics.svelte.ts");
@@ -232,15 +232,16 @@ beforeEach(async () => {
 	convert.mockClear();
 });
 
-afterEach(async () => {
-	try {
-		// Release manager-owned resources while the original fixture still exists.
-		// Invalidate callbacks before draining even deferreds left by a failed test.
-		invoke.mockReset().mockResolvedValue(theme());
-		await applyTheme(`user:__reset-${++resetId}`, { force: true });
-		for (const pending of deferreds) pending.resolve(undefined);
-		await settle();
-	} finally {
+	afterEach(async () => {
+		try {
+			// Release manager-owned resources while the original fixture still exists.
+			// Invalidate callbacks before draining even deferreds left by a failed test.
+			invoke.mockReset().mockResolvedValue(theme());
+			invalidateThemeCache();
+			await applyTheme(`user:__reset-${++resetId}`, { force: true });
+			for (const pending of deferreds) pending.resolve(undefined);
+			await settle();
+		} finally {
 		themeDiagnostics.themeId = savedDiagnostics.themeId;
 		themeDiagnostics.warnings = savedDiagnostics.warnings;
 		for (const spy of spies) spy.mockRestore();
@@ -766,4 +767,54 @@ test("current image failure clears handlers without reporting decoded dimensions
 	load();
 	expect(properties.get("--bg-image")).toBe("none");
 	expect(diagnostics().warnings).toEqual([]);
+});
+
+test("cached theme avoids a second read when re-selected later", async () => {
+	await commit("user:A", richTheme("A"));
+	await commit("dark", theme("Dark", { variables: { "--accent": "dark" } }));
+	expect(themeDiagnostics.themeId).toBe("dark");
+	reads.length = 0;
+
+	const backToA = applyTheme("user:A");
+	expect(reads).toHaveLength(0);
+	await backToA;
+
+	expect(style().textContent).toContain("--accent: A;");
+	expect(themeDiagnostics.themeId).toBe("user:A");
+});
+
+test("force reload invalidates cache and reads fresh theme data", async () => {
+	await commit("user:A", richTheme("A"));
+	const before = visuals();
+	reads.length = 0;
+
+	const reload = applyTheme("user:A", { force: true });
+	expect(reads).toHaveLength(1);
+	respond(reads[0], richTheme("Updated"));
+	await reload;
+	expect(style().textContent).toContain("--accent: Updated;");
+	expect(visuals()).not.toEqual(before);
+});
+
+test("theme cache is cleared after a failed read", async () => {
+	await commit("user:A", richTheme("A"));
+	const fail = applyTheme("user:A", { force: true });
+	reads.at(-1).reject(new Error("Reload failed"));
+	await fail;
+
+	await commit("dark", theme());
+	reads.length = 0;
+	const retry = applyTheme("user:A");
+	expect(reads).toHaveLength(1);
+	respond(reads[0], richTheme("A"));
+	await retry;
+	expect(style().textContent).toContain("--accent: A;");
+});
+
+test("aborting a pending built-in read does not log an error", async () => {
+	applyTheme("dark");
+	const a = applyTheme("user:A"); // aborts the pending dark read
+	respond(reads.at(-1), richTheme());
+	await a;
+	expect(errors).not.toHaveBeenCalled();
 });

@@ -88,7 +88,54 @@ let pendingTheme: {
 	controller: AbortController;
 } | null = null;
 
+// Cache in-memory of the last successfully read theme per id. This avoids
+// re-reading from Rust when opening auxiliary windows (logs, auth, etc.) and
+// reduces duplicate work when the same theme is requested again.
+// LRU with a tiny cap keeps memory bounded even if the user cycles through
+// many themes.
+const MAX_CACHED_THEMES = 3;
+const themeCache = new Map<string, ThemeResponse>();
+
+function getCachedTheme(themeId: string): ThemeResponse | undefined {
+	const hit = themeCache.get(themeId);
+	if (hit) {
+		// Move to most-recently-used position.
+		themeCache.delete(themeId);
+		themeCache.set(themeId, hit);
+	}
+	return hit;
+}
+
+function setCachedTheme(themeId: string, theme: ThemeResponse): void {
+	if (themeCache.has(themeId)) {
+		themeCache.delete(themeId);
+	} else if (themeCache.size >= MAX_CACHED_THEMES) {
+		const first = themeCache.keys().next();
+		if (!first.done) themeCache.delete(first.value);
+	}
+	themeCache.set(themeId, theme);
+}
+
+// Defensive caps for themes that declare an abusive number of icons/fonts.
+// The resources are not rejected; only the first N are eagerly loaded, and
+// the rest are available lazily if the component requests them.
+const MAX_PRELOAD_ICONS = 100;
+const MAX_LOADED_FONTS = 20;
+
 export const themeIcons = new SvelteMap<string, string>();
+export const themeIconDefinitions = new SvelteMap<string, string>();
+
+function isAbortError(err: unknown): boolean {
+	return err instanceof Error && err.name === "AbortError";
+}
+
+export function invalidateThemeCache(themeId?: string): void {
+	if (themeId) {
+		themeCache.delete(themeId);
+	} else {
+		themeCache.clear();
+	}
+}
 
 const defaultFontsCSS = `
 @font-face {
@@ -232,6 +279,21 @@ function clearThemeResources() {
 	addedFonts.clear();
 
 	themeIcons.clear();
+	themeIconDefinitions.clear();
+}
+
+let currentRevision = "";
+
+export function getThemeIcon(name: string): string | null {
+	const cached = themeIcons.get(name);
+	if (cached) return cached;
+	const definition = themeIconDefinitions.get(name);
+	if (!definition) return null;
+	const url = appliedThemeId?.startsWith("user:")
+		? `${convertFileSrc(definition)}?theme-revision=${currentRevision}`
+		: definition;
+	themeIcons.set(name, url);
+	return url;
 }
 
 export function applyTheme(
@@ -249,33 +311,62 @@ export function applyTheme(
 		return Promise.resolve();
 	}
 
+	if (opts?.force) {
+		invalidateThemeCache(themeId);
+	}
+
 	const controller = new AbortController();
 	const promise = (async () => {
-		let theme: ThemeResponse | null = null;
+		let theme: ThemeResponse | null = getCachedTheme(themeId) ?? null;
 
-		if (builtinThemes.find((t) => t.id === themeId)) {
-			const res = await fetch(`/themes/${themeId}/${themeId}.json`, {
-				signal: controller.signal,
-			});
-			if (!res.ok) throw new Error(`Theme request failed: ${res.status}`);
-			theme = await res.json();
-		} else if (themeId.startsWith("user:")) {
-			const id = themeId.slice(5);
-			theme = await invoke<ThemeResponse>("get_user_theme", { id });
+		if (!theme) {
+			if (builtinThemes.find((t) => t.id === themeId)) {
+				try {
+					const res = await fetch(
+						`/themes/${themeId}/${themeId}.json`,
+						{
+							signal: controller.signal,
+						},
+					);
+					if (!res.ok) {
+						throw new Error(`Theme request failed: ${res.status}`);
+					}
+					theme = await res.json();
+				} catch (err) {
+					if (isAbortError(err)) return;
+					throw err;
+				}
+			} else if (themeId.startsWith("user:")) {
+				const id = themeId.slice(5);
+				theme = await invoke<ThemeResponse>("get_user_theme", { id });
+			}
 		}
 
 		if (!theme) return;
 		if (request !== requestGeneration) return;
 
+		// Cache successful reads so auxiliary windows (logs, auth, etc.) avoid
+		// redundant Rust round-trips.
+		setCachedTheme(themeId, theme);
+
 		const css = buildThemeCSS(theme);
 		// A file can change without changing its path, including while inactive.
 		const revision = `${Date.now()}-${request}`;
+		currentRevision = revision;
 		const assetUrl = (path: string) =>
 			themeId.startsWith("user:")
 				? `${convertFileSrc(path)}?theme-revision=${revision}`
 				: path;
-		const icons = Object.entries(theme.icons ?? {})
-			.filter(([, path]) => path)
+		const iconEntries = Object.entries(theme.icons ?? {}).filter(
+			([, path]) => path,
+		);
+		if (iconEntries.length > MAX_PRELOAD_ICONS) {
+			console.warn(
+				`Theme "${themeId}" declares ${iconEntries.length} icons; only the first ${MAX_PRELOAD_ICONS} are preloaded.`,
+			);
+		}
+		const icons = iconEntries
+			.slice(0, MAX_PRELOAD_ICONS)
 			.map(([key, path]) => [key, assetUrl(path)] as const);
 		const bgImg = theme.bg_image;
 		const imgUrl = bgImg && assetUrl(bgImg);
@@ -285,8 +376,14 @@ export function applyTheme(
 		clearThemeResources();
 		setThemeStyle(css);
 		setThemeDiagnostics(themeId, theme);
+
 		for (const [key, url] of icons) {
 			themeIcons.set(key, url);
+		}
+		// Keep definitions for the rest so individual components can resolve them
+		// lazily without re-reading the theme manifest.
+		for (const [key, path] of iconEntries) {
+			themeIconDefinitions.set(key, path);
 		}
 
 		const root = document.documentElement;
@@ -323,8 +420,15 @@ export function applyTheme(
 			root.style.setProperty("--font-loaded", "0");
 
 			const loaded: Promise<void>[] = [];
+			const fontsToLoad = theme.fonts.slice(0, MAX_LOADED_FONTS);
 
-			for (const font of theme.fonts) {
+			if (theme.fonts.length > MAX_LOADED_FONTS) {
+				console.warn(
+					`Theme "${themeId}" declares ${theme.fonts.length} fonts; only the first ${MAX_LOADED_FONTS} will be loaded.`,
+				);
+			}
+
+			for (const font of fontsToLoad) {
 				try {
 					const fontSrc = assetUrl(font.src);
 
@@ -388,7 +492,11 @@ export function applyTheme(
 		appliedThemeId = themeId;
 	})()
 		.catch((err) => {
+			if (isAbortError(err)) return;
 			if (request === requestGeneration) {
+				// Something actually went wrong loading this theme; drop any stale
+				// cached copy so the next attempt reads fresh data.
+				invalidateThemeCache(themeId);
 				console.error("Error loading theme:", err);
 			}
 		})

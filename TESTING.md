@@ -89,12 +89,13 @@ bun run tauri build
 
 ### Modpacks y themes
 
-- Ejecutar `bun test --conditions=browser tests/themeManager.test.mjs tests/themeDiagnostics.test.mjs` y `cargo test -p cubiclauncher --lib theme` para comprobar cargas concurrentes, limpieza de recursos, avisos, importacion con rollback y watcher.
+- Ejecutar `bun test --conditions=browser tests/themeManager.test.mjs tests/themeDiagnostics.test.mjs` y `cargo test -p cubiclauncher --lib theme` para comprobar cargas concurrentes, limpieza de recursos, avisos, importacion con rollback, watcher y cache de tema activo.
 - [ ] Arrastrar un `.mrpack` o `.zip` al launcher e importarlo.
 - [ ] Cambiar de tema y verificar que apliquen las variables CSS.
 - [ ] Importar un theme `.zip` o `.cbth`.
 - [ ] Comparar temas V1/V2 con fondos, fuentes, iconos y `Inject.css`: deben conservar su apariencia, incluso con `injects_css` ausente o desactivado.
 - [ ] Cambiar rapidamente A -> B -> A y simular un fallo de lectura: el tema anterior debe conservarse y las cargas tardias no deben mezclar fuentes o imagenes.
+- [ ] Volver a seleccionar un tema ya cargado (por ejemplo, abrir una consola de logs): no debe re-leer el JSON desde Rust si el tema esta cacheado.
 - [ ] Reimportar el tema activo desde ajustes y arrastrando el archivo, reemplazando iconos y fondos sin cambiar sus nombres. Comprobar la actualizacion en la ventana principal y una consola abierta.
 - [ ] Editar y eliminar recursos en subcarpetas del tema activo; comprobar que el watcher sigue funcionando despues de reimportar. Importar otro tema por arrastre no debe cambiar ni recargar el activo.
 - [ ] Importar un reemplazo corrupto: la instalacion anterior debe seguir intacta. Comprobar tambien paquetes antiguos exportados en Windows con separadores inversos.
