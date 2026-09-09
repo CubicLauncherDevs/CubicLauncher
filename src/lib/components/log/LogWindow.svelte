@@ -162,6 +162,8 @@
 			unlistenFn?.();
 			document.removeEventListener("keydown", handleGlobalKeydown);
 			renderer.detach();
+			log.setRenderer(undefined);
+			log.destroy();
 		};
 	});
 </script>

@@ -35,6 +35,7 @@
 	let idleTimeout: ReturnType<typeof setTimeout> | null = null;
 	let isInteracting = false;
 	let isIdle = false;
+	let skinLoadGeneration = 0;
 	const isVisible = $derived(isIntersecting && isTabVisible);
 
 	const shouldAnimate = $derived(
@@ -92,7 +93,9 @@
 	function bustCache(url: string): string {
 		if (url.startsWith("data:")) return url;
 		const sep = url.includes("?") ? "&" : "?";
-		return `${url}${sep}_skin3d=${Date.now()}`;
+		// Use a small per-component generation counter instead of Date.now() so
+		// the browser image cache is not flooded with unique URLs on every render.
+		return `${url}${sep}_skin3d=${++skinLoadGeneration}`;
 	}
 
 	onMount(() => {
@@ -123,6 +126,12 @@
 				pixelRatio: quality === "high" ? "match-device" : 1,
 				renderPaused: !shouldAnimate,
 			});
+
+			// Default skin3d lighting (ambient 3.0 / camera 0.6) washes out skins.
+			// A balanced ambient + stronger camera light keeps colors closer to the
+			// original texture while preserving shape.
+			instance.globalLight.intensity = 2.0;
+			instance.cameraLight.intensity = 1.2;
 
 			instance.autoRotate = shouldAnimate;
 			instance.animation = shouldAnimate ? new IdleAnimation() : null;
@@ -265,6 +274,8 @@
 				pendingRaf = null;
 			}
 			viewer?.dispose();
+			viewer = null;
+			IdleAnimationClass = null;
 		};
 	});
 

@@ -71,6 +71,7 @@ const downloads = new SvelteMap<string, DownloadQueueItem>();
 const removalTimers = new SvelteSet<ReturnType<typeof setTimeout>>();
 
 let initialized = false;
+let destroyed = false;
 let unsubs: (() => void)[] = [];
 
 export { downloads };
@@ -102,8 +103,10 @@ function removeDownload(version: string, delay: number): void {
 export function initDownloadQueueState(): void {
 	if (initialized) return;
 	initialized = true;
+	destroyed = false;
 
 	getDownloadQueue().then((queue) => {
+		if (destroyed) return;
 		for (const item of queue) {
 			if (!downloads.has(item.version)) {
 				downloads.set(item.version, {
@@ -230,6 +233,7 @@ export function initDownloadQueueState(): void {
 }
 
 export function destroyDownloadQueueState(): void {
+	destroyed = true;
 	for (const unsub of unsubs) unsub();
 	unsubs = [];
 	for (const t of removalTimers) clearTimeout(t);

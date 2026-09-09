@@ -38,7 +38,7 @@ export class LogState {
 		return this.lines.length;
 	}
 
-	setRenderer(renderer: LogRenderer) {
+	setRenderer(renderer: LogRenderer | undefined) {
 		this.renderer = renderer;
 	}
 
@@ -149,5 +149,13 @@ export class LogState {
 		this.currentMatchIndex = 0;
 		this.matchCount = 0;
 		this.renderer?.clear();
+	}
+
+	destroy() {
+		if (this.searchTimer) {
+			clearTimeout(this.searchTimer);
+			this.searchTimer = null;
+		}
+		this.renderer = undefined;
 	}
 }

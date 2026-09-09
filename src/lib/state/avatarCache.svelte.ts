@@ -11,6 +11,11 @@ const cache = new SvelteMap<string, CacheEntry>();
 const MAX = 50;
 const TTL_MS = 5 * 60 * 1000; // 5 minutos
 
+// AbortControllers for in-flight fallback fetches, keyed by uuid@version.
+// Not reactive: these are short-lived request handles, not UI state.
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
+const pendingFetches = new Map<string, AbortController>();
+
 /**
  * Versiones reactivas de avatar por UUID.
  * Se incrementan tras cambiar la skin para forzar recarga de heads.
@@ -19,6 +24,24 @@ export const avatarVersions = new SvelteMap<string, number>();
 
 function cacheKey(uuid: string, version: number): string {
 	return `${uuid}@${version}`;
+}
+
+function abortPending(uuid: string, version: number): void {
+	const key = cacheKey(uuid, version);
+	const controller = pendingFetches.get(key);
+	if (controller) {
+		controller.abort();
+		pendingFetches.delete(key);
+	}
+}
+
+function pruneExpired(): void {
+	const now = Date.now();
+	for (const [key, entry] of cache.entries()) {
+		if (now - entry.fetchedAt >= TTL_MS) {
+			cache.delete(key);
+		}
+	}
 }
 
 export function getAvatar(url: string): string | undefined {
@@ -43,7 +66,11 @@ function setAvatarFor(uuid: string, version: number, svg: string) {
 }
 
 function getAvatarFor(uuid: string, version: number): CacheEntry | undefined {
-	return cache.get(cacheKey(uuid, version));
+	pruneExpired();
+	return (
+		(cache.get(cacheKey(uuid, version)) as CacheEntry | undefined) ??
+		undefined
+	);
 }
 
 export function invalidateAvatarCache(url: string) {
@@ -51,8 +78,9 @@ export function invalidateAvatarCache(url: string) {
 }
 
 export function invalidateAvatarFor(uuid: string) {
+	const prefix = `${uuid}@`;
 	for (const key of cache.keys()) {
-		if (key.startsWith(`${uuid}@`)) cache.delete(key);
+		if (key.startsWith(prefix)) cache.delete(key);
 	}
 }
 
@@ -63,6 +91,9 @@ export function getAvatarVersion(uuid: string): number {
 export function bumpAvatarVersion(uuid: string): number {
 	const next = (avatarVersions.get(uuid) ?? 0) + 1;
 	avatarVersions.set(uuid, next);
+	// Abort any in-flight fetch for the old version; the component will retry
+	// with the new version on its next render cycle.
+	abortPending(uuid, next - 1);
 	invalidateAvatarFor(uuid);
 	return next;
 }
@@ -95,8 +126,8 @@ export async function fetchAvatarSvg(
 	}
 
 	const version = getAvatarVersion(uuid);
-	const cached = getAvatarFor(uuid, version);
-	if (cached && Date.now() - cached.fetchedAt < TTL_MS) {
+	const cached = getAvatarFor(uuid, version) as CacheEntry | undefined;
+	if (cached) {
 		return cached.svg;
 	}
 
@@ -112,14 +143,23 @@ export async function fetchAvatarSvg(
 			userType,
 			serverUrl,
 		);
+		const key = cacheKey(uuid, version);
+		abortPending(uuid, version);
+		const controller = new AbortController();
+		pendingFetches.set(key, controller);
+
 		try {
-			const res = await fetch(fallbackUrl);
-			if (!res.ok) return cached?.svg ?? DEFAULT_AVATAR_SVG;
+			const res = await fetch(fallbackUrl, {
+				signal: controller.signal,
+			});
+			pendingFetches.delete(key);
+			if (!res.ok) return DEFAULT_AVATAR_SVG;
 			const svg = await res.text();
 			setAvatarFor(uuid, version, svg);
 			return svg;
 		} catch {
-			return cached?.svg ?? DEFAULT_AVATAR_SVG;
+			pendingFetches.delete(key);
+			return DEFAULT_AVATAR_SVG;
 		}
 	}
 }
