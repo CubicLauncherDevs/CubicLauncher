@@ -454,6 +454,9 @@ impl Launcher {
 
     pub async fn launch(&self, handle: InstanceHandle) -> Result<(), AppError> {
         trace!("=== CubicLaunchwerk ===");
+        let files_guard = handle
+            .try_lock_files()
+            .map_err(|_| AppError::Instance(InstanceError::FileOperationInProgress))?;
 
         if handle.is_busy() {
             warn!("La instancia ya está corriendo o iniciando");
@@ -461,6 +464,7 @@ impl Launcher {
         }
         clear_crash_log_snapshot(&handle.uuid);
         handle.set_status(InstanceStatus::Starting);
+        drop(files_guard);
 
         let settings_m = SettingsManager::launch_snapshot();
         let hide_on_launch = SettingsManager::read().hide_on_launch;

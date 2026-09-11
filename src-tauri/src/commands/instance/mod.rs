@@ -4,6 +4,7 @@ pub mod launch;
 pub mod manage;
 pub mod mods;
 pub mod screens;
+pub mod worlds;
 
 pub use launch::*;
 pub use manage::*;

@@ -55,5 +55,8 @@ urlencoding = "2"
 url = "2"
 regex = "1"
 image = { version = "0.25", default-features = false, features = ["png"] }
+fastnbt = "2"
+flate2 = "1"
+tempfile = "3"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

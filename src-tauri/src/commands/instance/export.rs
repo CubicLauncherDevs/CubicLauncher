@@ -16,6 +16,7 @@ pub async fn export_instance_zip(id: String, dest: String) -> Result<String, Str
         return Err(InstanceError::NotFound.into());
     };
 
+    let files_guard = handle.try_lock_files()?;
     if handle.is_busy() {
         error!("Intento de exportar instancia ocupada {}", id);
         return Err(InstanceError::Busy.into());
@@ -41,10 +42,13 @@ pub async fn export_instance_zip(id: String, dest: String) -> Result<String, Str
         }
     }
 
-    let output = tokio::task::spawn_blocking(move || export_to_zip(&input, &dest_path))
-        .await
-        .map_err(|e| format!("Tarea de exportación fallida: {e}"))?
-        .map_err(|e| format!("Error exportando instancia: {e}"))?;
+    let output = tokio::task::spawn_blocking(move || {
+        let _files_guard = files_guard;
+        export_to_zip(&input, &dest_path)
+    })
+    .await
+    .map_err(|e| format!("Tarea de exportación fallida: {e}"))?
+    .map_err(|e| format!("Error exportando instancia: {e}"))?;
 
     let out_str = output.to_string_lossy().to_string();
     info!("Instancia {} exportada a '{}'", id, out_str);

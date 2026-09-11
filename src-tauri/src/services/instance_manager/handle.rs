@@ -33,6 +33,7 @@ pub struct InstanceHandle {
     pub uuid: Arc<str>,
     data: Arc<RwLock<InstanceData>>,
     status: Arc<AtomicStatus>,
+    files_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl InstanceHandle {
@@ -41,6 +42,7 @@ impl InstanceHandle {
             uuid: data.uuid.clone(),
             data: Arc::new(RwLock::new(data)),
             status: Arc::new(AtomicStatus::new()),
+            files_lock: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
@@ -79,6 +81,14 @@ impl InstanceHandle {
 
     pub fn is_busy(&self) -> bool {
         self.get_status().is_busy()
+    }
+
+    /// Held across world operations, instance moves/deletion and launch admission.
+    pub fn try_lock_files(&self) -> Result<tokio::sync::OwnedMutexGuard<()>, String> {
+        self.files_lock
+            .clone()
+            .try_lock_owned()
+            .map_err(|_| "Hay una operación de archivos en curso en esta instancia".to_string())
     }
 
     pub async fn kill(&self) -> Result<(), InstanceError> {
@@ -218,5 +228,38 @@ impl InstanceHandle {
             return Ok(());
         }
         self.data.write().await.save().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn world_operation_lock_survives_cancelled_async_caller() {
+        let handle = InstanceHandle::new(InstanceData::new("test".into(), "1.21".into(), None));
+        let cloned = handle.clone();
+        let guard = handle.try_lock_files().unwrap();
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = tokio::sync::oneshot::channel();
+        let task = tokio::spawn(async move {
+            tokio::task::spawn_blocking(move || {
+                started_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+                drop(guard);
+                done_tx.send(()).unwrap();
+            })
+            .await
+            .unwrap();
+        });
+        started_rx.await.unwrap();
+        assert!(cloned.try_lock_files().is_err());
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
+        assert!(handle.try_lock_files().is_err());
+        release_tx.send(()).unwrap();
+        done_rx.await.unwrap();
+        assert!(handle.try_lock_files().is_ok());
     }
 }

@@ -198,14 +198,18 @@ impl InstanceManager {
     }
 
     pub async fn delete_instance(&self, uuid: &str) -> Result<(), String> {
-        signal_kill(uuid);
-        unregister_kill_sender(uuid);
-        remove_log_ring(uuid);
-
         let handle = self
             .get_handle(uuid)
             .await
             .ok_or_else(|| "Instancia no encontrada".to_string())?;
+
+        let _files_guard = handle.try_lock_files()?;
+        if handle.is_busy() {
+            return Err("No se puede eliminar una instancia mientras está en ejecución".into());
+        }
+        signal_kill(uuid);
+        unregister_kill_sender(uuid);
+        remove_log_ring(uuid);
 
         let dir = handle.get_instance_dir().await;
         if dir.exists() {
@@ -238,6 +242,8 @@ impl InstanceManager {
             .get_handle(uuid)
             .await
             .ok_or_else(|| "Instancia no encontrada".to_string())?;
+
+        let _files_guard = handle.try_lock_files()?;
 
         if handle.is_busy() {
             return Err(

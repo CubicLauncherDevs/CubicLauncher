@@ -28,6 +28,8 @@ pub fn run() {
             commands::instance::get_instance_screenshot,
             commands::instance::get_instance_banner,
             commands::instance::get_all_instance_screenshots,
+            commands::instance::worlds::get_instance_worlds,
+            commands::instance::worlds::instance_world_action,
             commands::instance::set_instance_cover_image,
             commands::instance::reset_instance_cover_image,
             commands::instance::get_instance_resourcepacks,

@@ -20,6 +20,9 @@ pub enum InstanceError {
     #[error("No se puede modificar una instancia mientras está en ejecución")]
     Busy,
 
+    #[error("Hay una operación de archivos en curso en esta instancia")]
+    FileOperationInProgress,
+
     #[error("Archivo de registro no encontrado")]
     LogNotFound,
 
@@ -69,6 +72,7 @@ impl InstanceError {
             Self::AlreadyStarted => "INST_ALREADY_STARTED",
             Self::AlreadyExists => "INST_EXISTS",
             Self::Busy => "INST_BUSY",
+            Self::FileOperationInProgress => "INST_FILES_BUSY",
             Self::LogNotFound => "INST_LOG_NOT_FOUND",
             Self::FilenameParse => "INST_FILENAME_PARSE",
             Self::InstNameParse(_) => "INST_NAME_INVALID",

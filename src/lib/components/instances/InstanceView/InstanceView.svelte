@@ -11,6 +11,7 @@
 	import ImageIcon from "$lib/icons/ImageIcon.svelte";
 	import ShadersIcon from "$lib/icons/ShadersIcon.svelte";
 	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
+	import WorldIcon from "$lib/icons/WorldIcon.svelte";
 
 	let { selectedInstance } = $props<{ selectedInstance: InstanceDto }>();
 	let activeSection = $state("detalles");
@@ -45,9 +46,11 @@
 
 	import type MarketType from "../Market/Market.svelte";
 	import type ScreenshotsTabType from "../ScreenshotsTab.svelte";
+	import type WorldsTabType from "../WorldsTab.svelte";
 
 	let Market: typeof MarketType | null = $state(null);
 	let ScreenshotsTab: typeof ScreenshotsTabType | null = $state(null);
+	let WorldsTab: typeof WorldsTabType | null = $state(null);
 
 	$effect(() => {
 		if (
@@ -57,6 +60,8 @@
 			!Market
 		) {
 			import("../Market/Market.svelte").then((m) => (Market = m.default));
+		} else if (activeSection === "worlds" && !WorldsTab) {
+			import("../WorldsTab.svelte").then((m) => (WorldsTab = m.default));
 		} else if (activeSection === "screenshots" && !ScreenshotsTab) {
 			import("../ScreenshotsTab.svelte").then(
 				(m) => (ScreenshotsTab = m.default),
@@ -109,6 +114,18 @@
 								>
 							</button>
 						{/if}
+						<button
+							type="button"
+							class="nav-item priority"
+							onclick={() => (activeSection = "worlds")}
+						>
+							<span class="nav-icon"><WorldIcon size={18} /></span
+							>
+							<span class="nav-label">{t("worlds.title")}</span>
+							<span class="nav-chevron"
+								><ChevronRightIcon size={14} /></span
+							>
+						</button>
 						<button
 							type="button"
 							class="nav-item priority"
@@ -185,6 +202,12 @@
 							/>
 						{/if}
 					{/key}
+				{:else if activeSection === "worlds"}
+					{#key selectedInstance.uuid}
+						{#if WorldsTab}<WorldsTab
+								instance={selectedInstance}
+							/>{/if}
+					{/key}
 				{:else if activeSection === "screenshots"}
 					{#if ScreenshotsTab}
 						<ScreenshotsTab instance={selectedInstance} />
@@ -253,7 +276,8 @@
 		transition: max-height 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
 	}
 
-	.nav-card:hover .nav-items {
+	.nav-card:hover .nav-items,
+	.nav-card:focus-within .nav-items {
 		max-height: 300px;
 	}
 

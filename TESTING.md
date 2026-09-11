@@ -47,6 +47,23 @@ bun run tauri build
 - [ ] Crear instancia Forge, descargarla y lanzarla.
 - [ ] Crear instancia Quilt, descargarla y lanzarla.
 
+### Mundos de las instancias
+
+- Ejecutar `cargo test -p cubiclauncher --lib world_manager` y `cargo test -p cubiclauncher --lib world_operation_lock`.
+- Medición reproducible: `cargo test -p cubiclauncher --lib world_performance_fixture -- --ignored --nocapture`. Genera 1000 mundos pequeños y una región sintética de 256 MiB de ceros; informa tiempos de listado frío/con caché e importación/exportación. No representa la compresión de regiones reales.
+- [ ] Abrir Mundos en una instancia vacía, Vanilla y con mods; comprobar iconos, búsqueda, orden y paginación de 50 elementos.
+- [ ] Importar una carpeta y ZIP con `level.dat` en raíz o en una carpeta interior. Repetir la importación: debe crear otra carpeta sin sobrescribir.
+- [ ] Exportar y volver a importar un mundo con dimensiones y datos de mods. Verificarlo en Minecraft.
+- [ ] Renombrar un mundo con caracteres Unicode: comprobar el nombre dentro de Minecraft y que la carpeta no cambie.
+- [ ] Copiar la semilla de un mundo: comprobar que se pega correctamente en el portapapeles y que mundos sin semilla muestran el aviso correspondiente.
+- [ ] Restablecer el icono de un mundo: comprobar que desaparece de la lista y se elimina el archivo `icon.png`.
+- [ ] Abrir datapacks de un mundo: debe abrirse la carpeta `datapacks` del mundo en el explorador del sistema.
+- [ ] Duplicar y eliminar la copia tras confirmar; el original debe conservarse.
+- [ ] Mostrar un mundo con `level.dat` dañado y `level.dat_old` válido; debe ofrecer abrir/exportar sin habilitar renombrar.
+- [ ] Calcular tamaño bajo demanda; iniciar/cerrar Minecraft y comprobar bloqueo de operaciones y actualización del listado.
+- [ ] Durante una copia o ZIP grande, comprobar progreso y respuesta de la interfaz. Intentar lanzar, renombrar o eliminar la instancia: debe rechazarlo hasta terminar la operación.
+- [ ] Cambiar rápidamente entre instancias durante una carga/operación: las respuestas antiguas no deben aparecer en otra instancia. Volver y actualizar al terminar.
+
 ### Consola y crashes
 
 - Ejecutar `cargo test -p cubiclauncher --lib services::launcher::tests` y `cargo test -p cubiclauncher --lib services::instance_manager::manager::tests`.
