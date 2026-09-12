@@ -197,3 +197,118 @@ async fn unresponsive_server_can_be_timed_out() {
             .is_err()
     );
 }
+
+#[test]
+fn query_groups_deduplicate_default_ports_domains_and_ipv6() {
+    let groups = group_targets(
+        [
+            "Example.org",
+            "example.org:25565",
+            "[0:0:0:0:0:0:0:1]",
+            "::1",
+            "example.org:25566",
+            "invalid host",
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, address)| PingTarget {
+            index,
+            address: address.into(),
+        })
+        .collect(),
+    )
+    .unwrap();
+    assert_eq!(groups.len(), 4);
+    assert_eq!(groups[0].indices, [0, 1]);
+    assert_eq!(groups[1].indices, [2, 3]);
+    assert_eq!(groups[2].address.as_ref().unwrap().port, 25566);
+    assert!(groups[3].address.is_none());
+    assert!(
+        group_targets(
+            (0..52)
+                .map(|index| PingTarget {
+                    index,
+                    address: "localhost".into()
+                })
+                .collect()
+        )
+        .is_err()
+    );
+    assert!(
+        group_targets(vec![
+            PingTarget {
+                index: 0,
+                address: "a".into()
+            },
+            PingTarget {
+                index: 0,
+                address: "b".into()
+            }
+        ])
+        .is_err()
+    );
+}
+
+#[test]
+fn status_parser_ignores_player_samples_and_mod_metadata() {
+    let response = serde_json::json!({
+        "description": {"text": "Hello", "extra": [{"text": " world"}]},
+        "players": {"online": 3, "max": 20, "sample": vec![serde_json::json!({"name": "x".repeat(128), "id": "ignored"}); 1000]},
+        "version": {"name": "1.21", "protocol": 767},
+        "modinfo": {"mods": vec!["ignored"; 1000]}
+    });
+    let bytes = serde_json::to_vec(&response).unwrap();
+    let status = parse_status(&bytes).unwrap();
+    assert_eq!(status.players, Some(3));
+    assert_eq!(status.motd, "Hello world");
+    assert!(status.ping.is_none());
+    let parsed: StatusResponse<'_> = serde_json::from_slice(&bytes).unwrap();
+    assert!(matches!(
+        parsed.version.unwrap().name.unwrap().0,
+        Cow::Borrowed(_)
+    ));
+    let nullable = parse_status(br#"{"players":null,"version":null,"favicon":null}"#).unwrap();
+    assert!(nullable.online);
+    assert!(nullable.players.is_none());
+    let unknown_counts = parse_status(br#"{"players":{"online":-1,"max":null}}"#).unwrap();
+    assert!(unknown_counts.players.is_none());
+    assert!(unknown_counts.max_players.is_none());
+}
+
+#[tokio::test]
+async fn cancellation_registry_is_window_scoped_and_releases_entries() {
+    let id = uuid::Uuid::new_v4().to_string();
+    let (handle, registration) = AbortHandle::new_pair();
+    REQUESTS
+        .lock()
+        .unwrap()
+        .insert(("owner".into(), id.clone()), handle.clone());
+    cancel("another-window", &id);
+    assert!(!handle.is_aborted());
+    cancel("owner", &id);
+    assert!(handle.is_aborted());
+    assert!(
+        Abortable::new(std::future::pending::<()>(), registration)
+            .await
+            .is_err()
+    );
+    assert!(!REQUESTS.lock().unwrap().contains_key(&("owner".into(), id)));
+}
+
+#[test]
+fn overlapping_requests_share_two_slots_per_window() {
+    let first = window_slots("slot-test-A");
+    let second = window_slots("slot-test-A");
+    let other = window_slots("slot-test-B");
+    assert!(Arc::ptr_eq(&first, &second));
+    let a = first.try_acquire().unwrap();
+    let b = second.try_acquire().unwrap();
+    assert!(first.try_acquire().is_err());
+    assert!(other.try_acquire().is_ok());
+    drop((a, b));
+    assert_eq!(first.available_permits(), 2);
+    drop((first, second));
+    let clean = window_slots("slot-test-C");
+    assert!(!WINDOW_SLOTS.lock().unwrap().contains_key("slot-test-A"));
+    drop((other, clean));
+}

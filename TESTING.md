@@ -66,7 +66,8 @@ bun run tauri build
 
 ### Servidores de las instancias
 
-- Ejecutar `cargo test -p cubiclauncher --lib server_`, `cargo test -p zellkern server_launch_tests` y `bun test --conditions=browser tests/servers.test.mjs`.
+- Ejecutar `cargo test -p cubiclauncher --lib server_`, `cargo test -p zellkern server_launch_tests` y `bun test --conditions=browser tests/servers.test.mjs tests/serverResources.test.mjs`.
+- Medición reproducible: `cargo test -p cubiclauncher --lib server_performance_fixture -- --ignored --nocapture --test-threads=1`. Genera listas de 50/500/1000 servidores con PNG de 32×32; mide carga de metadatos, iconos de la primera página, preparación de destinos y serialización IPC. Cuenta lecturas, decodificaciones, asignaciones Rust, pico/retención de heap y tiempo de CPU del hilo en Linux (`/proc/thread-self/schedstat`). El contador de asignaciones solo existe en tests.
 - [ ] Abrir Servidores en una instancia sin `servers.dat`; añadir, editar, reordenar y eliminar entradas, incluidas direcciones duplicadas. Comprobar la lista dentro de Minecraft.
 - [ ] Probar Preguntar/Aceptar/Rechazar paquetes de recursos y comprobar que se conservan iconos y campos de mods al editar nombres.
 - [ ] Actualizar estado con servidores accesibles y sin respuesta; verificar descripción, jugadores, ping e iconos PNG.
@@ -76,6 +77,19 @@ bun run tauri build
 - [ ] Iniciar Minecraft: la edición queda bloqueada, pero las consultas siguen disponibles. Al cerrar el juego se recarga la lista.
 - [ ] Modificar `servers.dat` externamente con un formulario abierto: al guardar debe informar un conflicto. Un archivo corrupto debe informar el error sin sobrescribirlo.
 - [ ] Verificar búsqueda y paginación con más de 50 servidores, navegación por teclado y diseño estrecho.
+- [ ] Con 1000 entradas, consultar únicamente las 50 visibles y la seleccionada; direcciones duplicadas deben compartir consulta. Comprobar como máximo 2 consultas activas por ventana y 4 globalmente.
+- [ ] Volver a una página reciente: reutilizar estados durante 30 segundos e iconos durante 5 minutos. Renombrar/reordenar/cambiar paquetes de recursos conserva resultados; cambiar dirección invalida el icono. Actualizar fuerza las consultas.
+- [ ] Escribir rápidamente en el buscador, cambiar de página y ocultar/cerrar la ventana: cancelar consultas antiguas sin respuestas tardías ni acumulación. Las cachés tienen un límite de 100 entradas y 512 KiB estimados de texto cada una, además de los recursos de hasta 51 filas activas; cerrar la pestaña libera ambos.
+
+Referencia sintética en Linux, build de desarrollo, una ejecución antes/después (no representa la RAM total ni el tiempo de arranque del launcher):
+
+| Servidores | Pico heap antes → después | CPU del hilo antes → después | IPC antes → después |
+| --- | --- | --- | --- |
+| 50 | 1.44 → 0.82 MB | 66.5 → 50.8 ms | 0.286 → 0.287 MB |
+| 500 | 12.98 → 3.24 MB | 557.1 → 250.2 ms | 2.859 → 0.335 MB |
+| 1000 | 25.93 → 6.16 MB | 1099.9 → 491.3 ms | 5.719 → 0.388 MB |
+
+La comparación anterior cargaba/decodificaba la lista completa dos veces (lectura y preparación del ping). Ahora las dos lecturas son metadatos prestados del buffer NBT e iconos de la primera página: 50 decodificaciones y 50 destinos de ping en los tres tamaños. Con 1000 entradas, las asignaciones bajaron de 56 081 a 2 946 y la retención medida de 17.37 a 0.92 MB; al destruir el resultado se liberó todo el heap medido. Se excluyen WebView, superficies de imágenes, asignaciones nativas y latencia de servidores reales. Estos resultados son orientativos, no umbrales universales de tiempo.
 
 ### Consola y crashes
 

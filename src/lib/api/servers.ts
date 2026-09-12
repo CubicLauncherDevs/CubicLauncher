@@ -10,7 +10,16 @@ export interface ServerInput {
 
 export interface ServerDto extends ServerInput {
 	index: number;
+	hasIcon: boolean;
+}
+
+export interface ServerIcon {
+	index: number;
 	icon: string | null;
+}
+export interface PingTarget {
+	index: number;
+	address: string;
 }
 
 export interface ServerList {
@@ -29,7 +38,7 @@ export interface ServerStatus {
 }
 
 export interface ServerStatusEvent {
-	index: number | null;
+	indices: number[];
 	status: ServerStatus | null;
 	done: boolean;
 }
@@ -44,6 +53,18 @@ export function getInstanceServers(instanceId: string): Promise<ServerList> {
 	return invoke("get_instance_servers", { instanceId });
 }
 
+export function getInstanceServerIcons(
+	instanceId: string,
+	revision: string,
+	indices: number[],
+): Promise<ServerIcon[]> {
+	return invoke("get_instance_server_icons", {
+		instanceId,
+		revision,
+		indices,
+	});
+}
+
 export function serverAction(
 	instanceId: string,
 	revision: string,
@@ -55,7 +76,7 @@ export function serverAction(
 /** Returns cancellation immediately, even if the native start command is pending. */
 export function pingInstanceServers(
 	instanceId: string,
-	revision: string,
+	targets: PingTarget[],
 	onStatus: (event: ServerStatusEvent) => void,
 	onError: (error: unknown) => void,
 ): () => void {
@@ -72,7 +93,7 @@ export function pingInstanceServers(
 	};
 	void invoke<string>("start_instance_server_ping", {
 		instanceId,
-		revision,
+		targets,
 		onStatus: channel,
 	})
 		.then((id) => {

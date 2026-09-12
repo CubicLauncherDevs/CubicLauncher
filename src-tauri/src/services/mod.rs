@@ -10,6 +10,8 @@ mod instance_manager;
 pub(crate) mod java_manager;
 pub(crate) mod launcher;
 pub mod server_manager;
+#[cfg(test)]
+mod server_performance_tests;
 pub mod server_status;
 pub(crate) mod settings_manager;
 pub mod skin_closet_manager;

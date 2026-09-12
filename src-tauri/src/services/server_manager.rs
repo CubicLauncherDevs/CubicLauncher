@@ -4,6 +4,7 @@ use fastnbt::Value;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fs,
     io::{Read, Write},
@@ -14,13 +15,30 @@ type Compound = HashMap<String, Value>;
 pub type Result<T> = std::result::Result<T, String>;
 const MAX_FILE_BYTES: u64 = 16 * 1024 * 1024;
 
+#[cfg(test)]
+pub(super) mod metrics {
+    use std::cell::Cell;
+    thread_local! {
+        pub static READS: Cell<usize> = const { Cell::new(0) };
+        pub static DECODES: Cell<usize> = const { Cell::new(0) };
+    }
+    pub fn reset() {
+        READS.set(0);
+        DECODES.set(0);
+    }
+    pub fn counts() -> (usize, usize) {
+        (READS.get(), DECODES.get())
+    }
+}
+
 pub fn error(code: &str, detail: impl std::fmt::Display) -> String {
     serde_json::json!({ "code": code, "params": { "detail": detail.to_string() } }).to_string()
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum ResourcePolicy {
+    #[default]
     Prompt,
     Enabled,
     Disabled,
@@ -33,7 +51,63 @@ pub struct ServerDto {
     pub name: String,
     pub address: String,
     pub resource_policy: ResourcePolicy,
+    pub has_icon: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ServerIcon {
+    pub index: usize,
     pub icon: Option<String>,
+}
+
+// Browsing only borrows the fields we display. Unknown mod data is skipped;
+// edits still use the lossless Value tree below to preserve every NBT tag.
+#[derive(Deserialize)]
+struct ReadServers<'a> {
+    #[serde(borrow)]
+    servers: Vec<ReadServer<'a>>,
+}
+
+#[derive(Deserialize)]
+struct ReadServer<'a> {
+    #[serde(borrow)]
+    name: Cow<'a, str>,
+    #[serde(borrow)]
+    ip: Cow<'a, str>,
+    #[serde(default, borrow)]
+    icon: Cow<'a, str>,
+    #[serde(default, rename = "acceptTextures", deserialize_with = "read_policy")]
+    resource_policy: ResourcePolicy,
+}
+
+fn read_policy<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<ResourcePolicy, D::Error> {
+    Ok(match Value::deserialize(deserializer)? {
+        Value::Byte(0) => ResourcePolicy::Disabled,
+        Value::Byte(_) => ResourcePolicy::Enabled,
+        _ => ResourcePolicy::Prompt,
+    })
+}
+
+fn read_metadata(bytes: Option<&[u8]>) -> Result<ReadServers<'_>> {
+    let Some(bytes) = bytes else {
+        return Ok(ReadServers {
+            servers: Vec::new(),
+        });
+    };
+    validate_header(bytes)?;
+    fastnbt::from_bytes(bytes).map_err(|e| error("SERVERS_READ", e))
+}
+
+fn validate_header(bytes: &[u8]) -> Result<()> {
+    if !bytes.starts_with(&[10, 0, 0]) {
+        return Err(error(
+            "SERVERS_READ",
+            "Expected an unnamed, uncompressed NBT compound",
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
@@ -77,13 +151,18 @@ pub enum MoveDirection {
 }
 
 fn read_bytes(path: &Path) -> Result<Option<Vec<u8>>> {
-    match fs::symlink_metadata(path) {
+    let size = match fs::symlink_metadata(path) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => return Err(error("SERVERS_READ", e)),
         Ok(meta) if !meta.is_file() => return Err(error("SERVERS_READ", "Not a regular file")),
-        Ok(_) => {}
+        Ok(meta) => meta.len(),
+    };
+    if size > MAX_FILE_BYTES {
+        return Err(error("SERVERS_READ", "servers.dat exceeds 16 MiB"));
     }
-    let mut bytes = Vec::new();
+    let mut bytes = Vec::with_capacity(size as usize + 1);
+    #[cfg(test)]
+    metrics::READS.set(metrics::READS.get() + 1);
     fs::File::open(path)
         .and_then(|f| f.take(MAX_FILE_BYTES + 1).read_to_end(&mut bytes))
         .map_err(|e| error("SERVERS_READ", e))?;
@@ -99,16 +178,46 @@ fn revision(bytes: Option<&[u8]>) -> String {
         .unwrap_or_else(|| "missing".into())
 }
 
+// Conflict checking must not allocate a second full file alongside the NBT
+// tree, original backup bytes and newly serialized output.
+fn current_revision(path: &Path) -> Result<String> {
+    match fs::symlink_metadata(path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok("missing".into()),
+        Err(e) => return Err(error("SERVERS_READ", e)),
+        Ok(meta) if !meta.is_file() || meta.len() > MAX_FILE_BYTES => {
+            return Err(error("SERVERS_READ", "Invalid servers.dat"));
+        }
+        Ok(_) => {}
+    }
+    let mut input = fs::File::open(path)
+        .map_err(|e| error("SERVERS_READ", e))?
+        .take(MAX_FILE_BYTES + 1);
+    #[cfg(test)]
+    metrics::READS.set(metrics::READS.get() + 1);
+    let mut hash = Sha1::new();
+    let mut buffer = [0; 32 * 1024];
+    let mut total = 0u64;
+    loop {
+        let read = input
+            .read(&mut buffer)
+            .map_err(|e| error("SERVERS_READ", e))?;
+        if read == 0 {
+            break;
+        }
+        total += read as u64;
+        if total > MAX_FILE_BYTES {
+            return Err(error("SERVERS_READ", "servers.dat exceeds 16 MiB"));
+        }
+        hash.update(&buffer[..read]);
+    }
+    Ok(STANDARD.encode(hash.finalize()))
+}
+
 fn parse(bytes: Option<&[u8]>) -> Result<Compound> {
     let Some(bytes) = bytes else {
         return Ok(HashMap::from([("servers".into(), Value::List(Vec::new()))]));
     };
-    if !bytes.starts_with(&[10, 0, 0]) {
-        return Err(error(
-            "SERVERS_READ",
-            "Expected an unnamed, uncompressed NBT compound",
-        ));
-    }
+    validate_header(bytes)?;
     let root: Compound = fastnbt::from_bytes(bytes).map_err(|e| error("SERVERS_READ", e))?;
     let Some(Value::List(servers)) = root.get("servers") else {
         return Err(error("SERVERS_READ", "Missing servers list"));
@@ -134,6 +243,8 @@ pub fn icon_url(encoded: &str) -> Option<String> {
     if encoded.len() > 88_000 {
         return None;
     }
+    #[cfg(test)]
+    metrics::DECODES.set(metrics::DECODES.get() + 1);
     let bytes = STANDARD.decode(encoded).ok()?;
     if bytes.len() > 64 * 1024 {
         return None;
@@ -145,7 +256,7 @@ pub fn icon_url(encoded: &str) -> Option<String> {
         return None;
     }
     image::load_from_memory_with_format(&bytes, image::ImageFormat::Png).ok()?;
-    Some(format!("data:image/png;base64,{}", STANDARD.encode(bytes)))
+    Some(format!("data:image/png;base64,{encoded}"))
 }
 
 fn snapshot(root: &Compound, revision: String) -> ServerList {
@@ -160,19 +271,19 @@ fn snapshot(root: &Compound, revision: String) -> ServerList {
                 unreachable!("validated NBT")
             };
             let text = |key: &str| match entry.get(key) {
-                Some(Value::String(s)) => s.clone(),
-                _ => String::new(),
+                Some(Value::String(s)) => s.as_str(),
+                _ => "",
             };
             ServerDto {
                 index,
-                name: text("name"),
-                address: text("ip"),
+                name: text("name").into(),
+                address: text("ip").into(),
                 resource_policy: match entry.get("acceptTextures") {
                     Some(Value::Byte(0)) => ResourcePolicy::Disabled,
                     Some(Value::Byte(_)) => ResourcePolicy::Enabled,
                     _ => ResourcePolicy::Prompt,
                 },
-                icon: icon_url(&text("icon")),
+                has_icon: !text("icon").is_empty(),
             }
         })
         .collect();
@@ -181,10 +292,57 @@ fn snapshot(root: &Compound, revision: String) -> ServerList {
 
 pub fn list(instance: &Path) -> Result<ServerList> {
     let bytes = read_bytes(&instance.join("servers.dat"))?;
-    Ok(snapshot(
-        &parse(bytes.as_deref())?,
-        revision(bytes.as_deref()),
-    ))
+    let metadata = read_metadata(bytes.as_deref())?;
+    let servers = metadata
+        .servers
+        .into_iter()
+        .enumerate()
+        .map(|(index, entry)| ServerDto {
+            index,
+            name: entry.name.into_owned(),
+            address: entry.ip.into_owned(),
+            resource_policy: entry.resource_policy,
+            has_icon: !entry.icon.is_empty(),
+        })
+        .collect();
+    Ok(ServerList {
+        revision: revision(bytes.as_deref()),
+        servers,
+    })
+}
+
+/// One page plus the selected row. The file buffer is released after this call.
+pub fn icons(
+    instance: &Path,
+    expected_revision: &str,
+    mut indices: Vec<usize>,
+) -> Result<Vec<ServerIcon>> {
+    if indices.len() > 51 {
+        return Err(error("SERVERS_INVALID", "Too many icons requested"));
+    }
+    indices.sort_unstable();
+    indices.dedup();
+    if indices.is_empty() {
+        return Ok(Vec::new());
+    }
+    let bytes = read_bytes(&instance.join("servers.dat"))?;
+    if revision(bytes.as_deref()) != expected_revision {
+        return Err(error("SERVERS_CONFLICT", ""));
+    }
+    let metadata = read_metadata(bytes.as_deref())?;
+    indices
+        .into_iter()
+        .map(|index| {
+            let server = metadata
+                .servers
+                .get(index)
+                .ok_or_else(|| error("SERVERS_CONFLICT", ""))?;
+            Ok(ServerIcon {
+                index,
+                icon: icon_url(&server.icon),
+            })
+        })
+        .collect()
 }
 
 fn set_fields(entry: &mut Compound, input: ServerInput) -> Result<()> {
@@ -194,7 +352,7 @@ fn set_fields(entry: &mut Compound, input: ServerInput) -> Result<()> {
     }
     let address = input.address.trim();
     super::server_status::ServerAddress::parse(address)?;
-    if entry.get("ip") != Some(&Value::String(address.into())) {
+    if !matches!(entry.get("ip"), Some(Value::String(old)) if old == address) {
         entry.remove("icon");
     }
     entry.insert("name".into(), Value::String(name.into()));
@@ -272,7 +430,7 @@ pub fn apply(instance: &Path, expected_revision: &str, action: ServerAction) -> 
         return Err(error("SERVERS_WRITE", "servers.dat exceeds 16 MiB"));
     }
     // Detect edits made by another program since the read, before replacing files.
-    if revision(read_bytes(&path)?.as_deref()) != expected_revision {
+    if current_revision(&path)? != expected_revision {
         return Err(error("SERVERS_CONFLICT", ""));
     }
     if let Some(bytes) = bytes {

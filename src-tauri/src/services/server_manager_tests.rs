@@ -89,7 +89,12 @@ fn edits_preserve_unknown_root_and_entry_tags_and_same_address_icon() {
     entry.insert("icon".into(), Value::String("invalid-but-preserved".into()));
     fs::write(&path, fastnbt::to_bytes(&root).unwrap()).unwrap();
     let current = list(dir.path()).unwrap();
-    assert!(current.servers[0].icon.is_none());
+    assert!(current.servers[0].has_icon);
+    assert!(
+        icons(dir.path(), &current.revision, vec![0]).unwrap()[0]
+            .icon
+            .is_none()
+    );
     apply(
         dir.path(),
         &current.revision,
@@ -234,4 +239,63 @@ fn validates_png_bytes_and_dimensions() {
     assert!(icon_url(&png(65)).is_none());
     assert!(icon_url(&STANDARD.encode("not png")).is_none());
     assert!(icon_url("data:image/svg+xml;base64,PHN2Zz4=").is_none());
+}
+
+#[test]
+fn metadata_borrows_icons_and_only_requested_icons_are_decoded() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut png = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::new_rgba8(32, 32)
+        .write_to(&mut png, image::ImageFormat::Png)
+        .unwrap();
+    let encoded = STANDARD.encode(png.into_inner());
+    let entries = (0..100)
+        .map(|index| {
+            Value::Compound(HashMap::from([
+                ("name".into(), Value::String(format!("Server {index}"))),
+                ("ip".into(), Value::String("localhost".into())),
+                ("icon".into(), Value::String(encoded.clone())),
+            ]))
+        })
+        .collect();
+    let bytes = fastnbt::to_bytes(&HashMap::from([("servers", Value::List(entries))])).unwrap();
+    fs::write(dir.path().join("servers.dat"), &bytes).unwrap();
+    let borrowed = read_metadata(Some(&bytes)).unwrap();
+    assert!(matches!(borrowed.servers[0].icon, Cow::Borrowed(_)));
+    metrics::reset();
+    let list = list(dir.path()).unwrap();
+    assert_eq!(metrics::counts(), (1, 0));
+    assert!(list.servers.iter().all(|s| s.has_icon));
+    let requested = icons(dir.path(), &list.revision, vec![99, 5, 5]).unwrap();
+    assert_eq!(
+        requested.iter().map(|i| i.index).collect::<Vec<_>>(),
+        [5, 99]
+    );
+    assert!(
+        requested
+            .iter()
+            .all(|i| i.icon.as_ref().unwrap().ends_with(&encoded))
+    );
+    assert_eq!(metrics::counts(), (2, 2));
+    assert!(
+        icons(dir.path(), "stale", vec![0])
+            .unwrap_err()
+            .contains("SERVERS_CONFLICT")
+    );
+    assert!(icons(dir.path(), &list.revision, vec![100]).is_err());
+    metrics::reset();
+    assert!(icons(dir.path(), &list.revision, (0..52).collect()).is_err());
+    assert_eq!(metrics::counts(), (0, 0));
+}
+
+#[test]
+fn streaming_revision_matches_full_buffer_and_missing_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("servers.dat");
+    assert_eq!(current_revision(&path).unwrap(), "missing");
+    for length in [0, 32 * 1024 - 1, 32 * 1024, 32 * 1024 + 1, 200_000] {
+        let bytes = vec![42; length];
+        fs::write(&path, &bytes).unwrap();
+        assert_eq!(current_revision(&path).unwrap(), revision(Some(&bytes)));
+    }
 }

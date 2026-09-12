@@ -31,6 +31,7 @@ pub fn run() {
             commands::instance::worlds::get_instance_worlds,
             commands::instance::worlds::instance_world_action,
             commands::instance::servers::get_instance_servers,
+            commands::instance::servers::get_instance_server_icons,
             commands::instance::servers::instance_server_action,
             commands::instance::servers::start_instance_server_ping,
             commands::instance::servers::cancel_instance_server_ping,

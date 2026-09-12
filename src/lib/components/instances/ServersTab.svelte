@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, untrack } from "svelte";
+	import { onDestroy, onMount, untrack } from "svelte";
 	import { t } from "$lib/i18n";
 	import { InstState, type InstanceDto } from "$lib/types/types";
 	import { launchInstance } from "$lib/api/cubicApi";
@@ -7,20 +7,27 @@
 	import {
 		getInstanceServers,
 		serverAction,
-		pingInstanceServers,
 		type ServerDto,
-		type ServerList,
 		type ServerStatus,
 		type ServerAction,
 		type ResourcePolicy,
 	} from "$lib/api/servers";
+	import {
+		ServerResources,
+		type ServerRow,
+	} from "$lib/state/serverResources";
 	import Icon from "$lib/icons/Icon.svelte";
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
 
 	let { instance } = $props<{ instance: InstanceDto }>();
-	let list = $state<ServerList>({ revision: "", servers: [] });
-	let statuses = $state<Record<number, ServerStatus>>({});
+	let list = $state.raw<{ revision: string; servers: ServerRow[] }>({
+		revision: "",
+		servers: [],
+	});
+	let statuses = $state.raw<Record<number, ServerStatus>>({});
+	let icons = $state.raw<Record<number, string | null>>({});
+	let hidden = $state(false);
 	let loading = $state(true);
 	let working = $state(false);
 	let querying = $state(false);
@@ -38,7 +45,19 @@
 	let alive = true;
 	let generation = 0;
 	let loaded = false;
-	let stopPing: (() => void) | null = null;
+	// The parent keys this component by instance UUID.
+	const resources = new ServerResources(
+		untrack(() => instance.uuid),
+		(view) => {
+			if (!alive) return;
+			statuses = view.statuses;
+			icons = view.icons;
+			querying = view.querying;
+		},
+		(err) => {
+			if (alive) error = message(err);
+		},
+	);
 	const PAGE_SIZE = 50;
 	const running = $derived(
 		instance.status === InstState.Started ||
@@ -52,16 +71,27 @@
 	const selectedStatus = $derived(
 		selectedIndex === null ? undefined : statuses[selectedIndex],
 	);
+	const query = $derived(search.trim().toLocaleLowerCase());
 	const filtered = $derived(
-		list.servers.filter((server) =>
-			`${server.name} ${server.address}`
-				.toLocaleLowerCase()
-				.includes(search.trim().toLocaleLowerCase()),
-		),
+		!query
+			? list.servers
+			: list.servers.filter(
+					(server) =>
+						server.name.toLocaleLowerCase().includes(query) ||
+						server.address.toLocaleLowerCase().includes(query),
+				),
 	);
 	const pages = $derived(Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
 	const visible = $derived(
 		filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+	);
+	const activeRows = $derived(
+		selected && !visible.includes(selected)
+			? [...visible, selected]
+			: visible,
+	);
+	const resourceSelection = $derived(
+		`${list.revision}:${activeRows.map((row) => row.key).join(",")}`,
 	);
 
 	function message(err: unknown): string {
@@ -75,50 +105,26 @@
 		return String(err);
 	}
 
-	function cancelPing() {
-		stopPing?.();
-		stopPing = null;
-		querying = false;
-	}
-
-	function queryServers() {
-		cancelPing();
-		if (!list.servers.length) return;
-		const token = generation;
-		querying = true;
-		stopPing = pingInstanceServers(
-			instance.uuid,
-			list.revision,
-			(event) => {
-				if (!alive || token !== generation) return;
-				if (event.index !== null && event.status)
-					statuses[event.index] = event.status;
-				if (event.done) querying = false;
-			},
-			(err) => {
-				if (!alive || token !== generation) return;
-				querying = false;
-				error = message(err);
-			},
-		);
-	}
-
-	async function load() {
+	async function load(force = false) {
 		const token = ++generation;
-		cancelPing();
+		if (force) resources.refresh();
+		else resources.pause();
 		loading = true;
 		error = "";
 		try {
+			await resources.waitForIcons();
+			if (!alive || token !== generation) return;
 			const result = await getInstanceServers(instance.uuid);
 			if (!alive || token !== generation) return;
-			list = result;
-			statuses = {};
+			list = {
+				revision: result.revision,
+				servers: resources.setList(result),
+			};
 			loaded = true;
 			if (
 				!result.servers.some((server) => server.index === selectedIndex)
 			)
 				selectedIndex = result.servers[0]?.index ?? null;
-			queryServers();
 		} catch (err) {
 			if (alive && token === generation) error = message(err);
 		} finally {
@@ -135,10 +141,31 @@
 	$effect(() => {
 		if (page >= pages) page = pages - 1;
 	});
+	$effect(() => {
+		const selection = resourceSelection;
+		const paused = disabled || hidden;
+		untrack(() => resources.pause());
+		if (paused || selection.startsWith(":")) return;
+		// Coalesce rapid typing/page changes rather than repeatedly reading icons
+		// and starting connections for intermediate search results.
+		const timer = setTimeout(
+			() => untrack(() => resources.show(activeRows)),
+			120,
+		);
+		return () => clearTimeout(timer);
+	});
+	onMount(() => {
+		const update = () => {
+			hidden = document.hidden;
+		};
+		update();
+		document.addEventListener("visibilitychange", update);
+		return () => document.removeEventListener("visibilitychange", update);
+	});
 	onDestroy(() => {
 		alive = false;
 		generation++;
-		cancelPing();
+		resources.dispose();
 	});
 
 	function showModal(action: "add" | "edit" | "delete") {
@@ -158,12 +185,16 @@
 		working = true;
 		error = "";
 		const token = ++generation;
-		cancelPing();
+		resources.pause();
 		try {
+			await resources.waitForIcons();
+			if (!alive || token !== generation) return;
 			const result = await serverAction(instance.uuid, revision, action);
 			if (!alive || token !== generation) return;
-			list = result;
-			statuses = {};
+			list = {
+				revision: result.revision,
+				servers: resources.setList(result, action),
+			};
 			selectedIndex =
 				action.type === "add"
 					? result.servers.length - 1
@@ -172,7 +203,6 @@
 						: Math.min(action.index, result.servers.length - 1);
 			if (selectedIndex < 0) selectedIndex = null;
 			modalOpen = false;
-			queryServers();
 		} catch (err) {
 			if (alive && token === generation) error = message(err);
 		} finally {
@@ -201,7 +231,10 @@
 		if (disabled || running || downloading) return;
 		working = true;
 		error = "";
+		resources.pause();
 		try {
+			await resources.waitForIcons();
+			if (!alive) return;
 			await launchInstance(
 				instance,
 				undefined,
@@ -244,7 +277,7 @@
 				onclick={() => showModal("add")}
 				><Icon name="nav:create" />{t("servers.add")}</button
 			>
-			<button type="button" {disabled} onclick={() => void load()}
+			<button type="button" {disabled} onclick={() => void load(true)}
 				><Icon name="ui:refresh" />{t("servers.refresh")}</button
 			>
 		</div>
@@ -272,9 +305,9 @@
 	{:else}
 		<div class="browser" aria-busy={loading}>
 			<div class="server-list">
-				{#each visible as server (`${list.revision}:${server.index}`)}
+				{#each visible as server (server.key)}
 					{@const status = statuses[server.index]}
-					{@const icon = status?.icon ?? server.icon}
+					{@const icon = status?.icon ?? icons[server.index]}
 					<button
 						type="button"
 						class="server-row"
@@ -428,7 +461,11 @@
 				spellcheck="false"
 			/>
 			<p class="hint">{t("servers.addressHint")}</p>
-			<div class="policy-field" role="group" aria-labelledby="server-policy-label">
+			<div
+				class="policy-field"
+				role="group"
+				aria-labelledby="server-policy-label"
+			>
 				<span id="server-policy-label"
 					>{t("servers.resourcePacks")}</span
 				>
@@ -548,6 +585,7 @@
 		min-width: 0;
 		border: none;
 		background: transparent;
+		outline: none;
 	}
 	.browser {
 		display: grid;
