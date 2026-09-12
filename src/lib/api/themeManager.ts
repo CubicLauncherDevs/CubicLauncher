@@ -124,6 +124,9 @@ const MAX_LOADED_FONTS = 20;
 
 export const themeIcons = new SvelteMap<string, string>();
 export const themeIconDefinitions = new SvelteMap<string, string>();
+// Memoization must not mutate reactive state from Icon.svelte's $derived.
+// The reactive definitions still notify consumers when the theme changes.
+const lazyThemeIcons = new Map<string, string>();
 
 function isAbortError(err: unknown): boolean {
 	return err instanceof Error && err.name === "AbortError";
@@ -280,6 +283,7 @@ function clearThemeResources() {
 
 	themeIcons.clear();
 	themeIconDefinitions.clear();
+	lazyThemeIcons.clear();
 }
 
 let currentRevision = "";
@@ -289,10 +293,12 @@ export function getThemeIcon(name: string): string | null {
 	if (cached) return cached;
 	const definition = themeIconDefinitions.get(name);
 	if (!definition) return null;
+	const lazyCached = lazyThemeIcons.get(name);
+	if (lazyCached) return lazyCached;
 	const url = appliedThemeId?.startsWith("user:")
 		? `${convertFileSrc(definition)}?theme-revision=${currentRevision}`
 		: definition;
-	themeIcons.set(name, url);
+	lazyThemeIcons.set(name, url);
 	return url;
 }
 

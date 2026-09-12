@@ -76,8 +76,9 @@ export function getIconPath(name: string): string | null {
 }
 
 export function isRasterIcon(path: string): boolean {
-	const i = path.lastIndexOf(".");
+	const pathname = path.split(/[?#]/, 1)[0];
+	const i = pathname.lastIndexOf(".");
 	if (i === -1) return false;
-	const ext = path.slice(i + 1).toLowerCase();
+	const ext = pathname.slice(i + 1).toLowerCase();
 	return ext === "png" || ext === "webp" || ext === "jpg" || ext === "jpeg";
 }

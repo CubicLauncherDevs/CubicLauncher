@@ -29,7 +29,7 @@ plugin({
 	},
 });
 
-const { applyTheme, themeIcons, invalidateThemeCache } =
+const { applyTheme, themeIcons, getThemeIcon, invalidateThemeCache } =
 	await import("../src/lib/api/themeManager.ts");
 const { themeDiagnostics } =
 	await import("../src/lib/state/themeDiagnostics.svelte.ts");
@@ -408,7 +408,7 @@ test("same-ID same-path reload updates the derived icon consumer and all asset r
 	// Mirror Icon.svelte's $derived lookup and rendered mask URL. A direct
 	// map read alone misses same-turn clear/set with an unchanged derived value.
 	const dispose = effect_root(() => {
-		const customIcon = derived(() => themeIcons.get("play") ?? null);
+		const customIcon = derived(() => getThemeIcon("play"));
 		const mask = derived(() => `url("${get(customIcon)}")`);
 		render_effect(() => seen.push(get(mask)));
 	});
@@ -470,6 +470,63 @@ test("same-ID same-path reload updates the derived icon consumer and all asset r
 		expect(seen).toHaveLength(2);
 		expect(images).toHaveLength(2);
 		expect(faces).toHaveLength(2);
+	} finally {
+		dispose();
+	}
+});
+
+test("lazy icon consumers can render, reload and switch themes without reactive mutations", async () => {
+	const icons = Object.fromEntries(
+		Array.from({ length: 100 }, (_, index) => [
+			`icon-${index}`,
+			`/icon-${index}.svg`,
+		]),
+	);
+	icons["ui:play"] = "/play.png";
+	const value = theme("Lazy", { icons });
+	await commit("dark", theme());
+	const seen = [];
+	const dispose = effect_root(() => {
+		const customIcon = derived(() => getThemeIcon("ui:play"));
+		render_effect(() => seen.push(get(customIcon)));
+	});
+	try {
+		expect(seen).toEqual([null]);
+		await commit("user:lazy", value);
+		flushSync();
+		const initial = seen.at(-1);
+		expect(initial).toMatch(
+			/^asset:\/\/localhost\/play\.png\?theme-revision=\d+-\d+$/,
+		);
+		const conversions = convert.mock.calls.length;
+		expect(getThemeIcon("ui:play")).toBe(initial);
+		expect(convert.mock.calls).toHaveLength(conversions);
+
+		await commit("user:lazy", value, { force: true });
+		flushSync();
+		const reloaded = seen.at(-1);
+		expect(reloaded).toMatch(
+			/^asset:\/\/localhost\/play\.png\?theme-revision=\d+-\d+$/,
+		);
+		expect(reloaded).not.toBe(initial);
+
+		await commit("dark", value, { force: true });
+		flushSync();
+		expect(seen.at(-1)).toBe("/play.png");
+
+		await applyTheme("user:lazy");
+		flushSync();
+		const restored = seen.at(-1);
+		expect(restored).toMatch(
+			/^asset:\/\/localhost\/play\.png\?theme-revision=\d+-\d+$/,
+		);
+		expect(restored).not.toBe(reloaded);
+
+		await commit("user:empty", theme());
+		flushSync();
+		expect(seen).toEqual([
+			null, initial, reloaded, "/play.png", restored, null,
+		]);
 	} finally {
 		dispose();
 	}
