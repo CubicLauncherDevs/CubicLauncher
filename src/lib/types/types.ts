@@ -143,11 +143,13 @@ export interface SkinClosetEntry {
 export interface JreInstallPrompt {
 	version: number;
 	instance: InstanceDto;
+	serverAddress?: string;
 }
 
 export interface PendingJreLaunch {
 	version: number;
 	instance: InstanceDto;
+	serverAddress?: string;
 }
 
 export interface DeviceCode {

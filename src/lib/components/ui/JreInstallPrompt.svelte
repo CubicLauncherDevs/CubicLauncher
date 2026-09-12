@@ -21,7 +21,7 @@
 		const targetInstance = prompt.instance;
 		const jreVersion = prompt.version;
 
-		setPendingJreLaunch(jreVersion, targetInstance);
+		setPendingJreLaunch(jreVersion, targetInstance, prompt.serverAddress);
 		dismissJreInstallPrompt();
 
 		try {

@@ -14,8 +14,12 @@ pub fn sanitize_sub_path(instance_dir: &Path, sub_path: &Path) -> Result<PathBuf
 }
 
 #[tauri::command]
-pub async fn launch(instance_id: String) -> Result<(), String> {
+pub async fn launch(instance_id: String, server_address: Option<String>) -> Result<(), String> {
     validate_uuid(&instance_id)?;
+    let server = server_address
+        .as_deref()
+        .map(crate::services::server_status::ServerAddress::parse)
+        .transpose()?;
     info!("Lanzando instancia {}", instance_id);
     let manager = InstanceManager::get();
     let Some(handle) = manager.get_handle(&instance_id).await else {
@@ -23,10 +27,13 @@ pub async fn launch(instance_id: String) -> Result<(), String> {
         return Err(AppError::Instance(InstanceError::NotFound).to_json());
     };
 
-    Launcher::get().launch(handle.clone()).await.map_err(|e| {
-        error!("Error lanzando instancia {}: {}", instance_id, e);
-        e.to_json()
-    })?;
+    Launcher::get()
+        .launch(handle.clone(), server)
+        .await
+        .map_err(|e| {
+            error!("Error lanzando instancia {}: {}", instance_id, e);
+            e.to_json()
+        })?;
 
     info!("Instancia {} lanzada exitosamente", instance_id);
     Ok(())

@@ -127,16 +127,24 @@ export function showInfo(title: string, message: string) {
 	return addNotification(title, message, "info", 4000);
 }
 
-export function showJreInstallPrompt(version: number, instance: InstanceDto) {
-	launcherStore.jreInstallPrompt = { version, instance };
+export function showJreInstallPrompt(
+	version: number,
+	instance: InstanceDto,
+	serverAddress?: string,
+) {
+	launcherStore.jreInstallPrompt = { version, instance, serverAddress };
 }
 
 export function dismissJreInstallPrompt() {
 	launcherStore.jreInstallPrompt = null;
 }
 
-export function setPendingJreLaunch(version: number, instance: InstanceDto) {
-	launcherStore.pendingJreLaunch = { version, instance };
+export function setPendingJreLaunch(
+	version: number,
+	instance: InstanceDto,
+	serverAddress?: string,
+) {
+	launcherStore.pendingJreLaunch = { version, instance, serverAddress };
 }
 
 export function clearPendingJreLaunch() {

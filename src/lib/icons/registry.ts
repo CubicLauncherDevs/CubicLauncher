@@ -40,6 +40,7 @@ export const ICON_REGISTRY: Record<string, string> = {
 	"instance:screenshots": "/images/icons/instance/screenshots.svg",
 	"instance:shader": "/images/icons/instance/shader.svg",
 	"instance:terminal": "/images/icons/instance/terminal.svg",
+	"instance:servers": "/images/icons/instance/servers.svg",
 
 	"log:arrow-down": "/images/icons/log/arrow-down.svg",
 	"log:clear": "/images/icons/log/clear.svg",

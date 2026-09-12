@@ -83,7 +83,7 @@ impl InstanceHandle {
         self.get_status().is_busy()
     }
 
-    /// Held across world operations, instance moves/deletion and launch admission.
+    /// Held across world/server operations, instance moves/deletion and launch admission.
     pub fn try_lock_files(&self) -> Result<tokio::sync::OwnedMutexGuard<()>, String> {
         self.files_lock
             .clone()

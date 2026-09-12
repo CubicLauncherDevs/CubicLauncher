@@ -12,6 +12,7 @@
 	import ShadersIcon from "$lib/icons/ShadersIcon.svelte";
 	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
 	import WorldIcon from "$lib/icons/WorldIcon.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 
 	let { selectedInstance } = $props<{ selectedInstance: InstanceDto }>();
 	let activeSection = $state("detalles");
@@ -47,10 +48,12 @@
 	import type MarketType from "../Market/Market.svelte";
 	import type ScreenshotsTabType from "../ScreenshotsTab.svelte";
 	import type WorldsTabType from "../WorldsTab.svelte";
+	import type ServersTabType from "../ServersTab.svelte";
 
 	let Market: typeof MarketType | null = $state(null);
 	let ScreenshotsTab: typeof ScreenshotsTabType | null = $state(null);
 	let WorldsTab: typeof WorldsTabType | null = $state(null);
+	let ServersTab: typeof ServersTabType | null = $state(null);
 
 	$effect(() => {
 		if (
@@ -62,6 +65,10 @@
 			import("../Market/Market.svelte").then((m) => (Market = m.default));
 		} else if (activeSection === "worlds" && !WorldsTab) {
 			import("../WorldsTab.svelte").then((m) => (WorldsTab = m.default));
+		} else if (activeSection === "servers" && !ServersTab) {
+			import("../ServersTab.svelte").then(
+				(m) => (ServersTab = m.default),
+			);
 		} else if (activeSection === "screenshots" && !ScreenshotsTab) {
 			import("../ScreenshotsTab.svelte").then(
 				(m) => (ScreenshotsTab = m.default),
@@ -122,6 +129,22 @@
 							<span class="nav-icon"><WorldIcon size={18} /></span
 							>
 							<span class="nav-label">{t("worlds.title")}</span>
+							<span class="nav-chevron"
+								><ChevronRightIcon size={14} /></span
+							>
+						</button>
+						<button
+							type="button"
+							class="nav-item priority"
+							onclick={() => (activeSection = "servers")}
+						>
+							<span class="nav-icon"
+								><Icon
+									name="instance:servers"
+									size={18}
+								/></span
+							>
+							<span class="nav-label">{t("servers.title")}</span>
 							<span class="nav-chevron"
 								><ChevronRightIcon size={14} /></span
 							>
@@ -208,6 +231,12 @@
 								instance={selectedInstance}
 							/>{/if}
 					{/key}
+				{:else if activeSection === "servers"}
+					{#key selectedInstance.uuid}
+						{#if ServersTab}<ServersTab
+								instance={selectedInstance}
+							/>{/if}
+					{/key}
 				{:else if activeSection === "screenshots"}
 					{#if ScreenshotsTab}
 						<ScreenshotsTab instance={selectedInstance} />
@@ -278,7 +307,7 @@
 
 	.nav-card:hover .nav-items,
 	.nav-card:focus-within .nav-items {
-		max-height: 300px;
+		max-height: 360px;
 	}
 
 	.nav-item {

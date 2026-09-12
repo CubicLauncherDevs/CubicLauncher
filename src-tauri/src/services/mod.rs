@@ -9,6 +9,8 @@ pub mod instance_import;
 mod instance_manager;
 pub(crate) mod java_manager;
 pub(crate) mod launcher;
+pub mod server_manager;
+pub mod server_status;
 pub(crate) mod settings_manager;
 pub mod skin_closet_manager;
 pub mod world_manager;

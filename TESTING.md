@@ -64,6 +64,19 @@ bun run tauri build
 - [ ] Durante una copia o ZIP grande, comprobar progreso y respuesta de la interfaz. Intentar lanzar, renombrar o eliminar la instancia: debe rechazarlo hasta terminar la operación.
 - [ ] Cambiar rápidamente entre instancias durante una carga/operación: las respuestas antiguas no deben aparecer en otra instancia. Volver y actualizar al terminar.
 
+### Servidores de las instancias
+
+- Ejecutar `cargo test -p cubiclauncher --lib server_`, `cargo test -p zellkern server_launch_tests` y `bun test --conditions=browser tests/servers.test.mjs`.
+- [ ] Abrir Servidores en una instancia sin `servers.dat`; añadir, editar, reordenar y eliminar entradas, incluidas direcciones duplicadas. Comprobar la lista dentro de Minecraft.
+- [ ] Probar Preguntar/Aceptar/Rechazar paquetes de recursos y comprobar que se conservan iconos y campos de mods al editar nombres.
+- [ ] Actualizar estado con servidores accesibles y sin respuesta; verificar descripción, jugadores, ping e iconos PNG.
+- [ ] Probar dominios con SRV, IP, puertos personalizados e IPv6; comprobar la conexión con Vanilla y loaders, en una versión moderna y otra anterior a Quick Play.
+- [ ] Conectar con el Java requerido sin instalar: instalar desde el diálogo y comprobar que el reintento conserva el servidor elegido.
+- [ ] Cambiar rápidamente entre instancias, salir durante una consulta y actualizar varias veces; las respuestas anteriores no deben contaminar la lista actual.
+- [ ] Iniciar Minecraft: la edición queda bloqueada, pero las consultas siguen disponibles. Al cerrar el juego se recarga la lista.
+- [ ] Modificar `servers.dat` externamente con un formulario abierto: al guardar debe informar un conflicto. Un archivo corrupto debe informar el error sin sobrescribirlo.
+- [ ] Verificar búsqueda y paginación con más de 50 servidores, navegación por teclado y diseño estrecho.
+
 ### Consola y crashes
 
 - Ejecutar `cargo test -p cubiclauncher --lib services::launcher::tests` y `cargo test -p cubiclauncher --lib services::instance_manager::manager::tests`.

@@ -14,6 +14,8 @@ pub struct LaunchConfig {
     pub demo_mode: bool,
     pub env: HashMap<String, String>,
     pub quick_play: Option<QuickPlay>,
+    /// Resolved fallback for versions predating Quick Play (host and port).
+    pub legacy_server: Option<(String, u16)>,
     pub access_token: Option<String>,
     pub auth_uuid: Option<String>,
     pub user_type: Option<String>,
@@ -42,6 +44,7 @@ impl Default for LaunchConfig {
             demo_mode: false,
             env: HashMap::new(),
             quick_play: None,
+            legacy_server: None,
             access_token: None,
             auth_uuid: None,
             user_type: None,
@@ -98,6 +101,10 @@ impl LaunchConfigBuilder {
     }
     pub fn quick_play(mut self, qp: QuickPlay) -> Self {
         self.0.quick_play = Some(qp);
+        self
+    }
+    pub fn legacy_server(mut self, host: impl Into<String>, port: u16) -> Self {
+        self.0.legacy_server = Some((host.into(), port));
         self
     }
     pub fn access_token(mut self, t: impl Into<String>) -> Self {

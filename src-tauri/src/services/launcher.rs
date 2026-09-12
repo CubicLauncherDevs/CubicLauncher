@@ -452,7 +452,11 @@ impl Launcher {
         *self.app_handle.lock().unwrap_or_else(|e| e.into_inner()) = Some(handle);
     }
 
-    pub async fn launch(&self, handle: InstanceHandle) -> Result<(), AppError> {
+    pub async fn launch(
+        &self,
+        handle: InstanceHandle,
+        server: Option<super::server_status::ServerAddress>,
+    ) -> Result<(), AppError> {
         trace!("=== CubicLaunchwerk ===");
         let files_guard = handle
             .try_lock_files()
@@ -634,6 +638,13 @@ impl Launcher {
             .username(user.username)
             .ram(min_mem, max_mem)
             .cracked(user.user_type == AccountType::Cracked);
+
+        if let Some(server) = server {
+            let target = super::server_status::resolve_target(&server).await;
+            builder = builder
+                .quick_play(launchwerk::QuickPlay::Multiplayer(server.authority()))
+                .legacy_server(target.host, target.port);
+        }
 
         let mut extra_jvm_args: Vec<String> = Vec::new();
 

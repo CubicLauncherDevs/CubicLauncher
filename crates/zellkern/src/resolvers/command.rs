@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::Error;
 use crate::launch_config::LaunchConfig;
-use crate::manifest::{Argument, VersionManifest};
+use crate::manifest::{Argument, ArgumentValue, VersionManifest};
 use crate::resolvers::ClasspathResolver;
 use crate::resolvers::natives::natives_subdir;
 
@@ -177,7 +177,6 @@ impl<'a> CommandBuilder<'a> {
 
         self.add_game_args(&mut cmd, &vars, &final_manifest);
         self.add_default_game_args(&mut cmd, &assets_dir, &final_manifest);
-        self.add_optional_args(&mut cmd);
 
         if main_class == "net.minecraft.launchwrapper.Launch"
             && !cmd.iter().any(|a| a == "--tweakClass")
@@ -196,6 +195,7 @@ impl<'a> CommandBuilder<'a> {
         }
 
         self.cleanup_unresolved(&mut cmd);
+        self.add_optional_args(&mut cmd, &final_manifest);
 
         debug!("CommandBuilder: {} total args", cmd.len());
         Ok(cmd)
@@ -276,35 +276,34 @@ impl<'a> CommandBuilder<'a> {
         vars: &HashMap<String, String>,
         manifest: &VersionManifest,
     ) {
+        // Quick Play is supplied by the launcher. Remove manifest flag/value
+        // pairs together so unresolved placeholders cannot shadow our target.
+        let mut skip_value = false;
+        let mut append = |token: &str| {
+            if skip_value {
+                skip_value = false;
+                return;
+            }
+            if token.starts_with("--quickPlay") {
+                skip_value = !token.contains('=');
+                return;
+            }
+            if !self.should_skip_arg(token) {
+                cmd.push(replace_vars(token, vars));
+            }
+        };
         if let Some(args) = manifest.arguments.as_ref().and_then(|a| a.game.as_ref()) {
-            let before = cmd.len();
             for arg in args {
-                if let Argument::Plain(s) = arg
-                    && self.should_skip_arg(s)
-                {
-                    continue;
-                }
                 for s in arg.get_if_applies() {
-                    if !self.should_skip_arg(&s) {
-                        cmd.push(replace_vars(&s, vars));
-                    }
+                    append(&s);
                 }
             }
-            debug!(
-                "Game args: {} entries from manifest.arguments.game",
-                cmd.len() - before
-            );
             return;
         }
         if let Some(legacy) = &manifest.minecraft_arguments {
-            let before = cmd.len();
             for token in legacy.split_whitespace() {
-                cmd.push(replace_vars(token, vars));
+                append(token);
             }
-            debug!(
-                "Game args: {} entries from legacy minecraft_arguments",
-                cmd.len() - before
-            );
         }
     }
 
@@ -370,11 +369,24 @@ impl<'a> CommandBuilder<'a> {
         }
     }
 
-    fn add_optional_args(&self, cmd: &mut Vec<String>) {
+    fn add_optional_args(&self, cmd: &mut Vec<String>, manifest: &VersionManifest) {
         if self.config.demo_mode && !cmd.contains(&"--demo".to_string()) {
             cmd.push("--demo".to_string());
         }
         if let Some(qp) = &self.config.quick_play {
+            if matches!(qp, crate::QuickPlay::Multiplayer(_))
+                && !supports_multiplayer_quick_play(manifest)
+            {
+                if let Some((host, port)) = &self.config.legacy_server {
+                    cmd.extend([
+                        "--server".into(),
+                        host.clone(),
+                        "--port".into(),
+                        port.to_string(),
+                    ]);
+                }
+                return;
+            }
             let (flag, value) = match qp {
                 crate::QuickPlay::Singleplayer(v) => ("--quickPlaySingleplayer", v),
                 crate::QuickPlay::Multiplayer(v) => ("--quickPlayMultiplayer", v),
@@ -466,6 +478,24 @@ impl<'a> CommandBuilder<'a> {
     }
 }
 
+fn supports_multiplayer_quick_play(manifest: &VersionManifest) -> bool {
+    manifest
+        .arguments
+        .as_ref()
+        .and_then(|a| a.game.as_ref())
+        .is_some_and(|args| {
+            args.iter().any(|arg| match arg {
+                Argument::Plain(s) => s == "--quickPlayMultiplayer",
+                Argument::WithRule { value, .. } => match value {
+                    ArgumentValue::Single(s) => s == "--quickPlayMultiplayer",
+                    ArgumentValue::Many(values) => {
+                        values.iter().any(|s| s == "--quickPlayMultiplayer")
+                    }
+                },
+            })
+        })
+}
+
 fn replace_vars(s: &str, vars: &HashMap<String, String>) -> String {
     let mut out = s.to_string();
     for (k, v) in vars {
@@ -473,4 +503,104 @@ fn replace_vars(s: &str, vars: &HashMap<String, String>) -> String {
     }
     out.replace("${launcher_name}", "CubicLauncher")
         .replace("${launcher_version}", "2.0")
+}
+
+#[cfg(test)]
+mod server_launch_tests {
+    use super::*;
+
+    fn manifest(modern: bool) -> VersionManifest {
+        let mut value = serde_json::json!({"id":"1.21.1"});
+        if modern {
+            value["arguments"] = serde_json::json!({"game":[
+                "--username", "${auth_player_name}",
+                {"rules":[{"action":"allow","features":{"is_quick_play_multiplayer":true}}],"value":["--quickPlayMultiplayer","${quickPlayMultiplayer}"]},
+                {"rules":[{"action":"allow","features":{"is_quick_play_singleplayer":true}}],"value":["--quickPlaySingleplayer","${quickPlaySingleplayer}"]}
+            ]});
+        } else {
+            value["minecraftArguments"] = serde_json::json!("--username ${auth_player_name}");
+        }
+        VersionManifest::from_bytes(&serde_json::to_vec(&value).unwrap()).unwrap()
+    }
+
+    fn game_args(manifest: &VersionManifest, config: &LaunchConfig) -> Vec<String> {
+        let builder = CommandBuilder::new(manifest, Path::new("."), Path::new("."), config);
+        let mut args = Vec::new();
+        builder.add_game_args(
+            &mut args,
+            &HashMap::from([("auth_player_name".into(), "Player".into())]),
+            manifest,
+        );
+        builder.cleanup_unresolved(&mut args);
+        builder.add_optional_args(&mut args, manifest);
+        args
+    }
+
+    #[test]
+    fn modern_server_launch_has_one_resolved_target_and_no_other_quick_play_flags() {
+        let config = LaunchConfig::builder()
+            .quick_play(crate::QuickPlay::Multiplayer("play.example:25565".into()))
+            .legacy_server("srv.example", 25566)
+            .build();
+        assert_eq!(
+            game_args(&manifest(true), &config),
+            [
+                "--username",
+                "Player",
+                "--quickPlayMultiplayer",
+                "play.example:25565"
+            ]
+        );
+    }
+
+    #[test]
+    fn legacy_server_launch_uses_resolved_host_and_port() {
+        let config = LaunchConfig::builder()
+            .quick_play(crate::QuickPlay::Multiplayer("play.example:25565".into()))
+            .legacy_server("srv.example", 25566)
+            .build();
+        assert_eq!(
+            game_args(&manifest(false), &config),
+            [
+                "--username",
+                "Player",
+                "--server",
+                "srv.example",
+                "--port",
+                "25566"
+            ]
+        );
+    }
+
+    #[test]
+    fn normal_launch_does_not_join_any_server() {
+        assert_eq!(
+            game_args(&manifest(true), &LaunchConfig::default()),
+            ["--username", "Player"]
+        );
+        assert_eq!(
+            game_args(&manifest(false), &LaunchConfig::default()),
+            ["--username", "Player"]
+        );
+    }
+
+    #[test]
+    fn loader_inherits_quick_play_support_from_parent() {
+        let child = VersionManifest::from_bytes(br#"{"id":"fabric-loader-0.16.0-1.21.1","inheritsFrom":"1.21.1","arguments":{"game":["--loader-arg"]}}"#).unwrap();
+        let resolved = child.resolve(&manifest(true));
+        assert!(supports_multiplayer_quick_play(&resolved));
+        let config = LaunchConfig::builder()
+            .quick_play(crate::QuickPlay::Multiplayer("[::1]:25565".into()))
+            .legacy_server("::1", 25565)
+            .build();
+        let args = game_args(&resolved, &config);
+        assert_eq!(
+            args.iter()
+                .filter(|arg| *arg == "--quickPlayMultiplayer")
+                .count(),
+            1
+        );
+        assert!(args.contains(&"[::1]:25565".to_string()));
+        assert!(!args.iter().any(|arg| arg.contains("${")));
+    }
 }

@@ -164,7 +164,11 @@ export function initEventListeners(): void {
 				if (pending) {
 					const jreVersionStr = `jre-${pending.version}`;
 					if (payload.data.version === jreVersionStr) {
-						handleJreInstalled(pending.version, pending.instance);
+						handleJreInstalled(
+							pending.version,
+							pending.instance,
+							pending.serverAddress,
+						);
 					}
 				}
 				break;
@@ -219,7 +223,11 @@ export function destroyEventListeners(): void {
 	_listenerInitialized = false;
 }
 
-async function handleJreInstalled(version: number, instance: InstanceDto) {
+async function handleJreInstalled(
+	version: number,
+	instance: InstanceDto,
+	serverAddress?: string,
+) {
 	if (version === 8 && !launcherStore.settings.jre8_managed) {
 		launcherStore.settings.jre8_managed = true;
 		await updateSettings(launcherStore.settings);
@@ -235,7 +243,7 @@ async function handleJreInstalled(version: number, instance: InstanceDto) {
 	}
 
 	clearPendingJreLaunch();
-	await launchInstance(instance);
+	await launchInstance(instance, undefined, undefined, serverAddress);
 }
 
 export async function syncSettings(): Promise<void> {

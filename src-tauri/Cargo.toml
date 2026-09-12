@@ -24,7 +24,7 @@ serde_json = "1"
 aqua = { path = "../crates/aqua" }
 launchwerk = { path = "../crates/launchwerk", features = ["auth"] }
 directories = "6.0.0"
-tokio = {version = "1.52.3", features = ["sync", "rt-multi-thread", "macros"] }
+tokio = {version = "1.52.3", features = ["sync", "rt-multi-thread", "macros", "net", "io-util", "time"] }
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 reqwest = { version = "0.13", features = ["json", "multipart"] }
@@ -58,5 +58,6 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 fastnbt = "2"
 flate2 = "1"
 tempfile = "3"
+hickory-resolver = "0.25"
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

@@ -228,9 +228,10 @@ export async function launchInstance(
 	instance: InstanceDto,
 	callback?: () => void,
 	onError?: (err: unknown) => void,
+	serverAddress?: string,
 ): Promise<void> {
 	try {
-		await invoke("launch", { instanceId: instance.uuid });
+		await invoke("launch", { instanceId: instance.uuid, serverAddress });
 		callback?.();
 	} catch (err) {
 		const errorStr = err as string;
@@ -239,7 +240,7 @@ export async function launchInstance(
 			if (parsed.code === "INST_JRE_MISSING" && parsed.params?.version) {
 				const version = parseInt(parsed.params.version, 10);
 				if ([8, 17, 21, 25].includes(version)) {
-					showJreInstallPrompt(version, instance);
+					showJreInstallPrompt(version, instance, serverAddress);
 					return;
 				}
 			}
