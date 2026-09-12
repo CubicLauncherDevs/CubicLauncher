@@ -15,7 +15,6 @@ pub enum WorldAction {
     Rename { folder: String, name: String },
     Delete { folder: String },
     Size { folder: String },
-    CopySeed { folder: String },
     ResetIcon { folder: String },
 }
 
@@ -23,7 +22,6 @@ pub enum WorldAction {
 pub struct WorldResult {
     folder: Option<String>,
     size: Option<u64>,
-    seed: Option<String>,
 }
 
 #[tauri::command]
@@ -110,9 +108,6 @@ pub async fn instance_world_action(
                     .arg(path)
                     .spawn()
                     .map_err(|e| e.to_string())?;
-            }
-            WorldAction::CopySeed { folder } => {
-                result.seed = worlds::copy_world_seed(&worlds::world_dir(&saves, &folder)?)?;
             }
             WorldAction::ResetIcon { folder } => {
                 worlds::reset_world_icon(&worlds::world_dir(&saves, &folder)?)?;

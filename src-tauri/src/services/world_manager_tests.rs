@@ -149,40 +149,6 @@ fn failed_rename_leaves_original_bytes_untouched() {
 }
 
 #[test]
-fn seed_is_read_from_random_seed_or_world_gen_settings() {
-    let temp = tempfile::tempdir().unwrap();
-    let saves = saves_dir(temp.path(), true).unwrap();
-    let legacy = world(&saves, "legacy");
-    let mut data_legacy = level("legacy");
-    let Value::Compound(legacy_data) = data_legacy.get_mut("Data").unwrap() else {
-        panic!()
-    };
-    legacy_data.insert("RandomSeed".into(), Value::Long(123_456_789));
-    write_level(&legacy.join("level.dat"), &data_legacy);
-
-    let modern = world(&saves, "modern");
-    let mut data_modern = level("modern");
-    let Value::Compound(modern_data) = data_modern.get_mut("Data").unwrap() else {
-        panic!()
-    };
-    modern_data.insert(
-        "WorldGenSettings".into(),
-        Value::Compound(HashMap::from([("seed".into(), Value::Long(-987_654_321))])),
-    );
-    write_level(&modern.join("level.dat"), &data_modern);
-
-    let _no_seed = world(&saves, "no-seed");
-
-    let worlds = list_worlds(&saves).unwrap();
-    let legacy_dto = worlds.iter().find(|w| w.folder == "legacy").unwrap();
-    let modern_dto = worlds.iter().find(|w| w.folder == "modern").unwrap();
-    let no_seed_dto = worlds.iter().find(|w| w.folder == "no-seed").unwrap();
-    assert_eq!(legacy_dto.seed.as_deref(), Some("123456789"));
-    assert_eq!(modern_dto.seed.as_deref(), Some("-987654321"));
-    assert_eq!(no_seed_dto.seed, None);
-}
-
-#[test]
 fn reset_icon_removes_icon_png_and_invalidates_cache() {
     let temp = tempfile::tempdir().unwrap();
     let saves = saves_dir(temp.path(), true).unwrap();

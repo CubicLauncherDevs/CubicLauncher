@@ -31,7 +31,6 @@ pub struct WorldDto {
     pub last_played: Option<i64>,
     pub icon: Option<String>,
     pub icon_revision: Option<String>,
-    pub seed: Option<String>,
     pub metadata_error: bool,
 }
 
@@ -53,26 +52,6 @@ struct LevelData {
     hardcore: Option<i8>,
     #[serde(rename = "Version")]
     version: Option<LevelVersion>,
-    #[serde(rename = "RandomSeed")]
-    random_seed: Option<i64>,
-    #[serde(rename = "WorldGenSettings")]
-    world_gen_settings: Option<WorldGenSettings>,
-}
-
-impl LevelData {
-    fn seed(&self) -> Option<String> {
-        self.world_gen_settings
-            .as_ref()
-            .and_then(|settings| settings.seed)
-            .or(self.random_seed)
-            .map(|value| value.to_string())
-    }
-}
-
-#[derive(Clone, Default, Deserialize)]
-#[serde(default)]
-struct WorldGenSettings {
-    seed: Option<i64>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -203,7 +182,6 @@ pub fn list_worlds(saves: &Path) -> Result<Vec<WorldDto>> {
         };
         let cached = metadata(&path);
         let data = cached.data.clone();
-        let seed = data.seed();
         let icon = path.join("icon.png");
         let icon_stamp = stamp(&icon);
         worlds.push(WorldDto {
@@ -217,7 +195,6 @@ pub fn list_worlds(saves: &Path) -> Result<Vec<WorldDto>> {
                 .as_ref()
                 .map(|_| icon.to_string_lossy().into_owned()),
             icon_revision: icon_stamp.map(|s| format!("{:?}-{}", s.0, s.1)),
-            seed,
             metadata_error: cached.error,
         });
     }
@@ -425,11 +402,6 @@ pub fn delete_world(world: &Path) -> Result<()> {
         .unwrap_or_else(|e| e.into_inner())
         .remove(world);
     Ok(())
-}
-
-pub fn copy_world_seed(world: &Path) -> Result<Option<String>> {
-    let cached = metadata(world);
-    Ok(cached.data.seed())
 }
 
 pub fn reset_world_icon(world: &Path) -> Result<bool> {

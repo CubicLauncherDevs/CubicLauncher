@@ -9,7 +9,6 @@ export interface WorldDto {
 	lastPlayed: number | null;
 	icon: string | null;
 	iconRevision: string | null;
-	seed: string | null;
 	metadataError: boolean;
 }
 
@@ -23,13 +22,12 @@ export type WorldAction =
 	| { type: "openDatapacks"; folder: string }
 	| { type: "import"; path: string }
 	| { type: "export"; folder: string; path: string }
-	| { type: "duplicate" | "delete" | "size" | "copySeed" | "resetIcon"; folder: string }
+	| { type: "duplicate" | "delete" | "size" | "resetIcon"; folder: string }
 	| { type: "rename"; folder: string; name: string };
 
 export interface WorldResult {
 	folder: string | null;
 	size: number | null;
-	seed: string | null;
 }
 
 export function getInstanceWorlds(instanceId: string): Promise<WorldDto[]> {

@@ -132,7 +132,7 @@
 				modalOpen = false;
 				await load();
 			}
-			if (!["open", "openDatapacks", "copySeed"].includes(action.type))
+			if (!["open", "openDatapacks"].includes(action.type))
 				notice = t("worlds.completed");
 		} catch (err) {
 			if (alive) error = String(err);
@@ -191,49 +191,6 @@
 			Math.floor(Math.log2(Math.max(1, bytes)) / 10),
 		);
 		return `${(bytes / 1024 ** unit).toLocaleString(undefined, { maximumFractionDigits: 1 })} ${["B", "KiB", "MiB", "GiB", "TiB"][unit]}`;
-	}
-
-	async function copyToClipboard(text: string) {
-		try {
-			await navigator.clipboard.writeText(text);
-			return;
-		} catch {
-			const textarea = document.createElement("textarea");
-			textarea.value = text;
-			textarea.style.position = "fixed";
-			textarea.style.opacity = "0";
-			document.body.appendChild(textarea);
-			textarea.select();
-			const success = document.execCommand("copy");
-			document.body.removeChild(textarea);
-			if (!success) throw new Error(t("worlds.copySeedFailed"));
-		}
-	}
-
-	async function copySeed(world: WorldDto) {
-		if (disabled || !world.seed) return;
-		operation = t("worlds.copyingSeed");
-		error = "";
-		notice = "";
-		try {
-			const result = await worldAction(
-				instance.uuid,
-				{ type: "copySeed", folder: world.folder },
-				() => {},
-			);
-			if (!alive) return;
-			const seed = result.seed ?? world.seed;
-			if (seed) {
-				await copyToClipboard(seed);
-				notice = t("worlds.seedCopied");
-			} else {
-				notice = t("worlds.noSeed");
-			}
-		} catch (err) {
-			if (alive) error = String(err);
-		} finally {
-			if (alive) operation = null;
-		}
 	}
 
 	function lastPlayed(world: WorldDto) {
@@ -426,11 +383,9 @@
 						<dd>{selected.version ?? t("worlds.unknown")}</dd>
 						<dt>{t("worlds.gameMode")}</dt>
 						<dd>{gameMode(selected)}</dd>
-						<dt>{t("worlds.lastPlayed")}</dt>
-						<dd>{lastPlayed(selected)}</dd>
-						<dt>{t("worlds.seed")}</dt>
-						<dd>{selected.seed ?? t("worlds.unknown")}</dd>
-						<dt>{t("worlds.size")}</dt>
+					<dt>{t("worlds.lastPlayed")}</dt>
+					<dd>{lastPlayed(selected)}</dd>
+					<dt>{t("worlds.size")}</dt>
 						<dd>
 							{sizes[selected.folder] === undefined
 								? t("worlds.notCalculated")
@@ -496,12 +451,6 @@
 									folder: selected!.folder,
 								}))}
 							>{t("worlds.openDatapacks")}</button
-						>
-						<button
-							type="button"
-							disabled={disabled || running || !selected.seed}
-							onclick={() => selected && copySeed(selected)}
-							>{t("worlds.copySeed")}</button
 						>
 						<button
 							type="button"
