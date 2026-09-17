@@ -253,6 +253,7 @@ pub async fn add_instance_file(
     id: String,
     sub_dir: String,
     source_path: String,
+    overwrite: Option<bool>,
 ) -> Result<(), String> {
     validate_uuid(&id)?;
     let manager = InstanceManager::get();
@@ -288,18 +289,49 @@ pub async fn add_instance_file(
         .ok_or_else(|| InstanceError::InvalidSourcePath.to_string())?;
     let dest_path = dest_dir.join(filename);
 
-    tokio::fs::copy(&src, &dest_path).await.map_err(|e| {
-        error!("Error copiando archivo a {:?}: {}", dest_path, e);
-        FsError::Copy {
-            from: src.to_string_lossy().to_string(),
-            to: dest_path.to_string_lossy().to_string(),
-            source: e,
-        }
-        .to_string()
-    })?;
+    copy_instance_file(&src, &dest_path, overwrite.unwrap_or(true))
+        .await
+        .map_err(|e| {
+            error!("Error copiando archivo a {:?}: {}", dest_path, e);
+            FsError::Copy {
+                from: src.to_string_lossy().to_string(),
+                to: dest_path.to_string_lossy().to_string(),
+                source: e,
+            }
+            .to_string()
+        })?;
     info!("Archivo copiado a {:?}", dest_path);
     Ok(())
 }
+
+async fn copy_instance_file(src: &Path, dest: &Path, overwrite: bool) -> std::io::Result<()> {
+    if overwrite {
+        tokio::fs::copy(src, dest).await?;
+        return Ok(());
+    }
+    let mut source = tokio::fs::File::open(src).await?;
+    let mut target = tokio::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(dest)
+        .await?;
+    use tokio::io::AsyncWriteExt;
+    let result = async {
+        tokio::io::copy(&mut source, &mut target).await?;
+        target.flush().await
+    }
+    .await;
+    if let Err(error) = result {
+        drop(target);
+        let _ = tokio::fs::remove_file(dest).await;
+        return Err(error);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "../../tests/commands/instance/manage.rs"]
+mod tests;
 
 async fn remove_custom_icons(icons_dir: &std::path::Path) {
     if !icons_dir.exists() {

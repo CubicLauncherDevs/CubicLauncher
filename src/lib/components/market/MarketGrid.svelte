@@ -12,6 +12,7 @@
 		onRangeNeeded,
 		onLoadMore,
 		children,
+		items,
 	}: {
 		count: number;
 		getItem: (index: number) => MarketProject | null | undefined;
@@ -20,6 +21,7 @@
 		onRangeNeeded: (first: number, last: number) => void;
 		onLoadMore: () => void;
 		children: Snippet<[MarketProject]>;
+		items?: MarketProject[];
 	} = $props();
 	let metrics = $state({ row: 224, gap: 12, card: 280, padding: 8 });
 	const rowHeight = $derived(Math.max(metrics.row, metrics.gap + 1));
@@ -58,6 +60,7 @@
 	);
 
 	$effect(() => {
+		void items;
 		if (busy || !active || !count) return;
 		const first = firstRow * columns;
 		const last = Math.min(count - 1, lastRow * columns - 1);

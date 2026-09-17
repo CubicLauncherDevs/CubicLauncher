@@ -29,6 +29,7 @@ export enum InstState {
 }
 
 export interface ModDto {
+	icon_revision?: string;
 	name: string;
 	filename: string;
 	version: string | null;

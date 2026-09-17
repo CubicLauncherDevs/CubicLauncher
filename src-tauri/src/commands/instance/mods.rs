@@ -14,6 +14,8 @@ use super::launch::validate_uuid;
 
 #[derive(serde::Serialize)]
 pub struct ModDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon_revision: Option<String>,
     pub name: String,
     pub filename: String,
     pub version: Option<String>,
@@ -38,9 +40,9 @@ pub struct PerFileCacheEntry {
 }
 
 #[derive(Debug, Deserialize)]
-struct ModrinthVersionEntry {
-    id: String,
-    project_id: String,
+pub(super) struct ModrinthVersionEntry {
+    pub id: String,
+    pub project_id: String,
 }
 
 const MODRINTH_API: &str = "https://api.modrinth.com/v2";
@@ -70,7 +72,7 @@ fn preserve_pack_source(entry: &mut PackFullCacheEntry, repo: &ablage::Repo, fil
 }
 
 #[tauri::command]
-pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
+pub async fn get_instance_mods(id: String, include_icons: Option<bool>) -> Vec<ModDto> {
     if let Err(e) = validate_uuid(&id) {
         warn!("{}", e);
         return Vec::new();
@@ -82,324 +84,14 @@ pub async fn get_instance_mods(id: String) -> Vec<ModDto> {
     };
 
     let mods_dir = handle.get_instance_dir().await.join("mods");
-    info!("Listando mods de instancia {} en {:?}", id, mods_dir);
-
-    // --- Phase 1: List files + compute fingerprints ---
-    struct FileEntry {
-        path: PathBuf,
-        filename: String,
-        display_name: String,
-        enabled: bool,
-        size: u64,
-        fingerprint: u64,
-    }
-
-    let entries = tokio::task::spawn_blocking(move || -> Vec<FileEntry> {
-        let dir = match std::fs::read_dir(&mods_dir) {
-            Ok(d) => d,
-            Err(_) => return Vec::new(),
-        };
-
-        dir.flatten()
-            .filter_map(|e| {
-                let path = e.path();
-                if !path.is_file() {
-                    return None;
-                }
-                let file_name = path.file_name()?.to_string_lossy().to_string();
-                let file_name_lower = file_name.to_lowercase();
-                let ext = path.extension()?.to_string_lossy().to_lowercase();
-
-                let (is_mod, enabled) = if ext == "jar" || ext == "zip" {
-                    (true, true)
-                } else if ext == "disabled"
-                    && (file_name_lower.ends_with(".jar.disabled")
-                        || file_name_lower.ends_with(".zip.disabled"))
-                {
-                    (true, false)
-                } else {
-                    (false, false)
-                };
-
-                if !is_mod {
-                    return None;
-                }
-
-                let display_name = file_name
-                    .strip_suffix(".disabled")
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| file_name.clone());
-
-                let meta = std::fs::metadata(&path).ok()?;
-                let mtime = meta.modified().ok()?;
-                let size = meta.len();
-                let fingerprint = file_fingerprint(&file_name, &mtime, size);
-
-                Some(FileEntry {
-                    path,
-                    filename: file_name,
-                    display_name,
-                    enabled,
-                    size,
-                    fingerprint,
-                })
-            })
-            .collect()
-    })
-    .await
-    .unwrap_or_default();
-
-    if entries.is_empty() {
-        return Vec::new();
-    }
-
-    let mods_dir2 = entries[0].path.parent().unwrap().to_path_buf();
-    let repo_path = repo_path(&mods_dir2);
-
-    // --- Phase 2: Fast-path via global fingerprint (sin cargar el HashMap completo) ---
-    let global_fp: u64 = entries.iter().fold(0, |acc, e| acc ^ e.fingerprint);
-
-    if ablage::Repo::check_global_fingerprint(&repo_path, global_fp) {
-        // Cache hit: abrimos el repo solo para deserializar entries
-        let repo = ablage::Repo::open(&repo_path);
-        let mods: Vec<ModDto> = entries
-            .into_iter()
-            .map(|e| {
-                let entry: Option<PerFileCacheEntry> = repo
-                    .get(&e.filename)
-                    .and_then(|entry| postcard::from_bytes(&entry.data).ok());
-                match entry {
-                    Some(cached) => {
-                        let icon = AddonManager::get_mod_icon(&e.path).map(|s| (*s).clone());
-                        let md = cached.metadata.as_ref();
-                        ModDto {
-                            name: md.map(|m| m.name.clone()).unwrap_or(e.display_name),
-                            filename: e.filename,
-                            version: md.and_then(|m| m.version.clone()),
-                            description: md.and_then(|m| m.description.clone()),
-                            authors: md.map(|m| m.authors.clone().unwrap_or_default()),
-                            icon,
-                            enabled: e.enabled,
-                            sha1: cached.sha1,
-                            file_size: e.size,
-                            source: cached.source.source_str().to_string(),
-                            project_id: cached.source.project_id().map(|s| s.to_string()),
-                            slug: cached.source.slug().map(|s| s.to_string()),
-                        }
-                    }
-                    None => ModDto {
-                        name: e.display_name,
-                        filename: e.filename,
-                        version: None,
-                        description: None,
-                        authors: None,
-                        icon: None,
-                        enabled: e.enabled,
-                        sha1: String::new(),
-                        file_size: e.size,
-                        source: "local".to_string(),
-                        project_id: None,
-                        slug: None,
-                    },
-                }
-            })
-            .collect();
-        info!(
-            "{} mods cargados desde cache en instancia {}",
-            mods.len(),
-            id
-        );
-        return mods;
-    }
-
-    // --- Cache miss: build minimal ModDtos, enrich in background ---
-    let minimal: Vec<ModDto> = entries
-        .iter()
-        .map(|e| ModDto {
-            name: e.display_name.clone(),
-            filename: e.filename.clone(),
-            version: None,
-            description: None,
-            authors: None,
-            icon: None,
-            enabled: e.enabled,
-            sha1: String::new(),
-            file_size: e.size,
-            source: "local".to_string(),
-            project_id: None,
-            slug: None,
-        })
-        .collect();
-
-    info!(
-        "{} mods listados (minimal) en instancia {} — enriqueciendo en background",
-        minimal.len(),
-        id
-    );
-
-    let repo_path2 = repo_path.clone();
-    let id2 = id.clone();
-    tokio::spawn(async move {
-        let mut repo = ablage::Repo::open(&repo_path2);
-
-        struct RawResult {
-            sha1: String,
-            metadata: Option<AddonMetaNoIcon>,
-        }
-
-        let mut to_resolve: Vec<String> = Vec::new();
-        let mut cached: Vec<(FileEntry, PerFileCacheEntry)> = Vec::with_capacity(entries.len());
-
-        let handles: Vec<_> = entries
-            .iter()
-            .map(|e| {
-                let path = e.path.clone();
-                let filename = e.filename.clone();
-                let fingerprint = e.fingerprint;
-
-                let cached_entry = repo.get(&filename).and_then(|entry| {
-                    if entry.fingerprint == fingerprint {
-                        postcard::from_bytes::<PerFileCacheEntry>(&entry.data).ok()
-                    } else {
-                        None
-                    }
-                });
-
-                if let Some(cached) = cached_entry {
-                    tokio::task::spawn_blocking(move || -> RawResult {
-                        RawResult {
-                            sha1: cached.sha1,
-                            metadata: cached.metadata,
-                        }
-                    })
-                } else {
-                    tokio::task::spawn_blocking(move || -> RawResult {
-                        let sha1 = compute_file_sha1(&path).unwrap_or_default();
-                        let parsed = AddonManager::get_mod_info(&path);
-                        RawResult {
-                            sha1,
-                            metadata: parsed,
-                        }
-                    })
-                }
-            })
-            .collect();
-
-        let raw_results: Vec<RawResult> = futures::future::join_all(handles)
-            .await
-            .into_iter()
-            .filter_map(|r| r.ok())
-            .collect();
-
-        for (entry, raw) in entries.into_iter().zip(raw_results) {
-            let existing = repo.get(&entry.filename).and_then(|e| {
-                if e.fingerprint == entry.fingerprint {
-                    postcard::from_bytes::<PerFileCacheEntry>(&e.data).ok()
-                } else {
-                    None
-                }
-            });
-
-            match existing {
-                Some(per_file) => {
-                    cached.push((entry, per_file));
-                }
-                None => {
-                    let per_file = PerFileCacheEntry {
-                        sha1: raw.sha1.clone(),
-                        metadata: raw.metadata.clone(),
-                        source: ModSource::Local,
-                    };
-                    if let Ok(data) = postcard::to_stdvec(&per_file) {
-                        repo.put(
-                            entry.filename.clone(),
-                            ablage::Entry {
-                                version: 1,
-                                fingerprint: entry.fingerprint,
-                                data,
-                            },
-                        );
-                    }
-                    if !raw.sha1.is_empty() {
-                        to_resolve.push(raw.sha1.clone());
-                    }
-                    cached.push((entry, per_file));
-                }
-            }
-        }
-
-        if !to_resolve.is_empty() {
-            let pending: Vec<String> = cached
-                .iter()
-                .filter(|(_, entry)| matches!(entry.source, ModSource::Local))
-                .filter(|(_, entry)| !entry.sha1.is_empty())
-                .map(|(_, entry)| entry.sha1.clone())
-                .collect();
-
-            if !pending.is_empty() {
-                info!(
-                    "Resolviendo {} mods via Modrinth hash lookup en instancia {}",
-                    pending.len(),
-                    id2
-                );
-                match resolve_modrinth_hashes(&pending).await {
-                    Ok(api_results) => {
-                        for (sha1, version) in api_results {
-                            let source = ModSource::Modrinth {
-                                project_id: version.project_id,
-                                version_id: version.id,
-                                slug: None,
-                            };
-                            for (file_entry, entry) in cached.iter_mut() {
-                                if entry.sha1 == sha1 {
-                                    entry.source = source.clone();
-                                    let updated = PerFileCacheEntry {
-                                        sha1: entry.sha1.clone(),
-                                        metadata: entry.metadata.clone(),
-                                        source: source.clone(),
-                                    };
-                                    if let Ok(data) = postcard::to_stdvec(&updated) {
-                                        repo.put(
-                                            file_entry.filename.clone(),
-                                            ablage::Entry {
-                                                version: 1,
-                                                fingerprint: 0,
-                                                data,
-                                            },
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        warn!("Error resolviendo hashes via Modrinth: {}", e);
-                    }
-                }
-            }
-        }
-
-        repo.put(
-            "__global",
-            ablage::Entry {
-                version: 1,
-                fingerprint: global_fp,
-                data: global_fp.to_le_bytes().to_vec(),
-            },
-        );
-
-        let _ = repo.flush();
-
-        event_bus::emit(event_bus::AppEvent::ModsEnriched { id: id2.into() });
-    });
-
-    minimal
+    super::mod_catalog::list(id, mods_dir, include_icons.unwrap_or(true)).await
 }
 
-async fn resolve_modrinth_hashes(
+pub(super) async fn resolve_modrinth_hashes(
     hashes: &[String],
 ) -> Result<HashMap<String, ModrinthVersionEntry>, String> {
     let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
         .user_agent(concat!("CubicLauncher/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
@@ -557,6 +249,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
                             .map(|m| (m.name.clone(), m.description.clone()))
                             .unwrap_or_else(|| (e.filename.clone(), None));
                         ModDto {
+                            icon_revision: None,
                             name: md_name,
                             filename: e.filename,
                             version: entry.metadata.as_ref().and_then(|m| m.version.clone()),
@@ -572,6 +265,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
                         }
                     }
                     None => ModDto {
+                        icon_revision: None,
                         name: e.filename.clone(),
                         filename: e.filename,
                         version: None,
@@ -601,6 +295,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
     let minimal: Vec<ModDto> = entries
         .iter()
         .map(|e| ModDto {
+            icon_revision: None,
             name: e.filename.clone(),
             filename: e.filename.clone(),
             version: None,
@@ -766,6 +461,7 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
                             .map(|m| (m.name.clone(), m.description.clone()))
                             .unwrap_or_else(|| (e.filename.clone(), None));
                         ModDto {
+                            icon_revision: None,
                             name: md_name,
                             filename: e.filename,
                             version: entry.metadata.as_ref().and_then(|m| m.version.clone()),
@@ -781,6 +477,7 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
                         }
                     }
                     None => ModDto {
+                        icon_revision: None,
                         name: e.filename.clone(),
                         filename: e.filename,
                         version: None,
@@ -810,6 +507,7 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
     let minimal: Vec<ModDto> = entries
         .iter()
         .map(|e| ModDto {
+            icon_revision: None,
             name: e.filename.clone(),
             filename: e.filename.clone(),
             version: None,

@@ -1,7 +1,9 @@
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import {
 	deleteInstanceFile,
+	addInstanceFile,
 	getInstanceMods,
+	getInstanceModIcons,
 	getInstanceResourcePacks,
 	getInstanceShaderPacks,
 	getModrinthProject,
@@ -20,7 +22,6 @@ import {
 } from "$lib/api/cubicApi";
 import { registerModsRefreshCallback } from "$lib/api/launcherService";
 import {
-	localModToMarket,
 	modrinthProjectToMarket,
 	modrinthVersionToMarket,
 	curseforgeProjectToMarket,
@@ -43,6 +44,12 @@ import type {
 } from "$lib/types/dependency";
 import { showWarning } from "$lib/state/state.svelte";
 import { t } from "$lib/i18n";
+import { createLocalModIcons } from "$lib/state/localModIcons";
+import {
+	reconcileLocalProjects,
+	sameProjectList,
+	matchesLocalQuery,
+} from "$lib/utils/localCatalog";
 
 const PAGE_SIZE = 20;
 const MAX_CACHED_PAGES = 15;
@@ -52,6 +59,14 @@ export type MarketSource = "local" | "modrinth" | "curseforge";
 export type MarketSort = "auto" | "relevance" | "downloads" | "newest";
 export type LocalSort = "name-asc" | "name-desc";
 export type LocalSourceFilter = "all" | "modrinth" | "curseforge" | "local";
+export type LocalStatusFilter = "all" | "enabled" | "disabled";
+export type LocalAction = "enable" | "disable" | "delete";
+export interface LocalOperationReport {
+	total: number;
+	completed: number;
+	succeeded: number;
+	failures: { filename: string; error: string }[];
+}
 
 const CURSEFORGE_CATEGORY_IDS: Record<string, number> = {
 	adventure: 422,
@@ -75,6 +90,7 @@ export interface MarketFilters {
 	sort: MarketSort;
 	localSort: LocalSort;
 	localSource: LocalSourceFilter;
+	localStatus: LocalStatusFilter;
 }
 
 export interface MarketDetailState {
@@ -88,12 +104,13 @@ export interface MarketDetailState {
 export function createMarketState(
 	instance: InstanceDto,
 	contentType: ContentType = "mods",
+	getStatus = () => instance.status,
 ) {
 	const parsed = parseInstanceVersion(instance);
 
 	const isModContent = contentType === "mods";
 	const localLoader = isModContent
-		? getInstanceMods
+		? (id: string) => getInstanceMods(id, false)
 		: contentType === "resourcepacks"
 			? getInstanceResourcePacks
 			: getInstanceShaderPacks;
@@ -122,6 +139,7 @@ export function createMarketState(
 		sort: "auto",
 		localSort: "name-asc",
 		localSource: "all",
+		localStatus: "all",
 	});
 
 	// API metadata is immutable. Replacing the list avoids a deep proxy/source
@@ -135,7 +153,14 @@ export function createMarketState(
 	let offset = $state(0);
 	let hasMore = $state(true);
 	const localModsById = new SvelteMap<string, ModDto>();
-	let rawLocalItems: MarketProject[] = [];
+	let rawLocalItems = $state.raw<MarketProject[]>([]);
+	const localIcons = createLocalModIcons((files) =>
+		getInstanceModIcons(instance.uuid, files),
+	);
+	const sortedLocalItems = $derived.by(() => sortLocalItems(rawLocalItems));
+	const checkedFiles = new SvelteSet<string>();
+	let localOperationBusy = $state(false);
+	let localOperationReport = $state<LocalOperationReport | null>(null);
 	let selectedId = $state<string | null>(null);
 	const detail = $state<MarketDetailState>({
 		versions: [],
@@ -211,6 +236,9 @@ export function createMarketState(
 		filters.sort = "auto";
 		filters.localSort = "name-asc";
 		filters.localSource = "all";
+		filters.localStatus = "all";
+		checkedFiles.clear();
+		localOperationReport = null;
 		resetPagination();
 		selectedId = null;
 		pendingLocalRename = null;
@@ -298,6 +326,10 @@ export function createMarketState(
 	}
 
 	function ensureRange(first: number, last: number) {
+		if (!disposed && !selectedId && filters.source === "local") {
+			localIcons.request(items.slice(first, last + 1));
+			return;
+		}
 		if (
 			disposed ||
 			selectedId ||
@@ -328,28 +360,20 @@ export function createMarketState(
 
 	function filterLocalItems(list: MarketProject[]): MarketProject[] {
 		if (!normalizedQuery) return list;
-		return list.filter(
-			(m) =>
-				m.title.toLowerCase().includes(normalizedQuery) ||
-				m.description.toLowerCase().includes(normalizedQuery) ||
-				m.author.toLowerCase().includes(normalizedQuery),
-		);
+		return list.filter((item) => matchesLocalQuery(item, normalizedQuery));
 	}
 
 	function syncInstalledToItems() {
 		if (filters.source === "local") return;
 		for (const [start, page] of pages) {
-			pages.set(
-				start,
-				page.map((item) => {
-					const id =
-						item.modrinthProjectId ?? item.curseforgeProjectId;
-					return {
-						...item,
-						installed: id ? localModsById.get(id) : undefined,
-					};
-				}),
-			);
+			const next = page.map((item) => {
+				const id = item.modrinthProjectId ?? item.curseforgeProjectId;
+				const installed = id ? localModsById.get(id) : undefined;
+				return item.installed === installed
+					? item
+					: { ...item, installed };
+			});
+			if (!sameProjectList(page, next)) pages.set(start, next);
 		}
 		const updated = [...items];
 		for (let i = 0; i < updated.length; i++) {
@@ -361,7 +385,7 @@ export function createMarketState(
 				updated[i] = { ...item, installed };
 			}
 		}
-		items = updated;
+		if (!sameProjectList(items, updated)) items = updated;
 	}
 
 	function toggleDisabledSuffix(filename: string, enabled: boolean): string {
@@ -374,42 +398,46 @@ export function createMarketState(
 	}
 
 	function setLocalItems(sorted: MarketProject[], merge = false) {
+		let next = sorted;
 		if (merge && items.length > 0) {
-			const updated = [...items];
+			const updated: MarketProject[] = [];
 			const newByFilename = new SvelteMap<string, MarketProject>();
 			for (const item of sorted) {
 				const key = item.installed?.filename ?? item.id;
 				newByFilename.set(key, item);
 			}
-			for (let i = updated.length - 1; i >= 0; i--) {
-				const key = updated[i].installed?.filename ?? updated[i].id;
+			for (const item of items) {
+				const key = item.installed?.filename ?? item.id;
 				const replacement = newByFilename.get(key);
 				if (replacement) {
-					updated[i] = replacement;
+					updated.push(replacement);
 					newByFilename.delete(key);
-				} else {
-					updated.splice(i, 1);
 				}
 			}
 			for (const item of newByFilename.values()) {
 				updated.push(item);
 			}
-			items = updated;
-		} else {
-			items = sorted;
+			next = updated;
 		}
+		if (!sameProjectList(items, next)) items = next;
 		total = sorted.length;
 		hasMore = false;
 	}
 
 	function applyLocalFilters(merge = false) {
 		if (filters.source !== "local") return;
-		let filtered = filterLocalItems(rawLocalItems);
+		let filtered = filterLocalItems(sortedLocalItems);
 		if (filters.localSource !== "all") {
 			filtered = filtered.filter((m) => m.source === filters.localSource);
 		}
-		const sorted = sortLocalItems(filtered);
-		setLocalItems(sorted, merge);
+		if (isModContent && filters.localStatus !== "all") {
+			filtered = filtered.filter(
+				(m) =>
+					!!m.installed?.enabled ===
+					(filters.localStatus === "enabled"),
+			);
+		}
+		setLocalItems(filtered, merge);
 	}
 
 	function scanLocalItems(silent = false): Promise<void> {
@@ -444,10 +472,16 @@ export function createMarketState(
 			const localItems = await localLoader(instance.uuid);
 			if (gen !== localSearchGen) return;
 
-			const mapped = localItems.map((mod) => localModToMarket(mod));
+			const mapped = reconcileLocalProjects(rawLocalItems, localItems);
 			if (gen !== localSearchGen) return;
 
 			rawLocalItems = mapped;
+			localIcons.sync(mapped);
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Temporary scan lookup, never rendered.
+			const filenames = new Set(localItems.map((item) => item.filename));
+			for (const filename of checkedFiles) {
+				if (!filenames.has(filename)) checkedFiles.delete(filename);
+			}
 			// Reconcile against the winning scan, even if enrichment superseded a toggle's scan.
 			if (pendingLocalRename) {
 				const { from, to } = pendingLocalRename;
@@ -468,6 +502,7 @@ export function createMarketState(
 
 			if (filters.source === "local") {
 				applyLocalFilters(silent);
+				if (selectedProject) localIcons.request([selectedProject]);
 			} else {
 				syncInstalledToItems();
 			}
@@ -761,6 +796,7 @@ export function createMarketState(
 		pendingLocalRename = null;
 		selectedId = id;
 		if (selectedProject) {
+			localIcons.request([selectedProject]);
 			loadDetail(selectedProject);
 		} else {
 			detail.loading = false;
@@ -787,10 +823,8 @@ export function createMarketState(
 	}
 
 	function isInstanceBusy() {
-		return (
-			instance.status === InstState.Started ||
-			instance.status === InstState.Starting
-		);
+		const status = getStatus();
+		return status === InstState.Started || status === InstState.Starting;
 	}
 
 	async function prepareInstall(
@@ -805,7 +839,7 @@ export function createMarketState(
 			throw new Error(t("errors.INST_BUSY"));
 		}
 
-		const mods = await getInstanceMods(instance.uuid);
+		const mods = await getInstanceMods(instance.uuid, false);
 		if (disposed) throw new DOMException("Market closed", "AbortError");
 		const installedProjectIds = new SvelteSet(
 			mods.map((m) => m.project_id).filter((id): id is string => !!id),
@@ -868,7 +902,7 @@ export function createMarketState(
 	}
 
 	async function uninstall(project: MarketProject) {
-		if (disposed) return;
+		if (disposed || localOperationBusy) return;
 		if (isInstanceBusy()) {
 			showWarning(t("errors.title"), t("errors.INST_BUSY"));
 			return;
@@ -894,7 +928,7 @@ export function createMarketState(
 	}
 
 	async function toggleEnabled(project: MarketProject) {
-		if (disposed) return;
+		if (disposed || localOperationBusy) return;
 		if (isInstanceBusy()) {
 			showWarning(t("errors.title"), t("errors.INST_BUSY"));
 			return;
@@ -924,6 +958,137 @@ export function createMarketState(
 		}
 	}
 
+	function toggleChecked(filename: string) {
+		if (disposed || localOperationBusy) return;
+		if (checkedFiles.has(filename)) checkedFiles.delete(filename);
+		else if (items.some((item) => item.installed?.filename === filename))
+			checkedFiles.add(filename);
+	}
+
+	function selectAllLocal() {
+		if (disposed || localOperationBusy || filters.source !== "local")
+			return;
+		for (const item of items) {
+			if (item.installed) checkedFiles.add(item.installed.filename);
+		}
+	}
+
+	function clearChecked() {
+		if (!localOperationBusy) checkedFiles.clear();
+	}
+
+	async function runLocalBatch(
+		filenames: string[],
+		operation: (filename: string) => Promise<void>,
+	) {
+		if (disposed || localOperationBusy || filenames.length === 0) return;
+		if (isInstanceBusy()) {
+			showWarning(t("errors.title"), t("errors.INST_BUSY"));
+			return;
+		}
+		localOperationBusy = true;
+		localOperationReport = {
+			total: filenames.length,
+			completed: 0,
+			succeeded: 0,
+			failures: [],
+		};
+		let next = 0;
+		// A bounded worker pool avoids flooding IPC and rescanning after each file.
+		async function worker() {
+			while (!disposed && next < filenames.length) {
+				const filename = filenames[next++];
+				try {
+					if (isInstanceBusy())
+						throw new Error(t("errors.INST_BUSY"));
+					await operation(filename);
+					if (disposed) return;
+					checkedFiles.delete(filename);
+					localOperationReport!.succeeded++;
+				} catch (error) {
+					if (disposed) return;
+					localOperationReport!.failures.push({
+						filename,
+						error: String(error),
+					});
+				}
+				localOperationReport!.completed++;
+			}
+		}
+		try {
+			await Promise.all(
+				Array.from({ length: Math.min(4, filenames.length) }, worker),
+			);
+			if (!disposed) {
+				await scanLocalItems(true);
+				if (selectedId && !items.some((item) => item.id === selectedId))
+					selectProject(null);
+			}
+		} finally {
+			localOperationBusy = false;
+		}
+	}
+
+	async function manageLocal(
+		action: LocalAction,
+		filenames = [...checkedFiles],
+	) {
+		if (
+			disposed ||
+			localOperationBusy ||
+			(action !== "delete" && !isModContent)
+		)
+			return;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Immutable batch snapshot, never rendered.
+		const byFilename = new Map(
+			rawLocalItems.map((item) => [item.installed!.filename, item]),
+		);
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Deduplicate the snapshot without reactive allocations.
+		const targets = [...new Set(filenames)].filter((filename) =>
+			byFilename.has(filename),
+		);
+		await runLocalBatch(targets, async (filename) => {
+			if (action === "delete") {
+				await deleteInstanceFile(instance.uuid, subDir, filename, true);
+				return;
+			}
+			const enabled = action === "enable";
+			if (byFilename.get(filename)!.installed!.enabled === enabled)
+				return;
+			const renamed = toggleDisabledSuffix(filename, enabled);
+			if (byFilename.has(renamed))
+				throw new Error(t("market.manage.fileExists"));
+			await toggleInstanceMod(instance.uuid, filename, enabled, true);
+			if (selectedId === `local-${filename}`) {
+				pendingLocalRename = {
+					from: selectedId,
+					to: `local-${renamed}`,
+				};
+			}
+		});
+	}
+
+	async function importLocal(paths: string[]) {
+		if (disposed || localOperationBusy) return;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Private collision lookup, never rendered.
+		const existing = new Set(
+			rawLocalItems.map((item) => item.installed!.filename),
+		);
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Deduplicate the snapshot without reactive allocations.
+		await runLocalBatch([...new Set(paths)], async (path) => {
+			const filename = path.split(/[\\/]/).pop() ?? "";
+			const extension = isModContent
+				? /\.jar(?:\.disabled)?$/i
+				: /\.zip$/i;
+			if (!extension.test(filename))
+				throw new Error(t("market.manage.invalidFile"));
+			if (existing.has(filename))
+				throw new Error(t("market.manage.fileExists"));
+			existing.add(filename);
+			await addInstanceFile(instance.uuid, subDir, path, false);
+		});
+	}
+
 	function loadMore() {
 		if (disposed || selectedId) return;
 		if (
@@ -946,6 +1111,8 @@ export function createMarketState(
 		invalidateSearch();
 		resetPagination();
 		filters.source = source;
+		localIcons.request([]);
+		checkedFiles.clear();
 		selectProject(null);
 		searchPending = true;
 		searchTimer = setTimeout(async () => {
@@ -970,6 +1137,7 @@ export function createMarketState(
 		if (filters.source === "local") {
 			resultsRevision++;
 			selectProject(null);
+			checkedFiles.clear();
 			applyLocalFilters();
 			return;
 		}
@@ -1002,11 +1170,21 @@ export function createMarketState(
 	function setLocalSource(source: LocalSourceFilter) {
 		if (disposed) return;
 		filters.localSource = source;
+		checkedFiles.clear();
 		if (filters.source === "local") {
 			resultsRevision++;
 			selectProject(null);
 			applyLocalFilters();
 		}
+	}
+
+	function setLocalStatus(status: LocalStatusFilter) {
+		if (disposed || !isModContent || status === filters.localStatus) return;
+		filters.localStatus = status;
+		checkedFiles.clear();
+		resultsRevision++;
+		selectProject(null);
+		applyLocalFilters();
 	}
 
 	function clearFilters() {
@@ -1015,6 +1193,8 @@ export function createMarketState(
 		filters.sort = "auto";
 		filters.localSort = "name-asc";
 		filters.localSource = "all";
+		filters.localStatus = "all";
+		checkedFiles.clear();
 		if (filters.source === "local") {
 			resultsRevision++;
 			applyLocalFilters();
@@ -1024,6 +1204,7 @@ export function createMarketState(
 	}
 
 	function refresh() {
+		if (localOperationBusy) return;
 		if (filters.source === "local") return scanLocalItems();
 		return performSearch(true);
 	}
@@ -1047,6 +1228,7 @@ export function createMarketState(
 	const _unregisterRefresh = registerModsRefreshCallback(
 		instance.uuid,
 		() => {
+			if (localOperationBusy) return;
 			scanLocalItems(true);
 		},
 	);
@@ -1067,8 +1249,10 @@ export function createMarketState(
 		invalidateSearch();
 		localSearchGen++;
 		_unregisterRefresh();
+		localOperationReport = null;
 
 		items = [];
+		localIcons.destroy();
 		total = 0;
 		selectedId = null;
 		overrideVersionId = null;
@@ -1078,10 +1262,31 @@ export function createMarketState(
 		detail.loading = false;
 		detail.error = null;
 		rawLocalItems = [];
+		checkedFiles.clear();
 		localModsById.clear();
 	}
 
 	return {
+		getLocalIcon: localIcons.get,
+		checkedFiles,
+		toggleChecked,
+		selectAllLocal,
+		clearChecked,
+		manageLocal,
+		importLocal,
+		setLocalStatus,
+		get localOperationBusy() {
+			return localOperationBusy;
+		},
+		get localOperationReport() {
+			return localOperationReport;
+		},
+		get localCount() {
+			return rawLocalItems.length;
+		},
+		get instanceBusy() {
+			return isInstanceBusy();
+		},
 		get itemCount() {
 			return filters.source === "local" ? items.length : loadedCount;
 		},

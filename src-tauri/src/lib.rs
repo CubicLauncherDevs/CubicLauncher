@@ -24,6 +24,7 @@ pub fn run() {
             commands::instance::get_installed_versions_with_status,
             commands::instance::check_version_integrity,
             commands::instance::get_instance_mods,
+            commands::instance::mod_catalog::get_instance_mod_icons,
             commands::instance::toggle_instance_mod,
             commands::instance::get_instance_screenshot,
             commands::instance::get_instance_banner,

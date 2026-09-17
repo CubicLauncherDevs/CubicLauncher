@@ -516,17 +516,39 @@ export async function downloadQuilt(
 // Mods / ResourcePacks / ShaderPacks
 // ─────────────────────────────────────────────────────────────
 
-export async function getInstanceMods(id: string): Promise<ModDto[]> {
+export async function getInstanceMods(
+	id: string,
+	includeIcons = true,
+): Promise<ModDto[]> {
 	return (
-		(await invokeWithFallback<ModDto[]>("get_instance_mods", { id })) ?? []
+		(await invokeWithFallback<ModDto[]>("get_instance_mods", {
+			id,
+			includeIcons,
+		})) ?? []
 	);
+}
+
+export interface ModIconRequest {
+	filename: string;
+	revision: string;
+}
+export interface ModIconResult extends ModIconRequest {
+	icon: string | null;
+}
+export function getInstanceModIcons(
+	id: string,
+	files: ModIconRequest[],
+): Promise<ModIconResult[]> {
+	return invoke("get_instance_mod_icons", { id, files });
 }
 
 export async function toggleInstanceMod(
 	id: string,
 	filename: string,
 	enable: boolean,
+	strict = false,
 ): Promise<void> {
+	if (strict) return invoke("toggle_instance_mod", { id, filename, enable });
 	return invokeVoid("toggle_instance_mod", { id, filename, enable });
 }
 
@@ -552,7 +574,9 @@ export async function deleteInstanceFile(
 	id: string,
 	subDir: string,
 	filename: string,
+	strict = false,
 ): Promise<void> {
+	if (strict) return invoke("delete_instance_file", { id, subDir, filename });
 	return invokeVoid("delete_instance_file", { id, subDir, filename });
 }
 
@@ -560,7 +584,15 @@ export async function addInstanceFile(
 	id: string,
 	subDir: string,
 	sourcePath: string,
+	overwrite = true,
 ): Promise<void> {
+	if (!overwrite)
+		return invoke("add_instance_file", {
+			id,
+			subDir,
+			sourcePath,
+			overwrite,
+		});
 	return invokeThrowing("add_instance_file", { id, subDir, sourcePath });
 }
 

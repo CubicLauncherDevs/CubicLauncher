@@ -92,7 +92,9 @@
 	]);
 	const hasFilters = $derived(
 		isLocal
-			? filters.localSource !== "all" || filters.localSort !== "name-asc"
+			? filters.localSource !== "all" ||
+					filters.localSort !== "name-asc" ||
+					filters.localStatus !== "all"
 			: filters.category !== null || filters.sort !== "auto",
 	);
 
@@ -125,7 +127,9 @@
 <div class="market-filter-panel">
 	<div class="search-heading">
 		<h2>
-			<Icon name="instance:grid" size={18} />{t("market.browse.title")}
+			<Icon name="instance:grid" size={18} />{t(
+				isLocal ? "market.manage.title" : "market.browse.title",
+			)}
 		</h2>
 		<div
 			class="compatibility"

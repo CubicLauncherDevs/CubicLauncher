@@ -28,6 +28,7 @@
 
 	interface Props {
 		project: MarketProject;
+		icon?: string | null;
 		source: MarketSource;
 		contentType: ContentType;
 		detail: MarketDetailState;
@@ -43,10 +44,13 @@
 		onUninstall: () => void;
 		onToggleEnabled: () => void;
 		onClose: () => void;
+		localActionsDisabled?: boolean;
+		localActionError?: string;
 	}
 
 	let {
 		project,
+		icon = project.icon,
 		source = "modrinth",
 		contentType = "mods",
 		detail,
@@ -58,11 +62,17 @@
 		onUninstall,
 		onToggleEnabled,
 		onClose,
+		localActionsDisabled = false,
+		localActionError,
 	}: Props = $props();
 
 	let installing = $state(false);
 	let actionError = $state<string | null>(null);
 	let iconError = $state(false);
+	$effect(() => {
+		void icon;
+		iconError = false;
+	});
 
 	let modalOpen = $state(false);
 	let resolvingDeps = $state(false);
@@ -269,9 +279,9 @@
 	<div class="market-detail-scroll">
 		<div class="market-detail-hero">
 			<div class="market-detail-icon">
-				{#if project.icon && !iconError}
+				{#if icon && !iconError}
 					<img
-						src={project.icon}
+						src={icon}
 						alt={project.title}
 						loading="lazy"
 						decoding="async"
@@ -351,18 +361,26 @@
 									? `v${project.installed.version}`
 									: t("market.detail.installedLabel")}
 							</span>
-							<button
-								type="button"
-								class="market-detail-btn secondary"
-								onclick={onToggleEnabled}
-							>
-								{project.disabled
-									? t("market.detail.enable")
-									: t("market.detail.disable")}
-							</button>
+							{#if contentType === "mods"}
+								<button
+									type="button"
+									class="market-detail-btn secondary"
+									disabled={localActionsDisabled}
+									onclick={onToggleEnabled}
+								>
+									{project.disabled
+										? t("market.detail.enable")
+										: t("market.detail.disable")}
+								</button>
+							{:else}
+								<p class="market-detail-installed-label">
+									{t("market.manage.packHint")}
+								</p>
+							{/if}
 							<button
 								type="button"
 								class="market-detail-btn danger"
+								disabled={localActionsDisabled}
 								onclick={onUninstall}
 							>
 								{t("market.detail.uninstall")}
@@ -389,9 +407,9 @@
 					{/if}
 				</div>
 
-				{#if actionError}
+				{#if actionError || (source === "local" && localActionError)}
 					<p class="market-detail-action-error" role="alert">
-						{actionError}
+						{actionError || localActionError}
 					</p>
 				{/if}
 

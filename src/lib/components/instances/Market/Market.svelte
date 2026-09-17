@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
+	import { ask } from "@tauri-apps/plugin-dialog";
+	import { showErrorParsed } from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
 	import type { InstanceDto } from "$lib/types/types";
 	import { createMarketState } from "$lib/state/marketState.svelte";
@@ -9,6 +11,8 @@
 	import MarketDetail from "$lib/components/market/MarketDetail.svelte";
 	import MarketEmptyState from "$lib/components/market/MarketEmptyState.svelte";
 	import MarketLayout from "$lib/components/market/MarketLayout.svelte";
+	import InstalledToolbar from "$lib/components/market/InstalledToolbar.svelte";
+	import InstalledItem from "$lib/components/market/InstalledItem.svelte";
 
 	interface Props {
 		instance: InstanceDto;
@@ -18,13 +22,45 @@
 	let { instance, contentType = "mods" }: Props = $props();
 
 	function init() {
-		return createMarketState(instance, contentType);
+		return createMarketState(instance, contentType, () => instance.status);
 	}
-	const state = init();
+	const market = init();
+	let installedView = $state<"list" | "cards">("list");
+	let confirmingDelete = $state(false);
+	let disposed = false;
+	const localBusy = $derived(
+		market.localOperationBusy || market.instanceBusy || confirmingDelete,
+	);
+
+	async function requestDelete(filenames: string[]) {
+		if (localBusy || !filenames.length) return;
+		confirmingDelete = true;
+		try {
+			const confirmed = await ask(
+				t("market.manage.deleteConfirm", { count: filenames.length }) +
+					"\n\n" +
+					filenames.slice(0, 5).join("\n") +
+					(filenames.length > 5 ? "\n…" : ""),
+				{
+					title: t("market.manage.deleteSelected"),
+					kind: "warning",
+					okLabel: t("market.detail.uninstall"),
+					cancelLabel: t("market.detail.dependencies.cancel"),
+				},
+			);
+			if (!disposed && confirmed)
+				await market.manageLocal("delete", filenames);
+		} catch (error) {
+			if (!disposed) showErrorParsed(error);
+		} finally {
+			confirmingDelete = false;
+		}
+	}
 
 	onDestroy(() => {
+		disposed = true;
 		try {
-			state.destroy();
+			market.destroy();
 		} catch (e) {
 			console.error("[Market] destroy error:", e);
 		}
@@ -32,17 +68,18 @@
 
 	const emptyState = $derived.by(() => {
 		if (
-			state.filters.query.trim() ||
-			(state.filters.source === "local"
-				? state.filters.localSource !== "all"
-				: state.filters.category !== null)
+			market.filters.query.trim() ||
+			(market.filters.source === "local"
+				? market.filters.localSource !== "all" ||
+					market.filters.localStatus !== "all"
+				: market.filters.category !== null)
 		) {
 			return {
 				title: t("market.empty.searchTitle"),
 				subtitle: t("market.empty.searchSubtitle"),
 			};
 		}
-		if (state.filters.source === "local") {
+		if (market.filters.source === "local") {
 			return {
 				title: t("market.empty.localTitle"),
 				subtitle: t("market.empty.localSubtitle"),
@@ -57,36 +94,49 @@
 
 <div class="market-root">
 	<MarketLayout
-		items={state.items}
-		itemCount={state.itemCount}
-		getItem={state.getItem}
-		onRangeNeeded={state.ensureRange}
-		total={state.total}
-		resultsRevision={state.resultsRevision}
-		selectedId={state.selectedProject?.id ?? null}
-		detailTitle={state.selectedProject?.title ?? ""}
-		loading={state.loading}
-		loadingMore={state.loadingMore}
-		hasMore={state.hasMore}
-		error={state.error}
-		onClose={() => state.selectProject(null)}
-		onRetry={state.retry}
-		onLoadMore={state.loadMore}
+		listView={market.filters.source === "local" && installedView === "list"}
+		items={market.items}
+		itemCount={market.itemCount}
+		getItem={market.getItem}
+		onRangeNeeded={market.ensureRange}
+		total={market.total}
+		resultsRevision={market.resultsRevision}
+		selectedId={market.selectedProject?.id ?? null}
+		detailTitle={market.selectedProject?.title ?? ""}
+		loading={market.loading}
+		loadingMore={market.loadingMore}
+		hasMore={market.hasMore}
+		error={market.error}
+		onClose={() => market.selectProject(null)}
+		onRetry={market.retry}
+		onLoadMore={market.loadMore}
 	>
 		{#snippet filterPanel()}
-			<MarketFilterPanel
-				filters={state.filters}
-				{contentType}
-				active={state.selectedProject === null}
-				onSourceChange={state.setSource}
-				onQueryChange={state.setQuery}
-				onSearch={state.refresh}
-				onSortChange={state.setSort}
-				onCategoryChange={state.setCategory}
-				onLocalSortChange={state.setLocalSort}
-				onLocalSourceChange={state.setLocalSource}
-				onClearFilters={state.clearFilters}
-			/>
+			<div inert={market.localOperationBusy || confirmingDelete}>
+				<MarketFilterPanel
+					filters={market.filters}
+					{contentType}
+					active={market.selectedProject === null &&
+						!market.localOperationBusy}
+					onSourceChange={market.setSource}
+					onQueryChange={market.setQuery}
+					onSearch={market.refresh}
+					onSortChange={market.setSort}
+					onCategoryChange={market.setCategory}
+					onLocalSortChange={market.setLocalSort}
+					onLocalSourceChange={market.setLocalSource}
+					onClearFilters={market.clearFilters}
+				/>
+			</div>
+			{#if market.filters.source === "local"}
+				<InstalledToolbar
+					{market}
+					instanceId={instance.uuid}
+					{contentType}
+					bind:view={installedView}
+					onDelete={requestDelete}
+				/>
+			{/if}
 		{/snippet}
 
 		{#snippet emptySnippet()}
@@ -95,13 +145,13 @@
 				subtitle={emptyState.subtitle}
 			/>
 			<div class="empty-actions">
-				{#if state.filters.query}
-					<button type="button" onclick={() => state.setQuery("")}
+				{#if market.filters.query}
+					<button type="button" onclick={() => market.setQuery("")}
 						>{t("market.filter.clearSearch")}</button
 					>
 				{/if}
-				{#if state.filters.source === "local" ? state.filters.localSource !== "all" : state.filters.category !== null}
-					<button type="button" onclick={state.clearFilters}
+				{#if market.filters.source === "local" ? market.filters.localSource !== "all" || market.filters.localStatus !== "all" : market.filters.category !== null}
+					<button type="button" onclick={market.clearFilters}
 						>{t("market.browse.clearFilters")}</button
 					>
 				{/if}
@@ -109,37 +159,68 @@
 		{/snippet}
 
 		{#snippet itemSnippet(project)}
-			<MarketItem
-				{project}
-				selected={project.id === state.selectedId}
-				onSelect={() => state.selectProject(project.id)}
-				onInstall={state.filters.source !== "local"
-					? () => state.selectProject(project.id)
-					: undefined}
-			/>
+			{#if market.filters.source === "local" && project.installed}
+				{@const filename = project.installed.filename}
+				<InstalledItem
+					{project}
+					icon={market.getLocalIcon(project)}
+					checked={market.checkedFiles.has(filename)}
+					compact={installedView === "list"}
+					busy={localBusy}
+					canToggle={contentType === "mods"}
+					onCheck={() => market.toggleChecked(filename)}
+					onOpen={() => market.selectProject(project.id)}
+					onToggle={() =>
+						market.manageLocal(
+							project.disabled ? "enable" : "disable",
+							[filename],
+						)}
+					onDelete={() => requestDelete([filename])}
+				/>
+			{:else}
+				<MarketItem
+					{project}
+					selected={project.id === market.selectedId}
+					onSelect={() => market.selectProject(project.id)}
+					onInstall={market.filters.source !== "local"
+						? () => market.selectProject(project.id)
+						: undefined}
+				/>
+			{/if}
 		{/snippet}
 
 		{#snippet detailSnippet()}
-			{#if state.selectedProject}
-				{@const project = state.selectedProject}
+			{#if market.selectedProject}
+				{@const project = market.selectedProject}
 				<MarketDetail
 					{project}
-					source={state.filters.source}
+					icon={market.getLocalIcon(project)}
+					source={market.filters.source}
 					{contentType}
-					detail={state.detail}
-					selectedVersion={state.selectedVersion}
-					isVersionCompatible={state.isVersionCompatible}
-					onVersionSelect={state.setSelectedVersion}
+					detail={market.detail}
+					selectedVersion={market.selectedVersion}
+					isVersionCompatible={market.isVersionCompatible}
+					onVersionSelect={market.setSelectedVersion}
 					onPrepareInstall={() => {
-						const version = state.selectedVersion;
+						const version = market.selectedVersion;
 						if (!version) throw new Error("No version selected");
-						return state.prepareInstall(project, version);
+						return market.prepareInstall(project, version);
 					}}
 					onInstallQueue={(queue) =>
-						state.confirmInstall(project, queue)}
-					onUninstall={() => state.uninstall(project)}
-					onToggleEnabled={() => state.toggleEnabled(project)}
-					onClose={() => state.selectProject(null)}
+						market.confirmInstall(project, queue)}
+					localActionsDisabled={localBusy}
+					localActionError={market.localOperationReport?.failures[0]
+						?.error}
+					onUninstall={() =>
+						project.installed &&
+						requestDelete([project.installed.filename])}
+					onToggleEnabled={() =>
+						project.installed &&
+						market.manageLocal(
+							project.disabled ? "enable" : "disable",
+							[project.installed.filename],
+						)}
+					onClose={() => market.selectProject(null)}
 				/>
 			{/if}
 		{/snippet}

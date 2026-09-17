@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-	import { onMount, onDestroy } from "svelte";
+	import { onMount, onDestroy, untrack } from "svelte";
 	import type { Snippet } from "svelte";
 	import { observeThemeMetrics } from "$lib/utils/themeMetrics";
 
@@ -14,6 +14,9 @@
 		keyFn?: (item: T) => string | number;
 		hideScrollbar?: boolean;
 		overscan?: number;
+		onRangeNeeded?: (first: number, last: number) => void;
+		active?: boolean;
+		resetKey?: number;
 	}
 
 	let {
@@ -27,6 +30,9 @@
 		keyFn,
 		hideScrollbar = true,
 		overscan = 5,
+		onRangeNeeded,
+		active = true,
+		resetKey = 0,
 	}: Props = $props();
 
 	let container: HTMLDivElement = $state() as HTMLDivElement;
@@ -35,6 +41,13 @@
 	let ticking = false;
 	let disposed = false;
 	let frame: number | undefined;
+	$effect(() => {
+		void resetKey;
+		if (container) {
+			container.scrollTop = 0;
+			scrollTop = 0;
+		}
+	});
 
 	let measuredHeight = $state(0);
 	const rowHeight = $derived(measuredHeight || itemHeight);
@@ -71,6 +84,14 @@
 	);
 
 	const visibleSlice = $derived(items.slice(startIndex, endIndex + 1));
+	$effect(() => {
+		if (!active || !onRangeNeeded || !items.length) return;
+		const first = startIndex;
+		const last = endIndex;
+		// Metadata revisions can change without the item count changing.
+		void items;
+		untrack(() => onRangeNeeded?.(first, last));
+	});
 
 	function handleScroll(e: Event) {
 		const target = e.target as HTMLDivElement;

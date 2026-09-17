@@ -8,16 +8,78 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::SystemTime;
-use tracing::{debug, warn};
+use tracing::debug;
 use zip::ZipArchive;
 
-// Cache unificado de metadata + icono (se extraen en una sola pasada del ZIP)
-const MAX_CACHE_ENTRIES: usize = 200;
+// Bound both entry count and retained payload, and evict by actual use rather
+// than file modification time (which is often identical throughout a modpack).
+const MAX_CACHE_ENTRIES: usize = 1024;
+const MAX_CACHE_BYTES: usize = 32 * 1024 * 1024;
 
-type CachedModInfo = (SystemTime, Option<AddonMetaNoIcon>, Option<Arc<String>>);
+type CachedModInfo = (
+    (SystemTime, u64),
+    Option<AddonMetaNoIcon>,
+    Option<Arc<String>>,
+);
 
-static ADDON_CACHE: LazyLock<Mutex<HashMap<PathBuf, CachedModInfo>>> =
-    LazyLock::new(|| Mutex::new(HashMap::with_capacity(128)));
+#[derive(Default)]
+struct AddonCache {
+    entries: HashMap<PathBuf, (CachedModInfo, u64, usize)>,
+    clock: u64,
+    bytes: usize,
+}
+
+impl AddonCache {
+    fn get(&mut self, path: &Path) -> Option<&CachedModInfo> {
+        let entry = self.entries.get_mut(path)?;
+        self.clock += 1;
+        entry.1 = self.clock;
+        Some(&entry.0)
+    }
+
+    fn insert(&mut self, path: PathBuf, value: CachedModInfo) {
+        if let Some((_, _, bytes)) = self.entries.remove(&path) {
+            self.bytes -= bytes;
+        }
+        let bytes = path.as_os_str().len()
+            + value.2.as_ref().map_or(0, |icon| icon.len())
+            + value.1.as_ref().map_or(0, |meta| {
+                meta.name.len()
+                    + meta.version.as_ref().map_or(0, String::len)
+                    + meta.description.as_ref().map_or(0, String::len)
+                    + meta
+                        .authors
+                        .as_ref()
+                        .map_or(0, |authors| authors.iter().map(String::len).sum())
+            });
+        if bytes > MAX_CACHE_BYTES {
+            return;
+        }
+        while self.entries.len() >= MAX_CACHE_ENTRIES || self.bytes + bytes > MAX_CACHE_BYTES {
+            let Some(oldest) = self
+                .entries
+                .iter()
+                .min_by_key(|(_, (_, used, _))| *used)
+                .map(|(key, _)| key.clone())
+            else {
+                break;
+            };
+            if let Some((_, _, size)) = self.entries.remove(&oldest) {
+                self.bytes -= size;
+            }
+        }
+        self.clock += 1;
+        self.bytes += bytes;
+        self.entries.insert(path, (value, self.clock, bytes));
+    }
+}
+
+static ADDON_CACHE: LazyLock<Mutex<AddonCache>> =
+    LazyLock::new(|| Mutex::new(AddonCache::default()));
+
+#[cfg(test)]
+#[path = "../tests/services/addon_manager.rs"]
+mod tests;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AddonMetaNoIcon {
@@ -173,35 +235,6 @@ const MOD_PARSERS: &[ParserFn] = &[
 pub struct AddonManager;
 
 impl AddonManager {
-    fn cached_or_parse(
-        path: &Path,
-        parse_fn: impl FnOnce(&mut ZipArchive<File>) -> Option<AddonMetaNoIcon>,
-    ) -> Option<AddonMetaNoIcon> {
-        let mtime = std::fs::metadata(path).ok()?.modified().ok()?;
-
-        {
-            let cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some((cached_mtime, cached_result, _)) = cache.get(path)
-                && *cached_mtime == mtime
-            {
-                return cached_result.clone();
-            }
-        }
-
-        let (meta, icon) = Self::parse_meta_and_icon(path, parse_fn);
-
-        let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-        if cache.len() >= MAX_CACHE_ENTRIES {
-            // Evicción parcial: mantener la mitad más reciente
-            let mut entries: Vec<_> = cache.drain().collect();
-            entries.sort_by_key(|b| std::cmp::Reverse(b.1.0));
-            cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
-        }
-        cache.insert(path.to_path_buf(), (mtime, meta.clone(), icon));
-
-        meta
-    }
-
     fn parse_meta_and_icon(
         path: &Path,
         parse_fn: impl FnOnce(&mut ZipArchive<File>) -> Option<AddonMetaNoIcon>,
@@ -270,25 +303,21 @@ impl AddonManager {
 
     /// Extrae solo el icono, reutilizando el cache combinado
     pub fn get_mod_icon(path: &Path) -> Option<Arc<String>> {
-        let mtime = std::fs::metadata(path).ok()?.modified().ok()?;
+        let metadata = std::fs::metadata(path).ok()?;
+        let mtime = (metadata.modified().ok()?, metadata.len());
         {
-            let cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+            let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
             if let Some((cached_mtime, _, cached_icon)) = cache.get(path)
                 && *cached_mtime == mtime
             {
                 return cached_icon.clone();
             }
         }
-        let file = File::open(path).ok()?;
-        let mut archive = ZipArchive::new(file).ok()?;
-        let result = Self::extract_icon_from_archive(&mut archive);
+        let (meta, result) = Self::parse_meta_and_icon(path, |archive| {
+            MOD_PARSERS.iter().find_map(|parser| parser(archive).ok())
+        });
         let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-        if cache.len() >= MAX_CACHE_ENTRIES {
-            let mut entries: Vec<_> = cache.drain().collect();
-            entries.sort_by_key(|b| std::cmp::Reverse(b.1.0));
-            cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
-        }
-        cache.insert(path.to_path_buf(), (mtime, None, result.clone()));
+        cache.insert(path.to_path_buf(), (mtime, meta, result.clone()));
         result
     }
 
@@ -354,29 +383,26 @@ impl AddonManager {
             })
     }
 
-    pub fn get_mod_info(path: &Path) -> Option<AddonMetaNoIcon> {
-        Self::cached_or_parse(path, |archive| {
-            for parser in MOD_PARSERS {
-                if let Ok(meta) = parser(archive) {
-                    debug!("Mod detectado: {:?}", path);
-                    return Some(meta);
-                }
-            }
-            warn!("No se pudo detectar tipo de mod: {:?}", path);
-            None
-        })
+    /// Catalog scans persist this metadata on disk; icon extraction is deferred
+    /// until the UI requests the visible files.
+    pub fn get_mod_metadata_only(path: &Path) -> Option<AddonMetaNoIcon> {
+        let mut archive = ZipArchive::new(File::open(path).ok()?).ok()?;
+        MOD_PARSERS
+            .iter()
+            .find_map(|parser| parser(&mut archive).ok())
     }
 
     /// Parse both metadata and icon from a ZIP in one pass (resourcepacks)
     pub fn get_resourcepack_info_full(
         path: &Path,
     ) -> (Option<AddonMetaNoIcon>, Option<Arc<String>>) {
-        let mtime = match std::fs::metadata(path).and_then(|m| m.modified()) {
-            Ok(m) => m,
-            Err(_) => return (None, None),
-        };
+        let mtime =
+            match std::fs::metadata(path).and_then(|m| m.modified().map(|time| (time, m.len()))) {
+                Ok(m) => m,
+                Err(_) => return (None, None),
+            };
         {
-            let cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+            let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
             if let Some((cached_mtime, meta, icon)) = cache.get(path)
                 && *cached_mtime == mtime
             {
@@ -387,11 +413,6 @@ impl AddonManager {
         let (meta, icon) = Self::parse_pack_mcmeta_and_icon(path);
 
         let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-        if cache.len() >= MAX_CACHE_ENTRIES {
-            let mut entries: Vec<_> = cache.drain().collect();
-            entries.sort_by_key(|b| std::cmp::Reverse(b.1.0));
-            cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
-        }
         cache.insert(path.to_path_buf(), (mtime, meta.clone(), icon.clone()));
 
         (meta, icon)
@@ -402,12 +423,13 @@ impl AddonManager {
         if path.extension().is_some_and(|ext| ext == "txt") {
             return (None, None);
         }
-        let mtime = match std::fs::metadata(path).and_then(|m| m.modified()) {
-            Ok(m) => m,
-            Err(_) => return (None, None),
-        };
+        let mtime =
+            match std::fs::metadata(path).and_then(|m| m.modified().map(|time| (time, m.len()))) {
+                Ok(m) => m,
+                Err(_) => return (None, None),
+            };
         {
-            let cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+            let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
             if let Some((cached_mtime, meta, icon)) = cache.get(path)
                 && *cached_mtime == mtime
             {
@@ -418,11 +440,6 @@ impl AddonManager {
         let (meta, icon) = Self::parse_pack_mcmeta_and_icon(path);
 
         let mut cache = ADDON_CACHE.lock().unwrap_or_else(|e| e.into_inner());
-        if cache.len() >= MAX_CACHE_ENTRIES {
-            let mut entries: Vec<_> = cache.drain().collect();
-            entries.sort_by_key(|b| std::cmp::Reverse(b.1.0));
-            cache.extend(entries.into_iter().take(MAX_CACHE_ENTRIES / 2));
-        }
         cache.insert(path.to_path_buf(), (mtime, meta.clone(), icon.clone()));
 
         (meta, icon)

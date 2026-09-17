@@ -138,7 +138,16 @@ const toggleInstanceMod = mock(async (_uuid, filename, enabled) => {
 		: `${filename}.disabled`;
 });
 const api = {
+	addInstanceFile: mock(async (_uuid, _dir, path) => {
+		disk.push(file(path.split(/[\\/]/).pop()));
+	}),
 	getInstanceMods: scan,
+	getInstanceModIcons: mock(async (_uuid, files) =>
+		files.map((file) => ({
+			...file,
+			icon: "data:image/png;base64,fixture",
+		})),
+	),
 	getInstanceResourcePacks: scan,
 	getInstanceShaderPacks: scan,
 	searchModrinth,
@@ -255,6 +264,289 @@ test("same-project shader files have distinct selectable IDs and details use the
 	await state.toggleEnabled(state.selectedProject);
 	expect(toggleInstanceMod).not.toHaveBeenCalled();
 	expect(disk.every((entry) => entry.enabled)).toBe(true);
+});
+
+test("installed filters search filenames and select only matching enabled files", async () => {
+	disk = [
+		file("sodium.jar", { name: "Renderer", authors: ["CaffeineMC"] }),
+		file("other.jar.disabled", { name: "Renderer", enabled: false }),
+		file("local.jar", { source: "local", name: "Local file" }),
+	];
+	await start();
+	await source("local");
+	state.setQuery("SODIUM.JAR");
+	expect(state.items.map((item) => item.installed.filename)).toEqual([
+		"sodium.jar",
+	]);
+	state.selectAllLocal();
+	expect([...state.checkedFiles]).toEqual(["sodium.jar"]);
+	state.setQuery("Renderer");
+	expect(state.checkedFiles.size).toBe(0);
+	state.setLocalStatus("disabled");
+	state.selectAllLocal();
+	expect([...state.checkedFiles]).toEqual(["other.jar.disabled"]);
+	expect(state.localCount).toBe(3);
+	state.clearFilters();
+	expect(state.total).toBe(2);
+	state.setQuery("caffeinemc");
+	expect(state.items).toHaveLength(1);
+});
+
+test("bulk actions limit concurrency, coalesce enrichment and scan only once", async () => {
+	disk = Array.from({ length: 40 }, (_, i) => file(`${i}.jar`));
+	await start();
+	await source("local");
+	state.selectAllLocal();
+	const scans = scan.mock.calls.length;
+	let active = 0;
+	let peak = 0;
+	const implementation = deleteInstanceFile.getMockImplementation();
+	deleteInstanceFile.mockImplementation(async (uuid, dir, filename) => {
+		active++;
+		peak = Math.max(peak, active);
+		refreshLocal();
+		await Bun.sleep(1);
+		await implementation(uuid, dir, filename);
+		active--;
+	});
+	try {
+		const operation = state.manageLocal("delete");
+		expect(state.localOperationBusy).toBe(true);
+		await state.manageLocal("delete"); // A second click cannot start another pool.
+		await operation;
+		expect(peak).toBe(4);
+		expect(deleteInstanceFile).toHaveBeenCalledTimes(40);
+		expect(scan.mock.calls.length - scans).toBe(1);
+		expect(state.localCount).toBe(0);
+		expect(state.checkedFiles.size).toBe(0);
+		expect(snapshot(state.localOperationReport)).toEqual({
+			total: 40,
+			completed: 40,
+			succeeded: 40,
+			failures: [],
+		});
+	} finally {
+		deleteInstanceFile.mockImplementation(implementation);
+	}
+});
+
+test("partial batch failures remain selected and can be retried", async () => {
+	await start();
+	await source("local");
+	state.selectAllLocal();
+	deleteInstanceFile.mockRejectedValueOnce(new Error("File locked"));
+	await state.manageLocal("delete");
+	expect(state.items).toHaveLength(1);
+	expect([...state.checkedFiles]).toEqual(["a.jar"]);
+	expect(state.localOperationReport.succeeded).toBe(1);
+	expect(snapshot(state.localOperationReport.failures)).toEqual([
+		{ filename: "a.jar", error: "Error: File locked" },
+	]);
+	await state.manageLocal("delete");
+	expect(state.items).toHaveLength(0);
+	expect(state.localOperationReport.failures).toHaveLength(0);
+});
+
+test("bulk enable skips already enabled mods and preserves the open detail after rename", async () => {
+	disk = [file("a.jar.disabled", { enabled: false }), file("b.jar")];
+	await start();
+	await source("local");
+	state.selectProject("local-a.jar.disabled");
+	state.selectAllLocal();
+	await state.manageLocal("enable");
+	expect(toggleInstanceMod).toHaveBeenCalledTimes(1);
+	expect(toggleInstanceMod).toHaveBeenCalledWith(
+		"instance",
+		"a.jar.disabled",
+		true,
+		true,
+	);
+	expect(state.selectedProject.installed.filename).toBe("a.jar");
+	expect(state.checkedFiles.size).toBe(0);
+});
+
+test("enabling a mod never replaces a second file with the same base name", async () => {
+	disk = [file("a.jar"), file("a.jar.disabled", { enabled: false })];
+	await start();
+	await source("local");
+	state.toggleChecked("a.jar.disabled");
+	await state.manageLocal("enable");
+	expect(toggleInstanceMod).not.toHaveBeenCalled();
+	expect(disk).toHaveLength(2);
+	expect(state.localOperationReport.failures[0].filename).toBe(
+		"a.jar.disabled",
+	);
+	expect([...state.checkedFiles]).toEqual(["a.jar.disabled"]);
+});
+
+for (const contentType of ["resourcepacks", "shaderpacks"]) {
+	test(`${contentType}: multi-file import skips collisions and invalid formats, and never toggles game activation`, async () => {
+		disk = [file("existing.zip")];
+		await start(contentType);
+		await source("local");
+		const scans = scan.mock.calls.length;
+		await state.importLocal([
+			"/tmp/new.zip",
+			"/tmp/new.zip",
+			"/other/new.zip",
+			"/tmp/existing.zip",
+			"/tmp/mod.jar",
+		]);
+		expect(api.addInstanceFile).toHaveBeenCalledTimes(1);
+		expect(api.addInstanceFile).toHaveBeenCalledWith(
+			"instance",
+			contentType,
+			"/tmp/new.zip",
+			false,
+		);
+		expect(state.localOperationReport.total).toBe(4);
+		expect(state.localOperationReport.failures).toHaveLength(3);
+		expect(scan.mock.calls.length - scans).toBe(1);
+		state.selectAllLocal();
+		await state.manageLocal("disable");
+		expect(toggleInstanceMod).not.toHaveBeenCalled();
+		await state.manageLocal("delete");
+		expect(state.localCount).toBe(0);
+	});
+}
+
+test("closing the instance view stops queued operations and prevents late rescans", async () => {
+	disk = Array.from({ length: 12 }, (_, i) => file(`${i}.jar`));
+	await start();
+	await source("local");
+	state.selectAllLocal();
+	const gate = deferred();
+	for (let i = 0; i < 4; i++)
+		deleteInstanceFile.mockImplementationOnce(() => gate.promise);
+	const scans = scan.mock.calls.length;
+	const operation = state.manageLocal("delete");
+	expect(deleteInstanceFile).toHaveBeenCalledTimes(4);
+	state.destroy();
+	expect(state.localOperationReport).toBeNull();
+	gate.resolve();
+	await operation;
+	expect(deleteInstanceFile).toHaveBeenCalledTimes(4);
+	expect(scan.mock.calls.length).toBe(scans);
+	expect(state.items).toHaveLength(0);
+});
+
+test("busy instances reject import and bulk operations", async () => {
+	await start();
+	await source("local");
+	state.selectAllLocal();
+	instance.status = InstState.Started;
+	try {
+		await state.importLocal(["/tmp/new.jar"]);
+		await state.manageLocal("delete");
+		await state.manageLocal("disable");
+		expect(api.addInstanceFile).not.toHaveBeenCalled();
+		expect(deleteInstanceFile).not.toHaveBeenCalled();
+		expect(toggleInstanceMod).not.toHaveBeenCalled();
+	} finally {
+		instance.status = InstState.Off;
+	}
+});
+
+for (const count of [50, 100, 200]) {
+	test(`${count} mods: only visible icons load and unchanged scans preserve every row`, async () => {
+		disk = Array.from({ length: count }, (_, i) =>
+			file(`mod-${String(i).padStart(3, "0")}.jar`, {
+				icon: null,
+				icon_revision: String(i),
+			}),
+		);
+		await start();
+		await source("local");
+		expect(scan).toHaveBeenCalledWith("instance", false);
+		expect(api.getInstanceModIcons).not.toHaveBeenCalled();
+		const before = state.items;
+		state.ensureRange(0, 15);
+		await Bun.sleep(150);
+		expect(api.getInstanceModIcons).toHaveBeenCalledTimes(1);
+		expect(api.getInstanceModIcons.mock.calls[0][1]).toHaveLength(16);
+		expect(state.items).toBe(before); // Icon arrival does not reconstruct the list.
+		expect(state.getLocalIcon(state.items[0])).toBe(
+			"data:image/png;base64,fixture",
+		);
+		expect(state.getLocalIcon(state.items[20])).toBeNull();
+		const startTime = performance.now();
+		await state.refresh();
+		expect(state.items).toBe(before);
+		const rescanMs = performance.now() - startTime;
+		const searchStart = performance.now();
+		for (let i = 0; i < 100; i++) state.setQuery(i % 2 ? "mod-0" : "mod-1");
+		state.setQuery("");
+		const searchMs = performance.now() - searchStart;
+		console.log(
+			`[installed UI] n=${count}: mock rescan=${rescanMs.toFixed(2)}ms, 100 filtered queries=${searchMs.toFixed(2)}ms; 16 icons requested, ${count} row objects reused`,
+		);
+		const rows = state.items;
+		disk[10].description = "Changed externally";
+		await state.refresh();
+		expect(state.items.filter((item, i) => item !== rows[i])).toHaveLength(
+			1,
+		);
+	});
+}
+
+test("fast scrolling coalesces icon requests to the final visible range", async () => {
+	disk = Array.from({ length: 200 }, (_, i) =>
+		file(`mod-${String(i).padStart(3, "0")}.jar`, {
+			icon: null,
+			icon_revision: String(i),
+		}),
+	);
+	await start();
+	await source("local");
+	for (let i = 0; i < 120; i++) state.ensureRange(i, i + 15);
+	await Bun.sleep(150);
+	expect(api.getInstanceModIcons).toHaveBeenCalledTimes(1);
+	expect(
+		api.getInstanceModIcons.mock.calls[0][1].map((item) => item.filename),
+	).toEqual(
+		state.items.slice(119, 135).map((item) => item.installed.filename),
+	);
+});
+
+test("icons from an older file revision are ignored, then the visible replacement is loaded", async () => {
+	disk = [file("a.jar", { icon: null, icon_revision: "old" })];
+	await start();
+	await source("local");
+	const pending = deferred();
+	api.getInstanceModIcons.mockImplementationOnce(() => pending.promise);
+	state.ensureRange(0, 0);
+	await Bun.sleep(90);
+	disk[0].icon_revision = "new";
+	await state.refresh();
+	pending.resolve([
+		{ filename: "a.jar", revision: "old", icon: "stale-icon" },
+	]);
+	await settle();
+	expect(state.getLocalIcon(state.items[0])).toBeNull();
+	await Bun.sleep(150);
+	expect(api.getInstanceModIcons).toHaveBeenCalledTimes(2);
+	expect(api.getInstanceModIcons.mock.calls[1][1]).toEqual([
+		{ filename: "a.jar", revision: "new" },
+	]);
+	expect(state.getLocalIcon(state.items[0])).toBe(
+		"data:image/png;base64,fixture",
+	);
+});
+
+test("late icon responses cannot repopulate a closed market", async () => {
+	disk = [file("a.jar", { icon: null, icon_revision: "1" })];
+	await start();
+	await source("local");
+	const project = state.items[0];
+	const pending = deferred();
+	api.getInstanceModIcons.mockImplementationOnce(() => pending.promise);
+	state.ensureRange(0, 0);
+	await Bun.sleep(90);
+	state.destroy();
+	pending.resolve([{ filename: "a.jar", revision: "1", icon: "late" }]);
+	await settle();
+	expect(state.getLocalIcon(project)).toBeNull();
+	expect(api.getInstanceModIcons).toHaveBeenCalledTimes(1);
 });
 
 test("enrichment preserves local IDs and selection, including CurseForge detail routing", async () => {

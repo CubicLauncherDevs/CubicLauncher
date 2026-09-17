@@ -2,6 +2,7 @@ pub mod export;
 pub mod instance_import;
 pub mod launch;
 pub mod manage;
+pub mod mod_catalog;
 pub mod mods;
 pub mod screens;
 pub mod servers;

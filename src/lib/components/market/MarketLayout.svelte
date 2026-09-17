@@ -2,6 +2,7 @@
 	import { onDestroy, type Snippet } from "svelte";
 	import type { MarketProject } from "$lib/types/market";
 	import MarketGrid from "./MarketGrid.svelte";
+	import VirtualList from "$lib/components/layout/VirtualList.svelte";
 	import { t } from "$lib/i18n";
 
 	interface Props {
@@ -24,6 +25,7 @@
 		itemSnippet: Snippet<[MarketProject]>;
 		emptySnippet: Snippet;
 		detailSnippet: Snippet;
+		listView?: boolean;
 	}
 
 	let {
@@ -46,6 +48,7 @@
 		itemSnippet,
 		emptySnippet,
 		detailSnippet,
+		listView = false,
 	}: Props = $props();
 	let lastCatalogFocus: WeakRef<HTMLElement> | undefined;
 	onDestroy(() => {
@@ -107,20 +110,39 @@
 		</div>
 		<div class="market-results" aria-busy={loading} inert={loading}>
 			{#if items.length > 0}
-				{#key resultsRevision}
-					<MarketGrid
-						count={itemCount}
-						{getItem}
+				{#if listView}
+					<VirtualList
+						{items}
 						{onRangeNeeded}
-						{onLoadMore}
-						busy={loading || loadingMore || !!error}
-						active={!selectedId}
+						active={!selectedId && !loading}
+						resetKey={resultsRevision}
+						itemHeight={84}
+						itemHeightVar="--market-installed-row-height"
+						padding={8}
+						hideScrollbar={false}
+						keyFn={(item) => item.id}
 					>
 						{#snippet children(project)}
 							{@render itemSnippet(project)}
 						{/snippet}
-					</MarketGrid>
-				{/key}
+					</VirtualList>
+				{:else}
+					{#key resultsRevision}
+						<MarketGrid
+							{items}
+							count={itemCount}
+							{getItem}
+							{onRangeNeeded}
+							{onLoadMore}
+							busy={loading || loadingMore || !!error}
+							active={!selectedId}
+						>
+							{#snippet children(project)}
+								{@render itemSnippet(project)}
+							{/snippet}
+						</MarketGrid>
+					{/key}
+				{/if}
 			{:else if loading}
 				<MarketGrid
 					count={12}

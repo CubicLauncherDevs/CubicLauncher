@@ -127,6 +127,27 @@ La prueba de integración de OptiFine descarga los clientes y los instaladores o
 cargo test -p aqua optifine_official_install_smoke -- --ignored --nocapture
 ```
 
+### Rendimiento de instalados
+
+```bash
+cargo test -p cubiclauncher --lib mod_catalog -- --nocapture
+cargo test -p cubiclauncher --lib addon_manager
+bun test --conditions=browser ./tests/frontend/marketplace
+```
+
+La fixture Rust genera 50, 100 y 200 JAR con metadatos e iconos PNG, sin usar la
+red. Imprime tiempos de catálogo frío/caliente, procesamiento de metadatos,
+iconos de 16 filas y bytes de respuesta frente a la carga de todos los iconos.
+Los tiempos son orientativos: esta fixture no mide FPS ni sustituye un modpack
+real con JAR grandes. Los tests verifican reutilización tras renombrar un mod,
+invalidación de archivos modificados y límites de caché.
+
+Las pruebas frontend verifican consultas limitadas al área visible, búsquedas
+con objetos reutilizados, caché de iconos acotada y descarte de respuestas
+tardías. En el launcher, comprobar apertura, desplazamiento rápido, búsqueda,
+cambio de instancia y activación por lotes con un modpack real; en lista y
+tarjetas los iconos deben aparecer progresivamente sin mover la selección.
+
 ### Mundos de las instancias
 
 - Ejecutar `cargo test -p cubiclauncher --lib world_manager` y `cargo test -p cubiclauncher --lib world_operation_lock`.
