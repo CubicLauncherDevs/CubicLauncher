@@ -380,7 +380,6 @@
 	}
 
 	.tools-btn :global(.icon-svg) {
-		filter: var(--icon-filter);
 		flex-shrink: 0;
 	}
 

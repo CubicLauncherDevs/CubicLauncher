@@ -577,10 +577,6 @@
 		color: var(--text-primary);
 	}
 
-	.sc-tool-btn :global(.icon-svg) {
-		filter: var(--icon-filter);
-	}
-
 	.sc-download-btn {
 		position: relative;
 	}
