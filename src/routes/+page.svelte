@@ -47,6 +47,8 @@
 	});
 
 	let selectedInstance = $state<InstanceDto | null>(null);
+	const selectedInstanceId = $derived(selectedInstance?.uuid);
+	const lastSelectedInstanceKey = "lastSelectedInstanceId";
 	let sidebarMode = $state<"normal" | "compact">("normal");
 	let transitioning = $state(false);
 	let quickMenuOpen = $state(false);
@@ -105,9 +107,16 @@
 			showTutorial = true;
 		}
 
-		const firstInstance = launcherStore.loadedInstances[0];
-		if (firstInstance && !selectedInstance) {
-			selectedInstance = firstInstance;
+		if (!logParams && !selectedInstance) {
+			const storedInstanceId = localStorage.getItem(
+				lastSelectedInstanceKey,
+			);
+			selectedInstance =
+				launcherStore.loadedInstances.find(
+					(instance) => instance.uuid === storedInstanceId,
+				) ??
+				launcherStore.loadedInstances[0] ??
+				null;
 		}
 
 		if (launcherStore.settings.discord_presence) {
@@ -146,6 +155,13 @@
 
 	$effect(() => {
 		localStorage.setItem("sidebarMode", sidebarMode);
+	});
+
+	$effect(() => {
+		// Track only the UUID so status updates do not trigger storage writes.
+		if (!logParams && selectedInstanceId) {
+			localStorage.setItem(lastSelectedInstanceKey, selectedInstanceId);
+		}
 	});
 
 	async function setupDragDrop() {
