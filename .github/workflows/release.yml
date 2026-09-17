@@ -64,6 +64,7 @@ jobs:
                   tagName: ${{ github.ref_name }}
                   releaseName: "CubicLauncher ${{ github.ref_name }}"
                   releaseDraft: true
+                  prerelease: ${{ contains(github.ref_name, '-') }}
                   includeUpdaterJson: true
                   updaterJsonPreferNsis: true
                   args: ${{ matrix.args }}
