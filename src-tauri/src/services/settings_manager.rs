@@ -99,6 +99,7 @@ pub struct SettingsManager {
     pub show_error_console: bool,
     #[serde(default = "default_true")]
     pub close_launcher_on_play: bool,
+    /// Close the main WebView once Minecraft initializes; restore it on exit.
     #[serde(default)]
     pub hide_on_launch: bool,
     #[serde(default)]

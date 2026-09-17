@@ -8,6 +8,7 @@ pub mod instance_export;
 pub mod instance_import;
 mod instance_manager;
 pub(crate) mod java_manager;
+pub(crate) mod launch_window;
 pub(crate) mod launcher;
 pub mod server_manager;
 #[cfg(test)]

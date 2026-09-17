@@ -131,6 +131,36 @@ La prueba de integración de OptiFine descarga los clientes y los instaladores o
 cargo test -p aqua optifine_official_install_smoke -- --ignored --nocapture
 ```
 
+### Cierre del launcher durante el juego
+
+```bash
+cargo test -p cubiclauncher --lib services::launch
+```
+
+La opción «Ocultar el launcher al jugar» espera el
+mensaje `Setting user...`, como PolyMC. Destruye el WebView principal y mantiene
+el backend supervisando las sesiones. Sin ese mensaje, la ventana permanece
+abierta. La consola conserva su ajuste independiente.
+
+- [ ] Activar la opción y lanzar Vanilla y un modpack. La ventana debe cerrarse al
+  aparecer el mensaje y regresar con su posición/tamaño al salir del juego.
+- [ ] Repetir con la opción desactivada y con la consola automática activada.
+- [ ] Comprobar un fallo al ejecutar Java y una salida anterior a `Setting user`:
+  la ventana debe permanecer disponible.
+- [ ] Forzar un crash después del cierre de la ventana: deben reaparecer la ventana
+  principal y la consola con las últimas líneas del error.
+- [ ] Terminar el proceso desde la consola y probar una salida inmediatamente
+  después de `Setting user`: debe restaurarse una sola ventana principal.
+- [ ] Lanzar dos instancias antes de que se cierre la ventana. Terminar ambas en
+  distinto orden: el backend debe seguir supervisando la segunda tras salir de la
+  primera y la reapertura no debe fallar por una etiqueta `main` duplicada.
+- [ ] En Windows, comprobar la reapertura para descartar bloqueos de WebView2.
+  En Linux y macOS, comprobar también el foco y el estado maximizado.
+- [ ] Repetir varios ciclos y observar memoria/CPU con el monitor del sistema:
+  los handles y lectores de instancias terminadas deben liberarse. Con la ventana
+  principal y la consola cerradas, se conserva un historial de hasta 5000 líneas
+  por sesión sin generar lotes IPC ni activar un temporizador periódico de logs.
+
 ### Rendimiento de instalados
 
 ```bash

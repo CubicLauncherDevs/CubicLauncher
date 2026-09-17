@@ -163,10 +163,7 @@ pub fn run() {
                 return Err("Error de inicialización: no se pudieron crear los directorios".into());
             }
 
-            let window_config = &app.config().app.windows[0];
-            let _window = tauri::WebviewWindowBuilder::from_config(app.handle(), window_config)?
-                .devtools(cfg!(debug_assertions))
-                .build()?;
+            let _window = services::launch_window::create_main_window(app.handle())?;
 
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -191,11 +188,15 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|_app_handle, event| {
-            if let tauri::RunEvent::ExitRequested { api, .. } = event
-                && services::launcher::should_keep_alive()
-            {
-                api.prevent_exit();
-            }
+        .run(|app_handle, event| match event {
+            tauri::RunEvent::ExitRequested {
+                api, code: None, ..
+            } if services::launch_window::should_keep_alive() => api.prevent_exit(),
+            tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::Destroyed,
+                ..
+            } if label == "main" => services::launch_window::on_main_destroyed(app_handle),
+            _ => {}
         });
 }

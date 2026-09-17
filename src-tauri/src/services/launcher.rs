@@ -10,6 +10,7 @@ use crate::services::instance_manager::{
     InstanceHandle, InstanceStatus, register_kill_sender, unregister_kill_sender,
 };
 use crate::services::java_manager::JavaManager;
+use crate::services::launch_window::LaunchSession;
 use aqua::JavaVersion;
 use compact_str::{CompactString, ToCompactString};
 use launchwerk::auth::{
@@ -22,10 +23,9 @@ use launchwerk::{LaunchConfig, Launchwerk};
 use parking_lot::RwLock;
 use regex::Regex;
 use std::collections::VecDeque;
-use std::mem;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
-use tauri::{Emitter, Manager, WebviewWindowBuilder};
+use tauri::{Emitter, Manager};
 use tokio::fs;
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, trace, warn};
@@ -36,12 +36,6 @@ use dashmap::DashMap;
 const LOG_RING_CAPACITY: usize = 5000;
 
 static LINE_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
-
-pub(crate) static KEEP_ALIVE: AtomicBool = AtomicBool::new(false);
-
-pub(crate) fn should_keep_alive() -> bool {
-    KEEP_ALIVE.load(Ordering::Relaxed)
-}
 
 // ── Log Level ───────────────────────────────────────────────────────────────
 
@@ -284,7 +278,7 @@ impl LogRing {
         }
     }
 
-    pub async fn push(&self, text: Arc<str>, level: LogLevel, stream: u8) {
+    pub async fn push(&self, text: Arc<str>, level: LogLevel, stream: u8) -> (u64, u64) {
         let mut guard = self.inner.lock().await;
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -293,13 +287,15 @@ impl LogRing {
         if guard.len() >= LOG_RING_CAPACITY {
             guard.pop_front();
         }
+        let id = LINE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
         guard.push_back(LogLineRaw {
-            id: LINE_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
+            id,
             text,
             stream,
             level,
             timestamp: ts,
         });
+        (id, ts)
     }
 
     pub async fn snapshot(&self, limit: Option<usize>) -> Vec<LogLine> {
@@ -413,9 +409,9 @@ struct LogEntryEvent {
 }
 
 #[derive(Clone, serde::Serialize)]
-struct LogBatchEvent {
-    id: Arc<str>,
-    lines: Vec<LogEntryEvent>,
+struct LogBatchEvent<'a> {
+    id: &'a str,
+    lines: &'a [LogEntryEvent],
 }
 
 // ── Statics ───────────────────────────────────────────────────────────────────
@@ -429,7 +425,7 @@ static LAUNCHER: OnceLock<Arc<Launcher>> = OnceLock::new();
 
 pub struct Launcher {
     app_handle: std::sync::Mutex<Option<tauri::AppHandle>>,
-    lw: Launchwerk,
+    lw: Arc<Launchwerk>,
 }
 
 impl Launcher {
@@ -442,7 +438,9 @@ impl Launcher {
     pub fn init() -> Arc<Self> {
         let launcher = Arc::new(Self {
             app_handle: std::sync::Mutex::new(None),
-            lw: Launchwerk::new(PathManager::get().get_shared_dir().to_path_buf()),
+            lw: Arc::new(Launchwerk::new(
+                PathManager::get().get_shared_dir().to_path_buf(),
+            )),
         });
         let _ = LAUNCHER.set(launcher.clone());
         launcher
@@ -745,6 +743,22 @@ impl Launcher {
         let lw_handle = self.lw.prepare(manifest, options, instance_dir);
         handle.update_last_played().await;
 
+        let app_handle = self
+            .app_handle
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let session = LaunchSession::new(app_handle.clone(), hide_on_launch);
+        let (ready_tx, mut ready_rx) = tokio::sync::oneshot::channel();
+        // Subscribe before spawning Java: the first messages can arrive immediately.
+        let io_task = spawn_io_forwarding(
+            app_handle.clone(),
+            handle.uuid.clone(),
+            lw_handle.subscribe_stdout(),
+            lw_handle.subscribe_stderr(),
+            hide_on_launch.then_some(ready_tx),
+        );
+
         match lw_handle.launch().await {
             Ok(_) => {
                 info!("Handle {} lanzado", lw_handle.id().to_string());
@@ -760,12 +774,7 @@ impl Launcher {
                 )
                 .await;
 
-                let app_handle = self
-                    .app_handle
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .clone();
-                if let Some(ref app) = app_handle {
+                if app_handle.is_some() {
                     let id = handle.uuid.clone();
                     if settings_m.open_console_on_launch {
                         spawn_open_log_window(
@@ -775,40 +784,42 @@ impl Launcher {
                         );
                     }
                     push_launcher_message(&id, "Proceso iniciado").await;
-                    let stdout_rx = lw_handle.subscribe_stdout();
-                    let stderr_rx = lw_handle.subscribe_stderr();
-                    spawn_io_forwarding(app.clone(), id.clone(), stdout_rx, "stdout");
-                    spawn_io_forwarding(app.clone(), id, stderr_rx, "stderr");
-                    if hide_on_launch {
-                        KEEP_ALIVE.store(true, Ordering::Relaxed);
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.close();
-                        }
-                    }
-                } else {
-                    warn!("AppHandle no disponible, no se reenviará stdout/stderr");
                 }
 
                 let uuid = handle.uuid.clone();
                 let h = handle.clone();
                 let inst_name = instance_name.clone();
                 let app_for_show = app_handle.clone();
+                let lw = self.lw.clone();
                 tokio::spawn(async move {
-                    let result = tokio::select! {
-                        biased;
-                        Ok(()) = &mut kill_rx => {
-                            info!("Kill signal received for {}", uuid);
-                            if let Err(e) = lw_handle.kill().await {
-                                warn!("Error al matar proceso {}: {:?}", uuid, e);
+                    let mut ready_seen = false;
+                    let result = loop {
+                        tokio::select! {
+                            biased;
+                            Ok(()) = &mut kill_rx => {
+                                info!("Kill signal received for {}", uuid);
+                                if let Err(e) = lw_handle.kill().await {
+                                    warn!("Error al matar proceso {}: {:?}", uuid, e);
+                                }
+                                break lw_handle.wait().await;
                             }
-                            lw_handle.wait().await
-                        }
-                        result = lw_handle.wait() => {
-                            info!("Instance {} exited: {:?}", uuid, result);
-                            result
+                            result = lw_handle.wait() => {
+                                info!("Instance {} exited: {:?}", uuid, result);
+                                break result;
+                            }
+                            Ok(()) = &mut ready_rx, if !ready_seen => {
+                                ready_seen = true;
+                                session.game_ready();
+                            }
                         }
                     };
+                    session.process_exited();
                     unregister_kill_sender(&uuid);
+                    // Release the manager's strong reference and drain the last logs.
+                    // Otherwise its broadcast senders (and forwarding tasks) live forever.
+                    lw.remove(lw_handle.id());
+                    drop(lw_handle);
+                    finish_io_forwarding(io_task).await;
                     push_launcher_message(&uuid, format!("El proceso terminó: {:?}", result)).await;
 
                     let crashed =
@@ -827,36 +838,28 @@ impl Launcher {
                                 code
                             ))),
                         });
-                        spawn_open_log_window(
-                            app_for_show.clone(),
-                            uuid.to_string(),
-                            inst_name.to_string(),
-                        );
+                        if let Some(app) = app_for_show
+                            && let Err(err) = open_log_window_for_instance(
+                                app,
+                                uuid.to_string(),
+                                inst_name.to_string(),
+                            )
+                            .await
+                        {
+                            warn!("No se pudo abrir ventana de logs: {err}");
+                        }
                     }
 
                     discord_presence::on_instance_stop(&inst_name).await;
                     remove_log_ring(&uuid);
                     h.set_status(InstanceStatus::Off);
-                    // Si se cerró la ventana al lanzar el juego, la recreamos
-                    if hide_on_launch {
-                        KEEP_ALIVE.store(false, Ordering::Relaxed);
-                        if let Some(app) = app_for_show {
-                            let window_config = &app.config().app.windows[0];
-                            match WebviewWindowBuilder::from_config(&app, window_config).and_then(
-                                |builder| builder.devtools(cfg!(debug_assertions)).build(),
-                            ) {
-                                Ok(window) => {
-                                    let _ = window.set_focus();
-                                }
-                                Err(err) => {
-                                    error!("No se pudo recrear la ventana principal: {err}")
-                                }
-                            }
-                        }
-                    }
+                    drop(session);
                 });
             }
             Err(e) => {
+                self.lw.remove(lw_handle.id());
+                drop(lw_handle);
+                finish_io_forwarding(io_task).await;
                 let msg = e.to_string();
                 error!("{}", msg);
                 push_launcher_message(&handle.uuid, format!("Error al iniciar: {}", msg)).await;
@@ -1010,72 +1013,127 @@ fn spawn_open_log_window(
     }
 }
 
-fn spawn_io_forwarding(
-    app: tauri::AppHandle,
-    id: Arc<str>,
-    mut rx: broadcast::Receiver<String>,
-    stream: &'static str,
+// PolyMC's LauncherPartLaunch uses this message to close its UI once Minecraft
+// has reached client initialization, rather than merely after Java was spawned.
+fn is_game_ready(line: &str) -> bool {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"(?i)\bsetting user(?::|\s)\s*\S+").unwrap())
+        .is_match(line)
+}
+
+fn has_log_window(app: Option<&tauri::AppHandle>, log_label: &str) -> bool {
+    app.is_some_and(|app| {
+        app.get_webview_window("main").is_some() || app.get_webview_window(log_label).is_some()
+    })
+}
+
+fn flush_log_batch(
+    app: Option<&tauri::AppHandle>,
+    id: &str,
+    log_label: &str,
+    batch: &mut Vec<LogEntryEvent>,
 ) {
+    if !batch.is_empty()
+        && has_log_window(app, log_label)
+        && let Some(app) = app
+    {
+        let _ = app.emit("instance-log-batch", LogBatchEvent { id, lines: batch });
+    }
+    // Keep the allocation for the next batch.
+    batch.clear();
+}
+
+fn spawn_io_forwarding(
+    app: Option<tauri::AppHandle>,
+    id: Arc<str>,
+    mut stdout: broadcast::Receiver<String>,
+    mut stderr: broadcast::Receiver<String>,
+    mut ready: Option<tokio::sync::oneshot::Sender<()>>,
+) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let ring = get_log_ring(&id);
-        let stderr = stream == "stderr";
-        let stream_id: u8 = if stderr { 1 } else { 0 };
-        let stream_name = stream;
-        let mut batch: Vec<LogEntryEvent> = Vec::with_capacity(64);
-        let mut interval = tokio::time::interval(std::time::Duration::from_millis(80));
-        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let log_label = format!("log-{id}");
+        let mut batch = Vec::with_capacity(64);
+        let mut stdout_closed = false;
+        let mut stderr_closed = false;
+        let delay = std::time::Duration::from_millis(80);
+        let timer = tokio::time::sleep(delay);
+        tokio::pin!(timer);
 
-        loop {
-            tokio::select! {
-                line_result = rx.recv() => {
-                    match line_result {
-                        Ok(line) => {
-                            let cleaned = sanitize_with_user(&strip_ansi(&line));
-                            if cleaned.is_empty() {
-                                continue;
-                            }
-                            let level = LogLevel::from_line(&cleaned, stderr);
-                            let ts = std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .map(|d| d.as_millis() as u64)
-                                .unwrap_or(0);
-                            let text: Arc<str> = Arc::from(cleaned);
-                            let id_for_line = LINE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-                            ring.push(text.clone(), level, stream_id).await;
-                            batch.push(LogEntryEvent {
-                                id: id_for_line,
-                                line: text,
-                                stream: stream_name,
-                                level,
-                                timestamp: ts,
-                            });
-                        }
-                        Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                        Err(broadcast::error::RecvError::Closed) => break,
-                    }
+        while !stdout_closed || !stderr_closed {
+            let (line_result, is_stderr) = tokio::select! {
+                line = stdout.recv(), if !stdout_closed => (line, false),
+                line = stderr.recv(), if !stderr_closed => (line, true),
+                _ = &mut timer, if !batch.is_empty() => {
+                    flush_log_batch(app.as_ref(), &id, &log_label, &mut batch);
+                    continue;
                 }
-                _ = interval.tick() => {
-                    if !batch.is_empty() {
-                        let lines: Vec<LogEntryEvent> = mem::take(&mut batch);
-                        let _ = app.emit(
-                            "instance-log-batch",
-                            LogBatchEvent { id: id.clone(), lines },
-                        );
-                    }
+            };
+            let line = match line_result {
+                Ok(line) => line,
+                Err(broadcast::error::RecvError::Lagged(count)) => {
+                    warn!("Se perdieron {count} líneas de logs de {id}");
+                    continue;
                 }
+                Err(broadcast::error::RecvError::Closed) => {
+                    if is_stderr {
+                        stderr_closed = true;
+                    } else {
+                        stdout_closed = true;
+                    }
+                    continue;
+                }
+            };
+            let stripped = strip_ansi(&line);
+            if ready.is_some()
+                && is_game_ready(&stripped)
+                && let Some(tx) = ready.take()
+            {
+                let _ = tx.send(());
+            }
+            let cleaned = sanitize_with_user(&stripped);
+            if cleaned.is_empty() {
+                continue;
+            }
+            let level = LogLevel::from_line(&cleaned, is_stderr);
+            let text: Arc<str> = Arc::from(cleaned);
+            let (line_id, timestamp) = ring.push(text.clone(), level, u8::from(is_stderr)).await;
+            // Retain sanitized history while the WebView is gone, without building
+            // IPC payloads or waking an interval timer for an absent frontend.
+            if has_log_window(app.as_ref(), &log_label) {
+                if batch.is_empty() {
+                    timer.as_mut().reset(tokio::time::Instant::now() + delay);
+                }
+                batch.push(LogEntryEvent {
+                    id: line_id,
+                    line: text,
+                    stream: if is_stderr { "stderr" } else { "stdout" },
+                    level,
+                    timestamp,
+                });
+                if batch.len() >= 64 {
+                    flush_log_batch(app.as_ref(), &id, &log_label, &mut batch);
+                }
+            } else {
+                batch.clear();
             }
         }
-        if !batch.is_empty() {
-            let lines: Vec<LogEntryEvent> = mem::take(&mut batch);
-            let _ = app.emit(
-                "instance-log-batch",
-                LogBatchEvent {
-                    id: id.clone(),
-                    lines,
-                },
-            );
+        flush_log_batch(app.as_ref(), &id, &log_label, &mut batch);
+    })
+}
+
+async fn finish_io_forwarding(mut task: tokio::task::JoinHandle<()>) {
+    // A mod can leave a child process holding stdout/stderr open after Java exits.
+    // Bound the drain time so that it cannot prevent the launcher from returning.
+    match tokio::time::timeout(std::time::Duration::from_secs(2), &mut task).await {
+        Ok(Ok(())) => {}
+        Ok(Err(err)) => warn!("Error procesando logs del juego: {err}"),
+        Err(_) => {
+            task.abort();
+            let _ = task.await;
+            warn!("Tiempo agotado esperando el cierre de los logs del juego");
         }
-    });
+    }
 }
 
 /// Returns true if the Forge version indicates a version >= 36.2.26
