@@ -20,11 +20,11 @@
 
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "cubiclauncher";
-  version = "33.0.0";
+  version = "34.0.1";
 
   src = lib.cleanSource ./../..;
 
-  cargoHash = "sha256-27lecVNwif4GwegmTG/VEItYzIKvAK0wRE4R8YD/jnQ=";
+  cargoHash = "sha256-KA7mZ0jEKpMw8xJQOqYdq/l26Ga+ZyipL4rbxmvCF4Y=";
 
   nodeModules = stdenv.mkDerivation {
     pname = "${finalAttrs.pname}-node_modules";

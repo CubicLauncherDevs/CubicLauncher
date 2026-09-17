@@ -6,6 +6,8 @@ Esta carpeta contiene el empaquetado de CubicLauncher para Nix y NixOS.
 
 - `flake.nix` — Flake raíz del repositorio. Expone el paquete, el devShell,
   el formateador y un check básico.
+- `flake.lock` — Bloqueo de las dependencias del flake. Debe mantenerse en Git
+  para permitir instalaciones reproducibles desde GitHub.
 - `package.nix` — Derivación con `cargo-tauri.hook` que compila el frontend,
   el binario de Tauri y empaqueta el `.deb` para extraerlo en `$out`.
 
@@ -19,13 +21,13 @@ Esta carpeta contiene el empaquetado de CubicLauncher para Nix y NixOS.
 ### Instalar el launcher
 
 ```bash
-nix profile install github:CubicLauncherDevs/CubicLauncher
+nix profile add github:CubicLauncherDevs/CubicLauncher
 ```
 
 Desde el repositorio local:
 
 ```bash
-nix profile install .
+nix profile add .
 ```
 
 ### Probar sin instalar

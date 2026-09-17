@@ -67,7 +67,7 @@ Con las funciones `flakes` y `nix-command` habilitadas:
 
 ```bash
 # Instalar en el perfil de usuario
-nix profile install github:CubicLauncherDevs/CubicLauncher
+nix profile add github:CubicLauncherDevs/CubicLauncher
 
 # Ejecutar sin instalar en el perfil
 nix run github:CubicLauncherDevs/CubicLauncher
@@ -148,8 +148,6 @@ dist/                 Archivos de empaquetado para distribuciones
 ```
 
 ## Contribuir
-
-Para crear o adaptar temas, consulta las [variables CSS predeterminadas](src/styles/shared/reset.css).
 
 Se aceptan contribuciones de código, documentación, traducciones y reportes de errores. La [guía de contribución](CONTRIBUTING.md) detalla las convenciones del proyecto, las comprobaciones previas a una pull request y el proceso de colaboración.
 
