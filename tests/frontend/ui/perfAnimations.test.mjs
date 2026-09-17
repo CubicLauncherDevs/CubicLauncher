@@ -3,14 +3,18 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const chromium = [
-	"chromium",
-	"chromium-browser",
-	"google-chrome",
-	"google-chrome-stable",
-]
-	.map((name) => Bun.which(name))
-	.find(Boolean);
+// Ubuntu runners also expose Snap launcher stubs under chromium-browser.
+// Prefer the installed Chrome binary; CI provides an explicit path so a
+// missing browser fails rather than silently skipping the integration test.
+const configuredBrowser = process.env.CHROME_BIN;
+const chromium = configuredBrowser
+	? Bun.which(configuredBrowser)
+	: ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"]
+			.map((name) => Bun.which(name))
+			.find(Boolean);
+if (configuredBrowser && !chromium) {
+	throw new Error(`CHROME_BIN is not executable: ${configuredBrowser}`);
+}
 const name =
 	"perf.css stops infinite repetition without freezing finite animations";
 
@@ -70,7 +74,11 @@ if (!chromium) {
         '<div class="preserve-motion fade">preserved</div>' +
         '<div class="preserve-motion"><div class="fade">child</div></div><div class="spinner">spin</div>';
       const initial = sample(); // Flush styles and start real CSS animations.
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Wait for the browser's animation timeline, not an arbitrary wall-clock
+      // delay that can expire before a busy CI renderer has painted a frame.
+      const finite = main.getAnimations({ subtree: true }).filter(animation =>
+        Number.isFinite(animation.effect.getComputedTiming().endTime));
+      await Promise.all(finite.map(animation => animation.finished));
       results.push({ noInfinite, reduceMotion, initial, final: sample() });
     }
     payload = { results };
@@ -124,6 +132,7 @@ if (!chromium) {
 						"--disable-dev-shm-usage",
 						"--no-first-run",
 						"--no-default-browser-check",
+						"--password-store=basic",
 						"--disable-background-networking",
 						"--disable-component-update",
 						"--disable-sync",
@@ -148,7 +157,7 @@ if (!chromium) {
 					result,
 					browser.exited.then(async (exitCode) => {
 						throw new Error(
-							`${timedOut ? "Chromium timed out waiting for animation results" : `Chromium exited before reporting animation results (code ${exitCode})`}; page requested: ${pageRequested}\n${await stderr}`,
+							`${timedOut ? `Chromium timed out ${pageRequested ? "running animations" : "starting before loading the test page"}` : `Chromium exited before reporting animation results (code ${exitCode})`}; executable: ${chromium}; page requested: ${pageRequested}\n${await stderr}`,
 						);
 					}),
 				]);

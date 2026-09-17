@@ -1,3 +1,0 @@
-Hay que investigar donde guardar los nativos correctamente, al parecer todos se mueven al directorio java en natives en las nuevas versiones (posterior a 26.2).
-
-

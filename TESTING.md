@@ -57,10 +57,14 @@ cargo test -p aqua
 cargo test -p cubiclauncher --lib services::launcher::tests
 ```
 
-`ui/perfAnimations.test.mjs` usa Chromium/Chrome en modo headless. Busca
-`chromium`, `chromium-browser`, `google-chrome` o `google-chrome-stable` en `PATH`;
-si no encuentra ninguno, el test se marca como omitido. Los tests de manifiestos
-de `aqua` requieren conexión a Internet.
+`ui/perfAnimations.test.mjs` usa Chromium/Chrome en modo headless. Permite elegir
+el ejecutable con `CHROME_BIN`; en su defecto busca primero `google-chrome` o
+`google-chrome-stable` y después `chromium` o `chromium-browser` en `PATH`.
+Si no encuentra ninguno, el test se marca como omitido; una ruta explícita inválida
+produce un error. CI usa `/usr/bin/google-chrome` y `dbus-run-session` para evitar
+los lanzadores Snap y las esperas de servicios de escritorio durante el arranque.
+La prueba espera a que terminen las animaciones finitas usando la API del navegador.
+Los tests de manifiestos de `aqua` requieren conexión a Internet.
 
 Las mediciones sintéticas de rendimiento Rust están marcadas con `#[ignore]`
 y se ejecutan explícitamente:

@@ -33,7 +33,11 @@ jobs:
               run: bun run check
 
             - name: Tests
-              run: bun run test:frontend
+              env:
+                  CHROME_BIN: /usr/bin/google-chrome
+              run: |
+                  "$CHROME_BIN" --version
+                  dbus-run-session -- bun run test:frontend
 
             - name: Build
               run: bun run build
