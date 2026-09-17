@@ -123,9 +123,13 @@
 			if (action.type === "size" && result.size !== null)
 				sizes[action.folder] = result.size;
 			if (
-				["import", "duplicate", "rename", "delete", "resetIcon"].includes(
-					action.type,
-				)
+				[
+					"import",
+					"duplicate",
+					"rename",
+					"delete",
+					"resetIcon",
+				].includes(action.type)
 			) {
 				if (result.folder) selectedFolder = result.folder;
 				sizes = {};
@@ -383,9 +387,9 @@
 						<dd>{selected.version ?? t("worlds.unknown")}</dd>
 						<dt>{t("worlds.gameMode")}</dt>
 						<dd>{gameMode(selected)}</dd>
-					<dt>{t("worlds.lastPlayed")}</dt>
-					<dd>{lastPlayed(selected)}</dd>
-					<dt>{t("worlds.size")}</dt>
+						<dt>{t("worlds.lastPlayed")}</dt>
+						<dd>{lastPlayed(selected)}</dd>
+						<dt>{t("worlds.size")}</dt>
 						<dd>
 							{sizes[selected.folder] === undefined
 								? t("worlds.notCalculated")
@@ -449,8 +453,7 @@
 								perform(t("worlds.openingDatapacks"), () => ({
 									type: "openDatapacks",
 									folder: selected!.folder,
-								}))}
-							>{t("worlds.openDatapacks")}</button
+								}))}>{t("worlds.openDatapacks")}</button
 						>
 						<button
 							type="button"
@@ -460,8 +463,7 @@
 								perform(t("worlds.resettingIcon"), () => ({
 									type: "resetIcon",
 									folder: selected!.folder,
-								}))}
-							>{t("worlds.resetIcon")}</button
+								}))}>{t("worlds.resetIcon")}</button
 						>
 						<button
 							type="button"
