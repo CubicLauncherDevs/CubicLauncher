@@ -154,6 +154,24 @@ de las listas, recuperación de un fallo de zoom y restablecimiento.
 - [ ] Reiniciar y abrir una ventana de logs: la escala elegida debe conservarse.
 - [ ] Restablecer valores: recuperar 100 % y el espaciado original del tema.
 
+### Rendimiento de la personalización
+
+```bash
+bun test --conditions=browser ./tests/frontend/ui/saveQueue.test.mjs ./tests/frontend/ui/settingsPersistence.test.mjs ./tests/frontend/themes/themeMetrics.test.mjs
+```
+
+- Las pruebas de guardado agrupan 100 solicitudes en una escritura del último
+  estado; con una escritura ya en curso, solo añaden una escritura pendiente.
+  Comprueban el vaciado al cerrar, recuperación de errores y descarte de lecturas
+  antiguas que podrían sobrescribir cambios locales.
+- Las pruebas de medidas simulan 100 entregas de `ResizeObserver`: las consultas
+  de estilo se limitan a la medición inicial, usando después `contentRect`.
+- La regresión de interfaz también verifica cambios sin efecto, controles
+  disponibles mientras se guarda, identidad estable de las preferencias y
+  deslizadores que guardan al soltar o al desmontarse. Monta notificaciones reales
+  para comprobar que los cambios visuales no reinician temporizadores ni crean
+  temporizadores para avisos persistentes o descargas en curso.
+
 ### Personalizar las notificaciones
 
 ```bash

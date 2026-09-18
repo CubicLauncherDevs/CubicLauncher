@@ -56,6 +56,7 @@ async function choose(id, label) {
 }
 
 let failZoom = false;
+let blockSave;
 const zoomCalls = [],
 	saves = [];
 globalThis.isTauri = true;
@@ -105,8 +106,10 @@ try {
 	component = mount(Layout, {
 		target: document.querySelector("main"),
 		props: {
-			onsave: async () =>
-				saves.push({ ...launcherStore.settings.interface_preferences }),
+			onsave: async () => {
+				saves.push({ ...launcherStore.settings.interface_preferences });
+				if (blockSave) await blockSave;
+			},
 		},
 	});
 	await settle();
@@ -310,8 +313,57 @@ try {
 			JSON.stringify({ scale: 100, density: "theme" }),
 		"reset not persisted",
 	);
+	const noOpSaves = saves.length;
+	const noOpZoom = zoomCalls.length;
+	const interfaceReference = launcherStore.settings.interface_preferences;
+	await choose("interface-scale", "100 %");
+	await choose("interface-density", "Theme default");
+	reset.click();
+	await settle();
+	const notificationReset = document.querySelector(
+		".notification-settings .actions button:last-child",
+	);
+	notificationReset.click();
+	await settle();
+	assert(
+		saves.length === noOpSaves && zoomCalls.length === noOpZoom,
+		"unchanged preferences performed work",
+	);
+	assert(
+		launcherStore.settings.interface_preferences === interfaceReference,
+		"interface preference identity replaced",
+	);
+	let releaseSave;
+	blockSave = new Promise((resolve) => {
+		releaseSave = resolve;
+	});
+	await choose("interface-density", "Compact");
+	assert(
+		!document.querySelector("#interface-density button").disabled,
+		"disk write blocked the controls",
+	);
+	await choose("interface-density", "Comfortable");
+	releaseSave();
+	blockSave = undefined;
+	await settle();
+	assert(
+		launcherStore.settings.interface_preferences === interfaceReference,
+		"density replaced preference object",
+	);
+	reset.click();
+	await settle();
+	await verifyNotifications();
+	const beforeClose = saves.length;
+	const titleInput = document.querySelector("#notification-title_size");
+	titleInput.value = "21";
+	titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+	flushSync();
 	await unmount(component);
 	component = null;
+	assert(
+		saves.length === beforeClose + 1,
+		"unmount lost an uncommitted slider value",
+	);
 	assert(
 		!document.querySelector('[role="listbox"]'),
 		"portal leaked after unmount",
@@ -328,4 +380,103 @@ try {
 	});
 } finally {
 	if (component) await unmount(component);
+}
+
+async function verifyNotifications() {
+	const preferences = launcherStore.settings.notification_preferences;
+	const toggle = document.querySelector("#notification-customization");
+	toggle.click();
+	await settle();
+	const duration = document.querySelector("#notification-duration_seconds");
+	duration.value = "6";
+	duration.dispatchEvent(new Event("input", { bubbles: true }));
+	duration.dispatchEvent(new Event("change", { bubbles: true }));
+	await settle();
+	const timers = new Map();
+	let timerStarts = 0;
+	const nativeSetTimeout = window.setTimeout,
+		nativeClearTimeout = window.clearTimeout;
+	window.setTimeout = (callback, delay, ...args) => {
+		if (delay !== 6000) return nativeSetTimeout(callback, delay, ...args);
+		const id = -++timerStarts;
+		timers.set(id, () => callback(...args));
+		return id;
+	};
+	window.clearTimeout = (id) => {
+		if (!timers.delete(id)) nativeClearTimeout(id);
+	};
+	try {
+		launcherStore.notifications = [
+			{
+				id: "timed",
+				type: "info",
+				title: "Timed notice",
+				message: "Long notification message",
+				timeout: 5000,
+			},
+			{
+				id: "persistent",
+				type: "info",
+				title: "Persistent notice",
+				timeout: 0,
+			},
+			{ id: "download", type: "info", title: "Download", progress: 10 },
+		];
+		await settle();
+		assert(timerStarts === 1, "unexpected notification timers");
+		const countdown = document.querySelector(".fill.countdown");
+		const title = document.querySelector("#notification-title_size");
+		const before = saves.length;
+		for (let i = 0; i < 100; i++) {
+			title.value = String(12 + (i % 13));
+			title.dispatchEvent(new Event("input", { bubbles: true }));
+			flushSync();
+		}
+		assert(saves.length === before, "slider saved during dragging");
+		assert(
+			launcherStore.settings.notification_preferences === preferences,
+			"slider replaced the preference object",
+		);
+		title.dispatchEvent(new Event("change", { bubbles: true }));
+		await settle();
+		assert(saves.length === before + 1, "slider did not commit once");
+		title.dispatchEvent(new Event("change", { bubbles: true }));
+		await settle();
+		assert(saves.length === before + 1, "unchanged slider saved again");
+		preferences.position = "bottom-left";
+		preferences.size = "wide";
+		preferences.message_size = 22;
+		preferences.uppercase_title = true;
+		preferences.bold_title = true;
+		for (const progress of [25, 40, 80, 99]) {
+			launcherStore.notifications[2].progress = progress;
+			await settle();
+		}
+		assert(
+			timerStarts === 1 && timers.size === 1,
+			"visual changes or progress restarted notification timers",
+		);
+		assert(
+			document.querySelector(".fill.countdown") === countdown,
+			"visual changes remounted the countdown",
+		);
+		launcherStore.notifications[2].progress = 100;
+		await settle();
+		assert(
+			timerStarts === 2 && timers.size === 2,
+			"download completion did not start one timer",
+		);
+		for (const callback of [...timers.values()]) callback();
+		await settle();
+		await new Promise((resolve) => nativeSetTimeout(resolve, 150));
+		await settle();
+		assert(
+			launcherStore.notifications.length === 1 &&
+				launcherStore.notifications[0].id === "persistent",
+			"notification dismissal changed persistent notice lifetime",
+		);
+	} finally {
+		window.setTimeout = nativeSetTimeout;
+		window.clearTimeout = nativeClearTimeout;
+	}
 }

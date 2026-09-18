@@ -75,19 +75,26 @@
 	}> | null>(null);
 
 	const sidebarTransitionDuration = $derived(animDuration(0.35, 0.05));
-	const appearance = $derived(
-		interfacePreferences(launcherStore.settings.interface_preferences),
+	const interfaceScale = $derived(
+		interfacePreferences(launcherStore.settings.interface_preferences)
+			.scale,
+	);
+	const interfaceDensity = $derived(
+		interfacePreferences(launcherStore.settings.interface_preferences)
+			.density,
 	);
 
 	$effect(() => {
-		void applyInterfaceScale(appearance.scale).catch((error) => {
+		void applyInterfaceScale(interfaceScale).catch((error) => {
 			showError(t("settings.interface.scaleError"), String(error));
 		});
 	});
 
 	$effect(() => {
-		applyInterfaceDensity(appearance.density);
-		return () => applyInterfaceDensity("theme");
+		applyInterfaceDensity(interfaceDensity);
+	});
+	onDestroy(() => {
+		if (typeof document !== "undefined") applyInterfaceDensity("theme");
 	});
 
 	$effect(() => {

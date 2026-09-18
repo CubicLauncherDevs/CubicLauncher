@@ -3,6 +3,7 @@
 	import { launcherStore, showError } from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
 	import { applyInterfaceScale } from "$lib/api/interfaceAppearance";
+	import { patchPreferences } from "$lib/utils/preferencePatch";
 	import {
 		DEFAULT_INTERFACE_PREFERENCES,
 		INTERFACE_SCALES,
@@ -36,20 +37,30 @@
 
 	async function update(patch: Partial<InterfacePreferences>) {
 		if (changing) return;
-		changing = true;
+		const next = interfacePreferences({ ...preferences, ...patch });
+		if (
+			next.scale === preferences.scale &&
+			next.density === preferences.density
+		)
+			return;
 		try {
-			const next = interfacePreferences({ ...preferences, ...patch });
-			// Save only once native zoom succeeds; a failure keeps the old setting.
-			if (next.scale !== preferences.scale)
-				await applyInterfaceScale(next.scale);
-			launcherStore.settings.interface_preferences = next;
+			changing = true;
+			try {
+				// Save only once native zoom succeeds; a failure keeps the old setting.
+				if (next.scale !== preferences.scale)
+					await applyInterfaceScale(next.scale);
+				const current = launcherStore.settings.interface_preferences;
+				if (current) patchPreferences(current, next);
+				else launcherStore.settings.interface_preferences = { ...next };
+			} finally {
+				selectedScale = String(preferences.scale);
+				selectedDensity = preferences.density;
+				// Disk writes do not need to block the controls or native zoom.
+				changing = false;
+			}
 			await onsave();
 		} catch (error) {
 			showError(t("settings.interface.scaleError"), String(error));
-		} finally {
-			selectedScale = String(preferences.scale);
-			selectedDensity = preferences.density;
-			changing = false;
 		}
 	}
 </script>

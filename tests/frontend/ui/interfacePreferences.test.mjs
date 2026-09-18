@@ -1,6 +1,12 @@
 import { expect, test } from "bun:test";
-import { interfacePreferences } from "../../../src/lib/utils/interfacePreferences.ts";
-import { applyInterfaceScale } from "../../../src/lib/api/interfaceAppearance.ts";
+import {
+	interfacePreferences,
+	DEFAULT_INTERFACE_PREFERENCES,
+} from "../../../src/lib/utils/interfacePreferences.ts";
+import {
+	applyInterfaceScale,
+	applyInterfaceDensity,
+} from "../../../src/lib/api/interfaceAppearance.ts";
 
 test("invalid and legacy interface preferences recover without altering the source", () => {
 	for (const value of [
@@ -17,7 +23,8 @@ test("invalid and legacy interface preferences recover without altering the sour
 		});
 	}
 	const saved = Object.freeze({ scale: 125, density: "comfortable" });
-	expect(interfacePreferences(saved)).toEqual(saved);
+	expect(interfacePreferences(saved)).toBe(saved);
+	expect(interfacePreferences()).toBe(DEFAULT_INTERFACE_PREFERENCES);
 	expect(interfacePreferences({ scale: 90 })).toEqual({
 		scale: 90,
 		density: "theme",
@@ -63,7 +70,9 @@ test("native zoom serializes changes, deduplicates successful requests and recov
 		},
 	});
 	try {
-		await Promise.all([90, 110, 125, 100, 100].map(applyInterfaceScale));
+		const requests = [90, 110, 125, 100, 100].map(applyInterfaceScale);
+		expect(requests[3]).toBe(requests[4]);
+		await Promise.all(requests);
 		expect(calls.map((call) => call.value)).toEqual([0.9, 1.1, 1.25, 1]);
 		expect(maxInFlight).toBe(1);
 		expect(
@@ -89,5 +98,42 @@ test("native zoom serializes changes, deduplicates successful requests and recov
 		if (tauriDescriptor)
 			Object.defineProperty(globalThis, "isTauri", tauriDescriptor);
 		else delete globalThis.isTauri;
+	}
+});
+
+test("density updates do not rewrite an unchanged root attribute", () => {
+	const descriptor = Object.getOwnPropertyDescriptor(globalThis, "document");
+	let attribute = null,
+		writes = 0;
+	Object.defineProperty(globalThis, "document", {
+		configurable: true,
+		value: {
+			documentElement: {
+				getAttribute: () => attribute,
+				setAttribute: (_, value) => {
+					attribute = value;
+					writes++;
+				},
+				removeAttribute: () => {
+					attribute = null;
+					writes++;
+				},
+			},
+		},
+	});
+	try {
+		for (let i = 0; i < 100; i++) applyInterfaceDensity("theme");
+		expect(writes).toBe(0);
+		for (let i = 0; i < 100; i++) applyInterfaceDensity("compact");
+		expect(writes).toBe(1);
+		applyInterfaceDensity("comfortable");
+		applyInterfaceDensity("theme");
+		applyInterfaceDensity("theme");
+		expect(writes).toBe(3);
+		expect(attribute).toBeNull();
+	} finally {
+		if (descriptor)
+			Object.defineProperty(globalThis, "document", descriptor);
+		else delete globalThis.document;
 	}
 });

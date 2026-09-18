@@ -11,18 +11,24 @@ export const DEFAULT_INTERFACE_PREFERENCES: Readonly<InterfacePreferences> =
 
 export function interfacePreferences(
 	value?: { scale?: number; density?: string } | null,
-): InterfacePreferences {
+): Readonly<InterfacePreferences> {
 	const { scale, density } = value ?? {};
-	return {
-		scale: INTERFACE_SCALES.includes(scale as InterfacePreferences["scale"])
-			? (scale as InterfacePreferences["scale"])
-			: 100,
-		density: INTERFACE_DENSITIES.includes(
-			density as InterfacePreferences["density"],
-		)
-			? (density as InterfacePreferences["density"])
-			: "theme",
-	};
+	const validScale = INTERFACE_SCALES.includes(
+		scale as InterfacePreferences["scale"],
+	);
+	const validDensity = INTERFACE_DENSITIES.includes(
+		density as InterfacePreferences["density"],
+	);
+	if (validScale && validDensity) return value as InterfacePreferences;
+	const normalizedScale = validScale
+		? (scale as InterfacePreferences["scale"])
+		: 100;
+	const normalizedDensity = validDensity
+		? (density as InterfacePreferences["density"])
+		: "theme";
+	if (normalizedScale === 100 && normalizedDensity === "theme")
+		return DEFAULT_INTERFACE_PREFERENCES;
+	return { scale: normalizedScale, density: normalizedDensity };
 }
 
 // Change only whitespace. Subtract the original gap before adding the adjusted

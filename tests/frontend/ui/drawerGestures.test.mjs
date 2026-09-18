@@ -81,6 +81,7 @@ try {
 
   for(const key of ['title_size','message_size','duration_seconds']){
    const input=document.querySelector('#notification-'+key);const before=captureCalls;
+   launcherStore.settings.notification_preferences[key]=Number(input.min);await render();
    await pointer(input,'pointerdown',start);
    await pointer(input,'pointermove',end);
    input.value=input.max;input.dispatchEvent(new Event('input',{bubbles:true}));await render();

@@ -29,28 +29,41 @@ export function observeThemeMetrics<K extends string>(
 	});
 	target.appendChild(host);
 	let disposed = false;
-	let previous: Record<K, number> | undefined;
-	const measure = () => {
-		if (disposed) return;
-		const values = {} as Record<K, number>;
-		keys.forEach((key, index) => {
-			const width = Number.parseFloat(
-				getComputedStyle(probes[index]).width,
-			);
-			const { fallback, allowZero } = metrics[key];
-			values[key] =
-				Number.isFinite(width) && (allowZero ? width >= 0 : width > 0)
-					? width
-					: fallback;
-		});
-		if (!previous || keys.some((key) => previous![key] !== values[key])) {
-			previous = values;
-			onChange(values);
-		}
+	const normalize = (key: K, width: number) => {
+		const { fallback, allowZero } = metrics[key];
+		return Number.isFinite(width) && (allowZero ? width >= 0 : width > 0)
+			? width
+			: fallback;
 	};
-	const observer = new ResizeObserver(measure);
+	let values = {} as Record<K, number>;
+	const probeKeys = new Map<Element, K>();
+	keys.forEach((key, index) => {
+		probeKeys.set(probes[index], key);
+		// One synchronous measurement on mount; subsequent sizes come directly
+		// from the observer, including rem/calc() and locally scoped theme CSS.
+		values[key] = normalize(
+			key,
+			Number.parseFloat(getComputedStyle(probes[index]).width),
+		);
+	});
+	const observer = new ResizeObserver((entries) => {
+		if (disposed) return;
+		let next: Record<K, number> | undefined;
+		for (const entry of entries) {
+			const key = probeKeys.get(entry.target);
+			if (key === undefined) continue;
+			const width = normalize(key, entry.contentRect.width);
+			if (width === values[key]) continue;
+			next ??= { ...values };
+			next[key] = width;
+		}
+		if (next) {
+			values = next;
+			onChange(next);
+		}
+	});
 	probes.forEach((probe) => observer.observe(probe));
-	measure();
+	onChange(values);
 	return () => {
 		disposed = true;
 		observer.disconnect();

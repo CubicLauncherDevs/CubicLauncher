@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { observeThemeMetrics } from "../../../src/lib/utils/themeMetrics.ts";
 
-let originals, observers, target, stop;
+let originals, observers, target, stop, styleReads;
 
 class Element {
 	children = [];
@@ -22,17 +22,30 @@ class Element {
 beforeEach(() => {
 	stop = undefined;
 	observers = [];
+	styleReads = 0;
 	target = new Element();
 	originals = new Map();
 	const globals = {
 		document: { createElement: () => new Element() },
-		getComputedStyle: (node) => ({ width: node.width }),
+		getComputedStyle: (node) => {
+			styleReads++;
+			return { width: node.width };
+		},
 		ResizeObserver: class {
 			constructor(callback) {
-				this.notify = callback;
+				this.targets = [];
+				this.notify = (targets = this.targets) =>
+					callback(
+						targets.map((target) => ({
+							target,
+							contentRect: {
+								width: Number.parseFloat(target.width),
+							},
+						})),
+					);
 				observers.push(this);
 			}
-			observe = mock();
+			observe = mock((target) => this.targets.push(target));
 			disconnect = mock();
 		},
 	};
@@ -120,4 +133,35 @@ test("unmount removes probes and ignores already queued observer callbacks", () 
 	probe.width = "200px";
 	observers[0].notify();
 	expect(changed).toHaveBeenCalledTimes(1);
+});
+
+test("100 resize deliveries reuse observed dimensions without computed-style reads", () => {
+	const snapshots = [];
+	stop = observeThemeMetrics(
+		target,
+		{
+			row: { variable: "--resource-row-height", fallback: 130 },
+			gap: {
+				variable: "--resource-row-gap",
+				fallback: 6,
+				allowZero: true,
+			},
+		},
+		(values) => snapshots.push(values),
+	);
+	const [row, gap] = target.children[0].children;
+	expect(styleReads).toBe(2);
+	for (let i = 0; i < 100; i++) {
+		row.width = `${100 + i}px`;
+		observers[0].notify([row]);
+	}
+	expect(styleReads).toBe(2);
+	expect(snapshots).toHaveLength(101);
+	expect(snapshots[0]).toEqual({ row: 52, gap: 52 });
+	expect(snapshots.at(-1)).toEqual({ row: 199, gap: 52 });
+	observers[0].notify();
+	expect(snapshots).toHaveLength(101);
+	gap.width = "0px";
+	observers[0].notify([gap]);
+	expect(snapshots.at(-1)).toEqual({ row: 199, gap: 0 });
 });

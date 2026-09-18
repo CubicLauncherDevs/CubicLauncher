@@ -61,6 +61,7 @@ import {
 	launchInstance,
 } from "./cubicApi";
 import { applyTheme } from "./themeManager";
+import { createSaveQueue } from "$lib/utils/saveQueue";
 import {
 	initDownloadState,
 	destroyDownloadState,
@@ -119,9 +120,12 @@ let _unlistenAppEvent: Promise<UnlistenFn> | null = null;
 const _debouncedGetVersions = createDebounce(getVersions, 80, 300);
 const _debouncedSyncSettings = createDebounce(syncSettings, 60, 250);
 let _localSettingsChange = false;
+let _settingsRevision = 0;
+const settingsSaveQueue = createSaveQueue(persistSettings);
 
 export function markLocalSettingsChange(): void {
 	_localSettingsChange = true;
+	_settingsRevision++;
 }
 
 export function initEventListeners(): void {
@@ -247,18 +251,33 @@ async function handleJreInstalled(
 }
 
 export async function syncSettings(): Promise<void> {
+	if (settingsSaveQueue.busy) return;
 	if (_localSettingsChange) {
 		_localSettingsChange = false;
 		return;
 	}
+	const revision = _settingsRevision;
 	const settings = await getSettings();
-	if (settings) {
+	if (settings && revision === _settingsRevision && !settingsSaveQueue.busy) {
 		Object.assign(launcherStore.settings, settings);
 	}
 }
 
-export async function saveSettings(): Promise<void> {
-	_localSettingsChange = true;
+export function saveSettings(): Promise<void> {
+	markLocalSettingsChange();
+	return settingsSaveQueue.request();
+}
+
+export function scheduleSettingsSave(): Promise<void> {
+	markLocalSettingsChange();
+	return settingsSaveQueue.request(120);
+}
+
+export function flushSettingsSaves(): Promise<void> {
+	return settingsSaveQueue.flush();
+}
+
+async function persistSettings(): Promise<void> {
 	const prev = launcherStore.settings.discord_presence;
 	await updateSettings(launcherStore.settings);
 	if (launcherStore.settings.discord_presence && !prev) {

@@ -7,6 +7,7 @@
 	} from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
 	import Select from "$lib/components/layout/Select.svelte";
+	import { patchPreferences } from "$lib/utils/preferencePatch";
 	import "./controls.css";
 	import {
 		DEFAULT_NOTIFICATION_PREFERENCES,
@@ -38,13 +39,21 @@
 		{ key: "duration_seconds", min: 3, max: 30, unit: "s" },
 	] as const;
 	let previewId: string | undefined;
+	let dirty = false;
+
+	function commit() {
+		if (!dirty) return;
+		dirty = false;
+		void onsave();
+	}
 
 	function update(patch: Partial<NotificationPreferences>, save = true) {
-		launcherStore.settings.notification_preferences = {
-			...preferences,
-			...patch,
-		};
-		if (save) void onsave();
+		const current = launcherStore.settings.notification_preferences;
+		const target = current ?? { ...preferences };
+		if (!patchPreferences(target, patch)) return;
+		if (!current) launcherStore.settings.notification_preferences = target;
+		dirty = true;
+		if (save) commit();
 	}
 
 	function preview() {
@@ -56,14 +65,16 @@
 	}
 
 	function reset() {
-		launcherStore.settings.notification_preferences = {
-			...DEFAULT_NOTIFICATION_PREFERENCES,
-		};
-		launcherStore.settings.prominent_notifications = false;
-		void onsave();
+		update(DEFAULT_NOTIFICATION_PREFERENCES, false);
+		if (launcherStore.settings.prominent_notifications) {
+			launcherStore.settings.prominent_notifications = false;
+			dirty = true;
+		}
+		commit();
 	}
 
 	onDestroy(() => {
+		commit();
 		if (previewId) removeNotification(previewId);
 	});
 </script>
@@ -93,7 +104,7 @@
 					{ [field.key]: event.currentTarget.valueAsNumber },
 					false,
 				)}
-			onchange={onsave}
+			onchange={commit}
 		/>
 	</div>
 {/snippet}

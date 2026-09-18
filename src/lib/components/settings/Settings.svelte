@@ -2,7 +2,12 @@
 	import { onMount, onDestroy } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
 	import { launcherStore } from "$lib/state/state.svelte";
-	import { saveSettings, onAppEvent } from "$lib/api/launcherService";
+	import {
+		saveSettings,
+		scheduleSettingsSave,
+		flushSettingsSaves,
+		onAppEvent,
+	} from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
 	import { t, locales, downloadLocale } from "$lib/i18n";
 	import { i18nLoader } from "$lib/i18n/loader.svelte";
@@ -38,9 +43,13 @@
 
 	let saving = $state(false);
 	let savingTimer: ReturnType<typeof setTimeout> | undefined;
+	let saveRequest = 0;
+	let destroyed = false;
 
 	onDestroy(() => {
+		destroyed = true;
 		clearTimeout(savingTimer);
+		void flushSettingsSaves();
 	});
 	let currentTab = $state("launcher");
 	let checking = $state(false);
@@ -81,13 +90,28 @@
 		}
 		jreActionStates[version] = undefined;
 	}
-	async function handleSave() {
+	async function trackSave(operation: Promise<void>) {
+		const request = ++saveRequest;
 		clearTimeout(savingTimer);
 		saving = true;
-		await saveSettings();
-		savingTimer = setTimeout(() => {
-			saving = false;
-		}, 1000);
+		try {
+			await operation;
+		} finally {
+			if (!destroyed && request === saveRequest) {
+				savingTimer = setTimeout(() => {
+					saving = false;
+				}, 1000);
+			}
+		}
+	}
+
+	function handleSave() {
+		return trackSave(saveSettings());
+	}
+
+	function handlePersonalizationSave() {
+		// Child teardown can commit a slider after the parent's onDestroy.
+		return destroyed ? saveSettings() : trackSave(scheduleSettingsSave());
 	}
 
 	let recommendedRam = $state<{
@@ -535,14 +559,14 @@
 					iconName="ui:interface"
 					storageKey="section_interface"
 				>
-					<InterfaceSettings onsave={handleSave} />
+					<InterfaceSettings onsave={handlePersonalizationSave} />
 				</CollapsibleSection>
 				<CollapsibleSection
 					title={t("settings.personalize.notificationsTitle")}
 					iconName="ui:bell"
 					storageKey="section_notifications"
 				>
-					<NotificationSettings onsave={handleSave} />
+					<NotificationSettings onsave={handlePersonalizationSave} />
 				</CollapsibleSection>
 			</div>
 		{/if}

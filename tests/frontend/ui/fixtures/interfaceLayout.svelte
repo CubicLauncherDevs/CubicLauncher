@@ -6,6 +6,7 @@
 	import VirtualList from "$lib/components/layout/VirtualList.svelte";
 	import MarketGrid from "$lib/components/market/MarketGrid.svelte";
 	import InstalledItem from "$lib/components/market/InstalledItem.svelte";
+	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { applyInterfaceDensity } from "$lib/api/interfaceAppearance";
 	import type { MarketProject } from "$lib/types/market";
@@ -88,6 +89,7 @@
 		<div class="qm-footer">CubicLauncher</div>
 	</div>
 </Drawer>
+<NotificationContainer />
 
 <style>
 	.list-host {

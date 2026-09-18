@@ -31,7 +31,11 @@
 			: "400"}
 >
 	{#each launcherStore.notifications as notification (notification.id)}
-		<NotificationToast {notification} {preferences} />
+		<NotificationToast
+			{notification}
+			{customized}
+			durationSeconds={preferences.duration_seconds}
+		/>
 	{/each}
 </div>
 

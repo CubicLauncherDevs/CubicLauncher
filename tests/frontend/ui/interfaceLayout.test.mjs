@@ -14,14 +14,14 @@ const browserPath = [
 	.map((name) => Bun.which(name))
 	.find(Boolean);
 const state = `
-export const launcherStore = $state({ settings: { reduce_animations: true,
+export const launcherStore = $state({ notifications: [], settings: { reduce_animations: true,
  interface_preferences: {scale:100,density:'theme'},
  notification_preferences: {enabled:false,position:'top-right',size:'compact',title_size:13,message_size:11,uppercase_title:false,bold_title:false,duration_seconds:5}
 }});
 export const errors=[];
 export const showError=(...args)=>errors.push(args);
 export const showInfo=()=>'';
-export const removeNotification=()=>{};
+export const removeNotification=id=>{launcherStore.notifications=launcherStore.notifications.filter(item=>item.id!==id)};
 `;
 
 test.skipIf(!browserPath)(

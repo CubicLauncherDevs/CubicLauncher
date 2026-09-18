@@ -58,40 +58,49 @@
 	let measuredHeight = $state(0);
 	let measuredGap = $state<number | undefined>();
 	const rowHeight = $derived(measuredHeight || itemHeight);
+	const gapVariable = $derived(itemGap?.variable);
+	const gapFallback = $derived(itemGap?.fallback ?? 0);
 	$effect(() => {
 		if (!container || !itemHeightVar) {
 			measuredHeight = 0;
 			measuredGap = undefined;
 			return;
 		}
-		const gap = itemGap;
+		if (!gapVariable) {
+			measuredGap = undefined;
+			return observeThemeMetrics(
+				container,
+				{
+					row: { variable: itemHeightVar, fallback: itemHeight },
+				},
+				({ row }) => {
+					measuredHeight = row;
+				},
+			);
+		}
 		return observeThemeMetrics(
 			container,
 			{
 				row: {
 					variable: itemHeightVar,
 					fallback: itemHeight,
-					expression: gap
-						? densityRowHeight(
-								itemHeightVar,
-								itemHeight,
-								gap.variable,
-								gap.fallback,
-							)
-						: undefined,
+					expression: densityRowHeight(
+						itemHeightVar,
+						itemHeight,
+						gapVariable,
+						gapFallback,
+					),
 				},
 				gap: {
-					variable: gap?.variable ?? "--virtual-list-no-gap",
-					fallback: gap?.fallback ?? 0,
+					variable: gapVariable,
+					fallback: gapFallback,
 					allowZero: true,
-					expression: gap
-						? densityGap(gap.variable, gap.fallback)
-						: "0px",
+					expression: densityGap(gapVariable, gapFallback),
 				},
 			},
 			({ row, gap: nextGap }) => {
 				measuredHeight = row;
-				measuredGap = gap ? nextGap : undefined;
+				measuredGap = nextGap;
 			},
 		);
 	});

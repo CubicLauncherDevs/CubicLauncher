@@ -8,7 +8,6 @@
 	import {
 		DEFAULT_NOTIFICATION_PREFERENCES,
 		notificationTimeout,
-		type NotificationPreferences,
 	} from "./notificationPreferences";
 
 	let dismissTimer: ReturnType<typeof setTimeout> | undefined;
@@ -23,10 +22,12 @@
 
 	let {
 		notification,
-		preferences = DEFAULT_NOTIFICATION_PREFERENCES,
+		customized = false,
+		durationSeconds = DEFAULT_NOTIFICATION_PREFERENCES.duration_seconds,
 	}: {
 		notification: Notification;
-		preferences?: Readonly<NotificationPreferences>;
+		customized?: boolean;
+		durationSeconds?: number;
 	} = $props();
 
 	const R = 14.1;
@@ -43,19 +44,14 @@
 	);
 
 	const hasProgress = $derived(typeof notification.progress === "number");
-	const customized = $derived(preferences.enabled === true);
 	const timeout = $derived(
-		notificationTimeout(
-			notification.timeout,
-			preferences.duration_seconds,
-			customized,
-		),
+		notificationTimeout(notification.timeout, durationSeconds, customized),
 	);
 	const dismissalDelay = $derived(
 		hasProgress
 			? isDone
 				? customized
-					? preferences.duration_seconds * 1000
+					? durationSeconds * 1000
 					: 1400
 				: undefined
 			: timeout,
