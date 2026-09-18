@@ -1,4 +1,5 @@
 import type { NotificationPreferences } from "$lib/components/ui/notificationPreferences";
+import type { InterfacePreferences } from "$lib/utils/interfacePreferences";
 
 export interface InstanceDto {
 	name: string;
@@ -83,6 +84,7 @@ export interface Settings {
 	market_filter_collapsed: boolean;
 	prominent_notifications: boolean;
 	notification_preferences: NotificationPreferences | null;
+	interface_preferences: InterfacePreferences;
 	reduce_animations: boolean;
 	disable_blur_effects: boolean;
 	disable_infinite_animations: boolean;

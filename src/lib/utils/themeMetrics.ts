@@ -6,7 +6,12 @@ export function observeThemeMetrics<K extends string>(
 	target: HTMLElement,
 	metrics: Record<
 		K,
-		{ variable: string; fallback: number; allowZero?: boolean }
+		{
+			variable: string;
+			fallback: number;
+			allowZero?: boolean;
+			expression?: string;
+		}
 	>,
 	onChange: (values: Record<K, number>) => void,
 ): () => void {
@@ -17,8 +22,8 @@ export function observeThemeMetrics<K extends string>(
 	const keys = Object.keys(metrics) as K[];
 	const probes = keys.map((key) => {
 		const probe = document.createElement("div");
-		const { variable, fallback } = metrics[key];
-		probe.style.cssText = `display:block;box-sizing:content-box;min-width:0;max-width:none;height:0;padding:0;border:0;margin:0;width:var(${variable}, ${fallback}px);`;
+		const { variable, fallback, expression } = metrics[key];
+		probe.style.cssText = `display:block;box-sizing:content-box;min-width:0;max-width:none;height:0;padding:0;border:0;margin:0;width:${expression ?? `var(${variable}, ${fallback}px)`};`;
 		host.appendChild(probe);
 		return probe;
 	});

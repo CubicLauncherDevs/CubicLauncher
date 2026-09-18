@@ -118,6 +118,19 @@
 			"java": "Java",
 			"personalize": "Personalize"
 		},
+		"interface": {
+			"title": "Interface",
+			"scale": "Interface scale",
+			"scaleHint": "Adjust the size of the entire window without modifying the theme. 100% preserves its original scale.",
+			"density": "Density",
+			"densityHint": "Adjust spacing between cards, content lists and settings while preserving their sizes and the theme's typography.",
+			"scaleError": "Could not apply the interface change",
+			"densities": {
+				"theme": "Theme default",
+				"compact": "Compact",
+				"comfortable": "Comfortable"
+			}
+		},
 		"personalize": {
 			"notificationsTitle": "Notifications",
 			"layoutTitle": "Position and size",

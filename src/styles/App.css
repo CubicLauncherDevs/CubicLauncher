@@ -6,6 +6,7 @@
 @import "./shared/reset.css" layer(cubic);
 @import "./shared/layout.css" layer(cubic);
 @import "./shared/components.css" layer(cubic);
+@import "./shared/interface.css" layer(cubic);
 @import "./shared/modal.css" layer(cubic);
 @import "./shared/welcome.css" layer(cubic);
 @import "./shared/perf.css" layer(cubic);

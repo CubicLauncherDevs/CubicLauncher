@@ -118,6 +118,19 @@
 			"java": "Java",
 			"personalize": "Personalizar"
 		},
+		"interface": {
+			"title": "Interfaz",
+			"scale": "Escala de interfaz",
+			"scaleHint": "Ajusta el tamaño de toda la ventana sin modificar el tema. 100 % conserva su escala original.",
+			"density": "Densidad",
+			"densityHint": "Ajusta la separación entre tarjetas, listas de contenido y opciones de ajustes, conservando sus tamaños y la tipografía del tema.",
+			"scaleError": "No se pudo aplicar el cambio de interfaz",
+			"densities": {
+				"theme": "Predeterminada del tema",
+				"compact": "Compacta",
+				"comfortable": "Cómoda"
+			}
+		},
 		"personalize": {
 			"notificationsTitle": "Notificaciones",
 			"layoutTitle": "Ubicación y tamaño",

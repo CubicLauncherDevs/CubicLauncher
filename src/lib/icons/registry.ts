@@ -1,5 +1,6 @@
 export const ICON_REGISTRY: Record<string, string> = {
 	"ui:bell": "/images/icons/ui/bell.svg",
+	"ui:interface": "/images/icons/ui/interface.svg",
 	"ui:check": "/images/icons/ui/check.svg",
 	"ui:check-circle": "/images/icons/ui/check-circle.svg",
 	"ui:chevron-down": "/images/icons/ui/chevron-down.svg",

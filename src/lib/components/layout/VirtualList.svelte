@@ -2,11 +2,16 @@
 	import { onMount, onDestroy, untrack } from "svelte";
 	import type { Snippet } from "svelte";
 	import { observeThemeMetrics } from "$lib/utils/themeMetrics";
+	import {
+		densityGap,
+		densityRowHeight,
+	} from "$lib/utils/interfacePreferences";
 
 	interface Props {
 		items: T[];
 		itemHeight: number;
 		itemHeightVar?: string;
+		itemGap?: { variable: string; fallback: number };
 		children: Snippet<[T, number]>;
 		class?: string;
 		padding?: number;
@@ -23,6 +28,7 @@
 		items,
 		itemHeight,
 		itemHeightVar,
+		itemGap,
 		children,
 		class: className = "",
 		padding = 20,
@@ -50,19 +56,42 @@
 	});
 
 	let measuredHeight = $state(0);
+	let measuredGap = $state<number | undefined>();
 	const rowHeight = $derived(measuredHeight || itemHeight);
 	$effect(() => {
 		if (!container || !itemHeightVar) {
 			measuredHeight = 0;
+			measuredGap = undefined;
 			return;
 		}
+		const gap = itemGap;
 		return observeThemeMetrics(
 			container,
 			{
-				row: { variable: itemHeightVar, fallback: itemHeight },
+				row: {
+					variable: itemHeightVar,
+					fallback: itemHeight,
+					expression: gap
+						? densityRowHeight(
+								itemHeightVar,
+								itemHeight,
+								gap.variable,
+								gap.fallback,
+							)
+						: undefined,
+				},
+				gap: {
+					variable: gap?.variable ?? "--virtual-list-no-gap",
+					fallback: gap?.fallback ?? 0,
+					allowZero: true,
+					expression: gap
+						? densityGap(gap.variable, gap.fallback)
+						: "0px",
+				},
 			},
-			({ row }) => {
+			({ row, gap: nextGap }) => {
 				measuredHeight = row;
+				measuredGap = gap ? nextGap : undefined;
 			},
 		);
 	});
@@ -144,6 +173,9 @@
 			{@const index = startIndex + idx}
 			<div
 				class="virtual-list-item-wrapper"
+				style:--virtual-row-gap={measuredGap === undefined
+					? null
+					: `${measuredGap}px`}
 				style="position: absolute; transform: translateY({index *
 					rowHeight}px); left: 0; width: 100%; height: {rowHeight}px; --virtual-row-height: {rowHeight}px;"
 			>

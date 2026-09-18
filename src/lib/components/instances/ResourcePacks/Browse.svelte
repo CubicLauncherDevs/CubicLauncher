@@ -351,6 +351,7 @@
 					items={allHits}
 					itemHeight={130}
 					itemHeightVar="--resource-row-height"
+					itemGap={{ variable: "--resource-row-gap", fallback: 6 }}
 					onNearEnd={handleNearEnd}
 					keyFn={(project) => project.project_id}
 				>
@@ -705,8 +706,8 @@
 		border-radius: var(--border-radius-sm);
 		cursor: pointer;
 		transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-		height: calc(100% - var(--resource-row-gap));
-		margin: calc(var(--resource-row-gap) / 2) 0;
+		height: calc(100% - var(--virtual-row-gap, var(--resource-row-gap)));
+		margin: calc(var(--virtual-row-gap, var(--resource-row-gap)) / 2) 0;
 		box-sizing: border-box;
 
 		&:hover {

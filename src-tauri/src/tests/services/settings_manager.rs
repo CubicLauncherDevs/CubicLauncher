@@ -1,5 +1,61 @@
 use super::*;
 
+#[test]
+fn interface_preferences_keep_legacy_theme_and_roundtrip_all_options() {
+    let mut legacy: SettingsManager = serde_json::from_value(serde_json::json!({
+        "theme": "user:custom-layout"
+    }))
+    .unwrap();
+    legacy.migrate();
+    assert_eq!(
+        legacy.interface_preferences,
+        InterfacePreferences::default()
+    );
+    assert_eq!(legacy.theme, "user:custom-layout");
+
+    for scale in [90, 100, 110, 125] {
+        for density in ["theme", "compact", "comfortable"] {
+            let mut settings: SettingsManager = serde_json::from_value(serde_json::json!({
+                "theme": "user:custom-layout",
+                "interface_preferences": { "scale": scale, "density": density }
+            }))
+            .unwrap();
+            settings.migrate();
+            let json = serde_json::to_value(&settings).unwrap();
+            assert_eq!(json["interface_preferences"]["scale"], scale);
+            assert_eq!(json["interface_preferences"]["density"], density);
+            let mut reloaded: SettingsManager = serde_json::from_value(json).unwrap();
+            reloaded.migrate();
+            assert_eq!(
+                reloaded.interface_preferences,
+                settings.interface_preferences
+            );
+            assert_eq!(reloaded.theme, "user:custom-layout");
+        }
+    }
+}
+
+#[test]
+fn interface_preferences_recover_invalid_scales_and_missing_fields() {
+    for scale in [0, 1, 99, 126, u32::MAX] {
+        let mut settings: SettingsManager = serde_json::from_value(serde_json::json!({
+            "interface_preferences": { "scale": scale, "density": "unknown" }
+        }))
+        .unwrap();
+        settings.migrate();
+        assert_eq!(
+            settings.interface_preferences,
+            InterfacePreferences::default()
+        );
+        assert!(settings.dirty);
+    }
+    let partial: SettingsManager = serde_json::from_value(serde_json::json!({
+        "interface_preferences": { "density": "compact" }
+    }))
+    .unwrap();
+    assert_eq!(partial.interface_preferences.scale, 100);
+}
+
 /// `SettingsManager::default()` debe inicializar todos los campos con
 /// los valores por defecto definidos en las funciones `default_*`.
 /// Verifica: username, min_memory, max_memory, language, auto_updates,

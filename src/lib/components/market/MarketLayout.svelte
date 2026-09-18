@@ -118,6 +118,10 @@
 						resetKey={resultsRevision}
 						itemHeight={84}
 						itemHeightVar="--market-installed-row-height"
+						itemGap={{
+							variable: "--market-installed-row-gap",
+							fallback: 6,
+						}}
 						padding={8}
 						hideScrollbar={false}
 						keyFn={(item) => item.id}

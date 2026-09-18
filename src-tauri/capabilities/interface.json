@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "interface-appearance",
+  "description": "Apply the selected interface scale to launcher and log windows",
+  "windows": ["main", "log-*"],
+  "permissions": ["core:webview:allow-set-webview-zoom"]
+}

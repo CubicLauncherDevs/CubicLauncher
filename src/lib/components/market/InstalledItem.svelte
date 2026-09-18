@@ -155,7 +155,7 @@
 		grid-template-columns: auto minmax(0, 1fr) auto;
 		grid-template-rows: 1fr;
 		align-items: center;
-		height: calc(100% - 6px);
+		height: calc(100% - var(--virtual-row-gap, 6px));
 		padding: 8px 12px;
 	}
 	input {

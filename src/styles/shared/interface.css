@@ -1,0 +1,8 @@
+/* Separate preference tokens: the active theme's variables remain untouched. */
+html[data-interface-density="compact"] {
+	--cubic-interface-gap-factor: 0.5;
+}
+
+html[data-interface-density="comfortable"] {
+	--cubic-interface-gap-factor: 1.5;
+}

@@ -131,6 +131,29 @@ La prueba de integración de OptiFine descarga los clientes y los instaladores o
 cargo test -p aqua optifine_official_install_smoke -- --ignored --nocapture
 ```
 
+### Personalizar la interfaz
+
+```bash
+cargo test -p cubiclauncher --lib services::settings_manager
+bun test --conditions=browser ./tests/frontend/ui/interfacePreferences.test.mjs ./tests/frontend/ui/interfaceLayout.test.mjs
+```
+
+La regresión de interfaz monta los controles, el Drawer, las listas virtualizadas
+y los menús reales en Chrome, Chromium o Firefox. Recorre los cinco temas incluidos
+y un tema con variables en `rem`/`calc()` y `Inject.css`, con cuatro escalas y tres
+densidades. Simula el viewport CSS resultante del zoom nativo en una ventana de
+800 × 600; el zoom nativo se verifica por separado mediante su llamada IPC.
+Comprueba la conservación de estilos del tema y altura de las tarjetas, los
+espacios entre filas, menús dentro del viewport, cambios de tema en vivo, el final
+de las listas, recuperación de un fallo de zoom y restablecimiento.
+
+- [ ] En Tauri, abrir Personalizar → Interfaz y probar 90 %, 100 %, 110 % y 125 %
+  con la ventana en su tamaño mínimo. Comprobar clics, menús, scroll y paneles.
+- [ ] Cambiar entre densidad del tema, compacta y cómoda con listas largas abiertas.
+  Cambiar el tema, incluyendo uno importado con fuentes y CSS propios.
+- [ ] Reiniciar y abrir una ventana de logs: la escala elegida debe conservarse.
+- [ ] Restablecer valores: recuperar 100 % y el espaciado original del tema.
+
 ### Personalizar las notificaciones
 
 ```bash

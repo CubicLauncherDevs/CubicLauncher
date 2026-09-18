@@ -27,6 +27,7 @@
 	import JreCard from "./JreCard.svelte";
 	import EnvVarEditor from "./EnvVarEditor.svelte";
 	import NotificationSettings from "./NotificationSettings.svelte";
+	import InterfaceSettings from "./InterfaceSettings.svelte";
 	import "./controls.css";
 
 	interface Props {
@@ -530,6 +531,13 @@
 		{#if currentTab === "personalize"}
 			<div class="section-group">
 				<CollapsibleSection
+					title={t("settings.interface.title")}
+					iconName="ui:interface"
+					storageKey="section_interface"
+				>
+					<InterfaceSettings onsave={handleSave} />
+				</CollapsibleSection>
+				<CollapsibleSection
 					title={t("settings.personalize.notificationsTitle")}
 					iconName="ui:bell"
 					storageKey="section_notifications"
@@ -903,7 +911,7 @@
 	.section-group {
 		border: 1px solid var(--border-color);
 		overflow: hidden;
-		margin-bottom: 16px;
+		margin-bottom: calc(16px * var(--cubic-interface-gap-factor, 1));
 	}
 
 	.section-group :global(.cs-root) {
@@ -916,7 +924,7 @@
 	}
 
 	.qm-field {
-		margin-bottom: 15px;
+		margin-bottom: calc(15px * var(--cubic-interface-gap-factor, 1));
 	}
 
 	.qm-field label {

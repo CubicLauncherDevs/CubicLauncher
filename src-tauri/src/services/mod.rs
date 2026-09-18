@@ -7,6 +7,7 @@ pub(crate) mod download_queue;
 pub mod instance_export;
 pub mod instance_import;
 mod instance_manager;
+pub(crate) mod interface_preferences;
 pub(crate) mod java_manager;
 pub(crate) mod launch_window;
 pub(crate) mod launcher;

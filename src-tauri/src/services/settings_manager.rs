@@ -1,3 +1,4 @@
+use super::interface_preferences::InterfacePreferences;
 use super::notification_preferences::NotificationPreferences;
 use crate::core::{AppError, CoreError, FsError, PathManager, emit};
 use compact_str::CompactString;
@@ -135,6 +136,8 @@ pub struct SettingsManager {
     #[serde(default)]
     pub notification_preferences: Option<NotificationPreferences>,
     #[serde(default)]
+    pub interface_preferences: InterfacePreferences,
+    #[serde(default)]
     pub reduce_animations: bool,
     #[serde(default)]
     pub disable_blur_effects: bool,
@@ -221,6 +224,7 @@ impl Default for SettingsManager {
             market_filter_collapsed: true,
             prominent_notifications: false,
             notification_preferences: Some(NotificationPreferences::default()),
+            interface_preferences: InterfacePreferences::default(),
             reduce_animations: false,
             disable_blur_effects: false,
             disable_infinite_animations: false,
@@ -429,6 +433,11 @@ impl SettingsManager {
     /// Migraciones de versiones anteriores del formato.
     fn migrate(&mut self) {
         self.normalize_notification_preferences();
+        let previous_scale = self.interface_preferences.scale;
+        self.interface_preferences.normalize();
+        if self.interface_preferences.scale != previous_scale {
+            self.dirty = true;
+        }
         // v1 → v2: memoria en MB a GB
         if self.min_memory > 128 {
             self.min_memory = (self.min_memory / 1024).max(1);

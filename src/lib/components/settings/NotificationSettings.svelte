@@ -238,7 +238,7 @@
 		opacity: var(--disabled-opacity, 0.5);
 	}
 	.option-group {
-		padding: 14px 0;
+		padding: calc(14px * var(--cubic-interface-gap-factor, 1)) 0;
 		border-top: 1px solid var(--border-color);
 	}
 	h3 {
@@ -252,7 +252,7 @@
 	.option-grid {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 14px;
+		gap: calc(14px * var(--cubic-interface-gap-factor, 1));
 	}
 	.option-grid :global(.custom-select-container) {
 		min-width: 0;

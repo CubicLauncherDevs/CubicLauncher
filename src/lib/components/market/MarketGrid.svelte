@@ -3,6 +3,10 @@
 	import type { MarketProject } from "$lib/types/market";
 	import MarketSkeleton from "./MarketSkeleton.svelte";
 	import { observeThemeMetrics } from "$lib/utils/themeMetrics";
+	import {
+		densityGap,
+		densityRowHeight,
+	} from "$lib/utils/interfacePreferences";
 
 	let {
 		count,
@@ -80,11 +84,21 @@
 		const stopMetrics = observeThemeMetrics(
 			container,
 			{
-				row: { variable: "--market-row-height", fallback: 224 },
+				row: {
+					variable: "--market-row-height",
+					fallback: 224,
+					expression: densityRowHeight(
+						"--market-row-height",
+						224,
+						"--market-grid-gap",
+						12,
+					),
+				},
 				gap: {
 					variable: "--market-grid-gap",
 					fallback: 12,
 					allowZero: true,
+					expression: densityGap("--market-grid-gap", 12),
 				},
 				card: { variable: "--market-card-min-width", fallback: 280 },
 				padding: {

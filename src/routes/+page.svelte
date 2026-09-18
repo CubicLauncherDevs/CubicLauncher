@@ -34,6 +34,11 @@
 	import ProfileView from "$lib/components/profiles/ProfileView.svelte";
 	import { loadInstalledVersions } from "$lib/state/versionsState.svelte";
 	import { animDuration } from "$lib/utils/animations";
+	import {
+		applyInterfaceScale,
+		applyInterfaceDensity,
+	} from "$lib/api/interfaceAppearance";
+	import { interfacePreferences } from "$lib/utils/interfacePreferences";
 
 	const logParams = $derived.by(() => {
 		if (typeof window === "undefined") return null;
@@ -70,6 +75,20 @@
 	}> | null>(null);
 
 	const sidebarTransitionDuration = $derived(animDuration(0.35, 0.05));
+	const appearance = $derived(
+		interfacePreferences(launcherStore.settings.interface_preferences),
+	);
+
+	$effect(() => {
+		void applyInterfaceScale(appearance.scale).catch((error) => {
+			showError(t("settings.interface.scaleError"), String(error));
+		});
+	});
+
+	$effect(() => {
+		applyInterfaceDensity(appearance.density);
+		return () => applyInterfaceDensity("theme");
+	});
 
 	$effect(() => {
 		if (typeof document === "undefined") return;
