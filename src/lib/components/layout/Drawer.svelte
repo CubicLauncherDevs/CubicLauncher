@@ -48,6 +48,7 @@
 	}
 
 	$effect(() => {
+		releaseDrag();
 		if (open) {
 			dismissed = false;
 			transitionStyle = "none";
@@ -75,43 +76,69 @@
 		Math.max(0, 1 - Math.abs(translatePct) / 100),
 	);
 
-	let isDragging = false;
+	let dragPointer: number | null = null;
 	let dragStart = 0;
+	let dragSize = 0;
 	let drawerEl: HTMLDivElement = $state() as HTMLDivElement;
 
+	// Let controls own their pointer interaction, including native range dragging.
+	const interactiveSelector = [
+		"input",
+		"select",
+		"textarea",
+		"button",
+		"a",
+		"label",
+		'[contenteditable]:not([contenteditable="false"])',
+		'[role="slider"]',
+		'[role="spinbutton"]',
+		'[role="combobox"]',
+		'[role="listbox"]',
+		'[role="button"]',
+		'[role="textbox"]',
+		"[data-drawer-no-drag]",
+	].join(",");
+
 	function onPointerDown(e: PointerEvent) {
-		if (!dismissible) return;
-		isDragging = true;
+		if (
+			!open ||
+			!dismissible ||
+			!e.isPrimary ||
+			e.button !== 0 ||
+			dragPointer !== null
+		)
+			return;
+		if (
+			e.target instanceof Element &&
+			e.target.closest(interactiveSelector)
+		)
+			return;
+		const rect = drawerEl.getBoundingClientRect();
+		dragSize = isVertical ? rect.height : rect.width;
+		if (dragSize <= 0) return;
+		drawerEl.setPointerCapture(e.pointerId);
+		dragPointer = e.pointerId;
 		dragStart = isVertical ? e.clientY : e.clientX;
 		transitionStyle = "none";
-		(e.target as HTMLElement).setPointerCapture(e.pointerId);
 	}
 
 	function onPointerMove(e: PointerEvent) {
-		if (!isDragging) return;
+		if (e.pointerId !== dragPointer) return;
 		const current = isVertical ? e.clientY : e.clientX;
 		const delta = current - dragStart;
 		const sign = direction === "bottom" || direction === "right" ? 1 : -1;
 		const dragged = delta * sign;
-		const size = isVertical
-			? drawerEl.getBoundingClientRect().height
-			: drawerEl.getBoundingClientRect().width;
-
-		translatePct = Math.max(0, (dragged / size) * 100);
+		translatePct = Math.max(0, (dragged / dragSize) * 100);
 	}
 
 	function onPointerUp(e: PointerEvent) {
-		if (!isDragging) return;
-		isDragging = false;
+		if (e.pointerId !== dragPointer) return;
+		releaseDrag();
 
 		const current = isVertical ? e.clientY : e.clientX;
 		const delta = current - dragStart;
 		const sign = direction === "bottom" || direction === "right" ? 1 : -1;
-		const size = isVertical
-			? drawerEl.getBoundingClientRect().height
-			: drawerEl.getBoundingClientRect().width;
-
-		if ((delta * sign) / size > closeThreshold) {
+		if ((delta * sign) / dragSize > closeThreshold) {
 			close();
 		} else {
 			transitionStyle = transformTransition(openDuration);
@@ -119,14 +146,42 @@
 		}
 	}
 
+	function releaseDrag() {
+		const pointer = dragPointer;
+		dragPointer = null;
+		if (pointer !== null && drawerEl?.hasPointerCapture(pointer)) {
+			drawerEl.releasePointerCapture(pointer);
+		}
+	}
+
+	function onPointerCancel(e: PointerEvent) {
+		if (e.pointerId !== dragPointer) return;
+		releaseDrag();
+		if (open) {
+			transitionStyle = transformTransition(openDuration);
+			translatePct = 0;
+		}
+	}
+
+	function onLostPointerCapture(e: PointerEvent) {
+		// A child's implicit touch capture can be released when the Drawer takes
+		// ownership. Only losing the Drawer's own capture cancels its gesture.
+		if (e.target === drawerEl) onPointerCancel(e);
+	}
+
 	function onTransitionEnd(e: TransitionEvent) {
-		if (e.propertyName === "transform" && !open) {
+		if (
+			e.target === e.currentTarget &&
+			e.propertyName === "transform" &&
+			!open
+		) {
 			dismissed = true;
 		}
 	}
 
 	function close() {
 		if (!dismissible) return;
+		releaseDrag();
 		open = false;
 		onclose?.();
 	}
@@ -137,6 +192,7 @@
 
 	onMount(() => window.addEventListener("keydown", onKeydown));
 	onDestroy(() => {
+		releaseDrag();
 		window.removeEventListener("keydown", onKeydown);
 	});
 </script>
@@ -159,7 +215,8 @@
 		onpointerdown={onPointerDown}
 		onpointermove={onPointerMove}
 		onpointerup={onPointerUp}
-		onpointercancel={onPointerUp}
+		onpointercancel={onPointerCancel}
+		onlostpointercapture={onLostPointerCapture}
 		ontransitionend={onTransitionEnd}
 	>
 		{@render children?.()}

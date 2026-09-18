@@ -1,3 +1,4 @@
+use super::notification_preferences::NotificationPreferences;
 use crate::core::{AppError, CoreError, FsError, PathManager, emit};
 use compact_str::CompactString;
 use launchwerk::auth::MinecraftUser;
@@ -130,6 +131,9 @@ pub struct SettingsManager {
     pub market_filter_collapsed: bool,
     #[serde(default)]
     pub prominent_notifications: bool,
+    // None distinguishes legacy settings from explicitly customized preferences.
+    #[serde(default)]
+    pub notification_preferences: Option<NotificationPreferences>,
     #[serde(default)]
     pub reduce_animations: bool,
     #[serde(default)]
@@ -216,6 +220,7 @@ impl Default for SettingsManager {
             license_accepted: false,
             market_filter_collapsed: true,
             prominent_notifications: false,
+            notification_preferences: Some(NotificationPreferences::default()),
             reduce_animations: false,
             disable_blur_effects: false,
             disable_infinite_animations: false,
@@ -423,6 +428,7 @@ impl SettingsManager {
 
     /// Migraciones de versiones anteriores del formato.
     fn migrate(&mut self) {
+        self.normalize_notification_preferences();
         // v1 → v2: memoria en MB a GB
         if self.min_memory > 128 {
             self.min_memory = (self.min_memory / 1024).max(1);
@@ -445,6 +451,18 @@ impl SettingsManager {
         let sanitized = self.console_history_limit.clamp(100, 5000);
         if sanitized != self.console_history_limit {
             self.console_history_limit = sanitized;
+            self.dirty = true;
+        }
+    }
+
+    pub(crate) fn normalize_notification_preferences(&mut self) {
+        let mut preferences = self
+            .notification_preferences
+            .clone()
+            .unwrap_or_else(|| NotificationPreferences::from_legacy(self.prominent_notifications));
+        preferences.normalize();
+        if self.notification_preferences.as_ref() != Some(&preferences) {
+            self.notification_preferences = Some(preferences);
             self.dirty = true;
         }
     }

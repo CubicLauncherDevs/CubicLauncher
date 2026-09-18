@@ -115,7 +115,38 @@
 		"tabs": {
 			"launcher": "Launcher",
 			"minecraft": "Minecraft",
-			"java": "Java"
+			"java": "Java",
+			"personalize": "Personalizar"
+		},
+		"personalize": {
+			"notificationsTitle": "Notificaciones",
+			"layoutTitle": "Ubicación y tamaño",
+			"textTitle": "Texto",
+			"behaviorTitle": "Comportamiento",
+			"enabled": "Personalizar notificaciones",
+			"enabledHint": "Activa estas opciones para cambiar los avisos. Al desactivarlas, vuelven las notificaciones clásicas y se conservan tus ajustes.",
+			"position": "Posición",
+			"size": "Tamaño del cuadro",
+			"title_size": "Tamaño del título",
+			"message_size": "Tamaño del mensaje",
+			"duration_seconds": "Duración",
+			"durationHint": "Se aplica a los avisos temporales. Las descargas permanecen visibles hasta terminar.",
+			"uppercase_title": "Título en mayúsculas",
+			"bold_title": "Título en negrita",
+			"reset": "Restablecer valores",
+			"positions": {
+				"top-left": "Arriba a la izquierda",
+				"top-center": "Arriba en el centro",
+				"top-right": "Arriba a la derecha",
+				"bottom-left": "Abajo a la izquierda",
+				"bottom-center": "Abajo en el centro",
+				"bottom-right": "Abajo a la derecha"
+			},
+			"sizes": {
+				"compact": "Compacto",
+				"normal": "Normal",
+				"wide": "Amplio"
+			}
 		},
 		"launcher": {
 			"generalTitle": "General",
@@ -125,10 +156,10 @@
 			"hideOnLaunch": "Ocultar el launcher al jugar",
 			"openConsoleOnLaunch": "Abrir la consola al iniciar instancias",
 			"prominentNotifications": "Notificaciones destacadas",
-			"prominentNotificationsHint": "Muestra avisos más grandes arriba y centrados, durante al menos 8 segundos. Haz clic en un aviso para cerrarlo.",
+			"prominentNotificationsHint": "Avisos grandes y centrados, con títulos en mayúsculas y mensajes fáciles de leer. Duran al menos 8 segundos; haz clic para cerrarlos.",
 			"testNotification": "Probar notificación",
-			"testNotificationTitle": "Así se verán tus notificaciones",
-			"testNotificationMessage": "Este es un aviso de prueba. Puedes cambiar su presentación con la opción Notificaciones destacadas.",
+			"testNotificationTitle": "Así se ven tus avisos",
+			"testNotificationMessage": "Este es un mensaje de prueba. Puedes ajustar la posición, el tamaño y el título desde Personalizar.",
 			"updatesTitle": "Actualizaciones",
 			"currentVersion": "Versión Actual",
 			"available": "Actualización Disponible",

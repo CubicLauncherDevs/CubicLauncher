@@ -162,3 +162,137 @@ fn test_migrate_clamps_console_history_limit() {
     assert_eq!(s.console_history_limit, 100);
     assert!(s.dirty);
 }
+
+#[test]
+fn notification_preferences_migrate_legacy_modes_only_once() {
+    use crate::services::notification_preferences::{NotificationPosition, NotificationSize};
+    for prominent in [false, true] {
+        let mut settings: SettingsManager = serde_json::from_value(serde_json::json!({
+            "prominent_notifications": prominent,
+        }))
+        .unwrap();
+        assert!(settings.notification_preferences.is_none());
+        settings.normalize_notification_preferences();
+        let prefs = settings.notification_preferences.as_mut().unwrap();
+        assert!(!prefs.enabled);
+        assert_eq!(
+            prefs.position,
+            if prominent {
+                NotificationPosition::TopCenter
+            } else {
+                NotificationPosition::TopRight
+            }
+        );
+        assert_eq!(
+            prefs.size,
+            if prominent {
+                NotificationSize::Wide
+            } else {
+                NotificationSize::Compact
+            }
+        );
+        assert_eq!(prefs.uppercase_title, prominent);
+        assert_eq!(prefs.duration_seconds, if prominent { 8 } else { 5 });
+        prefs.position = NotificationPosition::BottomLeft;
+        prefs.uppercase_title = false;
+        let json = serde_json::to_vec(&settings).unwrap();
+        let mut reloaded: SettingsManager = serde_json::from_slice(&json).unwrap();
+        reloaded.normalize_notification_preferences();
+        assert_eq!(
+            reloaded.notification_preferences,
+            settings.notification_preferences
+        );
+        assert!(!reloaded.dirty);
+    }
+}
+
+#[test]
+fn notification_preferences_preserve_independent_controls_and_all_positions() {
+    for position in [
+        "top-left",
+        "top-center",
+        "top-right",
+        "bottom-left",
+        "bottom-center",
+        "bottom-right",
+    ] {
+        for size in ["compact", "normal", "wide"] {
+            let json = serde_json::json!({
+                "prominent_notifications": true,
+                "notification_preferences": {
+                    "enabled": true,
+                    "position": position, "size": size,
+                    "title_size": 24, "message_size": 11,
+                    "uppercase_title": false, "bold_title": true,
+                    "duration_seconds": 30,
+                },
+            });
+            let mut settings: SettingsManager = serde_json::from_value(json.clone()).unwrap();
+            settings.normalize_notification_preferences();
+            let saved = serde_json::to_value(&settings).unwrap();
+            assert_eq!(
+                saved["notification_preferences"],
+                json["notification_preferences"]
+            );
+            let mut reloaded: SettingsManager = serde_json::from_value(saved).unwrap();
+            reloaded.migrate();
+            assert_eq!(
+                reloaded.notification_preferences,
+                settings.notification_preferences
+            );
+        }
+    }
+}
+
+#[test]
+fn notification_preferences_bound_numeric_values_and_default_missing_fields() {
+    let mut settings: SettingsManager = serde_json::from_value(serde_json::json!({
+        "notification_preferences": {
+            "position": "unknown", "size": "unknown",
+            "title_size": 0, "message_size": 999, "duration_seconds": 0,
+        },
+    }))
+    .unwrap();
+    settings.normalize_notification_preferences();
+    let prefs = settings.notification_preferences.as_ref().unwrap();
+    assert_eq!(prefs.title_size, 12);
+    assert_eq!(prefs.message_size, 22);
+    assert_eq!(prefs.duration_seconds, 3);
+    assert!(!prefs.uppercase_title);
+    assert!(!prefs.bold_title);
+    assert!(!prefs.enabled);
+    let prefs_json = serde_json::to_value(prefs).unwrap();
+    assert_eq!(prefs_json["position"], "top-right");
+    assert_eq!(prefs_json["size"], "compact");
+    assert!(settings.dirty);
+}
+
+#[test]
+fn notification_customization_requires_opt_in_and_preserves_disabled_preferences() {
+    let mut settings: SettingsManager = serde_json::from_value(serde_json::json!({
+        "notification_preferences": {
+            "position": "bottom-left", "title_size": 24, "duration_seconds": 30,
+        }
+    }))
+    .unwrap();
+    settings.normalize_notification_preferences();
+    let prefs = settings.notification_preferences.as_mut().unwrap();
+    assert!(!prefs.enabled);
+    prefs.enabled = true;
+    let saved = serde_json::to_vec(&settings).unwrap();
+    let mut loaded: SettingsManager = serde_json::from_slice(&saved).unwrap();
+    loaded.normalize_notification_preferences();
+    assert!(loaded.notification_preferences.as_ref().unwrap().enabled);
+    loaded.notification_preferences.as_mut().unwrap().enabled = false;
+    let saved = serde_json::to_vec(&loaded).unwrap();
+    let mut loaded: SettingsManager = serde_json::from_slice(&saved).unwrap();
+    loaded.normalize_notification_preferences();
+    let prefs = loaded.notification_preferences.unwrap();
+    assert!(!prefs.enabled);
+    assert_eq!(prefs.title_size, 24);
+    assert_eq!(prefs.duration_seconds, 30);
+    assert_eq!(
+        serde_json::to_value(prefs).unwrap()["position"],
+        "bottom-left"
+    );
+}

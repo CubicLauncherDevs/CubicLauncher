@@ -8,6 +8,7 @@ import type {
 } from "../types/types";
 import { DEFAULT_CONSOLE_HISTORY_LIMIT } from "$lib/components/log/logHelpers";
 import { t } from "$lib/i18n";
+import { DEFAULT_NOTIFICATION_PREFERENCES } from "$lib/components/ui/notificationPreferences";
 
 export interface PendingUpdate {
 	version: string;
@@ -68,6 +69,7 @@ export const launcherStore = $state<LauncherState>({
 		license_accepted: false,
 		market_filter_collapsed: true,
 		prominent_notifications: false,
+		notification_preferences: { ...DEFAULT_NOTIFICATION_PREFERENCES },
 		reduce_animations: false,
 		disable_blur_effects: false,
 		disable_infinite_animations: false,

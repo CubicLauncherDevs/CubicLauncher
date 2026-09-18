@@ -131,6 +131,44 @@ La prueba de integración de OptiFine descarga los clientes y los instaladores o
 cargo test -p aqua optifine_official_install_smoke -- --ignored --nocapture
 ```
 
+### Personalizar las notificaciones
+
+```bash
+cargo test -p cubiclauncher --lib services::settings_manager
+bun test --conditions=browser ./tests/frontend/ui/notificationPreferences.test.mjs
+bun test --conditions=browser ./tests/frontend/ui/drawerGestures.test.mjs
+```
+
+La regresión de gestos monta los controles reales dentro del Drawer y usa Chrome,
+Chromium o Firefox en modo headless (se omite si no encuentra ninguno). Comprueba
+los cuatro sentidos del panel, exclusión de controles, guardado de deslizadores,
+cancelación y pérdida de captura, y cierre desde una zona libre.
+
+- [ ] Comprobar el orden Launcher → Minecraft → Personalizar → Java y abrir
+  Personalizar → Notificaciones.
+- [ ] Sin activar «Personalizar notificaciones», comprobar el formato clásico:
+  esquina superior derecha, ancho según el contenido y tiempos originales de
+  cada aviso. Los controles personalizados deben estar deshabilitados.
+- [ ] Activar la casilla, cambiar opciones y desactivarla: el formato clásico
+  regresa y las preferencias se recuperan al volver a activarla.
+- [ ] Elegir las seis posiciones y los tres tamaños de cuadro. Usar «Probar
+  notificación» y comprobar que no se sale de la ventana, incluso con textos largos.
+- [ ] Cambiar el tamaño del título (12–24), el mensaje (11–22), mayúsculas y
+  negrita por separado. El mensaje debe conservar la escritura original.
+- [ ] Arrastrar los deslizadores: el aviso cambia en vivo y el guardado ocurre al
+  soltar. El panel no debe moverse ni cerrarse. Comprobar también que arrastrar una
+  zona libre sigue cerrándolo y que cancelar el gesto lo devuelve a su posición.
+  Reiniciar el launcher y comprobar que las preferencias se conservan.
+- [ ] Elegir una duración entre 3 y 30 segundos. Los avisos persistentes y las
+  descargas en curso no deben desaparecer; las completadas usan la duración elegida.
+- [ ] Cambiar posición o tipografía con un aviso activo: su temporizador no debe
+  reiniciarse. Probar también con reducción de animaciones.
+- [ ] Repetir la prueba y cerrar el apartado: no deben acumularse avisos de prueba,
+  estilos de cuenta atrás ni temporizadores después de desmontarlos.
+- [ ] Restablecer valores y comprobar que se desactiva la personalización.
+  Cargar una configuración anterior con notificaciones destacadas: las opciones
+  se conservan como formato amplio centrado, pero requieren activación explícita.
+
 ### Cierre del launcher durante el juego
 
 ```bash

@@ -31,6 +31,7 @@ pub async fn update_settings(mut new_settings: SettingsManager) -> Result<(), St
         );
     }
     new_settings.console_history_limit = new_settings.console_history_limit.clamp(100, 5000);
+    new_settings.normalize_notification_preferences();
     SettingsManager::write(|s| {
         for new_user in &mut new_settings.user {
             let _ = new_user.load_tokens();

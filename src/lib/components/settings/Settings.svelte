@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
-	import {
-		launcherStore,
-		showInfo,
-		removeNotification,
-	} from "$lib/state/state.svelte";
+	import { launcherStore } from "$lib/state/state.svelte";
 	import { saveSettings, onAppEvent } from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
 	import { t, locales, downloadLocale } from "$lib/i18n";
@@ -30,6 +26,8 @@
 	import CollapsibleSection from "./CollapsibleSection.svelte";
 	import JreCard from "./JreCard.svelte";
 	import EnvVarEditor from "./EnvVarEditor.svelte";
+	import NotificationSettings from "./NotificationSettings.svelte";
+	import "./controls.css";
 
 	interface Props {
 		onclose?: () => void;
@@ -39,15 +37,6 @@
 
 	let saving = $state(false);
 	let savingTimer: ReturnType<typeof setTimeout> | undefined;
-	let previewNotificationId: string | undefined;
-
-	function previewNotification() {
-		if (previewNotificationId) removeNotification(previewNotificationId);
-		previewNotificationId = showInfo(
-			t("settings.launcher.testNotificationTitle"),
-			t("settings.launcher.testNotificationMessage"),
-		);
-	}
 
 	onDestroy(() => {
 		clearTimeout(savingTimer);
@@ -92,6 +81,7 @@
 		jreActionStates[version] = undefined;
 	}
 	async function handleSave() {
+		clearTimeout(savingTimer);
 		saving = true;
 		await saveSettings();
 		savingTimer = setTimeout(() => {
@@ -167,6 +157,7 @@
 	let tabs = $derived([
 		{ id: "launcher", label: t("settings.tabs.launcher") },
 		{ id: "minecraft", label: t("settings.tabs.minecraft") },
+		{ id: "personalize", label: t("settings.tabs.personalize") },
 		{ id: "java", label: t("settings.tabs.java") },
 	]);
 
@@ -240,7 +231,7 @@
 	);
 </script>
 
-<div class="qm-root">
+<div class="qm-root settings-controls">
 	<!-- Header -->
 	<div class="qm-header">
 		<span class="qm-label">{t("settings.title")}</span>
@@ -317,32 +308,6 @@
 							>{t("settings.launcher.openConsoleOnLaunch")}</label
 						>
 					</div>
-					<div class="qm-field-checkbox">
-						<input
-							type="checkbox"
-							id="prominent-notifications"
-							bind:checked={
-								launcherStore.settings.prominent_notifications
-							}
-							aria-describedby="prominent-notifications-hint"
-							onchange={handleSave}
-						/>
-						<label for="prominent-notifications"
-							>{t(
-								"settings.launcher.prominentNotifications",
-							)}</label
-						>
-					</div>
-					<p id="prominent-notifications-hint" class="qm-ram-hint">
-						{t("settings.launcher.prominentNotificationsHint")}
-					</p>
-					<button
-						type="button"
-						class="detect-btn"
-						onclick={previewNotification}
-					>
-						{t("settings.launcher.testNotification")}
-					</button>
 				</CollapsibleSection>
 
 				<CollapsibleSection
@@ -558,6 +523,18 @@
 							</button>
 						</p>
 					</div>
+				</CollapsibleSection>
+			</div>
+		{/if}
+
+		{#if currentTab === "personalize"}
+			<div class="section-group">
+				<CollapsibleSection
+					title={t("settings.personalize.notificationsTitle")}
+					iconName="ui:bell"
+					storageKey="section_notifications"
+				>
+					<NotificationSettings onsave={handleSave} />
 				</CollapsibleSection>
 			</div>
 		{/if}
@@ -990,15 +967,6 @@
 		user-select: none;
 	}
 
-	.qm-ram-hint {
-		display: block;
-		margin-top: 10px;
-		font-size: 0.75rem;
-		color: var(--text-muted);
-		line-height: 1.5;
-		padding: 0 4px;
-	}
-
 	.qm-recommended-ram-wrapper {
 		display: flex;
 		flex-direction: column;
@@ -1065,75 +1033,6 @@
 		border-top: 1px solid var(--border-color);
 	}
 
-	.detect-btn {
-		background: var(--bg-input);
-		border: 1px solid var(--border-color);
-		color: var(--text-secondary);
-		padding: 6px 12px;
-		border-radius: var(--border-radius-sm);
-		font-size: 0.7rem;
-		font-weight: 600;
-		cursor: pointer;
-		transition:
-			color 0.15s,
-			border-color 0.15s;
-	}
-
-	.detect-btn:hover {
-		color: var(--text-primary);
-		border-color: var(--text-muted);
-	}
-
-	.qm-field-checkbox {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		margin-bottom: 12px;
-		margin-top: 8px;
-		cursor: pointer;
-		user-select: none;
-	}
-
-	.qm-field-checkbox input[type="checkbox"] {
-		appearance: none;
-		-webkit-appearance: none;
-		width: 18px;
-		height: 18px;
-		background: var(--bg-input);
-		border: 1px solid var(--border-color);
-		border-radius: var(--border-radius-sm);
-		cursor: pointer;
-		position: relative;
-		transition: all 0.2s;
-	}
-
-	.qm-field-checkbox input[type="checkbox"]:checked {
-		background: var(--accent);
-		border-color: var(--accent);
-	}
-
-	.qm-field-checkbox input[type="checkbox"]:checked::after {
-		content: "✓";
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		color: var(--accent-text);
-		font-size: 11px;
-		font-weight: 800;
-	}
-
-	.qm-field-checkbox label {
-		font-size: 0.85rem;
-		color: var(--text-secondary);
-		cursor: pointer;
-		transition: color 0.2s;
-	}
-
-	.qm-field-checkbox:hover label {
-		color: var(--text-primary);
-	}
-
 	.jvm-args-textarea {
 		width: 100%;
 		background: var(--bg-input);
@@ -1160,10 +1059,6 @@
 		color: var(--text-muted);
 		text-align: center;
 		opacity: 0.7;
-	}
-
-	.qm-field-checkbox input[type="checkbox"]:hover {
-		border-color: var(--text-muted);
 	}
 
 	.qm-themes-hint {

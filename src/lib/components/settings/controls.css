@@ -1,0 +1,149 @@
+.settings-controls .qm-field-checkbox {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 12px;
+	margin-top: 8px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.settings-controls .qm-field-checkbox input[type="checkbox"] {
+	appearance: none;
+	-webkit-appearance: none;
+	width: 18px;
+	height: 18px;
+	flex-shrink: 0;
+	background: var(--bg-input);
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius-sm);
+	cursor: pointer;
+	position: relative;
+	transition:
+		background 0.2s,
+		border-color 0.2s;
+}
+
+.settings-controls .qm-field-checkbox input[type="checkbox"]:checked {
+	background: var(--accent);
+	border-color: var(--accent);
+}
+
+.settings-controls .qm-field-checkbox input[type="checkbox"]:checked::after {
+	content: "✓";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	color: var(--accent-text);
+	font-size: 11px;
+	font-weight: 800;
+}
+
+.settings-controls .qm-field-checkbox label {
+	font-size: 0.85rem;
+	color: var(--text-secondary);
+	cursor: pointer;
+	transition: color 0.2s;
+}
+
+.settings-controls .qm-field-checkbox:hover label {
+	color: var(--text-primary);
+}
+
+.settings-controls .qm-field-checkbox input[type="checkbox"]:hover {
+	border-color: var(--text-muted);
+}
+
+.settings-controls .detect-btn {
+	background: var(--bg-input);
+	border: 1px solid var(--border-color);
+	color: var(--text-secondary);
+	padding: 6px 12px;
+	border-radius: var(--border-radius-sm);
+	font-size: 0.7rem;
+	font-family: inherit;
+	font-weight: 600;
+	cursor: pointer;
+	transition:
+		color 0.15s,
+		border-color 0.15s;
+}
+
+.settings-controls .detect-btn:hover:not(:disabled) {
+	color: var(--text-primary);
+	border-color: var(--text-muted);
+}
+
+.settings-controls .qm-ram-hint {
+	display: block;
+	margin-top: 10px;
+	font-size: 0.75rem;
+	color: var(--text-muted);
+	line-height: 1.5;
+	padding: 0 4px;
+}
+
+.settings-controls .qm-range-input {
+	appearance: none;
+	-webkit-appearance: none;
+	width: 100%;
+	height: 20px;
+	margin: 0;
+	border: 0;
+	background: transparent;
+	cursor: pointer;
+	accent-color: var(--accent);
+}
+
+.settings-controls .qm-range-input::-webkit-slider-runnable-track {
+	height: 4px;
+	border-radius: var(--border-radius-sm);
+	background: linear-gradient(
+		to right,
+		var(--accent) var(--range-fill, 0%),
+		var(--bg-input) var(--range-fill, 0%)
+	);
+}
+
+.settings-controls .qm-range-input::-moz-range-track {
+	height: 4px;
+	border-radius: var(--border-radius-sm);
+	background: linear-gradient(
+		to right,
+		var(--accent) var(--range-fill, 0%),
+		var(--bg-input) var(--range-fill, 0%)
+	);
+}
+
+.settings-controls .qm-range-input::-webkit-slider-thumb {
+	appearance: none;
+	width: 12px;
+	height: 12px;
+	margin-top: -4px;
+	border: 1px solid var(--accent);
+	border-radius: var(--border-radius-sm);
+	background: var(--accent);
+	box-shadow: var(--shadow-sm);
+}
+
+.settings-controls .qm-range-input::-moz-range-thumb {
+	width: 12px;
+	height: 12px;
+	box-sizing: border-box;
+	border: 1px solid var(--accent);
+	border-radius: var(--border-radius-sm);
+	background: var(--accent);
+	box-shadow: var(--shadow-sm);
+}
+
+.settings-controls .qm-range-input:focus-visible,
+.settings-controls .qm-field-checkbox input:focus-visible,
+.settings-controls .detect-btn:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 3px;
+}
+
+.settings-controls input:disabled {
+	cursor: not-allowed;
+}

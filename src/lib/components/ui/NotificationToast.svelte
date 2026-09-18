@@ -5,33 +5,60 @@
 	import CopyIcon from "$lib/icons/CopyIcon.svelte";
 	import CheckIcon from "$lib/icons/CheckIcon.svelte";
 	import { animDuration } from "$lib/utils/animations";
+	import {
+		DEFAULT_NOTIFICATION_PREFERENCES,
+		notificationTimeout,
+		type NotificationPreferences,
+	} from "./notificationPreferences";
 
 	let dismissTimer: ReturnType<typeof setTimeout> | undefined;
-	let completeTimer: ReturnType<typeof setTimeout> | undefined;
+	let copyTimer: ReturnType<typeof setTimeout> | undefined;
+	let destroyed = false;
 
 	onDestroy(() => {
 		clearTimeout(dismissTimer);
-		clearTimeout(completeTimer);
+		clearTimeout(copyTimer);
+		destroyed = true;
 	});
 
 	let {
 		notification,
-		prominent = false,
-	}: { notification: Notification; prominent?: boolean } = $props();
+		preferences = DEFAULT_NOTIFICATION_PREFERENCES,
+	}: {
+		notification: Notification;
+		preferences?: Readonly<NotificationPreferences>;
+	} = $props();
 
 	const R = 14.1;
 	const CIRC = 2 * Math.PI * R;
 
 	let removing = $state(false);
-	let isDone = $state(false);
+	const isDone = $derived(
+		typeof notification.progress === "number" &&
+			notification.progress >= 100,
+	);
 	let copied = $state(false);
-	let iconColor = $derived(typeColor(notification.type));
+	const iconColor = $derived(
+		isDone ? "var(--color-success)" : typeColor(notification.type),
+	);
 
 	const hasProgress = $derived(typeof notification.progress === "number");
+	const customized = $derived(preferences.enabled === true);
 	const timeout = $derived(
-		prominent && notification.timeout && notification.timeout > 0
-			? Math.max(notification.timeout, 8000)
-			: notification.timeout,
+		notificationTimeout(
+			notification.timeout,
+			preferences.duration_seconds,
+			customized,
+		),
+	);
+	const dismissalDelay = $derived(
+		hasProgress
+			? isDone
+				? customized
+					? preferences.duration_seconds * 1000
+					: 1400
+				: undefined
+			: timeout,
 	);
 
 	const entryDuration = $derived(animDuration(300, 50));
@@ -56,27 +83,21 @@
 		);
 	}
 
-	function copyMessage(event: MouseEvent) {
+	async function copyMessage(event: MouseEvent) {
 		event.stopPropagation();
 		if (!notification.message || copied) return;
-		navigator.clipboard.writeText(notification.message);
+		try {
+			await navigator.clipboard.writeText(notification.message);
+		} catch {
+			return;
+		}
+		if (destroyed) return;
 		copied = true;
-		setTimeout(() => {
+		clearTimeout(copyTimer);
+		copyTimer = setTimeout(() => {
 			copied = false;
 		}, 1500);
 	}
-
-	function handleComplete() {
-		if (isDone) return;
-		isDone = true;
-		iconColor = "var(--color-success)";
-		completeTimer = setTimeout(() => dismiss(), prominent ? 8000 : 1400);
-	}
-
-	$effect(() => {
-		const p = notification.progress;
-		if (typeof p === "number" && p >= 100) handleComplete();
-	});
 
 	// External progress: reactive offset via CSS transition
 	const progressOffset = $derived.by(() => {
@@ -84,34 +105,12 @@
 		return CIRC * (1 - (notification.progress ?? 0) / 100);
 	});
 
-	// Animate the countdown with CSS; keep dismissal independent of motion settings.
-	const uid = Math.random().toString(36).slice(2, 8);
-	let circleEl = $state<SVGCircleElement | null>(null);
-
+	// One shared CSS animation and one timeout per timed toast. Progress updates
+	// do not restart dismissal; persistent notices never acquire a timer.
 	$effect(() => {
-		if (hasProgress) return;
-		if (!circleEl || !timeout || timeout <= 0) return;
-		const circle = circleEl;
-
-		const style = document.createElement("style");
-		const name = `cd-${uid}`;
-		style.textContent = `@keyframes ${name} { from { stroke-dashoffset: ${CIRC}; } to { stroke-dashoffset: 0; } }`;
-		document.head.appendChild(style);
-
-		circle.style.animation = `${name} ${timeout}ms linear forwards`;
-		// perf.css reduces decorative animations; this duration represents real time.
-		circle.style.setProperty(
-			"animation-duration",
-			`${timeout}ms`,
-			"important",
-		);
-		const timer = setTimeout(dismiss, timeout);
-
-		return () => {
-			clearTimeout(timer);
-			style.remove();
-			circle.style.removeProperty("animation");
-		};
+		if (removing || !dismissalDelay || dismissalDelay <= 0) return;
+		const timer = setTimeout(dismiss, dismissalDelay);
+		return () => clearTimeout(timer);
 	});
 
 	const progressSub = $derived.by(() => {
@@ -127,8 +126,9 @@
 <div
 	class="notification-toast"
 	class:removing
-	class:prominent
-	style="--notification-in-duration: {entryDuration}ms; --notification-out-duration: {exitDuration}ms;"
+	class:customized
+	style="--notification-in-duration: {entryDuration}ms; --notification-out-duration: {exitDuration}ms; --notification-timeout: {timeout ??
+		0}ms; --notification-circumference: {CIRC};"
 	role="button"
 	tabindex="0"
 	onclick={dismiss}
@@ -151,16 +151,18 @@
 			aria-hidden="true"
 		>
 			<circle class="track" cx="16" cy="16" r={R} />
-			<circle
-				class="fill"
-				bind:this={circleEl}
-				cx="16"
-				cy="16"
-				r={R}
-				style:stroke={iconColor}
-				stroke-dasharray={CIRC}
-				stroke-dashoffset={hasProgress ? progressOffset : CIRC}
-			/>
+			{#key timeout}
+				<circle
+					class="fill"
+					class:countdown={!hasProgress && !!timeout && timeout > 0}
+					cx="16"
+					cy="16"
+					r={R}
+					style:stroke={iconColor}
+					stroke-dasharray={CIRC}
+					stroke-dashoffset={hasProgress ? progressOffset : CIRC}
+				/>
+			{/key}
 		</svg>
 
 		<div class="notification-icon" style:background={iconColor}>
@@ -267,7 +269,10 @@
 		display: flex;
 		align-items: center;
 		gap: var(--toast-gap, 10px);
-		padding: var(--toast-padding, 9px 16px 9px 9px);
+		padding: var(
+			--notification-padding,
+			var(--toast-padding, 9px 16px 9px 9px)
+		);
 		border-radius: var(--toast-radius, 22px);
 		background: var(--toast-bg);
 		border: 1px solid var(--toast-border);
@@ -286,72 +291,30 @@
 		will-change: transform, opacity;
 		box-sizing: border-box;
 		max-width: 100%;
+		width: 100%;
 		flex-shrink: 0;
 	}
 
-	.notification-toast.prominent {
-		width: max-content;
-		gap: var(--space-md);
-		padding: var(--toast-prominent-padding, 12px 18px 12px 12px);
-		border-radius: var(--toast-prominent-radius, 28px);
-		animation-name: notificationProminentIn;
-	}
-
-	.prominent .notification-gloss {
-		border-radius: var(--toast-prominent-radius, 28px)
-			var(--toast-prominent-radius, 28px) 0 0;
-	}
-
-	.prominent .notification-icon-wrap {
-		width: 36px;
-		height: 36px;
-	}
-
-	.prominent .notification-icon {
-		inset: 4px;
-	}
-
-	.prominent .notification-icon svg {
-		width: 15px;
-		height: 15px;
-	}
-
-	.prominent .notification-body {
-		flex: 1;
-		gap: 3px;
-	}
-
-	.prominent .notification-title {
-		font-size: var(--toast-prominent-title-size, 1.0714rem);
-		font-weight: 500;
-		line-height: 1.35;
-		white-space: normal;
-		overflow-wrap: anywhere;
-	}
-
-	.prominent .notification-message {
-		font-size: var(--toast-prominent-message-size, 0.9286rem);
-		line-height: 1.45;
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
-		max-height: 8rem;
-		overflow-y: auto;
-	}
-
-	.prominent .notification-sub {
-		font-size: var(--toast-prominent-sub-size, 0.8571rem);
-	}
-
-	.prominent .notification-copy,
-	.notification-toast:focus-within .notification-copy {
-		opacity: 1;
-	}
-
-	.notification-toast:not(.prominent):hover {
+	.notification-toast:hover {
 		background: var(--surface-hover);
 	}
 	.notification-toast:active {
 		transform: scale(0.985);
+	}
+
+	.notification-toast:focus-visible,
+	.notification-copy:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: -3px;
+	}
+
+	.customized .notification-icon-wrap {
+		align-self: flex-start;
+	}
+
+	.customized .notification-copy {
+		align-self: flex-start;
+		margin-top: 4px;
 	}
 
 	.notification-toast.removing {
@@ -360,37 +323,14 @@
 		pointer-events: none;
 	}
 
-	.notification-toast.prominent.removing {
-		animation-name: notificationProminentOut;
-	}
-
-	@keyframes notificationProminentIn {
-		from {
-			opacity: 0;
-			transform: translateY(-12px) scale(0.98);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0) scale(1);
-		}
-	}
-
-	@keyframes notificationProminentOut {
-		0% {
-			opacity: 1;
-			transform: translateY(0) scale(1);
-		}
-		40%,
-		100% {
-			opacity: 0;
-			transform: translateY(-8px) scale(0.98);
-		}
-	}
-
 	@keyframes notificationIn {
 		from {
 			opacity: 0;
-			transform: translateX(28px) scale(0.96);
+			transform: translate(
+					var(--notification-offset-x, 28px),
+					var(--notification-offset-y, 0px)
+				)
+				scale(0.96);
 		}
 		to {
 			opacity: 1;
@@ -403,13 +343,14 @@
 			opacity: 1;
 			transform: translateX(0) scale(1);
 		}
-		40% {
-			opacity: 0;
-			transform: translateX(18px) scale(0.97);
-		}
+		40%,
 		100% {
 			opacity: 0;
-			transform: translateX(18px) scale(0.97);
+			transform: translate(
+					var(--notification-offset-x, 18px),
+					var(--notification-offset-y, 0px)
+				)
+				scale(0.97);
 		}
 	}
 
@@ -430,8 +371,8 @@
 
 	.notification-icon-wrap {
 		position: relative;
-		width: 32px;
-		height: 32px;
+		width: var(--notification-icon-size, 32px);
+		height: var(--notification-icon-size, 32px);
 		flex-shrink: 0;
 	}
 
@@ -454,6 +395,22 @@
 		transition:
 			stroke-dashoffset 0.12s linear,
 			stroke 0.4s ease;
+	}
+
+	.fill.countdown {
+		animation: notificationCountdown var(--notification-timeout) linear
+			forwards;
+		/* This duration represents time, not a decorative motion preference. */
+		animation-duration: var(--notification-timeout) !important;
+	}
+
+	@keyframes notificationCountdown {
+		from {
+			stroke-dashoffset: var(--notification-circumference);
+		}
+		to {
+			stroke-dashoffset: 0;
+		}
 	}
 
 	.notification-icon {
@@ -494,30 +451,38 @@
 	.notification-body {
 		display: flex;
 		flex-direction: column;
-		gap: 2px;
+		gap: var(--notification-body-gap, 2px);
+		flex: 1;
 		min-width: 0;
 	}
 
 	.notification-title {
-		font-size: var(--toast-title-size, 0.9286rem);
-		font-weight: 400;
+		font-size: var(
+			--notification-title-size,
+			var(--toast-title-size, 0.9286rem)
+		);
+		font-weight: var(--notification-title-weight, 400);
+		text-transform: var(--notification-title-case, none);
 		color: var(--text-primary);
 		letter-spacing: 0.01em;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
+		white-space: normal;
+		overflow-wrap: anywhere;
+		line-height: 1.35;
 	}
 
 	.notification-message {
-		font-size: 11px;
+		font-size: var(--notification-message-size, 0.7857rem);
 		color: var(--text-secondary);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
+		text-transform: none;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		line-height: 1.45;
+		max-height: min(14rem, 40dvh);
+		overflow-y: auto;
 	}
 
 	.notification-sub {
-		font-size: 11px;
+		font-size: var(--notification-message-size, 0.7857rem);
 		color: var(--text-muted);
 		font-variant-numeric: tabular-nums;
 		letter-spacing: 0.02em;
@@ -563,7 +528,44 @@
 		color: var(--color-success);
 	}
 
-	.notification-toast:hover .notification-copy {
+	/* The uncustomized mode retains the original compact, content-sized toasts. */
+	.notification-toast:not(.customized) {
+		width: auto;
+		align-items: center;
+		padding: var(--toast-padding, 9px 16px 9px 9px);
+	}
+	.notification-toast:not(.customized) .notification-body {
+		flex: 0 1 auto;
+		gap: 2px;
+	}
+	.notification-toast:not(.customized) .notification-title {
+		font-size: var(--toast-title-size, 0.9286rem);
+		font-weight: 400;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		line-height: inherit;
+	}
+	.notification-toast:not(.customized) .notification-message {
+		font-size: 11px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-height: none;
+		line-height: inherit;
+	}
+	.notification-toast:not(.customized) .notification-sub {
+		font-size: 11px;
+	}
+	.notification-toast:hover .notification-copy,
+	.notification-toast:focus-within .notification-copy,
+	.notification-copy.copied {
 		opacity: 1;
+	}
+
+	@media (hover: none) {
+		.notification-copy {
+			opacity: 1;
+		}
 	}
 </style>

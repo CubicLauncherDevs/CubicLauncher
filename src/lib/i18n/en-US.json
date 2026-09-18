@@ -115,7 +115,38 @@
 		"tabs": {
 			"launcher": "Launcher",
 			"minecraft": "Minecraft",
-			"java": "Java"
+			"java": "Java",
+			"personalize": "Personalize"
+		},
+		"personalize": {
+			"notificationsTitle": "Notifications",
+			"layoutTitle": "Position and size",
+			"textTitle": "Text",
+			"behaviorTitle": "Behavior",
+			"enabled": "Customize notifications",
+			"enabledHint": "Enable these options to change notices. Turn them off to restore classic notifications while keeping your preferences.",
+			"position": "Position",
+			"size": "Card size",
+			"title_size": "Title size",
+			"message_size": "Message size",
+			"duration_seconds": "Duration",
+			"durationHint": "Applies to timed notices. Downloads stay visible until they finish.",
+			"uppercase_title": "Uppercase title",
+			"bold_title": "Bold title",
+			"reset": "Restore defaults",
+			"positions": {
+				"top-left": "Top left",
+				"top-center": "Top center",
+				"top-right": "Top right",
+				"bottom-left": "Bottom left",
+				"bottom-center": "Bottom center",
+				"bottom-right": "Bottom right"
+			},
+			"sizes": {
+				"compact": "Compact",
+				"normal": "Normal",
+				"wide": "Wide"
+			}
 		},
 		"launcher": {
 			"generalTitle": "General",
@@ -125,10 +156,10 @@
 			"hideOnLaunch": "Hide launcher while playing",
 			"openConsoleOnLaunch": "Open console when launching instances",
 			"prominentNotifications": "Prominent notifications",
-			"prominentNotificationsHint": "Show larger notices at the top center for at least 8 seconds. Click a notice to dismiss it.",
+			"prominentNotificationsHint": "Large, centered notices with uppercase titles and easy-to-read messages. They last at least 8 seconds; click to dismiss.",
 			"testNotification": "Test notification",
-			"testNotificationTitle": "This is how your notifications will look",
-			"testNotificationMessage": "This is a test notice. You can change its appearance with the Prominent notifications option.",
+			"testNotificationTitle": "This is how your notices look",
+			"testNotificationMessage": "This is a test message. You can adjust its position, size and title in Personalize.",
 			"updatesTitle": "Launcher Updates",
 			"currentVersion": "Current Version",
 			"available": "Update Available",
