@@ -94,7 +94,11 @@
 		onPlay={handlePlay}
 	/>
 
-	<div class="tab-content" bind:this={tabContentEl}>
+	<div
+		class="tab-content"
+		class:gallery={activeSection === "screenshots"}
+		bind:this={tabContentEl}
+	>
 		{#if activeSection === "detalles"}
 			<div class="details-section" in:fade={{ duration: 400 }}>
 				<div class="nav-card">
@@ -262,6 +266,18 @@
 		overflow-y: auto;
 		scrollbar-gutter: stable;
 		position: relative;
+	}
+
+	.tab-content.gallery {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		overflow: hidden;
+	}
+	.gallery .subview-section {
+		display: flex;
+		flex: 1;
+		min-height: 0;
 	}
 
 	.nav-card {

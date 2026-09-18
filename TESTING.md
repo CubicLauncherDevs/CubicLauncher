@@ -261,6 +261,47 @@ tardías. En el launcher, comprobar apertura, desplazamiento rápido, búsqueda,
 cambio de instancia y activación por lotes con un modpack real; en lista y
 tarjetas los iconos deben aparecer progresivamente sin mover la selección.
 
+### Capturas de las instancias
+
+```bash
+cargo test -p cubiclauncher --lib commands::instance::screens::tests
+bun test --conditions=browser ./tests/frontend/ui/screenshotThumbnails.test.mjs ./tests/frontend/ui/screenshotsGallery.test.mjs
+```
+
+El listado lee una vez los metadatos de cada PNG; buscar la última captura no
+ordena ni conserva la colección completa. Las miniaturas se generan bajo demanda
+con un solo decodificador global, fuera del runtime asíncrono, y caben en
+400 × 225 píxeles. La caché LRU nativa admite 64 entradas y hasta 4 MiB de imágenes
+codificadas, sin contar estructuras auxiliares, decodificación temporal ni WebView.
+Se invalida por ruta, fecha y tamaño. El decodificador usa un presupuesto de
+asignación de 128 MiB; una imagen que no pueda previsualizarse conserva su tarjeta
+y puede abrirse en el visor original.
+
+El frontend retiene las miniaturas de las filas visibles más dos filas de margen
+por extremo, solicita una a la vez y descarta trabajo pendiente fuera de ese
+rango. Ocultar la ventana, cambiar de instancia o desmontar la galería descarta
+las peticiones aún no iniciadas y las respuestas obsoletas. Una petición nativa
+ya iniciada puede terminar, pero no reactiva la galería cerrada.
+
+Las pruebas Rust verifican orden, selección de la última captura, dimensiones,
+reutilización e invalidación de miniaturas, límites de caché y conservación del
+archivo original. La prueba de navegador monta la vista de instancia y la galería
+reales con 1000 rutas simuladas: comprueba DOM acotado, carga exclusiva de
+miniaturas, acceso a la última fila, teclado, medidas en `rem`/`calc()`, cambios
+rápidos de instancia y borrados pendientes. No mide el RSS total del launcher.
+
+- [ ] Abrir una galería vacía y otra con cientos de PNG, incluidas capturas 4K,
+  verticales y corruptas. Desplazarse rápido y volver al inicio; las miniaturas
+  deben aparecer progresivamente y los originales abrirse sin alteraciones.
+- [ ] Probar flechas, Inicio/Fin, Enter y Escape; redimensionar la ventana y
+  cambiar tema/escala con la galería abierta. Comprobar que no se solapan filas.
+- [ ] Borrar una captura y la última de la lista; cancelar y simular un error de
+  borrado. Cambiar de instancia durante una lectura/borrado: no debe reaparecer
+  contenido de la instancia anterior.
+- [ ] Comparar RAM y CPU en producción con la misma galería al abrir, recorrer,
+  minimizar y cerrar. Separar memoria de imágenes del WebView, caché nativa y
+  pico temporal de decodificación; el límite de caché no es un límite de RSS.
+
 ### Mundos de las instancias
 
 - Ejecutar `cargo test -p cubiclauncher --lib world_manager` y `cargo test -p cubiclauncher --lib world_operation_lock`.

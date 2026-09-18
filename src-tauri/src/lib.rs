@@ -29,6 +29,7 @@ pub fn run() {
             commands::instance::get_instance_screenshot,
             commands::instance::get_instance_banner,
             commands::instance::get_all_instance_screenshots,
+            commands::instance::get_screenshot_thumbnail,
             commands::instance::worlds::get_instance_worlds,
             commands::instance::worlds::instance_world_action,
             commands::instance::servers::get_instance_servers,
