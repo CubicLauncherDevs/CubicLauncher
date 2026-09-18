@@ -9,8 +9,11 @@ export type LocaleEntry = {
 
 export const i18nLoader = $state({
 	loading: null as string | null,
-	fetched: new SvelteSet<string>(),
+	fetched: new SvelteSet<string>(["es", "en"]),
 	dictVersion: {} as Record<string, number>,
 });
 
-export const locales = $state<LocaleEntry[]>([]);
+export const locales = $state<LocaleEntry[]>([
+	{ code: "es", id: "es-ES", label: "Español", flag: "🇪🇸" },
+	{ code: "en", id: "en-US", label: "English", flag: "🇺🇸" },
+]);

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
-	import { listen } from "@tauri-apps/api/event";
+	import { openLogStream } from "$lib/api/logStream";
 	import {
 		showSuccess,
 		showError,
@@ -59,8 +59,6 @@
 	});
 
 	let isAtBottom = $state(true);
-	let destroyed = false;
-	let unlistenFn: (() => void) | undefined;
 
 	function onScrollState(state: {
 		isAtBottom: boolean;
@@ -120,46 +118,23 @@
 	}
 
 	onMount(() => {
-		destroyed = false;
 		log.setPrivacyTerms(buildPrivacyTerms(activeUsername));
-
-		(async () => {
-			const raw = await invoke<
-				{
-					id: number;
-					text: string;
-					stream: string;
-					level: string;
-					timestamp: number;
-				}[]
-			>("get_log_history_cmd", {
-				instanceId,
-				limit: consoleHistoryLimit,
-			});
-			log.ingestHistory(raw);
-			renderer.rebuild();
-			renderer.scrollToBottom();
-
-			unlistenFn = await listen<{
-				id: string;
-				lines: {
-					id: number;
-					line: string;
-					stream: string;
-					level: string;
-					timestamp: number;
-				}[];
-			}>("instance-log-batch", (event) => {
-				if (destroyed || event.payload.id !== instanceId) return;
-				log.ingestBatch(event.payload.lines);
-			});
-		})();
+		const stop = openLogStream(
+			instanceId,
+			consoleHistoryLimit,
+			(raw) => {
+				log.ingestHistory(raw);
+				renderer.rebuild();
+				renderer.scrollToBottom();
+			},
+			(lines) => log.ingestBatch(lines),
+			(error) => showError(t("errors.title"), String(error)),
+		);
 
 		document.addEventListener("keydown", handleGlobalKeydown);
 
 		return () => {
-			destroyed = true;
-			unlistenFn?.();
+			stop();
 			document.removeEventListener("keydown", handleGlobalKeydown);
 			renderer.detach();
 			log.setRenderer(undefined);

@@ -1,6 +1,46 @@
 use super::*;
 use crate::services::instance_manager::signal_kill;
 
+fn entry(id: u64) -> LogEntryEvent {
+    LogEntryEvent {
+        id,
+        line: Arc::from(format!("line {id}")),
+        stream: "stdout",
+        level: LogLevel::Info,
+        timestamp: id,
+    }
+}
+
+#[test]
+fn preview_only_retains_the_latest_line_without_console_batches() {
+    let mut pending = PendingLogs::default();
+    for id in 0..10_000 {
+        pending.push(entry(id), false, true);
+    }
+    assert!(pending.lines.is_empty());
+    assert_eq!(pending.preview.as_ref().unwrap().id, 9_999);
+    pending.push(entry(10_000), false, false);
+    assert!(pending.is_empty());
+}
+
+#[test]
+fn console_batches_and_preview_have_independent_lifetimes() {
+    let mut pending = PendingLogs::default();
+    for id in 0..64 {
+        pending.push(entry(id), true, true);
+    }
+    assert_eq!(pending.lines.len(), 64);
+    assert_eq!(pending.preview.as_ref().unwrap().id, 63);
+    flush_log_batch(None, "instance", "log-instance", &mut pending.lines);
+    assert!(pending.lines.is_empty());
+    assert_eq!(pending.preview.as_ref().unwrap().id, 63);
+    flush_log_preview(None, "instance", &mut pending.preview);
+    assert!(pending.is_empty());
+    pending.push(entry(64), true, false);
+    assert_eq!(pending.lines.len(), 1);
+    assert!(pending.preview.is_none());
+}
+
 #[test]
 fn only_unsolicited_nonzero_exits_are_crashes() {
     for (exit_code, kill_requested, expected) in [

@@ -348,6 +348,40 @@ La comparación anterior cargaba/decodificaba la lista completa dos veces (lectu
 
 ### Consola y crashes
 
+#### Distribución selectiva de logs
+
+```bash
+cargo test -p cubiclauncher --lib services::launcher::tests
+bun test --conditions=browser ./tests/frontend/ui/logStream.test.mjs
+```
+
+Los lotes completos se dirigen al WebView `log-<uuid>`, con un listener asociado
+a esa ventana. La cabecera de la instancia usa una suscripción propia y recibe
+solo la última línea, agrupada cada 80 ms; vaciar un lote de consola por alcanzar
+64 líneas no adelanta el envío de la cabecera. Al salir del juego se vacía también
+la última línea pendiente. Sin consola ni cabecera suscrita se conserva el
+historial sanitizado, sin construir lotes ni despertar un temporizador periódico.
+
+La cabecera se desuscribe al ocultarse el documento, salir de Detalles o
+desmontarse. Los tokens de cada montaje impiden que una limpieza tardía elimine
+una suscripción nueva. La destrucción de la ventana principal limpia el registro.
+Una consola abierta sigue recibiendo sus logs aunque esté minimizada, para
+mantener actualizado su historial.
+
+La consola registra primero el listener y después solicita el historial. Combina
+ambas fuentes por ID, con un buffer inicial acotado al límite de historial, y
+descarta duplicados de lotes pendientes ya incluidos en el snapshot. Las pruebas
+verifican solapamiento, orden, cierre durante el registro/lectura y recuperación
+del stream cuando falla la lectura inicial.
+
+- [ ] Ejecutar dos instancias con sus consolas abiertas. Cada una debe recibir
+  únicamente sus lotes; la cabecera muestra la última línea de la seleccionada.
+- [ ] Cambiar de instancia/pestaña, abrir el perfil y minimizar/restaurar. No
+  deben acumularse suscripciones ni actualizarse cabeceras desmontadas.
+- [ ] Abrir/cerrar la consola con muchos logs en curso. Comprobar continuidad,
+  ausencia de duplicados y recuperación tras un crash, incluido el cierre del
+  WebView principal al jugar. Verificar especialmente Windows/WebView2 y Linux.
+
 - Ejecutar `cargo test -p cubiclauncher --lib services::launcher::tests` y `cargo test -p cubiclauncher --lib services::instance_manager::manager::tests`.
 - [ ] Con "abrir consola al iniciar" desactivado, lanzar sin el Java requerido: debe aparecer el modal de Java, sin ventana de logs ni evento de crash.
 - [ ] Probar un fallo anterior a la creacion del proceso (por ejemplo, ejecutable Java invalido): debe conservarse el error de la instancia sin abrir logs ni emitir un crash.
@@ -455,6 +489,41 @@ encuentra un navegador compatible.
 Los avisos de temas son orientativos, no mediciones de CPU/GPU. La estimacion del fondo cuenta una superficie RGBA (cuatro bytes por pixel), no toda la memoria del WebView. No se incorporan nuevos limites de rendimiento ni proteccion estricta frente a paquetes de descompresion extrema.
 
 ### Ajustes generales
+
+#### Idiomas bajo demanda
+
+```bash
+cargo test -p cubiclauncher --lib commands::i18n::tests
+bun test --conditions=browser ./tests/frontend/ui/i18n.test.mjs
+```
+
+El frontend carga únicamente los diccionarios solicitados: inglés como fallback,
+español incluido mediante importación diferida y los idiomas externos desde disco
+antes de comprobar actualizaciones. Conserva hasta tres diccionarios aplanados
+adicionales, con un presupuesto estimado de 4 MiB de claves/cadenas UTF-16. El
+idioma activo puede superar ese presupuesto para no truncar traducciones; los
+inactivos se expulsan y se pueden recuperar desde disco. El presupuesto no mide
+overhead de objetos ni módulos del motor JS.
+
+Abrir Ajustes o el tutorial solicita el catálogo de idiomas, compuesto solo por
+metadatos y estado instalado. El servicio nativo comparte las comprobaciones de
+versión durante cinco minutos y el catálogo remoto durante quince; los fallos
+tienen una espera de reintento de treinta segundos. Conserva como máximo 32 marcas
+de comprobación, sin retener los diccionarios completos en ese registro. Las
+lecturas offline no esperan a que termine una comprobación de red.
+
+Las pruebas incluyen llamadas simultáneas de ventanas, versiones sin cambios,
+respuestas corruptas, expiración, escrituras atómicas, migración de nombres
+antiguos, traducciones reactivas, fallback, cambios rápidos y expulsión de caché.
+
+- [ ] Cambiar entre idiomas incluidos y descargados y reiniciar sin Internet:
+  debe conservarse el idioma elegido, con fallback para claves ausentes.
+- [ ] Abrir varias consolas y comprobar cambios de idioma desde Ajustes. Una
+  comprobación fallida no debe reemplazar ni eliminar el diccionario local.
+- [ ] Abrir el selector offline y después de recuperar conexión; reabrirlo tras
+  la espera de reintento para comprobar idiomas disponibles e instalados.
+- [ ] Medir arranque y RAM tras alternar idiomas en producción. Separar el coste
+  de los diccionarios de los módulos JS y del conjunto de procesos WebView.
 
 - [ ] Cambiar idioma y verificar traducciones.
 - [ ] Cambiar RAM min/max de una instancia.

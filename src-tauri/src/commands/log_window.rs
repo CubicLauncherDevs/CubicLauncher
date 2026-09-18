@@ -2,10 +2,46 @@ use crate::core::http_client::HTTP;
 use crate::core::webview::secondary_window_config;
 use crate::services::launcher::{LogLine, get_log_history};
 use dashmap::DashMap;
-use std::sync::OnceLock;
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex, OnceLock};
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 static LOG_WINDOWS: OnceLock<DashMap<String, String>> = OnceLock::new();
+static PREVIEWS: LazyLock<Mutex<HashMap<String, String>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+pub(crate) fn wants_log_preview(instance_id: &str) -> bool {
+    PREVIEWS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .values()
+        .any(|id| id == instance_id)
+}
+
+pub(crate) fn clear_log_previews() {
+    PREVIEWS.lock().unwrap_or_else(|e| e.into_inner()).clear();
+}
+
+#[tauri::command]
+pub fn set_log_preview(
+    window: tauri::WebviewWindow,
+    subscription_id: String,
+    instance_id: Option<String>,
+) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Log previews belong to the main window".into());
+    }
+    super::instance::launch::validate_uuid(&subscription_id)?;
+    let mut previews = PREVIEWS.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(id) = instance_id {
+        super::instance::launch::validate_uuid(&id)?;
+        previews.insert(subscription_id, id);
+    } else {
+        // Each mount owns its token: late cleanup cannot remove a newer header.
+        previews.remove(&subscription_id);
+    }
+    Ok(())
+}
 
 fn remove_log_window(instance_id: &str) {
     if let Some(map) = LOG_WINDOWS.get() {

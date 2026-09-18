@@ -1,5 +1,5 @@
 import { launcherStore } from "$lib/state/state.svelte";
-import es from "./es-ES.json";
+import type es from "./es-ES.json";
 import en from "./en-US.json";
 import { i18nLoader, locales, type LocaleEntry } from "./loader.svelte";
 import { invoke } from "@tauri-apps/api/core";
@@ -16,24 +16,29 @@ export type TranslationKey = Exclude<NestedKeys<typeof es>, "id">;
 
 type DictValue = string | { [key: string]: DictValue };
 type LocaleDict = Record<string, DictValue>;
-type LocaleVersion = {
-	version: string;
-};
 type StoredLocale = {
 	code: string;
 	id: string;
 	data: string;
 };
 
-const API_BASE = "https://i18n.cubiclauncher.org";
-
-const bundled: Record<string, LocaleDict> = { es, en };
-const fetchedDicts = new Map<string, LocaleDict>();
-const flatCache = new Map<string, Record<string, string>>();
+type CachedLocale = {
+	flat: Record<string, string>;
+	version: string | null;
+	bytes: number;
+};
+const MAX_CACHED_LOCALES = 3;
+const MAX_CACHE_BYTES = 4 * 1024 * 1024;
+const flatCache = new Map<string, CachedLocale>();
 const pendingFetches = new Map<string, Promise<void>>();
 const failedLocales = new Set<string>();
-
-let enFlat: Record<string, string> | null = null;
+const scheduled = new Set<string>();
+const EMPTY: Record<string, string> = {};
+const enFlat = flatten(en as LocaleDict);
+let retainedBytes = 0;
+let lastUsedLanguage = "";
+let catalogPromise: Promise<void> | null = null;
+let catalogCheckedAt = 0;
 
 export function isBundled(lang: string): boolean {
 	return lang === "es" || lang === "en";
@@ -79,12 +84,48 @@ function addStoredLocale(entry: LocaleEntry): void {
 }
 
 function activateLocale(code: string, id: string, dict: LocaleDict): void {
-	fetchedDicts.set(code, dict);
-	flatCache.set(code, flatten(dict));
+	const flat = flatten(dict);
+	const bytes = Object.entries(flat).reduce(
+		(total, [key, value]) => total + (key.length + value.length) * 2,
+		0,
+	);
+	removeCachedLocale(code);
+	flatCache.set(code, {
+		flat,
+		version: typeof dict.version === "string" ? dict.version : null,
+		bytes,
+	});
+	retainedBytes += bytes;
+	pruneCache();
 	i18nLoader.fetched.add(code);
 	i18nLoader.dictVersion[code] = (i18nLoader.dictVersion[code] ?? 0) + 1;
 	failedLocales.delete(code);
 	addStoredLocale(localeEntryFromDict(code, id, dict));
+}
+
+function removeCachedLocale(code: string): void {
+	const entry = flatCache.get(code);
+	if (entry) retainedBytes -= entry.bytes;
+	flatCache.delete(code);
+}
+
+function pruneCache(): void {
+	const active = launcherStore.settings?.language || "es";
+	for (const code of flatCache.keys()) {
+		if (
+			flatCache.size <= MAX_CACHED_LOCALES &&
+			retainedBytes <= MAX_CACHE_BYTES
+		)
+			break;
+		// The active translation remains usable even if a custom dictionary is large.
+		if (code !== active) removeCachedLocale(code);
+	}
+}
+
+function markFailed(code: string): void {
+	if (failedLocales.size >= 32)
+		failedLocales.delete(failedLocales.values().next().value!);
+	failedLocales.add(code);
 }
 
 function flatten(
@@ -97,7 +138,7 @@ function flatten(
 		const val = obj[key];
 		if (typeof val === "string") {
 			result[prefix + key] = val;
-		} else {
+		} else if (val && typeof val === "object") {
 			Object.assign(result, flatten(val, prefix + key + "."));
 		}
 	}
@@ -105,118 +146,111 @@ function flatten(
 }
 
 function getFlat(lang: string): Record<string, string> {
-	if (lang === "en" && enFlat) return enFlat;
-	if (!isBundled(lang)) {
-		void (i18nLoader.dictVersion[lang] ?? 0);
-	}
-
-	let cached = flatCache.get(lang);
-	if (!cached) {
-		if (isBundled(lang)) {
-			const dict = bundled[lang];
-			cached = dict && typeof dict === "object" ? flatten(dict) : {};
-		} else {
-			const dict = fetchedDicts.get(lang);
-			if (dict) {
-				cached = flatten(dict);
-			} else {
-				cached = {};
-				if (!pendingFetches.has(lang) && !failedLocales.has(lang)) {
-					downloadLocale(lang);
-				}
-			}
+	if (lang === "en") {
+		if (lastUsedLanguage !== lang) {
+			lastUsedLanguage = lang;
+			pruneCache();
 		}
-		flatCache.set(lang, cached);
+		return enFlat;
 	}
-	if (lang === "en") enFlat = cached;
-	return cached;
-}
-
-// Pre-cache English for fallback
-getFlat("en");
-
-async function loadStoredLocales(): Promise<void> {
-	try {
-		const storedLocales = await invoke<StoredLocale[]>("load_locales");
-
-		for (const stored of storedLocales) {
-			try {
-				const data = JSON.parse(stored.data) as LocaleDict;
-				activateLocale(stored.code, stored.id, data);
-				if (!isBundled(stored.code)) {
-					void downloadLocale(stored.code);
-				}
-			} catch (error) {
-				console.error(
-					`[i18n] Failed to parse stored locale "${stored.id}":`,
-					error,
-				);
-			}
+	void (i18nLoader.dictVersion[lang] ?? 0);
+	const cached = flatCache.get(lang);
+	if (cached) {
+		if (lastUsedLanguage !== lang) {
+			lastUsedLanguage = lang;
+			flatCache.delete(lang);
+			flatCache.set(lang, cached);
+			pruneCache();
 		}
-	} catch (error) {
-		console.error("[i18n] Failed to load stored locales:", error);
+		return cached.flat;
 	}
+	if (
+		!pendingFetches.has(lang) &&
+		!failedLocales.has(lang) &&
+		!scheduled.has(lang)
+	) {
+		scheduled.add(lang);
+		// Translation lookups may run inside a Svelte derived expression.
+		queueMicrotask(() => {
+			scheduled.delete(lang);
+			if ((launcherStore.settings?.language || "es") === lang)
+				void downloadLocale(lang);
+		});
+	}
+	return EMPTY;
 }
 
 export async function downloadLocale(lang: string): Promise<void> {
-	if (isBundled(lang)) return;
+	if (lang === "en") return;
 	const pending = pendingFetches.get(lang);
 	if (pending) return pending;
 
-	const cached = fetchedDicts.get(lang);
-	const promise = (async () => {
-		const cachedVersion = cached?.version;
-		if (typeof cachedVersion === "string") {
+	const promise = Promise.resolve()
+		.then(async () => {
+			i18nLoader.loading = lang;
+			let available = flatCache.has(lang);
 			try {
-				const res = await fetch(`${API_BASE}/${lang}/version`);
-				if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-				const remote = (await res.json()) as LocaleVersion;
-				if (typeof remote.version !== "string") {
-					throw new Error("Invalid version response");
-				}
-				if (remote.version === cachedVersion) {
-					failedLocales.delete(lang);
+				if (lang === "es") {
+					if (!flatCache.has(lang)) {
+						const { default: dict } = await import("./es-ES.json");
+						activateLocale(lang, dict.id, dict as LocaleDict);
+					}
 					return;
 				}
+				if (!flatCache.has(lang)) {
+					try {
+						const stored = await invoke<StoredLocale | null>(
+							"load_locale",
+							{ code: lang },
+						);
+						if (stored) {
+							activateStoredLocale(lang, stored);
+							available = true;
+						}
+					} catch (error) {
+						console.warn(
+							`[i18n] Could not read local ${lang}:`,
+							error,
+						);
+					}
+				}
+				// Native checks are shared by all windows and retain the offline copy.
+				const updated = await invoke<StoredLocale | null>(
+					"refresh_locale",
+					{
+						code: lang,
+						knownVersion: flatCache.get(lang)?.version ?? null,
+					},
+				);
+				if (updated) {
+					activateStoredLocale(lang, updated);
+					available = true;
+				}
+				if (!available) markFailed(lang);
 			} catch (error) {
+				if (!available) markFailed(lang);
 				console.error(
-					`[i18n] Failed to check locale "${lang}" version:`,
+					`[i18n] Failed to fetch locale "${lang}":`,
 					error,
 				);
-				return;
 			}
-		}
-
-		i18nLoader.loading = lang;
-		try {
-			const res = await fetch(`${API_BASE}/${lang}`);
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-			const data = (await res.json()) as LocaleDict;
-			const id = data.id;
-			if (typeof id !== "string") {
-				throw new Error("Invalid locale response");
+		})
+		.finally(() => {
+			pendingFetches.delete(lang);
+			if (i18nLoader.loading === lang) {
+				i18nLoader.loading = null;
 			}
-
-			activateLocale(lang, id, data);
-			invoke("save_locale", { data: JSON.stringify(data) }).catch(
-				(error) =>
-					console.error("[i18n] Failed to persist locale:", error),
-			);
-		} catch (error) {
-			failedLocales.add(lang);
-			console.error(`[i18n] Failed to fetch locale "${lang}":`, error);
-		}
-	})().finally(() => {
-		pendingFetches.delete(lang);
-		if (i18nLoader.loading === lang) {
-			i18nLoader.loading = null;
-		}
-	});
+		});
 
 	pendingFetches.set(lang, promise);
 	return promise;
+}
+
+function activateStoredLocale(lang: string, stored: StoredLocale): void {
+	const data = JSON.parse(stored.data) as LocaleDict;
+	if (stored.code !== lang || data.id !== stored.id)
+		throw new Error("Invalid locale response");
+	activateLocale(lang, stored.id, data);
 }
 
 export function t(
@@ -256,27 +290,27 @@ export function t(
 	return key;
 }
 
-async function fetchAvailableLocales(): Promise<void> {
-	try {
-		const res = await fetch(`${API_BASE}/locales`);
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const remoteLocales = (await res.json()) as LocaleEntry[];
-		const remoteIds = new Set(remoteLocales.map((locale) => locale.id));
-		const storedOnly = locales.filter(
-			(locale) => !remoteIds.has(locale.id),
-		);
-
-		locales.splice(0, locales.length, ...remoteLocales, ...storedOnly);
-	} catch (error) {
-		console.error("[i18n] Failed to fetch available locales:", error);
-	}
-}
-
-async function initializeI18n(): Promise<void> {
-	await loadStoredLocales();
-	await fetchAvailableLocales();
+export function loadAvailableLocales(): Promise<void> {
+	if (catalogPromise) return catalogPromise;
+	if (Date.now() - catalogCheckedAt < 30_000) return Promise.resolve();
+	catalogPromise = invoke<(LocaleEntry & { installed: boolean })[]>(
+		"list_locales",
+	)
+		.then((entries) => {
+			const known = new Set(entries.map((entry) => entry.code));
+			const extra = locales.filter((entry) => !known.has(entry.code));
+			locales.splice(0, locales.length, ...entries, ...extra);
+			for (const entry of entries)
+				if (entry.installed) i18nLoader.fetched.add(entry.code);
+			catalogCheckedAt = Date.now();
+		})
+		.catch((error) =>
+			console.error("[i18n] Failed to list languages:", error),
+		)
+		.finally(() => {
+			catalogPromise = null;
+		});
+	return catalogPromise;
 }
 
 export { locales };
-
-void initializeI18n();

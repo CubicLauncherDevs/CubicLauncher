@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { t, locales, downloadLocale } from "$lib/i18n";
+	import { onMount } from "svelte";
+	import {
+		t,
+		locales,
+		downloadLocale,
+		loadAvailableLocales,
+	} from "$lib/i18n";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { saveSettings } from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
@@ -22,6 +28,9 @@
 			label: l.label,
 		})),
 	);
+	onMount(() => {
+		void loadAvailableLocales();
+	});
 
 	async function onLanguageChange() {
 		downloadLocale(launcherStore.settings.language);

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
 	import { invoke } from "@tauri-apps/api/core";
-	import { listen } from "@tauri-apps/api/event";
+	import { onMount } from "svelte";
+	import { subscribeLogPreview } from "$lib/api/logStream";
 	import type { InstanceDto } from "$lib/types/types";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { getLoaderLogo, getDisplayIconSrc } from "$lib/icons/logos";
@@ -60,29 +61,32 @@
 	});
 
 	let lastLog = $state("");
+	let visible = $state(true);
+	onMount(() => {
+		const update = () => {
+			visible = !document.hidden;
+		};
+		update();
+		document.addEventListener("visibilitychange", update);
+		return () => document.removeEventListener("visibilitychange", update);
+	});
+
+	$effect(() => {
+		void instance.uuid;
+		lastLog = "";
+	});
 
 	$effect(() => {
 		const id = instance.uuid;
-		lastLog = "";
-		let destroyed = false;
-		const unlistenPromise = listen<{
-			id: string;
-			lines: { line: string; stream: string; timestamp: number }[];
-		}>("instance-log-batch", (event) => {
-			if (
-				!destroyed &&
-				event.payload.id === id &&
-				event.payload.lines.length > 0
-			) {
-				const last =
-					event.payload.lines[event.payload.lines.length - 1];
-				lastLog = last.line;
-			}
+		if (
+			!visible ||
+			activeSection !== "detalles" ||
+			(bannerState !== "Started" && bannerState !== "Starting")
+		)
+			return;
+		return subscribeLogPreview(id, (line) => {
+			lastLog = line;
 		});
-		return () => {
-			destroyed = true;
-			unlistenPromise.then((u) => u?.());
-		};
 	});
 
 	function openDir(subDir?: string) {

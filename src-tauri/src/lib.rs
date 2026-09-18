@@ -72,7 +72,9 @@ pub fn run() {
             commands::settings::detect_java_paths,
             commands::settings::get_recommended_ram,
             commands::i18n::save_locale,
-            commands::i18n::load_locales,
+            commands::i18n::load_locale,
+            commands::i18n::refresh_locale,
+            commands::i18n::list_locales,
             commands::auth::get_device_code,
             commands::auth::authenticate_with_device_code,
             commands::auth::start_webview_auth,
@@ -142,6 +144,7 @@ pub fn run() {
             commands::java::get_jre_versions,
             commands::log_window::open_log_window,
             commands::log_window::get_log_history_cmd,
+            commands::log_window::set_log_preview,
             commands::log_window::upload_log_to_mclogs,
         ])
         .plugin(tauri_plugin_process::init())
@@ -197,7 +200,10 @@ pub fn run() {
                 label,
                 event: tauri::WindowEvent::Destroyed,
                 ..
-            } if label == "main" => services::launch_window::on_main_destroyed(app_handle),
+            } if label == "main" => {
+                commands::log_window::clear_log_previews();
+                services::launch_window::on_main_destroyed(app_handle);
+            }
             _ => {}
         });
 }

@@ -1,4 +1,4 @@
-use crate::commands::log_window::open_log_window_for_instance;
+use crate::commands::log_window::{open_log_window_for_instance, wants_log_preview};
 use crate::core::event_bus::{AppEvent, emit};
 use crate::core::path_manager::PathManager;
 use crate::core::{AppError, AuthError, DownloadError, FsError, InstanceError};
@@ -25,7 +25,7 @@ use regex::Regex;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, EventTarget, Manager};
 use tokio::fs;
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, trace, warn};
@@ -1021,9 +1021,37 @@ fn is_game_ready(line: &str) -> bool {
         .is_match(line)
 }
 
-fn has_log_window(app: Option<&tauri::AppHandle>, log_label: &str) -> bool {
-    app.is_some_and(|app| {
-        app.get_webview_window("main").is_some() || app.get_webview_window(log_label).is_some()
+#[derive(Default)]
+struct PendingLogs {
+    lines: Vec<LogEntryEvent>,
+    preview: Option<LogEntryEvent>,
+}
+
+impl PendingLogs {
+    fn is_empty(&self) -> bool {
+        self.lines.is_empty() && self.preview.is_none()
+    }
+
+    fn push(&mut self, entry: LogEntryEvent, console: bool, preview: bool) {
+        if preview {
+            self.preview = Some(entry.clone());
+        } else {
+            self.preview = None;
+        }
+        if console {
+            self.lines.push(entry);
+        } else {
+            self.lines.clear();
+        }
+    }
+}
+
+fn log_consumers(app: Option<&tauri::AppHandle>, id: &str, log_label: &str) -> (bool, bool) {
+    app.map_or((false, false), |app| {
+        (
+            app.get_webview_window(log_label).is_some(),
+            wants_log_preview(id) && app.get_webview_window("main").is_some(),
+        )
     })
 }
 
@@ -1034,13 +1062,45 @@ fn flush_log_batch(
     batch: &mut Vec<LogEntryEvent>,
 ) {
     if !batch.is_empty()
-        && has_log_window(app, log_label)
         && let Some(app) = app
+        && app.get_webview_window(log_label).is_some()
     {
-        let _ = app.emit("instance-log-batch", LogBatchEvent { id, lines: batch });
+        let _ = app.emit_to(
+            EventTarget::webview_window(log_label),
+            "instance-log-batch",
+            LogBatchEvent { id, lines: batch },
+        );
     }
     // Keep the allocation for the next batch.
     batch.clear();
+}
+
+fn flush_log_preview(
+    app: Option<&tauri::AppHandle>,
+    id: &str,
+    preview: &mut Option<LogEntryEvent>,
+) {
+    #[derive(Clone, serde::Serialize)]
+    struct Preview<'a> {
+        id: &'a str,
+        line: &'a str,
+    }
+    if let Some(line) = preview.take()
+        && let Some(app) = app
+        && wants_log_preview(id)
+        && let Some(window) = app.get_webview_window("main")
+        && window.is_visible().unwrap_or(false)
+        && !window.is_minimized().unwrap_or(false)
+    {
+        let _ = app.emit_to(
+            EventTarget::webview_window("main"),
+            "instance-log-preview",
+            Preview {
+                id,
+                line: &line.line,
+            },
+        );
+    }
 }
 
 fn spawn_io_forwarding(
@@ -1053,7 +1113,7 @@ fn spawn_io_forwarding(
     tokio::spawn(async move {
         let ring = get_log_ring(&id);
         let log_label = format!("log-{id}");
-        let mut batch = Vec::with_capacity(64);
+        let mut pending = PendingLogs::default();
         let mut stdout_closed = false;
         let mut stderr_closed = false;
         let delay = std::time::Duration::from_millis(80);
@@ -1064,8 +1124,9 @@ fn spawn_io_forwarding(
             let (line_result, is_stderr) = tokio::select! {
                 line = stdout.recv(), if !stdout_closed => (line, false),
                 line = stderr.recv(), if !stderr_closed => (line, true),
-                _ = &mut timer, if !batch.is_empty() => {
-                    flush_log_batch(app.as_ref(), &id, &log_label, &mut batch);
+                _ = &mut timer, if !pending.is_empty() => {
+                    flush_log_batch(app.as_ref(), &id, &log_label, &mut pending.lines);
+                    flush_log_preview(app.as_ref(), &id, &mut pending.preview);
                     continue;
                 }
             };
@@ -1100,25 +1161,34 @@ fn spawn_io_forwarding(
             let (line_id, timestamp) = ring.push(text.clone(), level, u8::from(is_stderr)).await;
             // Retain sanitized history while the WebView is gone, without building
             // IPC payloads or waking an interval timer for an absent frontend.
-            if has_log_window(app.as_ref(), &log_label) {
-                if batch.is_empty() {
+            let (console, preview) = log_consumers(app.as_ref(), &id, &log_label);
+            if console || preview {
+                if pending.is_empty() {
                     timer.as_mut().reset(tokio::time::Instant::now() + delay);
                 }
-                batch.push(LogEntryEvent {
-                    id: line_id,
-                    line: text,
-                    stream: if is_stderr { "stderr" } else { "stdout" },
-                    level,
-                    timestamp,
-                });
-                if batch.len() >= 64 {
-                    flush_log_batch(app.as_ref(), &id, &log_label, &mut batch);
+                pending.push(
+                    LogEntryEvent {
+                        id: line_id,
+                        line: text,
+                        stream: if is_stderr { "stderr" } else { "stdout" },
+                        level,
+                        timestamp,
+                    },
+                    console,
+                    preview,
+                );
+                if pending.lines.len() >= 64 {
+                    // Console throughput must not increase header updates above
+                    // one preview per 80 ms. Its last line waits for the timer.
+                    flush_log_batch(app.as_ref(), &id, &log_label, &mut pending.lines);
                 }
             } else {
-                batch.clear();
+                pending.lines.clear();
+                pending.preview = None;
             }
         }
-        flush_log_batch(app.as_ref(), &id, &log_label, &mut batch);
+        flush_log_batch(app.as_ref(), &id, &log_label, &mut pending.lines);
+        flush_log_preview(app.as_ref(), &id, &mut pending.preview);
     })
 }
 

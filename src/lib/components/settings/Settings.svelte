@@ -9,7 +9,12 @@
 		onAppEvent,
 	} from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
-	import { t, locales, downloadLocale } from "$lib/i18n";
+	import {
+		t,
+		locales,
+		downloadLocale,
+		loadAvailableLocales,
+	} from "$lib/i18n";
 	import { i18nLoader } from "$lib/i18n/loader.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
 	import {
@@ -205,6 +210,7 @@
 	}
 
 	onMount(() => {
+		void loadAvailableLocales();
 		loadThemes();
 		refreshJreStatus();
 		loadRecommendedRam();
