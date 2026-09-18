@@ -97,6 +97,7 @@
 		"scrollBottom": "Ir al final"
 	},
 	"common": {
+		"loading": "Cargando...",
 		"cancel": "Cancelar",
 		"save": "Guardar",
 		"retry": "Reintentar"

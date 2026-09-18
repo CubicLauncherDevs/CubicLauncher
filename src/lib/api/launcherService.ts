@@ -72,6 +72,7 @@ import {
 } from "$lib/state/downloadQueueState.svelte";
 
 import { invoke } from "@tauri-apps/api/core";
+import { loadInstalledVersions } from "$lib/state/versionsState.svelte";
 
 export function getActiveUser(): MinecraftUser | null {
 	const users = launcherStore.settings.user;
@@ -128,15 +129,24 @@ export function markLocalSettingsChange(): void {
 	_settingsRevision++;
 }
 
-export function initEventListeners(): void {
+export function initEventListeners(mode: "main" | "logs" = "main"): void {
 	if (_listenerInitialized) return;
 	_listenerInitialized = true;
 
-	initDownloadState();
-	initDownloadQueueState();
+	if (mode === "main") {
+		initDownloadState();
+		initDownloadQueueState();
+	}
 
 	_unlistenAppEvent = listen<AppEvent>("app-event", (event) => {
 		const payload = event.payload;
+		// Auxiliary consoles only need live appearance/settings updates.
+		if (
+			mode === "logs" &&
+			payload.type !== "STChanged" &&
+			payload.type !== "ThemeChanged"
+		)
+			return;
 
 		switch (payload.type) {
 			case "InstanceCreated":
@@ -164,6 +174,8 @@ export function initEventListeners(): void {
 				}
 				break;
 			case "DFinish": {
+				// Keep installed versions current even before the downloader is opened.
+				void loadInstalledVersions(true);
 				const pending = launcherStore.pendingJreLaunch;
 				if (pending) {
 					const jreVersionStr = `jre-${pending.version}`;

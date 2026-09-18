@@ -34,8 +34,10 @@ const state = $state<{
 export const versionsState = state;
 
 let loadPromise: Promise<void> | null = null;
+let revision = 0;
 
 export async function loadInstalledVersions(force = false): Promise<void> {
+	if (force) invalidateInstalledVersions();
 	if (state.loading) {
 		return loadPromise ?? Promise.resolve();
 	}
@@ -48,11 +50,18 @@ export async function loadInstalledVersions(force = false): Promise<void> {
 
 	loadPromise = (async () => {
 		try {
-			const raw = await getInstalledVersions();
-			state.rawVersions = raw;
-			state.mcVersions = getInstalledMcVersions(raw);
-			state.loaderVersions = getInstalledLoaderVersions(raw);
-			state.loaded = true;
+			// An install may finish during a scan. Coalesce refreshes into a
+			// trailing scan instead of publishing an already outdated result.
+			while (true) {
+				const requestedRevision = revision;
+				const raw = await getInstalledVersions();
+				if (requestedRevision !== revision) continue;
+				state.rawVersions = raw;
+				state.mcVersions = getInstalledMcVersions(raw);
+				state.loaderVersions = getInstalledLoaderVersions(raw);
+				state.loaded = true;
+				break;
+			}
 		} catch (e) {
 			state.error = e instanceof Error ? e.message : String(e);
 			state.loaded = false;
@@ -66,6 +75,7 @@ export async function loadInstalledVersions(force = false): Promise<void> {
 }
 
 export function invalidateInstalledVersions(): void {
+	revision++;
 	state.loaded = false;
 }
 

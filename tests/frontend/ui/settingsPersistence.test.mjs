@@ -23,6 +23,7 @@ export const initDownloadState=()=>{};
 export const destroyDownloadState=()=>{};
 export const initDownloadQueueState=()=>{};
 export const destroyDownloadQueueState=()=>{};
+export const loadInstalledVersions=()=>{};
 export const invoke=()=>{};
 `;
 	const bundle = await Bun.build({

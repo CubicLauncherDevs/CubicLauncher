@@ -26,7 +26,6 @@
 		invalidateInstalledVersions,
 	} from "$lib/state/versionsState.svelte";
 	import type { MinecraftVersion } from "$lib/types/types";
-	import { onAppEvent } from "$lib/api/launcherService";
 	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
@@ -390,9 +389,6 @@
 	onMount(() => {
 		loadInstalledVersions();
 		loadVanilla();
-		return onAppEvent("DFinish", () => {
-			loadInstalledVersions(true);
-		});
 	});
 </script>
 

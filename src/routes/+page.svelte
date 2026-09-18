@@ -14,6 +14,7 @@
 	import SidebarCompact from "$lib/components/layout/Sidebar/SidebarCompact.svelte";
 	import InstanceView from "$lib/components/instances/InstanceView/InstanceView.svelte";
 	import Drawer from "$lib/components/layout/Drawer.svelte";
+	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
 	import JreInstallPrompt from "$lib/components/ui/JreInstallPrompt.svelte";
 	import Tutorial from "$lib/components/layout/welcome/welcome.svelte";
@@ -74,6 +75,40 @@
 		open: boolean;
 	}> | null>(null);
 
+	$effect(() => {
+		if (!quickMenuOpen || SettingsComponent) return;
+		let active = true;
+		import("$lib/components/settings/Settings.svelte")
+			.then((module) => {
+				if (active) SettingsComponent = module.default;
+			})
+			.catch((error) => {
+				if (!active) return;
+				quickMenuOpen = false;
+				showError(t("errors.title"), String(error));
+			});
+		return () => {
+			active = false;
+		};
+	});
+
+	$effect(() => {
+		if (!versionDownloaderOpen || VersionDownloaderComponent) return;
+		let active = true;
+		import("$lib/components/layout/VersionDownloader/VersionDownloader.svelte")
+			.then((module) => {
+				if (active) VersionDownloaderComponent = module.default;
+			})
+			.catch((error) => {
+				if (!active) return;
+				versionDownloaderOpen = false;
+				showError(t("errors.title"), String(error));
+			});
+		return () => {
+			active = false;
+		};
+	});
+
 	const sidebarTransitionDuration = $derived(animDuration(0.35, 0.05));
 	const interfaceScale = $derived(
 		interfacePreferences(launcherStore.settings.interface_preferences)
@@ -112,19 +147,26 @@
 	let unlistenDragDrop: (() => void) | undefined;
 	let checkUpdatesTimer: ReturnType<typeof setTimeout> | undefined;
 	let editingTimer: ReturnType<typeof setTimeout> | undefined;
+	let destroyed = false;
 
 	onMount(async () => {
+		initEventListeners(logParams ? "logs" : "main");
+		if (logParams) {
+			await syncSettings();
+			return;
+		}
+
 		const stored = localStorage.getItem("sidebarMode");
 		if (stored === "compact") {
 			sidebarMode = "compact";
 		}
-		initEventListeners();
 
 		await Promise.all([
 			syncSettings(),
 			getVersions(),
 			loadInstalledVersions(),
 		]);
+		if (destroyed) return;
 
 		if (
 			launcherStore.settings.show_tutorial ||
@@ -153,19 +195,11 @@
 			checkUpdatesTimer = setTimeout(() => autoUpdate(), 2000);
 		}
 
-		// Lazy load non-critical components after first paint
-		Promise.all([
-			import("$lib/components/settings/Settings.svelte"),
-			import("$lib/components/layout/VersionDownloader/VersionDownloader.svelte"),
-		]).then(([s, v]) => {
-			SettingsComponent = s.default;
-			VersionDownloaderComponent = v.default;
-		});
-
 		setupDragDrop();
 	});
 
 	onDestroy(() => {
+		destroyed = true;
 		destroyEventListeners();
 		unlistenDragDrop?.();
 		clearTimeout(checkUpdatesTimer);
@@ -180,7 +214,7 @@
 	});
 
 	$effect(() => {
-		localStorage.setItem("sidebarMode", sidebarMode);
+		if (!logParams) localStorage.setItem("sidebarMode", sidebarMode);
 	});
 
 	$effect(() => {
@@ -194,8 +228,10 @@
 		try {
 			const { getCurrentWebview } =
 				await import("@tauri-apps/api/webview");
+			if (destroyed) return;
 			const webview = getCurrentWebview();
 			unlistenDragDrop = await webview.onDragDropEvent((event) => {
+				if (destroyed) return;
 				if (event.payload.type === "enter") {
 					const payload = event.payload as { paths: string[] };
 					dragPaths = payload.paths ?? [];
@@ -233,6 +269,7 @@
 					dragPaths = [];
 				}
 			});
+			if (destroyed) unlistenDragDrop();
 		} catch (e) {
 			console.warn("Drag-drop not available:", e);
 		}
@@ -410,7 +447,11 @@
 	</div>
 
 	<Drawer bind:open={quickMenuOpen} direction="right">
-		<SettingsComponent onclose={() => (quickMenuOpen = false)} />
+		{#if SettingsComponent}
+			<SettingsComponent onclose={() => (quickMenuOpen = false)} />
+		{:else}
+			<p role="status">{t("common.loading")}</p>
+		{/if}
 	</Drawer>
 
 	{#if editingInstance}
@@ -429,7 +470,17 @@
 		</Drawer>
 	{/if}
 
-	<VersionDownloaderComponent bind:open={versionDownloaderOpen} />
+	{#if VersionDownloaderComponent}
+		<VersionDownloaderComponent bind:open={versionDownloaderOpen} />
+	{:else if versionDownloaderOpen}
+		<ModalBase
+			bind:open={versionDownloaderOpen}
+			title={t("versionDownloader.title")}
+			width="800px"
+		>
+			<p role="status">{t("versionDownloader.loading")}</p>
+		</ModalBase>
+	{/if}
 
 	<CreateInstanceModal
 		bind:open={openCreateModal}

@@ -317,6 +317,39 @@ La comparación anterior cargaba/decodificaba la lista completa dos veces (lectu
 
 ### Descarga de versiones
 
+#### Arranque y carga bajo demanda
+
+```bash
+bun test --conditions=browser ./tests/frontend/ui/launcherStartup.test.mjs ./tests/frontend/ui/startupPage.test.mjs
+```
+
+La prueba del servicio verifica que las consolas solo procesan cambios de ajustes
+y tema, sin inicializar los estados de descargas ni cargar instancias. La lista
+de versiones instaladas se actualiza al finalizar una descarga aunque nunca se
+haya abierto el descargador; las finalizaciones durante una lectura se agrupan
+en una lectura posterior, descartando el resultado antiguo.
+
+La prueba de página monta la ruta y sus contenedores reales en un navegador
+headless, con llamadas nativas y paneles finales instrumentados. Comprueba que
+Ajustes y Descargador se importan al abrirse, que reabrir el descargador conserva
+su montaje y que una consola no inicia Discord, el actualizador ni drag-and-drop.
+También comprueba el desmontaje durante un arranque pendiente. Se omite si no
+encuentra un navegador compatible.
+
+- [ ] Arrancar sin abrir paneles: no debe solicitarse el catálogo de versiones
+  disponibles por el descargador. Abrirlo por primera vez, cerrarlo y reabrirlo;
+  comprobar filtros, selección y descarga.
+- [ ] Instalar una versión sin haber abierto el descargador; comprobar que está
+  disponible al crear una instancia y al abrir el descargador posteriormente.
+- [ ] Abrir Ajustes desde la barra lateral y desde el tutorial; cerrar y reabrir,
+  cambiar una preferencia y comprobar su persistencia.
+- [ ] Abrir varias consolas: deben conservar idioma, tema, escala, historial y
+  actualizaciones de configuración sin cargar instancias/versiones ni comprobar
+  actualizaciones del launcher. Repetir con la ventana principal cerrada al jugar.
+- [ ] Comparar arranque/reposo y apertura de consolas en builds de producción con
+  la misma configuración. Medir el conjunto Rust/WebView y separar Minecraft;
+  estas pruebas funcionales no cuantifican la reducción de RAM o CPU.
+
 - [ ] Abrir el drawer "Descargar Versiones" desde la sidebar.
 - [ ] Cambiar entre tabs: Releases, Snapshots, Alphas, Fabric, Forge, Quilt.
 - [ ] Filtrar por instaladas/no instaladas y versión mayor.

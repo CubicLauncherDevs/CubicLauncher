@@ -97,6 +97,7 @@
 		"scrollBottom": "Go to bottom"
 	},
 	"common": {
+		"loading": "Loading...",
 		"cancel": "Cancel",
 		"save": "Save",
 		"retry": "Retry"
