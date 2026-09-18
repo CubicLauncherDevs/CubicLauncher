@@ -327,7 +327,7 @@
 								/>{/if}
 						</div>
 						<div class="server-label">
-							<strong>{server.name}</strong><span
+							<strong>{server.name}</strong><span class="ip-span blurred"
 								>{server.address}</span
 							><small class:online={status?.online}
 								>{statusLabel(status)}{#if status?.online}
@@ -357,7 +357,7 @@
 						</p>{/if}
 					<dl>
 						<dt>{t("servers.address")}</dt>
-						<dd>{selected.address}</dd>
+						<dd class="blurred">{selected.address}</dd>
 						<dt>{t("servers.status")}</dt>
 						<dd>{statusLabel(selectedStatus)}</dd>
 						{#if selectedStatus?.online}
@@ -648,6 +648,16 @@
 	.hint {
 		color: var(--text-secondary);
 		font-size: 0.8rem;
+	}
+	.ip-span,
+	dd.blurred {
+		filter: blur(4px);
+		transition: filter 0.2s ease;
+		user-select: none;
+	}
+	.ip-span:hover,
+	dd.blurred:hover {
+		filter: blur(0);
 	}
 	.server-label .online {
 		color: var(--accent-primary);

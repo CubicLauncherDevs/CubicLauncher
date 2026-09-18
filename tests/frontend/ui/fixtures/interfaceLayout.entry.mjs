@@ -424,7 +424,9 @@ async function verifyNotifications() {
 		];
 		await settle();
 		assert(timerStarts === 1, "unexpected notification timers");
-		const countdown = document.querySelector(".fill.countdown");
+		const countdown = document.querySelector(".progress-ring.countdown");
+		assert(countdown, "timed notification has no countdown");
+		await verifyNotificationAppearance(countdown);
 		const title = document.querySelector("#notification-title_size");
 		const before = saves.length;
 		for (let i = 0; i < 100; i++) {
@@ -448,16 +450,33 @@ async function verifyNotifications() {
 		preferences.message_size = 22;
 		preferences.uppercase_title = true;
 		preferences.bold_title = true;
-		for (const progress of [25, 40, 80, 99]) {
+		const progressRing = document.querySelectorAll(".progress-ring")[2];
+		for (const progress of [-5, 0, 25, 40, 80, 99]) {
 			launcherStore.notifications[2].progress = progress;
 			await settle();
+			await Promise.all(
+				progressRing
+					.getAnimations()
+					.map((animation) => animation.finished),
+			);
+			assert(
+				near(
+					parseFloat(
+						getComputedStyle(progressRing).getPropertyValue(
+							"--notification-progress-angle",
+						),
+					),
+					Math.max(0, progress) * 3.6,
+				),
+				"download progress does not match its border indicator",
+			);
 		}
 		assert(
 			timerStarts === 1 && timers.size === 1,
 			"visual changes or progress restarted notification timers",
 		);
 		assert(
-			document.querySelector(".fill.countdown") === countdown,
+			document.querySelector(".progress-ring.countdown") === countdown,
 			"visual changes remounted the countdown",
 		);
 		launcherStore.notifications[2].progress = 100;
@@ -478,5 +497,118 @@ async function verifyNotifications() {
 	} finally {
 		window.setTimeout = nativeSetTimeout;
 		window.clearTimeout = nativeClearTimeout;
+	}
+}
+
+async function verifyNotificationAppearance(countdown) {
+	const root = document.documentElement;
+	const toast = countdown.closest(".notification-toast");
+	const icon = countdown.closest(".notification-icon");
+	const wrap = icon.parentElement;
+	const animation = countdown.getAnimations()[0];
+	assert(animation, "countdown animation did not start");
+	animation.pause();
+	animation.currentTime = 3000;
+	const variables = ["--toast-radius", "--toast-blur"];
+	const original = variables.map((name) => root.style.getPropertyValue(name));
+	const flags = [
+		"data-no-blur",
+		"data-reduce-motion",
+		"data-no-infinite-animations",
+	];
+	const attributes = flags.map((name) => root.getAttribute(name));
+	try {
+		for (const radius of [
+			"50%",
+			"0px",
+			"8px",
+			"0px 8px 14px 3px / 0px 12px 6px 3px",
+		]) {
+			root.style.setProperty("--toast-radius", radius);
+			for (const size of [32, 44]) {
+				wrap.style.setProperty("--notification-icon-size", `${size}px`);
+				await settle();
+				const shape = getComputedStyle(icon);
+				const ring = getComputedStyle(countdown);
+				for (const corner of [
+					"borderTopLeftRadius",
+					"borderTopRightRadius",
+					"borderBottomRightRadius",
+					"borderBottomLeftRadius",
+				]) {
+					assert(
+						ring[corner] === shape[corner],
+						`loader does not follow ${corner}: ${radius}`,
+					);
+				}
+				const iconBounds = icon.getBoundingClientRect();
+				const ringBounds = countdown.getBoundingClientRect();
+				for (const edge of ["left", "top", "right", "bottom"]) {
+					assert(
+						near(iconBounds[edge], ringBounds[edge]),
+						`loader detached from icon at ${size}px`,
+					);
+				}
+				assert(
+					countdown.getAnimations()[0] === animation,
+					"theme change restarted countdown",
+				);
+				assert(
+					near(
+						parseFloat(
+							ring.getPropertyValue(
+								"--notification-progress-angle",
+							),
+						),
+						180,
+					),
+					"countdown does not interpolate at half duration",
+				);
+			}
+		}
+		// Injected theme CSS can override the icon itself, independently of tokens.
+		icon.style.borderRadius = "0px";
+		await settle();
+		assert(
+			getComputedStyle(countdown).borderRadius === "0px",
+			"direct square icon override lost",
+		);
+		icon.style.removeProperty("border-radius");
+		for (const blur of ["12px", "0px"]) {
+			root.style.setProperty("--toast-blur", blur);
+			await settle();
+			assert(
+				getComputedStyle(toast).backdropFilter === `blur(${blur})`,
+				"toast blur customization ignored",
+			);
+		}
+		root.style.setProperty("--toast-blur", "12px");
+		for (const flag of flags) {
+			root.setAttribute(flag, "");
+			await settle();
+			assert(
+				getComputedStyle(countdown).animationDuration === "6s",
+				`${flag} changed countdown duration`,
+			);
+			if (flag !== "data-no-infinite-animations") {
+				assert(
+					getComputedStyle(toast).backdropFilter === "none",
+					`${flag} did not disable toast blur`,
+				);
+			}
+			root.removeAttribute(flag);
+		}
+	} finally {
+		variables.forEach((name, index) => {
+			if (original[index]) root.style.setProperty(name, original[index]);
+			else root.style.removeProperty(name);
+		});
+		flags.forEach((name, index) => {
+			if (attributes[index] === null) root.removeAttribute(name);
+			else root.setAttribute(name, attributes[index]);
+		});
+		wrap.style.removeProperty("--notification-icon-size");
+		icon.style.removeProperty("border-radius");
+		animation.play();
 	}
 }

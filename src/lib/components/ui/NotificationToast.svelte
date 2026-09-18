@@ -30,9 +30,6 @@
 		durationSeconds?: number;
 	} = $props();
 
-	const R = 14.1;
-	const CIRC = 2 * Math.PI * R;
-
 	let removing = $state(false);
 	const isDone = $derived(
 		typeof notification.progress === "number" &&
@@ -95,10 +92,11 @@
 		}, 1500);
 	}
 
-	// External progress: reactive offset via CSS transition
-	const progressOffset = $derived.by(() => {
-		if (!hasProgress) return CIRC;
-		return CIRC * (1 - (notification.progress ?? 0) / 100);
+	const progressAngle = $derived.by(() => {
+		const progress = notification.progress ?? 0;
+		return Number.isFinite(progress)
+			? `${Math.min(100, Math.max(0, progress)) * 3.6}deg`
+			: "0deg";
 	});
 
 	// One shared CSS animation and one timeout per timed toast. Progress updates
@@ -124,7 +122,7 @@
 	class:removing
 	class:customized
 	style="--notification-in-duration: {entryDuration}ms; --notification-out-duration: {exitDuration}ms; --notification-timeout: {timeout ??
-		0}ms; --notification-circumference: {CIRC};"
+		0}ms;"
 	role="button"
 	tabindex="0"
 	onclick={dismiss}
@@ -141,28 +139,24 @@
 	<div class="notification-gloss" aria-hidden="true"></div>
 
 	<div class="notification-icon-wrap">
-		<svg
-			class="progress-ring preserve-motion"
-			viewBox="0 0 32 32"
-			aria-hidden="true"
+		<div
+			class="notification-icon"
+			style:background-color={iconColor}
+			style:--notification-progress-color={iconColor}
 		>
-			<circle class="track" cx="16" cy="16" r={R} />
+			<!-- Inline priority preserves real elapsed time even when performance
+			     styles use !important inside a cascade layer. -->
 			{#key timeout}
-				<circle
-					class="fill"
+				<div
+					class="progress-ring preserve-motion"
 					class:countdown={!hasProgress && !!timeout && timeout > 0}
-					cx="16"
-					cy="16"
-					r={R}
-					style:stroke={iconColor}
-					stroke-dasharray={CIRC}
-					stroke-dashoffset={hasProgress ? progressOffset : CIRC}
-				/>
+					style:animation-duration|important={`${timeout ?? 0}ms`}
+					style:--notification-progress-angle={hasProgress
+						? progressAngle
+						: "0deg"}
+					aria-hidden="true"
+				></div>
 			{/key}
-		</svg>
-
-		<div class="notification-icon" style:background={iconColor}>
-			<div class="notification-gloss-dot" aria-hidden="true"></div>
 
 			{#key isDone ? "done" : notification.type}
 				{#if isDone}
@@ -261,6 +255,12 @@
 </div>
 
 <style>
+	@property --notification-progress-angle {
+		syntax: "<angle>";
+		inherits: false;
+		initial-value: 0deg;
+	}
+
 	.notification-toast {
 		display: flex;
 		align-items: center;
@@ -271,6 +271,12 @@
 		);
 		border-radius: var(--toast-radius, 22px);
 		background: var(--toast-bg);
+		-webkit-backdrop-filter: blur(
+			var(--toast-blur, var(--backdrop-blur-float, 4px))
+		);
+		backdrop-filter: blur(
+			var(--toast-blur, var(--backdrop-blur-float, 4px))
+		);
 		border: 1px solid var(--toast-border);
 		border-top-color: rgba(var(--surface-rgb), 0.18);
 		box-shadow: var(--toast-shadow, var(--shadow-lg));
@@ -284,7 +290,6 @@
 		animation: notificationIn var(--notification-in-duration, 0.3s)
 			cubic-bezier(0.2, 0.85, 0.3, 1) both;
 		pointer-events: auto;
-		will-change: transform, opacity;
 		box-sizing: border-box;
 		max-width: 100%;
 		width: 100%;
@@ -292,7 +297,10 @@
 	}
 
 	.notification-toast:hover {
-		background: var(--surface-hover);
+		background: var(--toast-hover-bg, var(--toast-bg));
+	}
+	.notification-toast:hover .notification-gloss {
+		opacity: var(--toast-gloss-hover-opacity, 0.5);
 	}
 	.notification-toast:active {
 		transform: scale(0.985);
@@ -356,13 +364,14 @@
 		left: 0;
 		right: 0;
 		height: 50%;
-		border-radius: var(--toast-radius, 22px) var(--toast-radius, 22px) 0 0;
 		background: linear-gradient(
 			180deg,
 			var(--surface-card) 0%,
 			transparent 100%
 		);
 		pointer-events: none;
+		opacity: var(--toast-gloss-opacity, 0.35);
+		transition: opacity 0.2s ease;
 	}
 
 	.notification-icon-wrap {
@@ -374,52 +383,61 @@
 
 	.progress-ring {
 		position: absolute;
-		inset: 0;
-		transform: rotate(-90deg);
+		inset: -3px;
+		box-sizing: border-box;
+		border-radius: inherit;
+		padding: 1.8px;
+		pointer-events: none;
+		/* Mask a border out of the icon's own silhouette, including asymmetric
+		   corners. Theme changes never need to recreate the countdown element. */
+		background: conic-gradient(
+				var(--notification-progress-color)
+					var(--notification-progress-angle),
+				transparent 0deg
+			)
+			var(--surface-hover);
+		-webkit-mask:
+			linear-gradient(#fff 0 0) content-box,
+			linear-gradient(#fff 0 0);
+		-webkit-mask-composite: xor;
+		mask:
+			linear-gradient(#fff 0 0) content-box,
+			linear-gradient(#fff 0 0);
+		mask-composite: exclude;
+		transition: --notification-progress-angle 0.12s linear;
 	}
 
-	.progress-ring :global(.track) {
-		fill: none;
-		stroke: var(--surface-hover);
-		stroke-width: 1.8;
-	}
-
-	.progress-ring :global(.fill) {
-		fill: none;
-		stroke-width: 1.8;
-		stroke-linecap: round;
-		transition:
-			stroke-dashoffset 0.12s linear,
-			stroke 0.4s ease;
-	}
-
-	.fill.countdown {
+	.progress-ring.countdown {
 		animation: notificationCountdown var(--notification-timeout) linear
 			forwards;
-		/* This duration represents time, not a decorative motion preference. */
-		animation-duration: var(--notification-timeout) !important;
 	}
 
 	@keyframes notificationCountdown {
 		from {
-			stroke-dashoffset: var(--notification-circumference);
+			--notification-progress-angle: 0deg;
 		}
 		to {
-			stroke-dashoffset: 0;
+			--notification-progress-angle: 360deg;
 		}
 	}
 
 	.notification-icon {
 		position: absolute;
-		inset: 3px;
-		border-radius: 50%;
+		inset: 0;
+		box-sizing: border-box;
+		border: 3px solid transparent;
+		border-radius: var(--toast-icon-radius, var(--toast-radius, 50%));
+		background-image: linear-gradient(
+			180deg,
+			rgba(var(--surface-rgb), 0.22) 0%,
+			transparent 52%
+		);
+		background-clip: padding-box;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		box-shadow: var(--toast-icon-shadow, var(--shadow-sm));
-		transition: background 0.4s ease;
-		overflow: hidden;
-		will-change: transform;
+		transition: background-color 0.4s ease;
 	}
 
 	.notification-icon svg {
@@ -428,20 +446,6 @@
 		position: relative;
 		z-index: 1;
 		flex-shrink: 0;
-	}
-
-	.notification-gloss-dot {
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		height: 52%;
-		border-radius: 50% 50% 0 0 / 50% 50% 0 0;
-		background: linear-gradient(
-			180deg,
-			rgba(var(--surface-rgb), 0.22) 0%,
-			transparent 100%
-		);
 	}
 
 	.notification-body {

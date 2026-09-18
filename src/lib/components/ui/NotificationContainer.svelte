@@ -67,8 +67,11 @@
 		--notification-padding: var(--toast-padding, 9px 16px 9px 9px);
 		--notification-icon-size: 32px;
 		--notification-body-gap: 2px;
-		scrollbar-width: thin;
-		scrollbar-color: var(--scrollbar-thumb) transparent;
+		scrollbar-width: none;
+	}
+
+	.notification-container::-webkit-scrollbar {
+		display: none;
 	}
 
 	.notification-container:empty {
