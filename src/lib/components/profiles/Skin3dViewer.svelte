@@ -29,7 +29,7 @@
 	let error = $state<string | null>(null);
 	let IdleAnimationClass: typeof IdleAnimation | null = null;
 
-	let isIntersecting = $state(true);
+	let isIntersecting = $state(false);
 	let isTabVisible = $state(true);
 	let pendingRaf: number | null = null;
 	let idleTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -44,10 +44,17 @@
 
 	function scheduleRender() {
 		const v = viewer;
-		if (!v || v.disposed || !v.renderPaused || pendingRaf !== null) return;
+		if (
+			!v ||
+			v.disposed ||
+			!isVisible ||
+			!v.renderPaused ||
+			pendingRaf !== null
+		)
+			return;
 		pendingRaf = requestAnimationFrame(() => {
 			pendingRaf = null;
-			v.render();
+			if (!v.disposed && isVisible && v.renderPaused) v.render();
 		});
 	}
 
@@ -55,10 +62,10 @@
 		const v = viewer;
 		if (!v || v.disposed) return;
 		const shouldPause = !isVisible || !shouldAnimate || isIdle;
-		const wasPaused = v.renderPaused;
 		v.renderPaused = shouldPause;
-		if (shouldPause && !wasPaused) {
-			scheduleRender();
+		if ((!isVisible || !shouldPause) && pendingRaf !== null) {
+			cancelAnimationFrame(pendingRaf);
+			pendingRaf = null;
 		}
 	}
 
@@ -72,7 +79,7 @@
 	function resetIdleTimer() {
 		stopIdleTimer();
 		isIdle = false;
-		if (shouldAnimate && isVisible) {
+		if (shouldAnimate && isVisible && !isInteracting) {
 			idleTimeout = setTimeout(() => {
 				isIdle = true;
 				syncRenderPause();
@@ -87,7 +94,6 @@
 
 	function handleVisibilityChange() {
 		isTabVisible = !document.hidden;
-		resetIdleTimer();
 	}
 
 	function bustCache(url: string): string {
@@ -113,7 +119,7 @@
 
 			IdleAnimationClass = IdleAnimation;
 
-			const width = container.clientWidth;
+			const width = Math.max(1, container.clientWidth);
 			const height = container.clientHeight || width;
 
 			const instance = new Render({
@@ -121,20 +127,14 @@
 				height,
 				enableControls: true,
 				zoom: 0.7,
-				enableFXAA: false,
+				// Keep skin3d's original visual quality in the main preview.
+				enableFXAA: quality === "high",
 				maxPixelRatio: quality === "high" ? 2 : 1,
 				pixelRatio: quality === "high" ? "match-device" : 1,
-				renderPaused: !shouldAnimate,
+				// Wait for visibility before starting any animation work.
+				renderPaused: true,
 			});
 
-			// Default skin3d lighting (ambient 3.0 / camera 0.6) washes out skins.
-			// A balanced ambient + stronger camera light keeps colors closer to the
-			// original texture while preserving shape.
-			instance.globalLight.intensity = 2.0;
-			instance.cameraLight.intensity = 1.2;
-
-			instance.autoRotate = shouldAnimate;
-			instance.animation = shouldAnimate ? new IdleAnimation() : null;
 			if (!interactive) {
 				instance.controls.enabled = false;
 			}
@@ -148,17 +148,19 @@
 			let lastDrawTime = performance.now();
 			const targetFrameInterval = 1000 / 30;
 			instanceAny.draw = function () {
+				if (instance.disposed || instance.renderPaused) return;
 				const now = performance.now();
-				if (
-					!isInteracting &&
-					now - lastDrawTime < targetFrameInterval
-				) {
+				const elapsed = now - lastDrawTime;
+				if (!isInteracting && elapsed < targetFrameInterval) {
 					instanceAny.animationID = requestAnimationFrame(() =>
 						instanceAny.draw(),
 					);
 					return;
 				}
-				lastDrawTime = now;
+				// Carry timing remainder forward to avoid drifting below 30 FPS.
+				lastDrawTime = isInteracting
+					? now
+					: now - (elapsed % targetFrameInterval);
 				originalDraw();
 			};
 
@@ -182,11 +184,13 @@
 			if (interactive) {
 				controlsStartHandler = () => {
 					isInteracting = true;
+					wakeFromIdle();
 					scheduleRender();
 				};
 				controlsChangeHandler = () => scheduleRender();
 				controlsEndHandler = () => {
 					isInteracting = false;
+					wakeFromIdle();
 				};
 				instance.controls.addEventListener(
 					"start",
@@ -200,18 +204,23 @@
 			}
 
 			resizeObserver = new ResizeObserver(() => {
-				if (instance && !instance.disposed) {
-					instance.width = container.clientWidth;
-					instance.height = container.clientHeight;
-					if (instance.renderPaused) scheduleRender();
+				if (instance.disposed) return;
+				const width = container.clientWidth;
+				const height = container.clientHeight;
+				if (
+					width > 0 &&
+					height > 0 &&
+					(width !== instance.width || height !== instance.height)
+				) {
+					// Resize GPU buffers once, only when dimensions actually change.
+					instance.setSize(width, height);
+					scheduleRender();
 				}
 			});
 			resizeObserver.observe(container);
 
 			intersectionObserver = new IntersectionObserver((entries) => {
-				isIntersecting = entries[0]?.isIntersecting ?? true;
-				syncRenderPause();
-				resetIdleTimer();
+				isIntersecting = entries[0]?.isIntersecting ?? false;
 			});
 			intersectionObserver.observe(container);
 
@@ -222,11 +231,11 @@
 			isTabVisible = !document.hidden;
 
 			viewer = instance;
-			syncRenderPause();
-			resetIdleTimer();
 		}
 
-		init();
+		init().catch((e) => {
+			if (mounted) error = String(e);
+		});
 
 		return () => {
 			mounted = false;
@@ -288,8 +297,14 @@
 			shouldAnimate && IdleAnimationClass
 				? new IdleAnimationClass()
 				: null;
-		syncRenderPause();
+	});
+
+	// Visibility changes should resume the current pose, not recreate animation.
+	$effect(() => {
 		resetIdleTimer();
+		syncRenderPause();
+		// Redraw static previews on return, including textures loaded while hidden.
+		scheduleRender();
 	});
 
 	$effect(() => {
