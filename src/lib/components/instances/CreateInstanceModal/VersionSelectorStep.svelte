@@ -183,9 +183,11 @@
 				type="button"
 				class="loader-btn"
 				class:active={selectedLoader === loader.value}
+				aria-label={loader.label}
+				aria-pressed={selectedLoader === loader.value}
 				onclick={() => (selectedLoader = loader.value)}
 			>
-				<Icon name={loader.iconName} size={20} />
+				<Icon name={loader.iconName} size={compact ? 16 : 20} />
 				<span>{loader.label}</span>
 			</button>
 		{/each}
@@ -322,15 +324,41 @@
 		gap: 8px;
 	}
 
+	.version-selector.compact .loader-unified {
+		justify-content: center;
+	}
+
 	.version-selector.compact .loader-btn {
-		padding: 6px 4px;
+		flex: 0 0 auto;
+		padding: 6px 8px;
 		font-size: 0.7rem;
-		gap: 4px;
+		gap: 0;
 	}
 
 	.version-selector.compact .loader-btn :global(.icon-svg) {
 		width: 16px;
 		height: 16px;
+		flex-shrink: 0;
+	}
+
+	.version-selector.compact .loader-btn span {
+		display: inline-block;
+		min-width: 0;
+		max-width: 0;
+		margin-left: 0;
+		opacity: 0;
+		transition:
+			max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+			margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+			opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+		pointer-events: none;
+	}
+
+	.version-selector.compact .loader-btn:hover span,
+	.version-selector.compact .loader-btn:focus-visible span {
+		max-width: 120px;
+		margin-left: 4px;
+		opacity: 1;
 	}
 
 	.version-selector.compact

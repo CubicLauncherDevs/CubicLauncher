@@ -938,6 +938,16 @@
 </div>
 
 <style>
+	.qm-scroll {
+		scrollbar-width: none;
+	}
+
+	.qm-scroll::-webkit-scrollbar {
+		display: none;
+		width: 0;
+		height: 0;
+	}
+
 	.section-group {
 		border: 1px solid var(--border-color);
 		overflow: hidden;
