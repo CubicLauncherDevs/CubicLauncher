@@ -3,6 +3,8 @@ use crate::core::{AppEvent, FsError, InstanceError, emit};
 use crate::services::launcher::remove_log_ring;
 use compact_str::ToCompactString;
 use std::collections::HashMap;
+use std::io;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use tokio::fs as tokio_fs;
@@ -15,9 +17,12 @@ use super::data::{InstOverrides, InstanceData, validate_instance_name};
 use super::handle::InstanceHandle;
 
 pub(crate) const SYNC_INTERVAL_SECS: u64 = 30;
+// Longer than a valid instance name, and inside the root to stay on its filesystem.
+const DELETION_DIR: &str = ".cubic-pending-instance-deletions";
 
 pub struct InstanceManager {
-    pub instances: RwLock<HashMap<String, InstanceHandle>>,
+    instances: Arc<RwLock<HashMap<String, InstanceHandle>>>,
+    instance_dir: PathBuf,
     _sync_handle: tokio::task::JoinHandle<()>,
 }
 
@@ -69,15 +74,17 @@ pub fn signal_kill(uuid: &str) -> bool {
 impl InstanceManager {
     pub async fn init() -> Arc<Self> {
         let manager = Arc::new(Self {
-            instances: RwLock::new(HashMap::new()),
+            instances: Arc::new(RwLock::new(HashMap::new())),
+            instance_dir: PathManager::get().get_instance_dir().to_path_buf(),
             _sync_handle: tokio::spawn(Self::sync_task()),
         });
 
         let base_dir = PathManager::get().get_instance_dir().to_path_buf();
+        cleanup_deleted_instances(&trash_dir(&base_dir)).await;
         let names = if let Ok(mut dir) = tokio::fs::read_dir(&base_dir).await {
             let mut names = Vec::new();
             while let Ok(Some(entry)) = dir.next_entry().await {
-                if entry.path().is_dir() {
+                if entry.file_name() != DELETION_DIR && entry.path().is_dir() {
                     names.push(entry.file_name().to_string_lossy().to_string());
                 }
             }
@@ -121,18 +128,15 @@ impl InstanceManager {
                 { manager.instances.read().await.values().cloned().collect() };
 
             for handle in handles {
-                let still_present = manager
-                    .instances
-                    .read()
-                    .await
-                    .contains_key(&handle.uuid.to_string());
-                if !still_present {
+                // Skip active operations instead of blocking every other autosave.
+                let Ok(files_guard) = handle.try_lock_files() else {
                     continue;
-                }
-                if let Err(e) = handle.save_if_dirty().await {
+                };
+                if let Err(e) = files_guard.save_if_dirty().await {
                     error!("Error guardando instancia {}: {:?}", handle.uuid, e);
                 }
             }
+            cleanup_deleted_instances(&trash_dir(&manager.instance_dir)).await;
         }
     }
 
@@ -145,9 +149,26 @@ impl InstanceManager {
         validate_instance_name(&name).map_err(InstanceError::InstNameParse)?;
 
         let mut data = InstanceData::new(name, version, icon);
-        if data.get_instance_dir().exists() {
-            Err(InstanceError::AlreadyExists)?;
+        data.instance_root = self.instance_dir.clone();
+        // Reserve the name while publishing the new instance, including against renames.
+        let mut instances = self.instances.write().await;
+        for existing in instances.values() {
+            if existing.get_name().await == data.name {
+                return Err(InstanceError::AlreadyExists);
+            }
         }
+        tokio_fs::create_dir(data.get_instance_dir())
+            .await
+            .map_err(|e| {
+                if e.kind() == io::ErrorKind::AlreadyExists {
+                    InstanceError::AlreadyExists
+                } else {
+                    InstanceError::Fs(FsError::CreateDir {
+                        path: data.get_instance_dir().to_string_lossy().to_string(),
+                        source: e,
+                    })
+                }
+            })?;
         data.save().await.map_err(|e| {
             InstanceError::Fs(FsError::WriteFile {
                 path: data
@@ -160,10 +181,7 @@ impl InstanceManager {
         })?;
 
         let handle = InstanceHandle::new(data);
-        self.instances
-            .write()
-            .await
-            .insert(handle.uuid.to_string(), handle.clone());
+        instances.insert(handle.uuid.to_string(), handle.clone());
 
         Ok(handle)
     }
@@ -203,31 +221,36 @@ impl InstanceManager {
             .await
             .ok_or_else(|| "Instancia no encontrada".to_string())?;
 
-        let _files_guard = handle.try_lock_files()?;
+        let files_guard = handle.try_lock_files()?;
         if handle.is_busy() {
             return Err("No se puede eliminar una instancia mientras está en ejecución".into());
         }
-        signal_kill(uuid);
-        unregister_kill_sender(uuid);
-        remove_log_ring(uuid);
-
-        let dir = handle.get_instance_dir().await;
-        if dir.exists() {
-            tokio_fs::remove_dir_all(&dir)
+        let instances = self.instances.clone();
+        let trash = trash_dir(&self.instance_dir);
+        // Finish the transaction even if the IPC caller is cancelled after the rename.
+        tokio::spawn(async move {
+            let uuid = handle.uuid.as_ref();
+            let mut instances = instances.write().await;
+            let dir = handle.get_instance_dir().await;
+            quarantine_instance(&dir, &trash, uuid)
                 .await
-                .map_err(|e| format!("Error al eliminar el directorio: {}", e))?;
-        }
-
-        let removed = self.instances.write().await.remove(uuid).is_some();
-        if !removed {
-            return Err("Instancia no encontrada".to_string());
-        }
-
-        emit(AppEvent::InstanceDeleted {
-            id: uuid.to_compact_string(),
-        });
-
-        Ok(())
+                .map_err(|e| format!("Error al retirar el directorio: {e}"))?;
+            files_guard.mark_deleted();
+            instances.remove(uuid);
+            drop(instances);
+            signal_kill(uuid);
+            unregister_kill_sender(uuid);
+            remove_log_ring(uuid);
+            emit(AppEvent::InstanceDeleted {
+                id: uuid.to_compact_string(),
+            });
+            drop(files_guard);
+            // Failure here leaves only a quarantined directory, retried at startup/sync.
+            cleanup_deleted_instances(&trash).await;
+            Ok(())
+        })
+        .await
+        .map_err(|e| format!("Error en la tarea de eliminación: {e}"))?
     }
 
     pub async fn update_instance(
@@ -243,7 +266,7 @@ impl InstanceManager {
             .await
             .ok_or_else(|| "Instancia no encontrada".to_string())?;
 
-        let _files_guard = handle.try_lock_files()?;
+        let files_guard = handle.try_lock_files()?;
 
         if handle.is_busy() {
             return Err(
@@ -253,21 +276,25 @@ impl InstanceManager {
 
         if let Some(name) = new_name {
             validate_instance_name(&name)?;
+            let instances = self.instances.write().await;
 
             let old_name = handle.get_name().await;
             if *old_name != name {
-                let base_dir = PathManager::get().get_instance_dir();
+                for existing in instances.values() {
+                    if existing.get_name().await.as_ref() == name {
+                        return Err("Ya existe una instancia con ese nombre".to_string());
+                    }
+                }
+                let base_dir = &self.instance_dir;
                 let old_dir = base_dir.join(&*old_name);
                 let new_dir = base_dir.join(&name);
 
                 if new_dir.exists() {
                     return Err("Ya existe una instancia con ese nombre".to_string());
                 }
-                if old_dir.exists() {
-                    tokio_fs::rename(&old_dir, &new_dir)
-                        .await
-                        .map_err(|e| format!("Error al renombrar el directorio: {}", e))?;
-                }
+                tokio_fs::rename(&old_dir, &new_dir)
+                    .await
+                    .map_err(|e| format!("Error al renombrar el directorio: {}", e))?;
                 handle.set_name(name).await;
             }
         }
@@ -282,12 +309,50 @@ impl InstanceManager {
 
         handle.set_overrides(new_overrides).await;
 
-        handle
+        files_guard
             .save_if_dirty()
             .await
             .map_err(|e| format!("Error al guardar la instancia: {}", e))?;
 
         Ok(())
+    }
+}
+
+fn trash_dir(instances: &Path) -> PathBuf {
+    instances.join(DELETION_DIR)
+}
+
+async fn quarantine_instance(dir: &Path, trash: &Path, uuid: &str) -> io::Result<()> {
+    match tokio_fs::symlink_metadata(dir).await {
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e),
+        Ok(_) => {}
+    }
+    tokio_fs::create_dir_all(trash).await?;
+    tokio_fs::rename(dir, trash.join(uuid)).await
+}
+
+async fn cleanup_deleted_instances(trash: &Path) {
+    let mut entries = match tokio_fs::read_dir(trash).await {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return,
+        Err(e) => {
+            error!("Error leyendo instancias pendientes de eliminar: {e}");
+            return;
+        }
+    };
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        if uuid::Uuid::parse_str(&entry.file_name().to_string_lossy()).is_err() {
+            continue;
+        }
+        if let Err(e) = tokio_fs::remove_dir_all(entry.path()).await
+            && e.kind() != io::ErrorKind::NotFound
+        {
+            error!(
+                "No se pudo limpiar instancia eliminada {:?}: {e}",
+                entry.path()
+            );
+        }
     }
 }
 

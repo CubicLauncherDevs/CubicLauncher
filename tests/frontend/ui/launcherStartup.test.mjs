@@ -13,7 +13,7 @@ async function fixture() {
 	const stub = `
 export const calls={downloads:0,queue:0,settings:0,themes:[],scans:0,unlistens:0};
 export const launcherStore={settings:{theme:'test'},loadedInstances:[],pendingJreLaunch:null};
-export const hooks={listener:null,scan:async()=>['1.20.1']};
+export const hooks={listener:null,scan:async()=>['1.20.1'],invoke:async()=>[]};
 export const listen=async(_,handler)=>{hooks.listener=handler;return ()=>{calls.unlistens++;hooks.listener=null}};
 export const emit=payload=>hooks.listener?.({payload});
 export const getInstalledVersions=()=>{calls.scans++;return hooks.scan()};
@@ -24,13 +24,13 @@ export const initDownloadQueueState=()=>calls.queue++;
 export const destroyDownloadState=()=>{};
 export const destroyDownloadQueueState=()=>{};
 export const showErrorParsed=()=>{};
-export const clearPendingJreLaunch=()=>{};
+export const clearPendingJreLaunch=()=>{launcherStore.pendingJreLaunch=null};
 export const updateSettings=async()=>{};
 export const killInstance=()=>{};
 export const initDiscordPresence=()=>{};
 export const shutdownDiscordPresence=()=>{};
 export const launchInstance=()=>{};
-export const invoke=async()=>[];
+export const invoke=(...args)=>hooks.invoke(...args);
 `;
 	const bundle = await Bun.build({
 		entrypoints: ["startup-entry"],
@@ -77,7 +77,7 @@ export const invoke=async()=>[];
 								path === "startup-stub"
 									? stub
 									: `
-export {initEventListeners,destroyEventListeners} from ${JSON.stringify(service)};
+export {initEventListeners,destroyEventListeners,getVersions,deleteInst} from ${JSON.stringify(service)};
 export {loadInstalledVersions,versionsState} from '$lib/state/versionsState.svelte';
 export * from 'startup-stub';`,
 						}),
@@ -110,6 +110,106 @@ export * from 'startup-stub';`,
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
+
+test("a snapshot collected before deletion cannot resurrect the instance", async () => {
+	const f = await fixture();
+	const old = { uuid: "old", name: "Pack", pinned: false };
+	f.launcherStore.loadedInstances.push(old);
+	f.launcherStore.pendingJreLaunch = { instance: old, version: 21 };
+	let release;
+	f.hooks.invoke = () =>
+		new Promise((resolve) => {
+			release = resolve;
+		});
+	f.initEventListeners();
+	try {
+		const refresh = f.getVersions();
+		f.emit({ type: "InstanceDeleted", data: { id: old.uuid } });
+		expect(f.launcherStore.loadedInstances).toEqual([]);
+		expect(f.launcherStore.pendingJreLaunch).toBeNull();
+		f.hooks.invoke = async () => [];
+		release([old]);
+		await refresh;
+		expect(f.launcherStore.loadedInstances).toEqual([]);
+		f.emit({ type: "InstanceCreated", data: { id: old.uuid, dto: old } });
+		expect(f.launcherStore.loadedInstances).toEqual([]);
+		const replacement = { ...old, uuid: "new" };
+		f.emit({
+			type: "InstanceCreated",
+			data: { id: replacement.uuid, dto: replacement },
+		});
+		f.emit({
+			type: "InstanceCreated",
+			data: { id: replacement.uuid, dto: replacement },
+		});
+		expect(f.launcherStore.loadedInstances).toEqual([replacement]);
+	} finally {
+		f.destroyEventListeners();
+	}
+});
+
+test("an older instance refresh cannot overwrite a newer response", async () => {
+	const f = await fixture();
+	let release;
+	f.hooks.invoke = () =>
+		new Promise((resolve) => {
+			release = resolve;
+		});
+	const older = f.getVersions();
+	const current = { uuid: "new", name: "New", pinned: false };
+	f.hooks.invoke = async () => [current];
+	await f.getVersions();
+	release([{ uuid: "old", name: "Old", pinned: false }]);
+	await older;
+	expect(f.launcherStore.loadedInstances).toEqual([current]);
+});
+
+test("delete IPC success invalidates snapshots even before its event arrives", async () => {
+	const f = await fixture();
+	const old = { uuid: "old", name: "Pack", pinned: false };
+	f.launcherStore.loadedInstances.push(old);
+	let release;
+	f.hooks.invoke = () =>
+		new Promise((resolve) => {
+			release = resolve;
+		});
+	const refresh = f.getVersions();
+	f.hooks.invoke = async () => [];
+	expect(await f.deleteInst(old.uuid)).toBe(true);
+	release([old]);
+	await refresh;
+	expect(f.launcherStore.loadedInstances).toEqual([]);
+});
+
+test("failed deletion preserves the instance and remains retryable", async () => {
+	const f = await fixture();
+	const old = { uuid: "old", name: "Pack", pinned: false };
+	f.launcherStore.loadedInstances.push(old);
+	f.hooks.invoke = async () => {
+		throw Error("busy");
+	};
+	expect(await f.deleteInst(old.uuid)).toBe(false);
+	f.hooks.invoke = async () => [old];
+	await f.getVersions();
+	expect(f.launcherStore.loadedInstances).toEqual([old]);
+	f.hooks.invoke = async () => [];
+	expect(await f.deleteInst(old.uuid)).toBe(true);
+	expect(f.launcherStore.loadedInstances).toEqual([]);
+});
+
+test("destroying listeners invalidates outstanding instance snapshots", async () => {
+	const f = await fixture();
+	let release;
+	f.hooks.invoke = () =>
+		new Promise((resolve) => {
+			release = resolve;
+		});
+	const refresh = f.getVersions();
+	f.destroyEventListeners();
+	release([{ uuid: "old", name: "Old", pinned: false }]);
+	await refresh;
+	expect(f.launcherStore.loadedInstances).toEqual([]);
+});
 
 test("log consoles keep live settings and themes without download or instance work", async () => {
 	const f = await fixture();

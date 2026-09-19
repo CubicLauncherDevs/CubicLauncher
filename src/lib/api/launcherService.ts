@@ -122,6 +122,9 @@ const _debouncedGetVersions = createDebounce(getVersions, 80, 300);
 const _debouncedSyncSettings = createDebounce(syncSettings, 60, 250);
 let _localSettingsChange = false;
 let _settingsRevision = 0;
+let _instancesRevision = 0;
+let _instancesRequest = 0;
+const _deletedInstances = new Set<string>();
 const settingsSaveQueue = createSaveQueue(persistSettings);
 
 export function markLocalSettingsChange(): void {
@@ -150,10 +153,22 @@ export function initEventListeners(mode: "main" | "logs" = "main"): void {
 
 		switch (payload.type) {
 			case "InstanceCreated":
+				_instancesRevision++;
+				if (_deletedInstances.has(payload.data.id)) break;
+				if (
+					launcherStore.loadedInstances.some(
+						(i) => i.uuid === payload.data.id,
+					)
+				) {
+					updateInstanceInStore(payload.data.dto);
+					break;
+				}
 				launcherStore.loadedInstances.push(payload.data.dto);
 				sortInstances(launcherStore.loadedInstances);
 				break;
 			case "InstanceEdited": {
+				_instancesRevision++;
+				if (_deletedInstances.has(payload.data.id)) break;
 				const dto = payload.data.dto;
 				if (dto) {
 					_debouncedGetVersions.cancel();
@@ -164,14 +179,7 @@ export function initEventListeners(mode: "main" | "logs" = "main"): void {
 				break;
 			}
 			case "InstanceDeleted":
-				{
-					const idx = launcherStore.loadedInstances.findIndex(
-						(i) => i.uuid === payload.data.id,
-					);
-					if (idx !== -1)
-						launcherStore.loadedInstances.splice(idx, 1);
-					_refreshCallbacks.delete(payload.data.id);
-				}
+				removeDeletedInstance(payload.data.id);
 				break;
 			case "DFinish": {
 				// Keep installed versions current even before the downloader is opened.
@@ -227,6 +235,7 @@ export function initEventListeners(mode: "main" | "logs" = "main"): void {
 
 /** Libera event listeners y timers — llamar en onDestroy */
 export function destroyEventListeners(): void {
+	_instancesRequest++;
 	_debouncedGetVersions.cancel();
 	_debouncedSyncSettings.cancel();
 	if (_unlistenAppEvent) {
@@ -314,15 +323,24 @@ export async function deleteInst(uuid: string): Promise<boolean> {
 	try {
 		await invoke("delete_instance", { id: uuid });
 
-		const idx = launcherStore.loadedInstances.findIndex(
-			(instance) => instance.uuid === uuid,
-		);
-		if (idx !== -1) launcherStore.loadedInstances.splice(idx, 1);
+		removeDeletedInstance(uuid);
 		return true;
 	} catch (err) {
 		showErrorParsed(err);
 		return false;
 	}
+}
+
+function removeDeletedInstance(uuid: string): void {
+	_instancesRevision++;
+	_deletedInstances.add(uuid);
+	const idx = launcherStore.loadedInstances.findIndex(
+		(instance) => instance.uuid === uuid,
+	);
+	if (idx !== -1) launcherStore.loadedInstances.splice(idx, 1);
+	_refreshCallbacks.delete(uuid);
+	if (launcherStore.pendingJreLaunch?.instance.uuid === uuid)
+		clearPendingJreLaunch();
 }
 
 export async function renameInst(uuid: string, newName: string): Promise<void> {
@@ -377,12 +395,22 @@ export function updateInstanceInStore(dto: InstanceDto): void {
 }
 
 export async function getVersions(): Promise<void> {
-	const instances: InstanceDto[] = await invoke("get_instances");
-
-	sortInstances(instances);
-	launcherStore.loadedInstances.splice(
-		0,
-		launcherStore.loadedInstances.length,
-		...instances,
-	);
+	const request = ++_instancesRequest;
+	while (request === _instancesRequest) {
+		const revision = _instancesRevision;
+		const instances: InstanceDto[] = await invoke("get_instances");
+		if (request !== _instancesRequest) return;
+		// An event changed the registry while this snapshot was being collected.
+		if (revision !== _instancesRevision) continue;
+		const current = instances.filter(
+			(instance) => !_deletedInstances.has(instance.uuid),
+		);
+		sortInstances(current);
+		launcherStore.loadedInstances.splice(
+			0,
+			launcherStore.loadedInstances.length,
+			...current,
+		);
+		return;
+	}
 }

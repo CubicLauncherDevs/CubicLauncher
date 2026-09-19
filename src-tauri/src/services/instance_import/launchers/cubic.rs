@@ -123,6 +123,12 @@ async fn import_cubic_instance(
             other => ImportError::Instance(other),
         })?;
 
+    let files_guard = handle
+        .try_lock_files()
+        .map_err(|message| ImportError::ProviderError {
+            provider: "CubicLauncher".into(),
+            message,
+        })?;
     let instance_dir = handle.get_instance_dir().await;
     let source_game_dir = resolve_game_dir(preview_dir);
 
@@ -154,7 +160,7 @@ async fn import_cubic_instance(
         }))
         .await;
 
-    handle
+    files_guard
         .save_if_dirty()
         .await
         .map_err(|e| ImportError::ProviderError {

@@ -41,6 +41,8 @@ export const t=key=>key;
 export const launchInstance=()=>{};
 export const killInst=()=>{};
 export const isVersionDownloading=()=>false;
+export const downloads=new Map();
+export const getOverallPct=()=>0;
 `;
 const entry = `
 import {mount,unmount,flushSync,tick} from 'svelte';
@@ -145,6 +147,7 @@ test.skipIf(!browserPath)(
 									"$lib/api/cubicApi",
 									"$lib/api/launcherService",
 									"$lib/state/downloadState.svelte",
+									"$lib/state/downloadQueueState.svelte",
 									"$lib/i18n",
 								].includes(path)
 							)

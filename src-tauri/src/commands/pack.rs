@@ -74,6 +74,24 @@ pub async fn install_mrpack(
     modrinth_version_id: Option<String>,
     icon_url: Option<String>,
 ) -> Result<MrpackInfo, String> {
+    tokio::spawn(install_mrpack_inner(
+        path,
+        instance_name,
+        project_id,
+        modrinth_version_id,
+        icon_url,
+    ))
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+async fn install_mrpack_inner(
+    path: String,
+    instance_name: String,
+    project_id: Option<String>,
+    modrinth_version_id: Option<String>,
+    icon_url: Option<String>,
+) -> Result<MrpackInfo, String> {
     info!(
         "Installing mrpack '{}' as instance '{}' (project={:?}, version={:?}, icon={:?})",
         path, instance_name, project_id, modrinth_version_id, icon_url
@@ -100,7 +118,7 @@ pub async fn install_mrpack(
             other => format!("Failed to create instance: {}", other),
         })?;
 
-    let _files_guard = handle.try_lock_files()?;
+    let files_guard = handle.try_lock_files()?;
     let instance_dir = handle.get_instance_dir().await;
 
     // Save upstream metadata if provided
@@ -174,7 +192,7 @@ pub async fn install_mrpack(
                         None
                     } else if let Some(icon_str) = icon_path.to_str() {
                         handle.set_icon(Some(icon_str.to_string())).await;
-                        let _ = handle.save_if_dirty().await;
+                        let _ = files_guard.save_if_dirty().await;
                         Some(icon_str.to_string())
                     } else {
                         None
@@ -313,6 +331,24 @@ pub async fn install_curseforge_modpack(
     file_id: Option<u32>,
     icon_url: Option<String>,
 ) -> Result<CurseForgeModpackInfo, String> {
+    tokio::spawn(install_curseforge_modpack_inner(
+        path,
+        instance_name,
+        project_id,
+        file_id,
+        icon_url,
+    ))
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+async fn install_curseforge_modpack_inner(
+    path: String,
+    instance_name: String,
+    project_id: Option<u32>,
+    file_id: Option<u32>,
+    icon_url: Option<String>,
+) -> Result<CurseForgeModpackInfo, String> {
     info!(
         "Installing CurseForge modpack '{}' as instance '{}' (project={:?}, file={:?}, icon={:?})",
         path, instance_name, project_id, file_id, icon_url
@@ -340,7 +376,7 @@ pub async fn install_curseforge_modpack(
             other => format!("Failed to create instance: {}", other),
         })?;
 
-    let _files_guard = handle.try_lock_files()?;
+    let files_guard = handle.try_lock_files()?;
     let instance_dir = handle.get_instance_dir().await;
 
     // Save upstream metadata if provided
@@ -414,7 +450,7 @@ pub async fn install_curseforge_modpack(
                         None
                     } else if let Some(icon_str) = icon_path.to_str() {
                         handle.set_icon(Some(icon_str.to_string())).await;
-                        let _ = handle.save_if_dirty().await;
+                        let _ = files_guard.save_if_dirty().await;
                         Some(icon_str.to_string())
                     } else {
                         None

@@ -27,11 +27,22 @@ pub struct ModDownloadInfo {
 
 #[tauri::command]
 pub async fn download_mods(instance_id: String, mods: Vec<ModDownloadInfo>) -> Result<(), String> {
+    // Aqua's workers outlive their awaiting caller; keep the instance lease alive too.
+    tokio::spawn(download_mods_inner(instance_id, mods))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+async fn download_mods_inner(
+    instance_id: String,
+    mods: Vec<ModDownloadInfo>,
+) -> Result<(), String> {
     let manager = InstanceManager::get();
     let handle = manager
         .get_handle(&instance_id)
         .await
         .ok_or_else(|| InstanceError::NotFound.to_string())?;
+    let _files_guard = handle.try_lock_files()?;
     let instance_dir = handle.get_instance_dir().await;
     let mods_dir = instance_dir.join("mods");
 
@@ -162,11 +173,21 @@ pub async fn download_resourcepacks(
     instance_id: String,
     packs: Vec<ModDownloadInfo>,
 ) -> Result<(), String> {
+    tokio::spawn(download_resourcepacks_inner(instance_id, packs))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+async fn download_resourcepacks_inner(
+    instance_id: String,
+    packs: Vec<ModDownloadInfo>,
+) -> Result<(), String> {
     let manager = InstanceManager::get();
     let handle = manager
         .get_handle(&instance_id)
         .await
         .ok_or_else(|| InstanceError::NotFound.to_string())?;
+    let _files_guard = handle.try_lock_files()?;
     let rp_dir = handle.get_instance_dir().await.join("resourcepacks");
 
     tokio::fs::create_dir_all(&rp_dir).await.map_err(|e| {
@@ -242,11 +263,21 @@ pub async fn download_shaderpacks(
     instance_id: String,
     packs: Vec<ModDownloadInfo>,
 ) -> Result<(), String> {
+    tokio::spawn(download_shaderpacks_inner(instance_id, packs))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+async fn download_shaderpacks_inner(
+    instance_id: String,
+    packs: Vec<ModDownloadInfo>,
+) -> Result<(), String> {
     let manager = InstanceManager::get();
     let handle = manager
         .get_handle(&instance_id)
         .await
         .ok_or_else(|| InstanceError::NotFound.to_string())?;
+    let _files_guard = handle.try_lock_files()?;
     let sp_dir = handle.get_instance_dir().await.join("shaderpacks");
 
     tokio::fs::create_dir_all(&sp_dir).await.map_err(|e| {

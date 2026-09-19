@@ -84,7 +84,7 @@ pub async fn get_instance_mods(id: String, include_icons: Option<bool>) -> Vec<M
     };
 
     let mods_dir = handle.get_instance_dir().await.join("mods");
-    super::mod_catalog::list(id, mods_dir, include_icons.unwrap_or(true)).await
+    super::mod_catalog::list(id, mods_dir, include_icons.unwrap_or(true), handle).await
 }
 
 pub(super) async fn resolve_modrinth_hashes(
@@ -133,6 +133,7 @@ pub async fn toggle_instance_mod(id: String, filename: String, enable: bool) -> 
         return Err(InstanceError::NotFound.to_string());
     };
 
+    let _files_guard = handle.try_lock_files()?;
     if handle.is_busy() {
         error!("Intento de toggle mod en instancia ocupada {}", id);
         return Err(InstanceError::Busy.to_string());
@@ -347,6 +348,12 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
             .filter_map(|r| r.ok())
             .collect();
 
+        let Ok(_files_guard) = handle.try_lock_files() else {
+            return;
+        };
+        if handle.get_instance_dir().await.join("resourcepacks") != resourcepacks_dir {
+            return;
+        }
         let mut repo = ablage::Repo::open(&cache_path2);
         for (filename, fingerprint, entry) in &mut results {
             preserve_pack_source(entry, &repo, filename);
@@ -559,6 +566,12 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
             .filter_map(|r| r.ok())
             .collect();
 
+        let Ok(_files_guard) = handle.try_lock_files() else {
+            return;
+        };
+        if handle.get_instance_dir().await.join("shaderpacks") != shaderpacks_dir {
+            return;
+        }
         let mut repo = ablage::Repo::open(&cache_path2);
         for (filename, fingerprint, entry) in &mut results {
             preserve_pack_source(entry, &repo, filename);

@@ -225,6 +225,13 @@ pub async fn set_instance_cover_image(instance_id: String, path: String) {
     );
     let manager = InstanceManager::get();
     if let Some(handle) = manager.get_handle(&instance_id).await {
+        let files_guard = match handle.try_lock_files() {
+            Ok(guard) => guard,
+            Err(e) => {
+                warn!("No se pudo editar portada: {e}");
+                return;
+            }
+        };
         if handle.is_busy() {
             warn!(
                 "Intento de establecer cover image en instancia ocupada {}",
@@ -233,7 +240,7 @@ pub async fn set_instance_cover_image(instance_id: String, path: String) {
             return;
         }
         handle.set_cover_image(Some(PathBuf::from(path))).await;
-        if let Err(e) = handle.save_if_dirty().await {
+        if let Err(e) = files_guard.save_if_dirty().await {
             warn!(
                 "Error guardando cover image de instancia {}: {:?}",
                 instance_id, e
@@ -256,6 +263,13 @@ pub async fn reset_instance_cover_image(instance_id: String) {
     info!("Reseteando cover image para instancia {}", instance_id);
     let manager = InstanceManager::get();
     if let Some(handle) = manager.get_handle(&instance_id).await {
+        let files_guard = match handle.try_lock_files() {
+            Ok(guard) => guard,
+            Err(e) => {
+                warn!("No se pudo editar portada: {e}");
+                return;
+            }
+        };
         if handle.is_busy() {
             warn!(
                 "Intento de resetear cover image en instancia ocupada {}",
@@ -264,7 +278,7 @@ pub async fn reset_instance_cover_image(instance_id: String) {
             return;
         }
         handle.set_cover_image(None).await;
-        if let Err(e) = handle.save_if_dirty().await {
+        if let Err(e) = files_guard.save_if_dirty().await {
             warn!(
                 "Error guardando reset cover image de instancia {}: {:?}",
                 instance_id, e

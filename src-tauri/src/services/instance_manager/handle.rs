@@ -4,6 +4,7 @@ use compact_str::ToCompactString;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::RwLock;
 
 use super::data::{InstanceData, InstanceDto};
@@ -34,6 +35,24 @@ pub struct InstanceHandle {
     data: Arc<RwLock<InstanceData>>,
     status: Arc<AtomicStatus>,
     files_lock: Arc<tokio::sync::Mutex<()>>,
+    deleted: Arc<AtomicBool>,
+}
+
+/// Admission to an instance's filesystem. Clones share deletion state and the lock.
+pub struct InstanceFilesGuard {
+    handle: InstanceHandle,
+    _lock: tokio::sync::OwnedMutexGuard<()>,
+}
+
+impl InstanceFilesGuard {
+    pub async fn save_if_dirty(&self) -> Result<(), io::Error> {
+        self.handle.ensure_alive()?;
+        self.handle.data.write().await.save().await
+    }
+
+    pub(super) fn mark_deleted(&self) {
+        self.handle.deleted.store(true, Ordering::Release);
+    }
 }
 
 impl InstanceHandle {
@@ -43,6 +62,7 @@ impl InstanceHandle {
             data: Arc::new(RwLock::new(data)),
             status: Arc::new(AtomicStatus::new()),
             files_lock: Arc::new(tokio::sync::Mutex::new(())),
+            deleted: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -84,11 +104,26 @@ impl InstanceHandle {
     }
 
     /// Held across world/server operations, instance moves/deletion and launch admission.
-    pub fn try_lock_files(&self) -> Result<tokio::sync::OwnedMutexGuard<()>, String> {
-        self.files_lock
-            .clone()
-            .try_lock_owned()
-            .map_err(|_| "Hay una operación de archivos en curso en esta instancia".to_string())
+    pub fn try_lock_files(&self) -> Result<InstanceFilesGuard, String> {
+        let lock =
+            self.files_lock.clone().try_lock_owned().map_err(|_| {
+                "Hay una operación de archivos en curso en esta instancia".to_string()
+            })?;
+        self.ensure_alive().map_err(|e| e.to_string())?;
+        Ok(InstanceFilesGuard {
+            handle: self.clone(),
+            _lock: lock,
+        })
+    }
+
+    fn ensure_alive(&self) -> Result<(), io::Error> {
+        if self.deleted.load(Ordering::Acquire) {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "La instancia fue eliminada",
+            ));
+        }
+        Ok(())
     }
 
     pub async fn kill(&self) -> Result<(), InstanceError> {
@@ -224,10 +259,12 @@ impl InstanceHandle {
     }
 
     pub async fn save_if_dirty(&self) -> Result<(), io::Error> {
-        if !self.data.read().await.dirty {
-            return Ok(());
-        }
-        self.data.write().await.save().await
+        let lock = self.files_lock.clone().lock_owned().await;
+        let guard = InstanceFilesGuard {
+            handle: self.clone(),
+            _lock: lock,
+        };
+        guard.save_if_dirty().await
     }
 }
 

@@ -71,6 +71,7 @@ pub async fn open_instance_dir(id: String, sub_dir: Option<String>) -> Result<()
         return Err(InstanceError::NotFound.to_string());
     };
 
+    let _files_guard = handle.try_lock_files()?;
     let instance_dir = handle.get_instance_dir().await;
 
     let path = match sub_dir {
@@ -165,8 +166,9 @@ pub async fn pin_instance(id: String, pinned: bool) -> Result<(), String> {
         return Err(InstanceError::NotFound.to_string());
     };
 
+    let files_guard = handle.try_lock_files()?;
     handle.set_pinned(pinned).await;
-    handle
+    files_guard
         .save_if_dirty()
         .await
         .map_err(|e| format!("Error al guardar la instancia: {}", e))?;
@@ -211,6 +213,7 @@ pub async fn delete_instance_file(
         return Err(InstanceError::NotFound.to_string());
     };
 
+    let _files_guard = handle.try_lock_files()?;
     if handle.is_busy() {
         error!("Intento de eliminar archivo en instancia ocupada {}", id);
         return Err(InstanceError::Busy.to_string());
@@ -262,6 +265,7 @@ pub async fn add_instance_file(
         return Err(InstanceError::NotFound.to_string());
     };
 
+    let _files_guard = handle.try_lock_files()?;
     if handle.is_busy() {
         error!("Intento de agregar archivo en instancia ocupada {}", id);
         return Err(InstanceError::Busy.to_string());
@@ -358,6 +362,7 @@ pub async fn upload_custom_icon(
         return Err(InstanceError::NotFound.to_string());
     };
 
+    let files_guard = handle.try_lock_files()?;
     if handle.is_busy() {
         error!(
             "Intento de subir icono en instancia ocupada {}",
@@ -403,7 +408,7 @@ pub async fn upload_custom_icon(
 
     let icon_path_str = dest_path.to_string_lossy().to_string();
     handle.set_icon(Some(icon_path_str)).await;
-    handle.save_if_dirty().await.map_err(|e| {
+    files_guard.save_if_dirty().await.map_err(|e| {
         error!("Error guardando instancia tras subir icono: {}", e);
         e.to_string()
     })?;
@@ -432,6 +437,7 @@ pub async fn reset_instance_icon(instance_id: String) -> Result<(), String> {
         return Err(InstanceError::NotFound.to_string());
     };
 
+    let files_guard = handle.try_lock_files()?;
     if handle.is_busy() {
         error!(
             "Intento de resetear icono en instancia ocupada {}",
@@ -446,7 +452,7 @@ pub async fn reset_instance_icon(instance_id: String) -> Result<(), String> {
     remove_custom_icons(&icons_dir).await;
 
     handle.set_icon(None).await;
-    handle.save_if_dirty().await.map_err(|e| {
+    files_guard.save_if_dirty().await.map_err(|e| {
         error!("Error guardando instancia tras resetear icono: {}", e);
         e.to_string()
     })?;

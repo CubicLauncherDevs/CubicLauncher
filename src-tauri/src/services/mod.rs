@@ -27,7 +27,7 @@ pub use instance_import::{
     InstanceImportPlan, cancel_preview, detect_instance_zip, import_instance_zip,
 };
 pub use instance_manager::{
-    InstOverrides, InstanceDto, InstanceManager, InstanceStatus, signal_kill,
+    InstOverrides, InstanceDto, InstanceHandle, InstanceManager, InstanceStatus, signal_kill,
 };
 pub use launcher::Launcher;
 pub use settings_manager::{SettingsManager, SettingsSnapshot};

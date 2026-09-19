@@ -5,7 +5,7 @@ use super::mods::{ModDto, PerFileCacheEntry, repo_path, resolve_modrinth_hashes}
 use crate::core::errors::InstanceError;
 use crate::core::{event_bus, validate_filename};
 use crate::services::{
-    AddonManager, InstanceManager, ModSource, compute_file_sha1, file_fingerprint,
+    AddonManager, InstanceHandle, InstanceManager, ModSource, compute_file_sha1, file_fingerprint,
 };
 use futures::{StreamExt, stream};
 use serde::{Deserialize, Serialize};
@@ -227,7 +227,12 @@ fn notify(id: &str) {
     });
 }
 
-pub(super) async fn list(id: String, dir: PathBuf, include_icons: bool) -> Vec<ModDto> {
+pub(super) async fn list(
+    id: String,
+    dir: PathBuf,
+    include_icons: bool,
+    handle: InstanceHandle,
+) -> Vec<ModDto> {
     let scan_dir = dir.clone();
     let scan = tokio::task::spawn_blocking(move || snapshot(&scan_dir, include_icons)).await;
     let Ok(Snapshot { items, missing }) = scan else {
@@ -238,7 +243,14 @@ pub(super) async fn list(id: String, dir: PathBuf, include_icons: bool) -> Vec<M
     }
     if let Some(guard) = EnrichmentGuard::acquire(&dir) {
         tokio::spawn(async move {
+            let Ok(files_guard) = handle.try_lock_files() else {
+                return;
+            };
+            if handle.get_instance_dir().await.join("mods") != dir {
+                return;
+            }
             let saved = enrich_local(dir.clone(), missing).await;
+            drop(files_guard);
             // Names and versions are ready before any network request finishes.
             notify(&id);
             let pending: Vec<_> = saved
@@ -251,7 +263,14 @@ pub(super) async fn list(id: String, dir: PathBuf, include_icons: bool) -> Vec<M
             if !pending.is_empty() {
                 match resolve_modrinth_hashes(&pending).await {
                     Ok(resolved) => {
+                        let Ok(files_guard) = handle.try_lock_files() else {
+                            return;
+                        };
+                        if handle.get_instance_dir().await.join("mods") != dir {
+                            return;
+                        }
                         let _ = tokio::task::spawn_blocking(move || {
+                            let _files_guard = files_guard;
                             let mut repo = ablage::Repo::open(repo_path(&dir));
                             for (file, value) in saved {
                                 let Some(remote) = resolved.get(&value.sha1) else {

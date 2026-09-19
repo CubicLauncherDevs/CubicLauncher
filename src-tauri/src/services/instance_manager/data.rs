@@ -25,6 +25,8 @@ pub(crate) struct InstanceData {
     pub pinned: bool,
     #[serde(skip)]
     pub dirty: bool,
+    #[serde(skip)]
+    pub instance_root: PathBuf,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -55,6 +57,7 @@ impl InstanceData {
             overrides: None,
             pinned: false,
             dirty: true,
+            instance_root: PathManager::get().get_instance_dir().to_path_buf(),
         }
     }
     pub fn get_loader(&self) -> &'static str {
@@ -62,9 +65,7 @@ impl InstanceData {
     }
 
     pub fn get_instance_dir(&self) -> PathBuf {
-        PathManager::get()
-            .get_instance_dir()
-            .join(self.name.as_ref())
+        self.instance_root.join(self.name.as_ref())
     }
 
     pub async fn save(&mut self) -> Result<(), io::Error> {
@@ -72,7 +73,6 @@ impl InstanceData {
             return Ok(());
         }
         let dir = self.get_instance_dir();
-        tokio_fs::create_dir_all(&dir).await?;
         let content = serde_json::to_string(self).map_err(io::Error::other)?;
         tokio_fs::write(dir.join("instance.cub"), content).await?;
         self.dirty = false;
@@ -86,6 +86,7 @@ impl InstanceData {
             .join("instance.cub");
         let content = tokio_fs::read_to_string(path).await.ok()?;
         let mut data: InstanceData = serde_json::from_str(&content).ok()?;
+        data.instance_root = PathManager::get().get_instance_dir().to_path_buf();
         data.dirty = false;
         Some(data)
     }
