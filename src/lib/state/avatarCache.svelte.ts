@@ -1,5 +1,6 @@
 import { SvelteMap } from "svelte/reactivity";
 import { getAvatarSvg } from "$lib/api/cubicApi";
+import offlineAvatarSvg from "$lib/assets/offline-avatar.svg?raw";
 
 interface CacheEntry {
 	// Render SVGs as <img> data URLs, never as inline HTML from the fallback service.
@@ -121,7 +122,11 @@ export async function fetchAvatarSvg(
 	serverUrl?: string | null,
 	username?: string,
 ): Promise<string> {
-	if (!uuid || userType === "Cracked") {
+	if (userType === "Cracked") {
+		return offlineAvatarSvg;
+	}
+
+	if (!uuid) {
 		return DEFAULT_AVATAR_SVG;
 	}
 
