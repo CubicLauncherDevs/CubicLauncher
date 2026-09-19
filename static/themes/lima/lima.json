@@ -64,6 +64,11 @@
 		"--surface-rgb": "255, 255, 255",
 		"--toast-bg": "rgba(18, 26, 18, 0.84)",
 		"--text-tertiary": "#6a8a6a",
+
+		"--market-hover-bg": "#1b2819",
+		"--market-border": "#30452a",
+		"--market-text-secondary": "#91ab83",
+
 		"--font-family": "Cantarell, sans-serif",
 		"--font-size-base": "14px",
 		"--font-size-sm": "12px",

@@ -57,6 +57,48 @@
 	--market-grid-padding: 8px;
 	--market-card-padding: 14px;
 	--market-icon-size: 48px;
+	/* Shared by catalog cards, installed content and loading placeholders. */
+	--market-item-gap: 10px;
+	--market-title-size: 0.9rem;
+	--market-description-size: 0.75rem;
+	--market-button-padding: 5px 12px;
+	--market-installed-row-height: 84px;
+	--market-installed-row-gap: 6px;
+	--market-installed-icon-size: 40px;
+	--market-installed-padding: 8px 12px;
+	--market-detail-icon-size: 80px;
+	--market-detail-sidebar-width: 270px;
+	--market-page-padding: 24px;
+	--market-page-padding-compact: 14px;
+	/* Existing/custom themes inherit their palette without extra variables. */
+	--market-card-bg: var(--bg-card);
+	--market-panel-bg: var(--bg-sidebar);
+	--market-input-bg: var(--bg-input);
+	--market-hover-bg: color-mix(
+		in srgb,
+		var(--market-accent) 5%,
+		var(--bg-card)
+	);
+	--market-selected-bg: color-mix(
+		in srgb,
+		var(--market-accent) 10%,
+		var(--bg-card)
+	);
+	--market-border: var(--border);
+	--market-border-hover: color-mix(
+		in srgb,
+		var(--market-accent) 40%,
+		var(--market-border)
+	);
+	--market-card-radius: var(--border-radius);
+	--market-text-secondary: var(--text-secondary);
+	--market-accent: var(--accent);
+	--market-accent-hover: var(--accent-hover);
+	--market-accent-text: var(--accent-text);
+	--market-success: var(--color-success);
+	--market-error: var(--color-error);
+	--market-warning: var(--color-warning);
+	--market-info: var(--color-info);
 	--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
 	--shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
 	--shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.6);

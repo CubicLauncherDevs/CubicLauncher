@@ -20,30 +20,30 @@
 	.market-skeleton {
 		display: flex;
 		flex-direction: column;
-		gap: 14px;
+		gap: var(--space-md);
 		height: 100%;
 		box-sizing: border-box;
-		padding: 14px;
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		background: var(--surface-selected);
+		padding: var(--market-card-padding);
+		border: var(--border-width) solid var(--border);
+		border-radius: var(--market-card-radius);
+		background: var(--bg-card-gradient), var(--surface-card);
 	}
 	.skeleton-header,
 	.skeleton-footer {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: var(--market-item-gap);
 	}
 	.skeleton-icon,
 	.skeleton-line,
 	.skeleton-button {
 		display: block;
-		background: var(--surface-hover);
+		background: color-mix(in srgb, var(--text-secondary) 18%, transparent);
 		border-radius: var(--border-radius-sm);
 	}
 	.skeleton-icon {
-		width: 48px;
-		height: 48px;
+		width: var(--market-icon-size);
+		height: var(--market-icon-size);
 		flex-shrink: 0;
 	}
 	.skeleton-identity,
@@ -70,7 +70,7 @@
 	.skeleton-footer {
 		justify-content: space-between;
 		padding-top: 10px;
-		border-top: 1px solid var(--border);
+		border-top: var(--border-width) solid var(--border);
 	}
 	.skeleton-button {
 		width: 64px;

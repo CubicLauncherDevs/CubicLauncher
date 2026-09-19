@@ -307,12 +307,12 @@
 
 <style>
 	.installed-toolbar {
-		padding: 12px 24px;
+		padding: 12px var(--market-page-padding);
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
-		border-bottom: 1px solid var(--border);
-		background: var(--bg-main);
+		border-bottom: var(--border-width) solid var(--border);
+		background: var(--market-panel-bg);
 		color: var(--text-primary);
 		font-size: 0.8rem;
 		max-height: 40vh;
@@ -561,7 +561,7 @@
 	}
 	@container market (max-width: 700px) {
 		.installed-toolbar {
-			padding: 10px 14px;
+			padding: 10px var(--market-page-padding-compact);
 		}
 	}
 	@container market (max-width: 550px) {

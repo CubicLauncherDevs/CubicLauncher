@@ -130,13 +130,13 @@
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
 		grid-template-rows: minmax(0, 1fr) auto;
-		gap: 10px;
+		gap: var(--market-item-gap);
 		height: 100%;
 		box-sizing: border-box;
-		padding: 14px;
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		background: var(--surface-card);
+		padding: var(--market-card-padding);
+		border: var(--border-width) solid var(--border);
+		border-radius: var(--market-card-radius);
+		background: var(--bg-card-gradient), var(--surface-card);
 		color: var(--text-primary);
 		min-width: 0;
 		transition:
@@ -146,6 +146,7 @@
 	.installed-item:hover,
 	.installed-item:focus-within {
 		background: var(--surface-hover);
+		border-color: var(--border-hover);
 	}
 	.installed-item.checked {
 		border-color: var(--accent);
@@ -156,7 +157,7 @@
 		grid-template-rows: 1fr;
 		align-items: center;
 		height: calc(100% - var(--virtual-row-gap, 6px));
-		padding: 8px 12px;
+		padding: var(--market-installed-padding);
 	}
 	input {
 		appearance: none;
@@ -219,14 +220,14 @@
 		min-width: 0;
 	}
 	.item-icon {
-		width: 40px;
-		height: 40px;
+		width: var(--market-installed-icon-size);
+		height: var(--market-installed-icon-size);
 		flex-shrink: 0;
 		display: grid;
 		place-items: center;
 		padding: 4px;
 		box-sizing: border-box;
-		background: var(--surface-subtle);
+		background: var(--surface-input);
 		border-radius: var(--border-radius-sm);
 	}
 	.item-icon img {
@@ -249,7 +250,7 @@
 		white-space: nowrap;
 	}
 	strong {
-		font-size: 0.9rem;
+		font-size: var(--market-title-size);
 	}
 	.filename {
 		font-size: 0.75rem;

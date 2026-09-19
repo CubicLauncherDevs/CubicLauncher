@@ -71,6 +71,12 @@
 		"--surface-dropdown": "#26233a",
 		"--toast-bg": "rgba(31,29,46,0.92)",
 
+		"--market-hover-bg": "#2a263e",
+		"--market-border": "#403952",
+		"--market-text-secondary": "#aaa5c2",
+		"--market-success": "#9ccfd8",
+		"--market-info": "#c4a7e7",
+
 		"--font-family": "Cantarell, sans-serif",
 		"--font-size-base": "14px",
 		"--font-size-sm": "12px",

@@ -1,0 +1,23 @@
+/* Market tokens resolve against the theme at :root. Scope the aliases so nested
+   shared controls (selects, markdown, etc.) use the same market palette. */
+.market-layout,
+.market-dep-preview,
+.market-dep-footer {
+	--surface-card: var(--market-card-bg);
+	--surface-input: var(--market-input-bg);
+	--surface-hover: var(--market-hover-bg);
+	--surface-active: var(--market-selected-bg);
+	--surface-selected: var(--market-selected-bg);
+	--border: var(--market-border);
+	--border-hover: var(--market-border-hover);
+	--text-secondary: var(--market-text-secondary);
+	--text-tertiary: var(--market-text-secondary);
+	--text-muted: var(--market-text-secondary);
+	--accent: var(--market-accent);
+	--accent-hover: var(--market-accent-hover);
+	--accent-text: var(--market-accent-text);
+	--color-success: var(--market-success);
+	--color-error: var(--market-error);
+	--color-warning: var(--market-warning);
+	--color-info: var(--market-info);
+}

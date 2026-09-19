@@ -83,6 +83,10 @@
 		"--toast-bg": "#1c1c1c",
 		"--toast-border": "var(--border-color)",
 
+		"--market-hover-bg": "#202024",
+		"--market-border": "#343438",
+		"--market-text-secondary": "#a0a0a0",
+
 		"--font-family": "Cantarell, sans-serif",
 		"--font-size-base": "14px",
 		"--font-size-sm": "12px",

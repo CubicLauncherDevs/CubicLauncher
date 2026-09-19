@@ -166,9 +166,9 @@
 		align-items: stretch;
 		gap: var(--space-md);
 		padding: var(--market-card-padding);
-		background: var(--surface-selected);
+		background: var(--bg-card-gradient), var(--surface-card);
 		border: var(--border-width) solid var(--border);
-		border-radius: var(--border-radius-sm);
+		border-radius: var(--market-card-radius);
 		transition:
 			border-color var(--transition-fast) ease,
 			background-color var(--transition-fast) ease;
@@ -179,8 +179,8 @@
 
 	.market-item:hover,
 	.market-item:focus-within {
-		background: var(--surface-active);
-		border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+		background: var(--surface-hover);
+		border-color: var(--border-hover);
 	}
 
 	.market-item-open {
@@ -188,7 +188,7 @@
 		grid-template-columns: var(--market-icon-size) minmax(0, 1fr);
 		grid-template-rows: auto 1fr;
 		align-items: start;
-		gap: var(--market-item-gap, 10px);
+		gap: var(--market-item-gap);
 		flex: 1;
 		min-height: 0;
 		min-width: 0;
@@ -226,7 +226,7 @@
 		width: var(--market-icon-size);
 		height: var(--market-icon-size);
 		border-radius: var(--border-radius-sm);
-		background: var(--surface-selected);
+		background: var(--surface-input);
 		border: var(--border-width) solid var(--border);
 		overflow: hidden;
 		flex-shrink: 0;
@@ -261,7 +261,7 @@
 	}
 
 	.market-item-title {
-		font-size: var(--market-title-size, 0.9rem);
+		font-size: var(--market-title-size);
 		font-weight: var(--font-weight-bold);
 		color: var(--text-primary);
 		margin: 0;
@@ -301,8 +301,9 @@
 
 	.market-item-badge.incompatible {
 		color: var(--color-error);
-		background: rgba(var(--color-error-rgb), 0.08);
-		border: 1px solid rgba(var(--color-error-rgb), 0.2);
+		background: color-mix(in srgb, var(--color-error) 8%, transparent);
+		border: var(--border-width) solid
+			color-mix(in srgb, var(--color-error) 25%, transparent);
 	}
 
 	.market-item-author {
@@ -316,7 +317,7 @@
 	.market-item-description {
 		grid-column: 1 / -1;
 		min-height: 0;
-		font-size: var(--market-description-size, 0.75rem);
+		font-size: var(--market-description-size);
 		color: var(--text-tertiary, var(--text-secondary));
 		line-height: var(--line-height);
 		display: -webkit-box;
@@ -367,7 +368,7 @@
 		align-items: center;
 		justify-content: center;
 		gap: 6px;
-		padding: var(--market-button-padding, 5px 12px);
+		padding: var(--market-button-padding);
 		background: var(--surface-input);
 		color: var(--text-primary);
 		border: var(--border-width) solid var(--border);
@@ -403,8 +404,9 @@
 		padding: 3px 8px;
 		border-radius: var(--border-radius-sm);
 		color: var(--color-success);
-		background: rgba(var(--color-success-rgb), 0.1);
-		border: 1px solid rgba(var(--color-success-rgb), 0.25);
+		background: color-mix(in srgb, var(--color-success) 10%, transparent);
+		border: var(--border-width) solid
+			color-mix(in srgb, var(--color-success) 25%, transparent);
 		white-space: nowrap;
 	}
 

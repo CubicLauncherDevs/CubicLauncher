@@ -227,7 +227,7 @@
 		align-items: center;
 		gap: 8px;
 		min-height: 40px;
-		padding: 0 24px;
+		padding: 0 var(--market-page-padding);
 		color: var(--text-secondary);
 		font-size: 0.75rem;
 		flex-shrink: 0;
@@ -235,7 +235,7 @@
 	.market-results {
 		flex: 1;
 		min-height: 0;
-		margin: 0 24px;
+		margin: 0 var(--market-page-padding);
 		overflow: hidden;
 	}
 	.results-empty {
@@ -253,7 +253,7 @@
 		align-items: center;
 		flex-wrap: wrap;
 		gap: 10px;
-		padding: 10px 24px;
+		padding: 10px var(--market-page-padding);
 		min-height: 48px;
 		box-sizing: border-box;
 		font-size: 0.8rem;
@@ -269,9 +269,9 @@
 		overflow-y: auto;
 	}
 	.results-footer button {
-		border: 1px solid var(--border);
+		border: var(--border-width) solid var(--border);
 		border-radius: var(--border-radius-sm);
-		background: var(--surface-selected);
+		background: var(--surface-card);
 		color: var(--text-primary);
 		padding: 7px 16px;
 		cursor: pointer;
@@ -279,6 +279,7 @@
 	}
 	.results-footer button:hover:not(:disabled) {
 		border-color: var(--accent);
+		background: var(--surface-hover);
 	}
 	.results-footer button:disabled {
 		opacity: 0.5;
@@ -316,10 +317,13 @@
 	}
 	@container market (max-width: 700px) {
 		.market-results {
-			margin: 0 14px;
+			margin: 0 var(--market-page-padding-compact);
 		}
 		.results-bar {
-			padding: 0 14px;
+			padding: 0 var(--market-page-padding-compact);
+		}
+		.results-footer {
+			padding-inline: var(--market-page-padding-compact);
 		}
 	}
 </style>

@@ -269,9 +269,9 @@
 
 <style>
 	.market-filter-panel {
-		padding: 20px 24px 14px;
-		background: transparent;
-		border-bottom: 1px solid var(--border);
+		padding: 20px var(--market-page-padding) 14px;
+		background: var(--market-panel-bg);
+		border-bottom: var(--border-width) solid var(--border);
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
@@ -309,7 +309,7 @@
 	}
 	.compatibility span {
 		padding: 3px 8px;
-		border: 1px solid var(--border);
+		border: var(--border-width) solid var(--border);
 		border-radius: var(--border-radius-sm);
 		background: var(--surface-selected);
 	}
@@ -317,7 +317,7 @@
 		gap: 0;
 		padding: 4px;
 		background: var(--surface-input);
-		border: 1px solid var(--border);
+		border: var(--border-width) solid var(--border);
 		border-radius: var(--border-radius-sm);
 	}
 	.search-row:focus-within {
@@ -419,11 +419,11 @@
 		border-color: var(--accent);
 	}
 	.search-submit:hover {
-		opacity: 0.9;
+		background: var(--accent-hover);
 	}
 	@container market (max-width: 700px) {
 		.market-filter-panel {
-			padding: 14px;
+			padding: var(--market-page-padding-compact);
 			gap: 10px;
 		}
 		.search-submit {
