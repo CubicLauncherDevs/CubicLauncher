@@ -6,6 +6,7 @@
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
 	import TutorialTipContent from "./TutorialTipContent.svelte";
 	import TutorialTipFooter from "./TutorialTipFooter.svelte";
+	import ModalBase from "../ModalBase.svelte";
 
 	interface Step {
 		sel: string;
@@ -69,9 +70,9 @@
 	let ty = $state(0);
 	let tipEl: HTMLElement | undefined = $state();
 	let tipLeft = $state(false);
-	let measuredW = $state(0);
-	let measuredH = $state(0);
-	let hasMeasured = $state(false);
+	let missingTarget = $state(false);
+	let showSkipConfirmation = $state(false);
+	let skipping = $state(false);
 
 	let closeTimer: ReturnType<typeof setTimeout> | undefined;
 	let stepTimer: ReturnType<typeof setTimeout> | undefined;
@@ -79,11 +80,15 @@
 	let measureTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const isLicenseStep = $derived(currentStep === steps.length - 1);
-	const isCentered = $derived(steps[currentStep]?.pos === "center");
+	const isCentered = $derived(
+		steps[currentStep]?.pos === "center" || missingTarget,
+	);
 	const canFinish = $derived(
 		!isLicenseStep || launcherStore.settings.license_accepted,
 	);
-	const canSkip = $derived(launcherStore.settings.license_accepted);
+	const canSkip = $derived(
+		!isLicenseStep || launcherStore.settings.license_accepted,
+	);
 
 	function closeTutorial() {
 		active = false;
@@ -93,11 +98,26 @@
 		}, 150);
 	}
 
+	function requestSkip() {
+		if (!canSkip || skipping) return;
+		showSkipConfirmation = true;
+	}
+
 	async function skipTutorial() {
-		if (!canSkip) return;
-		launcherStore.settings.show_tutorial = false;
-		await saveSettings();
-		closeTutorial();
+		if (!showSkipConfirmation || skipping) return;
+		showSkipConfirmation = false;
+		if (!launcherStore.settings.license_accepted) {
+			goToStep(steps.length - 1);
+			return;
+		}
+		skipping = true;
+		try {
+			launcherStore.settings.show_tutorial = false;
+			await saveSettings();
+			closeTutorial();
+		} finally {
+			skipping = false;
+		}
 	}
 
 	async function finishTutorial() {
@@ -112,6 +132,7 @@
 
 	function goToStep(i: number) {
 		if (i === currentStep) return;
+		clearTimeout(stepTimer);
 		positioning = true;
 		stepTimer = setTimeout(() => {
 			currentStep = i;
@@ -138,31 +159,29 @@
 	function updatePosition() {
 		const step = steps[currentStep];
 		const el = document.querySelector(step.sel);
-		if (!el) {
-			console.warn(
-				`[Tutorial] Element not found: "${step.sel}" (step ${currentStep + 1}: "${step.key}")`,
-			);
-			return;
-		}
-
-		const r = el.getBoundingClientRect();
+		const r = el?.getBoundingClientRect();
 		const gap = 12;
 		const m = 10;
+		const tipBounds = tipEl?.getBoundingClientRect();
+		const tipW = tipBounds?.width || 280;
+		const tipH = tipBounds?.height || 150;
+		missingTarget = !r || r.width === 0 || r.height === 0;
 
-		sx = r.left - 4;
-		sy = r.top - 4;
-		sw = r.width + 8;
-		sh = r.height + 8;
-
-		const tipW = hasMeasured && measuredW > 0 ? measuredW : 280;
-		const tipH = hasMeasured && measuredH > 0 ? measuredH : 150;
-
-		if (step.pos === "center") {
+		if (step.pos === "center" || missingTarget || !r) {
+			sx = 0;
+			sy = 0;
+			sw = window.innerWidth;
+			sh = window.innerHeight;
 			tipLeft = false;
 			tx = Math.max(m, (window.innerWidth - tipW) / 2);
 			ty = Math.max(m, (window.innerHeight - tipH) / 2);
 			return;
 		}
+
+		sx = r.left - 4;
+		sy = r.top - 4;
+		sw = r.width + 8;
+		sh = r.height + 8;
 
 		const spaceRight = window.innerWidth - r.right;
 		const spaceLeft = r.left;
@@ -192,21 +211,18 @@
 			tipLeft = true;
 		}
 
-		tx = x;
+		tx = Math.max(m, Math.min(x, window.innerWidth - tipW - m));
 		ty = y;
 	}
 
-	async function showTip() {
-		updatePosition();
-		if (tipEl) {
-			const tr = tipEl.getBoundingClientRect();
-			measuredW = tr.width;
-			measuredH = tr.height;
-			hasMeasured = true;
-			await tick();
-			updatePosition();
-		}
-	}
+	$effect(() => {
+		if (!tipEl) return;
+		const observer = new ResizeObserver(() => {
+			if (active) updatePosition();
+		});
+		observer.observe(tipEl);
+		return () => observer.disconnect();
+	});
 
 	$effect(() => {
 		if (!open || active) return;
@@ -228,7 +244,7 @@
 			: Promise.resolve();
 		tick()
 			.then(() => resume)
-			.then(showTip)
+			.then(updatePosition)
 			.then(() => {
 				positioning = false;
 			});
@@ -253,7 +269,7 @@
 		class="tut-overlay"
 		class:visible={active}
 		class:dim={!tipLeft}
-		onclick={skipTutorial}
+		onclick={requestSkip}
 		role="presentation"
 	>
 		<div
@@ -271,6 +287,7 @@
 		style="--tx:{tx}px;--ty:{ty}px"
 		bind:this={tipEl}
 		role="dialog"
+		inert={showSkipConfirmation || skipping}
 	>
 		<div class="tut-arrow"></div>
 
@@ -278,7 +295,7 @@
 			<button
 				type="button"
 				class="tut-close"
-				onclick={skipTutorial}
+				onclick={requestSkip}
 				aria-label={t("tutorial.skip")}
 			>
 				<CloseIcon size={20} />
@@ -300,10 +317,49 @@
 			onfinish={finishTutorial}
 			{canFinish}
 		/>
+		{#if canSkip}
+			<button
+				type="button"
+				class="btn-secondary tut-btn tut-skip"
+				onclick={requestSkip}
+			>
+				{t("tutorial.skipTutorial")}
+			</button>
+		{/if}
 	</div>
+
+	<ModalBase
+		bind:open={showSkipConfirmation}
+		title={t("tutorial.skipConfirmTitle")}
+	>
+		<p class="confirmation-message">
+			{t("tutorial.skipConfirmDesc")}
+		</p>
+		{#if !launcherStore.settings.license_accepted}
+			<p class="confirmation-message">
+				{t("tutorial.skipLicenseNotice")}
+			</p>
+		{/if}
+		{#snippet footer()}
+			<button
+				type="button"
+				class="btn-secondary"
+				onclick={() => (showSkipConfirmation = false)}
+			>
+				{t("tutorial.continueTutorial")}
+			</button>
+			<button type="button" class="btn-primary" onclick={skipTutorial}>
+				{t("tutorial.confirmSkip")}
+			</button>
+		{/snippet}
+	</ModalBase>
 {/if}
 
 <style>
+	.tut-skip {
+		align-self: flex-end;
+	}
+
 	.tut-tip {
 		opacity: 0;
 		transform: translateY(8px);

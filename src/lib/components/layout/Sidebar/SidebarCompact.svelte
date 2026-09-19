@@ -213,7 +213,7 @@
 </script>
 
 <aside class="sidebar-compact">
-	<div class="sc-header">
+	<div class="sc-header" data-tutorial="sidebar-header">
 		<CubicIcon width="20" height="20" />
 	</div>
 
@@ -287,6 +287,7 @@
 			type="button"
 			class="sc-tool-btn"
 			onclick={onopencreateinstance}
+			data-tutorial="create-instance"
 			title={t("sidebar.createInstance")}
 		>
 			<Icon name="nav:create" size={16} />
@@ -295,6 +296,7 @@
 			type="button"
 			class="sc-tool-btn sc-download-btn"
 			onclick={onopenversiondownloader}
+			data-tutorial="download-versions"
 			title={t("sidebar.downloadVersions")}
 		>
 			<Icon name="ui:download" size={16} />
@@ -306,6 +308,7 @@
 			type="button"
 			class="sc-tool-btn"
 			onclick={onopenquickmenu}
+			data-tutorial="settings"
 			title={t("sidebar.settings")}
 		>
 			<Icon name="nav:settings" size={16} />

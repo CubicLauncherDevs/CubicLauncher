@@ -751,6 +751,12 @@
 	"welcome": {},
 	"tutorial": {
 		"skip": "Saltar",
+		"skipTutorial": "Saltar tutorial",
+		"skipConfirmTitle": "¿Quieres saltar el tutorial?",
+		"skipConfirmDesc": "Se omitirá el resto del recorrido por el launcher.",
+		"skipLicenseNotice": "Antes de comenzar, tendrás que aceptar la licencia en el último paso.",
+		"continueTutorial": "Continuar tutorial",
+		"confirmSkip": "Sí, saltar",
 		"next": "Siguiente",
 		"prev": "Anterior",
 		"finish": "Comenzar",
