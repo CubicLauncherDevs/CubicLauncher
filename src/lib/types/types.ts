@@ -123,6 +123,11 @@ export interface MinecraftProfileSkin {
 	alias: string;
 }
 
+export interface ElySkinProfile {
+	skin_url: string | null;
+	model: "classic" | "slim";
+}
+
 export interface MinecraftProfileCape {
 	id: string;
 	url: string;

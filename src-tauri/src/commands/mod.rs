@@ -3,6 +3,7 @@ pub mod avatar;
 pub mod dependencies;
 pub mod discord;
 pub mod download;
+pub mod ely_profile;
 pub mod forge;
 pub mod i18n;
 pub mod instance;

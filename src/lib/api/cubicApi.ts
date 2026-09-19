@@ -23,6 +23,7 @@ import {
 	type InstanceImportPlan,
 	type YggdrasilServerInfo,
 	type MinecraftProfileResponse,
+	type ElySkinProfile,
 	type SkinClosetEntry,
 } from "../types/types";
 
@@ -1037,6 +1038,10 @@ export async function getMinecraftProfile(
 
 export async function getSkinPreviewData(filePath: string): Promise<string> {
 	return invoke<string>("read_skin_preview_data", { filePath });
+}
+
+export async function getElySkinProfile(uuid: string): Promise<ElySkinProfile> {
+	return invoke<ElySkinProfile>("get_ely_skin_profile", { uuid });
 }
 
 export async function uploadSkinFile(

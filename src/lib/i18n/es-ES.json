@@ -367,7 +367,7 @@
 		"title": "Perfil de Usuario",
 		"usernamePlaceholder": "Usuario",
 		"offline": "No Premium",
-		"authInjector": "Authlib Injector",
+		"authInjector": "Ely.by y más",
 		"cancel": "Cancelar",
 		"loginMicrosoft": "Iniciar sesión con Microsoft",
 		"logout": "Cerrar sesión",
@@ -448,8 +448,18 @@
 			"success": "¡Sesión iniciada correctamente!",
 			"error": "Error al iniciar sesión: {error}"
 		},
+		"elySkin": {
+			"title": "Skin de Ely.by",
+			"change": "Cambiar skin en Ely.by",
+			"description": "Elige o sube una skin en Ely.by y aplícala a esta cuenta. Se abrirá el navegador; puede que tengas que iniciar sesión allí.",
+			"refresh": "Actualizar skin y cabeza",
+			"refreshHint": "La vista y la cabeza se actualizan al volver al launcher. Si el cambio tarda en aparecer, pulsa Actualizar.",
+			"loadError": "No se pudo cargar la skin de Ely.by. Revisa tu conexión y vuelve a actualizar.",
+			"unavailable": "Vista previa no disponible",
+			"noSkin": "Esta cuenta todavía no tiene una skin activa."
+		},
 		"yggdrasilModal": {
-			"title": "Authlib Injector",
+			"title": "Ely.by y más",
 			"serverInstruction": "Ingresa la URL del servidor de autenticación Yggdrasil.",
 			"serverLabel": "Servidor",
 			"serverPlaceholder": "ej: littlesk.in",

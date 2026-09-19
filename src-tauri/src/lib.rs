@@ -122,6 +122,7 @@ pub fn run() {
             commands::pack::parse_curseforge_modpack,
             commands::pack::install_curseforge_modpack,
             commands::profile::get_minecraft_profile,
+            commands::ely_profile::get_ely_skin_profile,
             commands::profile::read_skin_preview_data,
             commands::profile::upload_skin_file,
             commands::profile::upload_skin_url,

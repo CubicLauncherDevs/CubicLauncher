@@ -18,6 +18,8 @@
 	import AddAccountCard from "$lib/components/layout/UserMenu/AddAccountCard.svelte";
 	import AccountListItem from "./AccountListItem.svelte";
 	import SkinCapeManager from "./SkinCapeManager.svelte";
+	import ElySkinManager from "./ElySkinManager.svelte";
+	import { isElyByAccount } from "$lib/utils/accountProviders";
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
 	import Lupa from "$lib/icons/Lupa.svelte";
 
@@ -374,7 +376,7 @@
 								{#if selectedUser.user_type === "Microsoft"}
 									Microsoft
 								{:else if selectedUser.user_type === "Yggdrasil"}
-									Authlib
+									{t("userMenu.authInjector")}
 								{:else}
 									Offline
 								{/if}
@@ -400,6 +402,13 @@
 								in:fly={{ y: 40, duration: flyDuration }}
 							>
 								<SkinCapeManager uuid={selectedUser.uuid} />
+							</div>
+						{:else if isElyByAccount(selectedUser)}
+							<div
+								class="hero-skin-cape"
+								in:fly={{ y: 40, duration: flyDuration }}
+							>
+								<ElySkinManager uuid={selectedUser.uuid} />
 							</div>
 						{/if}
 					{/key}
