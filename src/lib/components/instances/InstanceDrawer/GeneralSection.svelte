@@ -105,18 +105,21 @@
 
 	.icon-selector {
 		display: flex;
-		gap: 8px;
+		flex-wrap: wrap;
+		gap: 0;
 		margin-top: 4px;
 	}
 
 	.icon-option {
-		width: 42px;
-		height: 42px;
-		border-radius: 8px;
+		flex-shrink: 0;
+		width: 38px;
+		height: 38px;
+		box-sizing: border-box;
+		border-radius: 0;
 		background: var(--surface-raised);
 		border: 2px solid var(--border-color);
 		cursor: pointer;
-		padding: 6px;
+		padding: 4px;
 		transition: all 0.15s;
 	}
 
