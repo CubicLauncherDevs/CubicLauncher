@@ -634,6 +634,7 @@ impl Launcher {
         let mut builder = LaunchConfig::builder()
             .java_path(java_path)
             .username(user.username)
+            .auth_uuid(user.uuid)
             .ram(min_mem, max_mem)
             .cracked(user.user_type == AccountType::Cracked);
 
@@ -648,16 +649,10 @@ impl Launcher {
 
         match user.user_type {
             AccountType::Microsoft => {
-                builder = builder
-                    .access_token(user.access_token)
-                    .auth_uuid(user.uuid)
-                    .user_type("msa");
+                builder = builder.access_token(user.access_token).user_type("msa");
             }
             AccountType::Yggdrasil => {
-                builder = builder
-                    .access_token(user.access_token)
-                    .auth_uuid(user.uuid)
-                    .user_type("mojang");
+                builder = builder.access_token(user.access_token).user_type("mojang");
 
                 // Download authlib-injector and fetch metadata for prefetch
                 if let Some(ref server_url) = user.yggdrasil_server_url {

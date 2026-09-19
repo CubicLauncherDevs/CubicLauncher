@@ -1,5 +1,6 @@
 pub mod error;
 pub mod forge;
+pub mod identity;
 pub mod launch_config;
 pub mod loader;
 pub mod manifest;
@@ -11,6 +12,7 @@ pub use forge::{
     DataEntry, InstallProfile, LegacyInstallProfile, LegacyLibrary, LegacyVersionInfo, Processor,
     ProfileLibrary, maven_to_path, parse_maven_coord,
 };
+pub use identity::offline_uuid;
 pub use launch_config::{LaunchConfig, LaunchConfigBuilder, QuickPlay};
 pub use loader::Loader;
 pub use manifest::{

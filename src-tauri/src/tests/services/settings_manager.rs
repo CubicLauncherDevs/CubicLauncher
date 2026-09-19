@@ -1,6 +1,80 @@
 use super::*;
 
 #[test]
+fn offline_profiles_from_ui_are_persisted_with_stable_uuids() {
+    let mut settings: SettingsManager = serde_json::from_value(serde_json::json!({
+        "user": [
+            {"username": "Steve", "uuid": "", "user_type": "Cracked"},
+            {"username": "Alex", "uuid": "", "user_type": "Cracked"}
+        ],
+        "active_user_idx": 1
+    }))
+    .unwrap();
+    // This normalization runs for every settings write, including update_settings.
+    settings.normalize_offline_users();
+    assert!(settings.dirty);
+    assert_eq!(
+        settings.user[0].uuid,
+        "5627dd98-e6be-3c21-b8a8-e92344183641"
+    );
+    assert_eq!(
+        settings.get_user().uuid,
+        "36532b5e-c442-3dbb-a24c-c7e55d0f979a"
+    );
+
+    let json = serde_json::to_vec(&settings).unwrap();
+    let mut restarted: SettingsManager = serde_json::from_slice(&json).unwrap();
+    restarted.migrate();
+    assert_eq!(restarted.active_user_idx, 1);
+    assert_eq!(restarted.get_user().uuid, settings.get_user().uuid);
+    restarted.user[1].username = "RenamedPlayer".into();
+    restarted.normalize_offline_users();
+    assert_eq!(restarted.get_user().uuid, settings.get_user().uuid);
+}
+
+#[test]
+fn migration_repairs_legacy_offline_ids_without_replacing_existing_accounts() {
+    let mut settings: SettingsManager = serde_json::from_value(serde_json::json!({
+        "user": [
+            {"username": "Steve", "user_type": "Cracked"},
+            {"username": "Alex", "uuid": "invalid", "user_type": "Cracked"},
+            {"username": "OldOffline", "uuid": "fd317fac-4605-4fde-bca7-c9847b745491", "user_type": "Cracked"},
+            {"username": "Microsoft", "uuid": "fd317fac46054fdebca7c9847b745491", "user_type": "Microsoft"},
+            {"username": "Yggdrasil", "uuid": "b6a2146e-f5c3-4b5f-9f2a-4f1c067e0d27", "user_type": "Yggdrasil"}
+        ]
+    }))
+    .unwrap();
+    let old_ids: Vec<_> = settings
+        .user
+        .iter()
+        .skip(2)
+        .map(|u| u.uuid.clone())
+        .collect();
+    settings.migrate();
+    assert!(settings.dirty);
+    assert_eq!(
+        settings.user[0].uuid,
+        "5627dd98-e6be-3c21-b8a8-e92344183641"
+    );
+    assert_eq!(
+        settings.user[1].uuid,
+        "36532b5e-c442-3dbb-a24c-c7e55d0f979a"
+    );
+    assert_eq!(
+        settings
+            .user
+            .iter()
+            .skip(2)
+            .map(|u| u.uuid.clone())
+            .collect::<Vec<_>>(),
+        old_ids
+    );
+    settings.dirty = false;
+    settings.normalize_offline_users();
+    assert!(!settings.dirty);
+}
+
+#[test]
 fn interface_preferences_keep_legacy_theme_and_roundtrip_all_options() {
     let mut legacy: SettingsManager = serde_json::from_value(serde_json::json!({
         "theme": "user:custom-layout"

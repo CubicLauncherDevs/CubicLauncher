@@ -154,8 +154,18 @@ impl<'a> CommandBuilder<'a> {
         let uuid = self
             .config
             .auth_uuid
-            .clone()
-            .unwrap_or_else(|| Uuid::new_v4().to_string());
+            .as_deref()
+            .filter(|value| {
+                !self.config.cracked || Uuid::try_parse(value).is_ok_and(|uuid| !uuid.is_nil())
+            })
+            .map(str::to_owned)
+            .unwrap_or_else(|| {
+                if self.config.cracked {
+                    crate::offline_uuid(&self.config.username).to_string()
+                } else {
+                    Uuid::new_v4().to_string()
+                }
+            });
         let vars = self.build_vars(
             &assets_dir,
             &natives_base,

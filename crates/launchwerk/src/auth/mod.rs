@@ -15,6 +15,7 @@ use storage::SecureStorage;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MinecraftUser {
     pub username: String,
+    #[serde(default)]
     pub uuid: String,
     #[serde(skip)]
     pub access_token: String,
@@ -37,15 +38,28 @@ pub enum AccountType {
 impl MinecraftUser {
     /// Create a new cracked (offline) user
     pub fn cracked(username: impl Into<String>) -> Self {
+        let username = username.into();
         Self {
-            username: username.into(),
-            uuid: uuid::Uuid::new_v4().to_string(),
+            uuid: zellkern::offline_uuid(&username).to_string(),
+            username,
             access_token: "0".to_string(),
             refresh_token: None,
             user_type: AccountType::Cracked,
             yggdrasil_server_url: None,
             client_token: None,
         }
+    }
+
+    /// Repair legacy/offline profiles without changing an existing identity.
+    /// Returns whether the profile must be persisted again.
+    pub fn ensure_offline_uuid(&mut self) -> bool {
+        if self.user_type != AccountType::Cracked
+            || uuid::Uuid::try_parse(&self.uuid).is_ok_and(|uuid| !uuid.is_nil())
+        {
+            return false;
+        }
+        self.uuid = zellkern::offline_uuid(&self.username).to_string();
+        true
     }
 
     /// Create a new premium user (from Microsoft auth)

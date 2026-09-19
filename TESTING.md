@@ -456,8 +456,10 @@ encuentra un navegador compatible.
 
 ### Autenticación
 
+- Ejecutar `cargo test -p zellkern`, `cargo test -p launchwerk --features auth offline` y `cargo test -p cubiclauncher --lib services::settings_manager::tests` para comprobar el UUID offline estándar, su persistencia y los argumentos de lanzamiento modernos/legacy.
 - [ ] Cambiar entre usuarios guardados.
 - [ ] Agregar cuenta offline.
+- [ ] Con la misma cuenta offline, entrar a un mundo, obtener un avance y guardar. Cerrar Minecraft y el launcher, volver a abrirlos y comprobar que `--uuid` y los archivos de `stats`/`advancements` mantienen la identidad y el progreso. Repetir con un perfil antiguo cuyo UUID esté vacío y con otro que tenga un UUID válido guardado.
 - [ ] (Si se puede) probar Microsoft / Yggdrasil.
 
 ### Ventanas WebView2 (Windows)

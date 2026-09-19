@@ -244,6 +244,7 @@ impl SettingsManager {
         let mut settings = SETTINGS.write();
         let previous_theme = settings.theme.clone();
         f(&mut settings);
+        settings.normalize_offline_users();
         if settings.theme != previous_theme {
             // Follow write order, not the completion order of asynchronous saves.
             crate::theme_watcher::ThemeWatcher::watch(
@@ -432,6 +433,7 @@ impl SettingsManager {
 
     /// Migraciones de versiones anteriores del formato.
     fn migrate(&mut self) {
+        self.normalize_offline_users();
         self.normalize_notification_preferences();
         let previous_scale = self.interface_preferences.scale;
         self.interface_preferences.normalize();
@@ -461,6 +463,14 @@ impl SettingsManager {
         if sanitized != self.console_history_limit {
             self.console_history_limit = sanitized;
             self.dirty = true;
+        }
+    }
+
+    fn normalize_offline_users(&mut self) {
+        for user in &mut self.user {
+            if user.ensure_offline_uuid() {
+                self.dirty = true;
+            }
         }
     }
 

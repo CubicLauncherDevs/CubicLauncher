@@ -1,6 +1,51 @@
 use crate::auth::MinecraftUser;
 
 #[test]
+fn offline_accounts_keep_their_identity_after_recreation_and_serialization() {
+    let first = MinecraftUser::cracked("Steve");
+    assert_eq!(first.uuid, "5627dd98-e6be-3c21-b8a8-e92344183641");
+    assert_eq!(MinecraftUser::cracked("Steve").uuid, first.uuid);
+    let mut reloaded: MinecraftUser =
+        serde_json::from_str(&serde_json::to_string(&first).unwrap()).unwrap();
+    assert!(!reloaded.ensure_offline_uuid());
+    assert_eq!(reloaded.uuid, first.uuid);
+    reloaded.username = "RenamedPlayer".into();
+    assert!(!reloaded.ensure_offline_uuid());
+    assert_eq!(reloaded.uuid, first.uuid);
+}
+
+#[test]
+fn offline_uuid_repair_preserves_valid_ids_and_leaves_online_accounts_alone() {
+    for value in ["", "invalid", "00000000-0000-0000-0000-000000000000"] {
+        let mut offline = MinecraftUser::cracked("Steve");
+        offline.uuid = value.into();
+        assert!(offline.ensure_offline_uuid());
+        assert_eq!(offline.uuid, "5627dd98-e6be-3c21-b8a8-e92344183641");
+        assert!(!offline.ensure_offline_uuid());
+    }
+    for value in [
+        "fd317fac-4605-4fde-bca7-c9847b745491",
+        "fd317fac46054fdebca7c9847b745491",
+    ] {
+        let mut offline = MinecraftUser::cracked("Steve");
+        offline.uuid = value.into();
+        assert!(!offline.ensure_offline_uuid());
+        assert_eq!(offline.uuid, value);
+    }
+    for account_type in [
+        crate::auth::AccountType::Microsoft,
+        crate::auth::AccountType::Yggdrasil,
+    ] {
+        let mut online =
+            MinecraftUser::premium("Steve".into(), "online-id".into(), "token".into(), None);
+        online.user_type = account_type;
+        assert!(!online.ensure_offline_uuid());
+        assert_eq!(online.uuid, "online-id");
+        assert_eq!(online.access_token, "token");
+    }
+}
+
+#[test]
 fn test_token_serialization_skip() {
     let user = MinecraftUser::premium(
         "test_user".to_string(),
