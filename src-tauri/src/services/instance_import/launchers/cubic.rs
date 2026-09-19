@@ -31,6 +31,8 @@ pub struct CubicManifest {
     pub min_memory: u32,
     pub max_memory: u32,
     pub overrides: Option<InstOverrides>,
+    #[serde(default)]
+    pub minecraft_jar: crate::services::minecraft_jar::MinecraftJarConfig,
 }
 
 /// Provider para ZIPs exportados por CubicLauncher.
@@ -83,6 +85,10 @@ fn read_manifest(preview_dir: &Path) -> Result<CubicManifest, ImportError> {
 
     let manifest: CubicManifest = serde_json::from_str(&content)
         .map_err(|e| ImportError::InvalidArchive(format!("cubic-manifest.json inválido: {e}")))?;
+    manifest
+        .minecraft_jar
+        .validate()
+        .map_err(ImportError::InvalidArchive)?;
 
     if manifest.format_version != 1 {
         warn!(
@@ -135,6 +141,21 @@ async fn import_cubic_instance(
     if source_game_dir.exists() {
         migrate_game_data(&source_game_dir, &instance_dir).await?;
     }
+
+    let jar_config = manifest.minecraft_jar.clone();
+    let jar_target = instance_dir.clone();
+    let (files_guard, copied) = tokio::task::spawn_blocking(move || {
+        let result =
+            crate::services::minecraft_jar::copy_inputs(&source_game_dir, &jar_target, &jar_config);
+        (files_guard, result)
+    })
+    .await
+    .map_err(|e| ImportError::InvalidArchive(e.to_string()))?;
+    copied.map_err(ImportError::InvalidArchive)?;
+    handle
+        .save_minecraft_jar(manifest.minecraft_jar)
+        .await
+        .map_err(ImportError::InvalidArchive)?;
 
     let icon_src = preview_dir.join("icon.png");
     if icon_src.is_file() {

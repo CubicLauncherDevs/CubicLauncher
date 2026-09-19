@@ -46,6 +46,7 @@ pub struct ExportInput {
     pub min_memory: u32,
     pub max_memory: u32,
     pub overrides: Option<InstOverrides>,
+    pub minecraft_jar: super::minecraft_jar::MinecraftJarConfig,
     pub icon_src: Option<PathBuf>,
 }
 
@@ -82,12 +83,14 @@ pub async fn prepare_export(handle: &InstanceHandle) -> Result<ExportInput, Stri
         min_memory,
         max_memory,
         overrides,
+        minecraft_jar: handle.get_minecraft_jar().await,
         icon_src,
     })
 }
 
 /// Genera el ZIP en la ruta indicada.
 pub fn export_to_zip(input: &ExportInput, dest: &Path) -> Result<PathBuf, String> {
+    input.minecraft_jar.validate()?;
     info!(
         "Exportando instancia '{}' a '{}'",
         input.name,
@@ -137,6 +140,22 @@ pub fn export_to_zip(input: &ExportInput, dest: &Path) -> Result<PathBuf, String
         let zip_path = PathBuf::from(".minecraft").join(entry);
         add_path_to_zip(&mut zip, &src, &zip_path, options)
             .map_err(|e| format!("Error comprimiendo {:?}: {e}", src))?;
+    }
+
+    for file in input.minecraft_jar.files() {
+        let relative = PathBuf::from(super::minecraft_jar::INPUT_DIR).join(&file.file);
+        let source = input.instance_dir.join(&relative);
+        super::minecraft_jar::validate_archive(
+            &source,
+            input.minecraft_jar.replacement.as_ref() == Some(file),
+        )?;
+        add_path_to_zip(
+            &mut zip,
+            &source,
+            &PathBuf::from(".minecraft").join(relative),
+            options,
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     zip.finish()
@@ -244,6 +263,7 @@ struct CubicManifest {
     min_memory: u32,
     max_memory: u32,
     overrides: Option<InstOverrides>,
+    minecraft_jar: super::minecraft_jar::MinecraftJarConfig,
 }
 
 fn build_cubic_manifest(input: &ExportInput) -> String {
@@ -259,6 +279,7 @@ fn build_cubic_manifest(input: &ExportInput) -> String {
         min_memory: input.min_memory,
         max_memory: input.max_memory,
         overrides: input.overrides,
+        minecraft_jar: input.minecraft_jar.clone(),
     };
 
     serde_json::to_string_pretty(&manifest).expect("manifest serializable")

@@ -1,5 +1,25 @@
 {
 	"id": "en-US",
+	"minecraftJar": {
+		"description": "Add mods to the contents of minecraft.jar or select a complete custom JAR for this instance.",
+		"add": "Add to Minecraft.jar",
+		"replace": "Replace Minecraft.jar",
+		"restore": "Restore original JAR",
+		"current": "Base JAR:",
+		"original": "Original version JAR",
+		"empty": "No mods have been added to the JAR.",
+		"remove": "Remove",
+		"removeNamed": "Remove {name}",
+		"moveUp": "Move {name} up",
+		"moveDown": "Move {name} down",
+		"orderHint": "Mods are applied from top to bottom. Later mods take priority when replacing files.",
+		"savedHint": "Changes are saved automatically. Restoring the base JAR keeps the mod list.",
+		"compatibility": "Use files compatible with this instance's version. Forge/NeoForge with ModLauncher does not support this customization.",
+		"running": "Close Minecraft before modifying the JAR.",
+		"loading": "Loading JAR configuration…",
+		"working": "Saving JAR changes…",
+		"retry": "Retry"
+	},
 	"servers": {
 		"title": "Servers",
 		"add": "Add server",
@@ -805,6 +825,7 @@
 		"INST_NAME_INVALID": "Invalid instance name: {error}",
 		"INST_SRC_INVALID": "Invalid source path",
 		"INST_JRE_MISSING": "Java {version} is not installed. Install it in Settings > Java.",
+		"INST_MINECRAFT_JAR": "Could not prepare minecraft.jar: {error}",
 		"FS_READ_DIR": "Could not read directory '{path}': {error}",
 		"FS_READ_FILE": "Could not read file '{path}': {error}",
 		"FS_CREATE_DIR": "Could not create directory '{path}': {error}",

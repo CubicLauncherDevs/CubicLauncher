@@ -11,6 +11,7 @@ pub(crate) mod interface_preferences;
 pub(crate) mod java_manager;
 pub(crate) mod launch_window;
 pub(crate) mod launcher;
+pub(crate) mod minecraft_jar;
 pub(crate) mod notification_preferences;
 pub mod server_manager;
 #[cfg(test)]

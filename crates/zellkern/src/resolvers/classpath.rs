@@ -9,6 +9,7 @@ pub struct ClasspathResolver<'a> {
     manifest: &'a VersionManifest,
     base_id: &'a str,
     lib_dir: PathBuf,
+    minecraft_jar: Option<PathBuf>,
 }
 
 impl<'a> ClasspathResolver<'a> {
@@ -17,6 +18,7 @@ impl<'a> ClasspathResolver<'a> {
             manifest,
             base_id,
             lib_dir: lib_dir.to_path_buf(),
+            minecraft_jar: None,
         }
     }
 
@@ -41,6 +43,36 @@ impl<'a> ClasspathResolver<'a> {
         return paths.join(";");
         #[cfg(not(target_os = "windows"))]
         return paths.join(":");
+    }
+
+    pub fn with_minecraft_jar(mut self, path: Option<&Path>) -> Self {
+        self.minecraft_jar = path.map(Path::to_path_buf);
+        self
+    }
+
+    pub fn minecraft_jar_path(&self) -> PathBuf {
+        if let Some(path) = &self.minecraft_jar {
+            return path.clone();
+        }
+        let versions = self
+            .lib_dir
+            .parent()
+            .unwrap_or(Path::new("."))
+            .join("versions");
+        if matches!(
+            Loader::from_version_id(&self.manifest.id_raw),
+            Loader::Forge(_) | Loader::NeoForge(_)
+        ) {
+            let patched = versions
+                .join(&self.manifest.id_raw)
+                .join(format!("{}.jar", self.manifest.id_raw));
+            if patched.exists() {
+                return patched;
+            }
+        }
+        versions
+            .join(self.base_id)
+            .join(format!("{}.jar", self.base_id))
     }
 
     fn collect_libraries(&self, paths: &mut Vec<String>, seen: &mut HashMap<String, String>) {
@@ -85,47 +117,15 @@ impl<'a> ClasspathResolver<'a> {
     fn add_version_jars(&self, paths: &mut Vec<String>) {
         let loader = Loader::from_version_id(&self.manifest.id_raw);
         debug!("add_version_jars: detected loader={:?}", loader);
-        match loader {
-            Loader::Forge(_) | Loader::NeoForge(_) => {
-                if let Some(forge_jar) = self.find_forge_universal() {
-                    debug!("  Forge universal jar found: {}", forge_jar.display());
-                    self.push_if_exists(paths, &forge_jar);
-                } else {
-                    warn!("  Forge universal jar NOT found in libraries");
-                }
-                let shared = self.lib_dir.parent().unwrap_or(Path::new("."));
-
-                let version_jar = shared
-                    .join("versions")
-                    .join(&*self.manifest.id_raw)
-                    .join(format!("{}.jar", &*self.manifest.id_raw));
-                if version_jar.exists() {
-                    debug!("  Forge version jar: {}", version_jar.display());
-                    self.push_if_exists(paths, &version_jar);
-                } else {
-                    let vanilla_jar = shared
-                        .join("versions")
-                        .join(self.base_id)
-                        .join(format!("{}.jar", self.base_id));
-                    debug!(
-                        "  Forge version jar not found, falling back to vanilla: {}",
-                        vanilla_jar.display()
-                    );
-                    self.push_if_exists(paths, &vanilla_jar);
-                }
-            }
-            _ => {
-                let version_jar = self
-                    .lib_dir
-                    .parent()
-                    .unwrap_or(Path::new("."))
-                    .join("versions")
-                    .join(self.base_id)
-                    .join(format!("{}.jar", self.base_id));
-                debug!("  Vanilla version jar: {}", version_jar.display());
-                self.push_if_exists(paths, &version_jar);
+        if matches!(loader, Loader::Forge(_) | Loader::NeoForge(_)) {
+            if let Some(forge_jar) = self.find_forge_universal() {
+                debug!("  Forge universal jar found: {}", forge_jar.display());
+                self.push_if_exists(paths, &forge_jar);
+            } else {
+                warn!("  Forge universal jar NOT found in libraries");
             }
         }
+        self.push_if_exists(paths, &self.minecraft_jar_path());
     }
 
     fn push_if_exists(&self, paths: &mut Vec<String>, p: &Path) {

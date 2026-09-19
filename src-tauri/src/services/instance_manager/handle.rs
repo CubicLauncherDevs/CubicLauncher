@@ -176,6 +176,26 @@ impl InstanceHandle {
         self.data.read().await.pinned
     }
 
+    pub async fn get_minecraft_jar(&self) -> crate::services::minecraft_jar::MinecraftJarConfig {
+        self.data.read().await.minecraft_jar.clone()
+    }
+
+    /// Caller holds the instance files guard. Roll back memory on save failure.
+    pub async fn save_minecraft_jar(
+        &self,
+        config: crate::services::minecraft_jar::MinecraftJarConfig,
+    ) -> Result<(), String> {
+        config.validate()?;
+        let mut data = self.data.write().await;
+        let old = std::mem::replace(&mut data.minecraft_jar, config);
+        data.dirty = true;
+        if let Err(e) = data.save().await {
+            data.minecraft_jar = old;
+            return Err(e.to_string());
+        }
+        Ok(())
+    }
+
     pub async fn set_pinned(&self, pinned: bool) {
         let mut data = self.data.write().await;
         data.pinned = pinned;

@@ -22,6 +22,8 @@ pub struct LaunchConfig {
     pub extra_jvm_args: Vec<String>,
     pub authlib_injector_path: Option<PathBuf>,
     pub yggdrasil_metadata_b64: Option<String>,
+    /// Instance-local replacement for the main Minecraft client JAR.
+    pub minecraft_jar: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -51,6 +53,7 @@ impl Default for LaunchConfig {
             extra_jvm_args: Vec::new(),
             authlib_injector_path: None,
             yggdrasil_metadata_b64: None,
+            minecraft_jar: None,
         }
     }
 }

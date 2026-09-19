@@ -57,6 +57,32 @@ impl<'a> CommandBuilder<'a> {
         Ok((current, base_id))
     }
 
+    /// Resolve the same client JAR that the launch classpath would normally use.
+    pub fn original_minecraft_jar(&self) -> Result<std::path::PathBuf, Error> {
+        let (manifest, base_id) = self.resolve_manifest()?;
+        Self::verify_jar_override_support(&manifest)?;
+        Ok(
+            ClasspathResolver::new(&manifest, &base_id, &self.shared_dir.join("libraries"))
+                .minecraft_jar_path(),
+        )
+    }
+
+    fn verify_jar_override_support(manifest: &VersionManifest) -> Result<(), Error> {
+        // ModLauncher builds its own module/client paths and can ignore -cp.
+        // Do not silently launch the original client when an override was requested.
+        if manifest.libraries.as_ref().is_some_and(|libraries| {
+            libraries.iter().any(|lib| {
+                lib.name.starts_with("cpw.mods:modlauncher:")
+                    || lib.name.starts_with("cpw.mods:bootstraplauncher:")
+            })
+        }) {
+            return Err(Error::VersionLoad(
+                "Minecraft.jar personalizado no es compatible con Forge/NeoForge ModLauncher. Restaura el JAR original y desactiva los mods de JAR para iniciar esta versión.".into(),
+            ));
+        }
+        Ok(())
+    }
+
     pub fn verify_requirements(
         &self,
         final_manifest: &VersionManifest,
@@ -76,12 +102,11 @@ impl<'a> CommandBuilder<'a> {
             )));
         }
 
-        let version_jar = self
-            .shared_dir
-            .join("versions")
-            .join(base_id)
-            .join(format!("{}.jar", base_id));
-        if !version_jar.exists() {
+        let version_jar =
+            ClasspathResolver::new(final_manifest, base_id, &self.shared_dir.join("libraries"))
+                .with_minecraft_jar(self.config.minecraft_jar.as_deref())
+                .minecraft_jar_path();
+        if !version_jar.is_file() {
             return Err(Error::MissingFile(format!(
                 "Version JAR not found: {}",
                 version_jar.display()
@@ -119,6 +144,9 @@ impl<'a> CommandBuilder<'a> {
 
     pub fn build(&self) -> Result<Vec<String>, Error> {
         let (final_manifest, base_id) = self.resolve_manifest()?;
+        if self.config.minecraft_jar.is_some() {
+            Self::verify_jar_override_support(&final_manifest)?;
+        }
 
         debug!(
             "CommandBuilder: resolved manifest id='{}', inherits_from='{:?}', base_id='{}'",
@@ -138,7 +166,9 @@ impl<'a> CommandBuilder<'a> {
             natives_dir.display()
         );
 
-        let classpath = ClasspathResolver::new(&final_manifest, &base_id, &lib_dir).build();
+        let classpath = ClasspathResolver::new(&final_manifest, &base_id, &lib_dir)
+            .with_minecraft_jar(self.config.minecraft_jar.as_deref())
+            .build();
         if classpath.is_empty() {
             return Err(Error::EmptyClasspath);
         }

@@ -1,6 +1,49 @@
 use super::*;
 
 #[tokio::test]
+async fn minecraft_jar_settings_survive_save_reload_and_instance_rename() {
+    use crate::services::minecraft_jar::{JarFile, JarMod, MinecraftJarConfig};
+    let temp = tempfile::tempdir().unwrap();
+    let mut data = InstanceData::new("Pack".into(), "1.21".into(), None);
+    data.instance_root = temp.path().to_owned();
+    let dir = data.get_instance_dir();
+    std::fs::create_dir(&dir).unwrap();
+    let handle = InstanceHandle::new(data);
+    let _guard = handle.try_lock_files().unwrap();
+    let config = MinecraftJarConfig {
+        replacement: Some(JarFile {
+            file: format!("{}.jar", uuid::Uuid::new_v4()),
+            name: "custom.jar".into(),
+        }),
+        mods: vec![JarMod {
+            archive: JarFile {
+                file: format!("{}.jar", uuid::Uuid::new_v4()),
+                name: "mod.zip".into(),
+            },
+            enabled: false,
+        }],
+    };
+    handle.save_minecraft_jar(config.clone()).await.unwrap();
+    let mut loaded: InstanceData =
+        serde_json::from_slice(&std::fs::read(dir.join("instance.cub")).unwrap()).unwrap();
+    assert_eq!(loaded.minecraft_jar, config);
+    loaded.name = "Renamed".into();
+    loaded.instance_root = temp.path().to_owned();
+    assert_eq!(loaded.minecraft_jar, config);
+    assert_eq!(loaded.get_instance_dir(), temp.path().join("Renamed"));
+    // Failed persistence must not make the UI observe unsaved JAR settings.
+    std::fs::remove_file(dir.join("instance.cub")).unwrap();
+    std::fs::remove_dir(&dir).unwrap();
+    assert!(
+        handle
+            .save_minecraft_jar(MinecraftJarConfig::default())
+            .await
+            .is_err()
+    );
+    assert_eq!(handle.get_minecraft_jar().await, config);
+}
+
+#[tokio::test]
 async fn a_save_queued_before_deletion_is_rejected_after_admission() {
     let temp = tempfile::tempdir().unwrap();
     let mut data = InstanceData::new("Pack".into(), "1.21".into(), None);

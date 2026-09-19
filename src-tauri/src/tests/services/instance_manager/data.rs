@@ -1,6 +1,15 @@
 use super::*;
 
 #[test]
+fn legacy_instances_default_to_original_minecraft_jar() {
+    let data: InstanceData =
+        serde_json::from_str(r#"{"name":"Old","version":"1.12.2","last_played":0,"uuid":"test"}"#)
+            .unwrap();
+    assert!(!data.minecraft_jar.is_active());
+    assert!(data.minecraft_jar.mods.is_empty());
+}
+
+#[test]
 fn test_validate_name_empty() {
     assert!(validate_instance_name("").is_err());
 }

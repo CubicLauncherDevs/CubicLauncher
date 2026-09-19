@@ -733,7 +733,43 @@ impl Launcher {
         )
         .await;
 
-        let options = builder.build();
+        let mut options = builder.build();
+        let jar_config = handle.get_minecraft_jar().await;
+        if jar_config.is_active() {
+            let jar_manifest = manifest.clone();
+            let jar_shared = shared_dir.clone();
+            let jar_instance = instance_dir.clone();
+            let jar_options = options.clone();
+            let jar_guard = handle.try_lock_files();
+            let result = tokio::task::spawn_blocking(move || {
+                // Keep filesystem admission even if launch is cancelled while patching.
+                let _jar_guard = jar_guard?;
+                let original = zellkern::CommandBuilder::new(
+                    &jar_manifest,
+                    &jar_shared,
+                    &jar_instance,
+                    &jar_options,
+                )
+                .original_minecraft_jar()
+                .map_err(|e| e.to_string())?;
+                super::minecraft_jar::prepare(&jar_instance, &original, &jar_config)
+            })
+            .await
+            .map_err(|e| e.to_string())
+            .and_then(|result| result);
+            match result {
+                Ok(path) => options.minecraft_jar = path,
+                Err(message) => {
+                    push_launcher_message(
+                        &handle.uuid,
+                        format!("Error preparando minecraft.jar: {message}"),
+                    )
+                    .await;
+                    handle.set_status(InstanceStatus::Error(message.clone()));
+                    return Err(AppError::Instance(InstanceError::MinecraftJar(message)));
+                }
+            }
+        }
 
         let lw_handle = self.lw.prepare(manifest, options, instance_dir);
         handle.update_last_played().await;

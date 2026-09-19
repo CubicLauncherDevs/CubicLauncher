@@ -1,5 +1,25 @@
 {
 	"id": "es-ES",
+	"minecraftJar": {
+		"description": "Agrega mods al contenido de minecraft.jar o selecciona un JAR completo personalizado para esta instancia.",
+		"add": "Agregar a Minecraft.jar",
+		"replace": "Reemplazar Minecraft.jar",
+		"restore": "Restaurar JAR original",
+		"current": "JAR base:",
+		"original": "Original de la versión",
+		"empty": "No hay mods agregados al JAR.",
+		"remove": "Eliminar",
+		"removeNamed": "Eliminar {name}",
+		"moveUp": "Subir {name}",
+		"moveDown": "Bajar {name}",
+		"orderHint": "Los mods se aplican de arriba hacia abajo. Los últimos tienen prioridad al reemplazar archivos.",
+		"savedHint": "Los cambios se guardan automáticamente. Restaurar el JAR base conserva la lista de mods.",
+		"compatibility": "Usa archivos compatibles con la versión de esta instancia. Forge/NeoForge con ModLauncher no admite esta personalización.",
+		"running": "Cierra Minecraft antes de modificar el JAR.",
+		"loading": "Cargando configuración del JAR…",
+		"working": "Guardando cambios del JAR…",
+		"retry": "Reintentar"
+	},
 	"servers": {
 		"title": "Servidores",
 		"add": "Añadir servidor",
@@ -805,6 +825,7 @@
 		"INST_NAME_INVALID": "Nombre de instancia inválido: {error}",
 		"INST_SRC_INVALID": "Ruta de origen inválida",
 		"INST_JRE_MISSING": "Java {version} no está instalado. Instálalo en Ajustes > Java.",
+		"INST_MINECRAFT_JAR": "No se pudo preparar minecraft.jar: {error}",
 		"FS_READ_DIR": "No se pudo leer directorio '{path}': {error}",
 		"FS_READ_FILE": "No se pudo leer archivo '{path}': {error}",
 		"FS_CREATE_DIR": "No se pudo crear directorio '{path}': {error}",

@@ -1,5 +1,89 @@
 use super::*;
 
+#[test]
+fn custom_minecraft_jar_replaces_original_classpath_and_is_required() {
+    let dir = tempfile::tempdir().unwrap();
+    let original_dir = dir.path().join("versions/1.21.1");
+    std::fs::create_dir_all(&original_dir).unwrap();
+    let original = original_dir.join("1.21.1.jar");
+    std::fs::write(&original, b"original").unwrap();
+    let custom = dir.path().join("custom.jar");
+    std::fs::write(&custom, b"custom").unwrap();
+    let manifest = VersionManifest::from_bytes(
+        br#"{"id":"1.21.1","mainClass":"net.minecraft.client.main.Main"}"#,
+    )
+    .unwrap();
+    let mut config = LaunchConfig::builder()
+        .java_path(std::env::current_exe().unwrap())
+        .build();
+    config.minecraft_jar = Some(custom.clone());
+    let args = CommandBuilder::new(&manifest, dir.path(), dir.path(), &config)
+        .build()
+        .unwrap();
+    let cp = args.windows(2).find(|a| a[0] == "-cp").unwrap();
+    assert_eq!(cp[1], custom.to_string_lossy());
+    assert!(!args.iter().any(|a| a.contains(original.to_str().unwrap())));
+    // A full replacement must also work without the original client JAR.
+    std::fs::remove_file(original).unwrap();
+    assert!(
+        CommandBuilder::new(&manifest, dir.path(), dir.path(), &config)
+            .build()
+            .is_ok()
+    );
+    std::fs::remove_file(custom).unwrap();
+    assert!(
+        CommandBuilder::new(&manifest, dir.path(), dir.path(), &config)
+            .build()
+            .is_err()
+    );
+}
+
+#[test]
+fn custom_jar_uses_inherited_base_and_keeps_loader_libraries() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path().join("versions/1.21.1");
+    std::fs::create_dir_all(&base).unwrap();
+    std::fs::write(
+        base.join("1.21.1.json"),
+        br#"{"id":"1.21.1","mainClass":"net.minecraft.client.main.Main"}"#,
+    )
+    .unwrap();
+    let library = dir.path().join("libraries/example/loader/1/loader-1.jar");
+    std::fs::create_dir_all(library.parent().unwrap()).unwrap();
+    std::fs::write(&library, b"loader").unwrap();
+    let custom = dir.path().join("custom.jar");
+    std::fs::write(&custom, b"custom").unwrap();
+    let manifest = VersionManifest::from_bytes(br#"{"id":"fabric-loader-0.16.0-1.21.1","inheritsFrom":"1.21.1","mainClass":"example.Loader","libraries":[{"name":"example:loader:1"}]}"#).unwrap();
+    let mut config = LaunchConfig::builder()
+        .java_path(std::env::current_exe().unwrap())
+        .build();
+    config.minecraft_jar = Some(custom.clone());
+    let builder = CommandBuilder::new(&manifest, dir.path(), dir.path(), &config);
+    assert_eq!(
+        builder.original_minecraft_jar().unwrap(),
+        base.join("1.21.1.jar")
+    );
+    let args = builder.build().unwrap();
+    let cp = args.windows(2).find(|a| a[0] == "-cp").unwrap();
+    assert!(cp[1].contains(library.to_str().unwrap()));
+    assert!(cp[1].contains(custom.to_str().unwrap()));
+    assert!(args.contains(&"example.Loader".to_string()));
+}
+
+#[test]
+fn modlauncher_rejects_custom_client_instead_of_ignoring_it() {
+    let manifest = VersionManifest::from_bytes(
+        br#"{"id":"1.20.1-forge-47.0.0","libraries":[{"name":"cpw.mods:modlauncher:10.0.9"}]}"#,
+    )
+    .unwrap();
+    assert!(CommandBuilder::verify_jar_override_support(&manifest).is_err());
+    let legacy = VersionManifest::from_bytes(
+        br#"{"id":"1.12.2-forge-14.23.5.2860","mainClass":"net.minecraft.launchwrapper.Launch"}"#,
+    )
+    .unwrap();
+    assert!(CommandBuilder::verify_jar_override_support(&legacy).is_ok());
+}
+
 fn launch_uuid(config: &LaunchConfig, modern: bool) -> String {
     let dir = tempfile::tempdir().unwrap();
     let version_dir = dir.path().join("versions/1.21.1");

@@ -11,6 +11,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::instance::get_instances,
+            commands::instance::minecraft_jar::get_instance_minecraft_jar,
+            commands::instance::minecraft_jar::instance_minecraft_jar_action,
             commands::instance::create_instance,
             commands::instance::launch,
             commands::instance::kill_instance,

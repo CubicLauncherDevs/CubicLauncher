@@ -9,6 +9,7 @@
 	import GeneralSection from "./GeneralSection.svelte";
 	import AdvancedSection from "./AdvancedSection.svelte";
 	import InstallationSection from "./InstallationSection.svelte";
+	import MinecraftJarSection from "./MinecraftJarSection.svelte";
 
 	interface Props {
 		onclose?: () => void;
@@ -235,6 +236,9 @@
 					onRepair={handleRepair}
 					{repairing}
 				/>
+				{#key instance.uuid}
+					<MinecraftJarSection {instance} />
+				{/key}
 			</CollapsibleSection>
 			<CollapsibleSection
 				title={t("settings.advanced")}

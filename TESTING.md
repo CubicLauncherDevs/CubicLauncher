@@ -120,6 +120,11 @@ bun run tauri build
 - [ ] Crear instancia Fabric, descargarla y lanzarla.
 - [ ] Crear instancia Forge, descargarla y lanzarla.
 - [ ] Crear instancia Quilt, descargarla y lanzarla.
+- [ ] En Configuración de instancia > Installation > Minecraft.jar, agregar dos mods JAR/ZIP con un archivo común; comprobar que el último prevalece y que moverlos o desactivarlos cambia el resultado.
+- [ ] Reemplazar Minecraft.jar, cerrar y abrir el editor y lanzar la instancia. Restaurar el JAR original y comprobar que la lista de mods se conserva.
+- [ ] Lanzar otra instancia de la misma versión y comprobar que usa su JAR original. Reparar la versión y comprobar que la personalización de la primera instancia sigue presente.
+- [ ] Exportar y reimportar en CubicLauncher una instancia con JAR personalizado y mods habilitados/deshabilitados; comprobar nombres, orden y lanzamiento.
+- [ ] Intentar agregar un archivo inválido o modificar el JAR durante el arranque/ejecución: debe mostrar un error sin perder la configuración anterior. Forge/NeoForge con ModLauncher debe rechazar explícitamente una personalización activa.
 - [ ] En Descargas > OptiFine, elegir Minecraft y descargar una versión. Comprobar progreso, Java automático y marca de instalado.
 - [ ] Crear o editar una instancia con OptiFine instalado y lanzarla. Comprobar versiones legacy (1.12.2) y modernas (1.20.1).
 - [ ] Activar loaders inestables y comprobar versiones preliminares de OptiFine. Probar actualizar el catálogo y reintentar después de un error de red.

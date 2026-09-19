@@ -22,6 +22,8 @@ pub(crate) struct InstanceData {
     pub uuid: Arc<str>,
     pub overrides: Option<InstOverrides>,
     #[serde(default)]
+    pub minecraft_jar: crate::services::minecraft_jar::MinecraftJarConfig,
+    #[serde(default)]
     pub pinned: bool,
     #[serde(skip)]
     pub dirty: bool,
@@ -55,6 +57,7 @@ impl InstanceData {
             icon: icon.map(|s| s.into()),
             uuid: uuid::Uuid::new_v4().to_string().into(),
             overrides: None,
+            minecraft_jar: Default::default(),
             pinned: false,
             dirty: true,
             instance_root: PathManager::get().get_instance_dir().to_path_buf(),
