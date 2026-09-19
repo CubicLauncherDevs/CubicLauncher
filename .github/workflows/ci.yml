@@ -10,6 +10,35 @@ env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+    nix:
+        name: Nix Build (${{ matrix.system }})
+        runs-on: ${{ matrix.runner }}
+        strategy:
+            fail-fast: false
+            matrix:
+                # Keep in sync with supportedSystems in flake.nix.
+                include:
+                    - system: x86_64-linux
+                      runner: ubuntu-24.04
+                    - system: aarch64-linux
+                      runner: ubuntu-24.04-arm
+                    - system: aarch64-darwin
+                      runner: macos-15
+        timeout-minutes: 90
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install Nix
+              uses: cachix/install-nix-action@v31
+              with:
+                  extra_nix_config: |
+                      experimental-features = nix-command flakes
+
+            - name: Check Nix package
+              run: nix flake check --system "${{ matrix.system }}" --print-build-logs
+
     frontend:
         name: Frontend Checks
         runs-on: ubuntu-latest
