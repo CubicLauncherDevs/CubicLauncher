@@ -46,6 +46,24 @@ binarios no revisados.
 
 ### 1. Crear un tag
 
+Antes de crear el tag, sincronizá la versión en `package.json`,
+`src-tauri/Cargo.toml` y `src-tauri/tauri.conf.json` (incluido el título de la
+ventana). Actualizá también el `Cargo.lock` de la raíz y verificá desde la raíz:
+
+```bash
+cargo update --workspace --offline
+cargo clippy --workspace --locked -- -D warnings
+```
+
+Si faltan dependencias en la caché local, ejecutá el primer comando sin
+`--offline`. Incluí el `Cargo.lock` actualizado en el mismo commit del cambio
+de versión, antes de etiquetarlo.
+
+CI, prerelease y release usan `--locked`: incluso un cambio de versión del
+launcher requiere sincronizar el lockfile. La caché Rust acelera las descargas
+y la compilación, pero no corrige un lockfile desactualizado; borrarla no
+resuelve ese error.
+
 Los tags siguen el formato interno de semver:
 
 ```bash
