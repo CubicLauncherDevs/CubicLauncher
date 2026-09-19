@@ -2,10 +2,14 @@ name: Build Prerelease Draft
 
 on:
     workflow_dispatch:
+        inputs:
+            cache_only:
+                description: "Preparar la caché Rust de release sin publicar un borrador"
+                type: boolean
+                default: false
 
 env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    VERSION_TAG: v${{ inputs.version }}
 
 jobs:
     prerelease:
@@ -17,18 +21,22 @@ jobs:
             matrix:
                 include:
                     - platform: "macos-latest"
+                      rust_target: "aarch64-apple-darwin"
                       args: "--target aarch64-apple-darwin"
                       short_target: "aarch64"
                       bundle_path: "src-tauri/target/aarch64-apple-darwin/release/bundle/"
                     - platform: "macos-latest"
+                      rust_target: "x86_64-apple-darwin"
                       args: "--target x86_64-apple-darwin"
                       short_target: "x86_64"
                       bundle_path: "src-tauri/target/x86_64-apple-darwin/release/bundle/"
                     - platform: "ubuntu-22.04"
+                      rust_target: "x86_64-unknown-linux-gnu"
                       args: ""
                       short_target: "x86_64"
                       bundle_path: "src-tauri/target/release/bundle/"
                     - platform: "windows-latest"
+                      rust_target: "x86_64-pc-windows-msvc"
                       args: "-b nsis"
                       short_target: "x86_64"
                       bundle_path: "src-tauri/target/release/bundle/"
@@ -48,14 +56,23 @@ jobs:
             - name: Install Rust stable
               uses: dtolnay/rust-toolchain@stable
               with:
-                  targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+                  targets: ${{ matrix.rust_target }}
             - name: Rust cache
               uses: Swatinem/rust-cache@v2
               with:
                   workspaces: ". -> target"
+                  # Must match release.yml. develop is the default branch: its caches
+                  # can be restored by tag builds; caches saved under other tags cannot.
+                  shared-key: tauri-release-${{ matrix.platform }}-${{ matrix.rust_target }}
+                  cache-on-failure: "true"
+                  save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
             - name: Install frontend dependencies
               run: bun install
+            - name: Warm release cache without publishing
+              if: inputs.cache_only
+              run: bun run tauri build --no-bundle ${{ matrix.platform == 'macos-latest' && format('--target {0}', matrix.rust_target) || '' }} -- --locked
             - name: Build y publicar prerelease
+              if: ${{ !inputs.cache_only }}
               uses: tauri-apps/tauri-action@v1
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -72,4 +89,4 @@ jobs:
                   releaseDraft: true
                   prerelease: true
                   includeUpdaterJson: false
-                  args: ${{ matrix.args }}
+                  args: ${{ matrix.args }} -- --locked

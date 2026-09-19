@@ -18,12 +18,16 @@ jobs:
             matrix:
                 include:
                     - platform: "macos-latest"
+                      rust_target: "aarch64-apple-darwin"
                       args: "--target aarch64-apple-darwin"
                     - platform: "macos-latest"
+                      rust_target: "x86_64-apple-darwin"
                       args: "--target x86_64-apple-darwin"
                     - platform: "ubuntu-22.04"
+                      rust_target: "x86_64-unknown-linux-gnu"
                       args: ""
                     - platform: "windows-latest"
+                      rust_target: "x86_64-pc-windows-msvc"
                       args: "-b nsis"
 
         runs-on: ${{ matrix.platform }}
@@ -44,12 +48,17 @@ jobs:
             - name: Install Rust stable
               uses: dtolnay/rust-toolchain@stable
               with:
-                  targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+                  targets: ${{ matrix.rust_target }}
 
             - name: Rust cache
               uses: Swatinem/rust-cache@v2
               with:
                   workspaces: ". -> target"
+                  # Reuse the default-branch cache seeded by prerelease.yml.
+                  # Include the target, not just the host: both macOS jobs run on ARM.
+                  shared-key: tauri-release-${{ matrix.platform }}-${{ matrix.rust_target }}
+                  # Tag-scoped caches cannot be reused by the next release tag.
+                  save-if: "false"
 
             - name: Install frontend dependencies
               run: bun install --frozen-lockfile
@@ -67,4 +76,4 @@ jobs:
                   prerelease: ${{ contains(github.ref_name, '-') }}
                   includeUpdaterJson: true
                   updaterJsonPreferNsis: true
-                  args: ${{ matrix.args }}
+                  args: ${{ matrix.args }} -- --locked
