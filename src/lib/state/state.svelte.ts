@@ -11,20 +11,12 @@ import { t } from "$lib/i18n";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "$lib/components/ui/notificationPreferences";
 import { DEFAULT_INTERFACE_PREFERENCES } from "$lib/utils/interfacePreferences";
 
-export interface PendingUpdate {
-	version: string;
-	body?: string;
-}
-
 export interface LauncherState {
 	loadedInstances: InstanceDto[];
 	currentInstance: InstanceDto | null;
 	runningInstances: string[];
-	updateProgress: number;
 	settings: Settings;
 	notifications: Notification[];
-	pendingUpdate: PendingUpdate | null;
-	updateDownloaded: boolean;
 	jreInstallPrompt: JreInstallPrompt | null;
 	pendingJreLaunch: PendingJreLaunch | null;
 }
@@ -34,9 +26,6 @@ export const launcherStore = $state<LauncherState>({
 	currentInstance: null,
 	runningInstances: [],
 	notifications: [],
-	updateProgress: 0,
-	pendingUpdate: null,
-	updateDownloaded: false,
 	jreInstallPrompt: null,
 	pendingJreLaunch: null,
 	settings: {

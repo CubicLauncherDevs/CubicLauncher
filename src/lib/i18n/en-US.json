@@ -165,7 +165,7 @@
 		"launcher": {
 			"generalTitle": "General",
 			"language": "Language",
-			"autoUpdates": "Automatic Updates",
+			"autoUpdates": "Check for updates at startup",
 			"discordPresence": "Discord Rich Presence",
 			"hideOnLaunch": "Hide launcher while playing",
 			"openConsoleOnLaunch": "Open console when launching instances",
@@ -261,13 +261,44 @@
 		}
 	},
 	"updater": {
-		"availableTitle": "Update available: v{version}",
-		"availableMessage": "It will be downloaded and installed automatically.",
-		"downloadingTitle": "Downloading v{version}",
-		"progress": "{progress}%",
-		"installingTitle": "Installing v{version}",
-		"installingMessage": "Restarting the launcher...",
-		"errorTitle": "Update error"
+		"title": "Update Cubic Launcher",
+		"check": "Check for updates",
+		"view": "View update",
+		"download": "Download update",
+		"install": "Restart and update",
+		"retry": "Retry",
+		"notNow": "Not now",
+		"later": "Later",
+		"close": "Close",
+		"releaseNotes": "What's new",
+		"receiving": "Receiving update…",
+		"status": {
+			"idle": "Not checked yet",
+			"checking": "Checking for updates…",
+			"available": "A new version is available",
+			"downloading": "Downloading update…",
+			"ready": "Update ready to install",
+			"installing": "Installing update…",
+			"restarting": "Restarting the launcher…",
+			"updated": "You're up to date",
+			"error": "Could not complete the update"
+		},
+		"messages": {
+			"idle": "Check for updates to find out if a new version is available.",
+			"checking": "We're checking for a new version of Cubic Launcher.",
+			"available": "Read what's new and download the update whenever you're ready.",
+			"downloading": "You can close this window and keep using the launcher. The download will continue in the background.",
+			"ready": "Everything is ready. Restart and update now, or come back from Settings later.",
+			"installing": "We're applying the update. The launcher will restart when it's finished.",
+			"restarting": "The update is installed. We're opening the new version.",
+			"updated": "There are no updates available for this installation."
+		},
+		"errors": {
+			"check": "Could not check for updates. Check your connection and try again.",
+			"download": "Could not download or verify the update. You can retry the download.",
+			"install": "Installation failed. Retrying will download the package again to prepare it.",
+			"restart": "The update is installed, but the launcher could not restart. You can retry restarting."
+		}
 	},
 	"main": {
 		"noInstanceTitle": "No instance selected",

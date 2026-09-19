@@ -17,11 +17,6 @@
 	} from "$lib/i18n";
 	import { i18nLoader } from "$lib/i18n/loader.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
-	import {
-		checkForUpdates,
-		downloadUpdate,
-		installUpdate,
-	} from "$lib/api/updaterServices";
 	import { listThemes } from "$lib/api/themeManager";
 	import ThemeSelector from "./ThemeSelector.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
@@ -57,9 +52,6 @@
 		void flushSettingsSaves();
 	});
 	let currentTab = $state("launcher");
-	let checking = $state(false);
-	let downloading = $state(false);
-	let installing = $state(false);
 
 	const JRE_VERSIONS = [8, 17, 21, 25];
 	let jreStatuses = $state<Record<number, JreStatus>>({});
@@ -166,24 +158,6 @@
 		}
 	}
 
-	async function handleCheckForUpdates() {
-		checking = true;
-		await checkForUpdates(false);
-		checking = false;
-	}
-
-	async function handleDownload() {
-		downloading = true;
-		await downloadUpdate();
-		downloading = false;
-	}
-
-	async function handleInstall() {
-		installing = true;
-		await installUpdate();
-		installing = false;
-	}
-
 	let tabs = $derived([
 		{ id: "launcher", label: t("settings.tabs.launcher") },
 		{ id: "minecraft", label: t("settings.tabs.minecraft") },
@@ -250,16 +224,6 @@
 	}
 
 	const displayVersion = $derived(fmtVersion(currentVersion));
-	const formattedPendingUpdate = $derived(
-		launcherStore.pendingUpdate
-			? {
-					version: fmtVersion(
-						launcherStore.pendingUpdate.version ?? "",
-					),
-					body: launcherStore.pendingUpdate.body,
-				}
-			: null,
-	);
 </script>
 
 <div class="qm-root settings-controls">
@@ -453,18 +417,7 @@
 							>{t("settings.launcher.autoUpdates")}</label
 						>
 					</div>
-					<UpdateSection
-						currentVersion={displayVersion}
-						pendingUpdate={formattedPendingUpdate}
-						updateProgress={launcherStore.updateProgress}
-						updateDownloaded={launcherStore.updateDownloaded}
-						{checking}
-						{downloading}
-						{installing}
-						onCheck={handleCheckForUpdates}
-						onDownload={handleDownload}
-						onInstall={handleInstall}
-					/>
+					<UpdateSection />
 				</CollapsibleSection>
 
 				<CollapsibleSection

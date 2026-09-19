@@ -165,7 +165,7 @@
 		"launcher": {
 			"generalTitle": "General",
 			"language": "Idioma",
-			"autoUpdates": "Actualizaciones Automáticas",
+			"autoUpdates": "Buscar actualizaciones al iniciar",
 			"discordPresence": "Presencia de Discord",
 			"hideOnLaunch": "Ocultar el launcher al jugar",
 			"openConsoleOnLaunch": "Abrir la consola al iniciar instancias",
@@ -261,13 +261,44 @@
 		}
 	},
 	"updater": {
-		"availableTitle": "Actualización disponible: v{version}",
-		"availableMessage": "Se descargará e instalará automáticamente.",
-		"downloadingTitle": "Descargando v{version}",
-		"progress": "{progress}%",
-		"installingTitle": "Instalando v{version}",
-		"installingMessage": "Reiniciando el launcher...",
-		"errorTitle": "Error de actualización"
+		"title": "Actualizar Cubic Launcher",
+		"check": "Buscar actualizaciones",
+		"view": "Ver actualización",
+		"download": "Descargar actualización",
+		"install": "Reiniciar y actualizar",
+		"retry": "Reintentar",
+		"notNow": "Ahora no",
+		"later": "Más tarde",
+		"close": "Cerrar",
+		"releaseNotes": "Qué cambió",
+		"receiving": "Recibiendo actualización…",
+		"status": {
+			"idle": "Todavía no se ha comprobado",
+			"checking": "Buscando actualizaciones…",
+			"available": "Hay una nueva versión",
+			"downloading": "Descargando actualización…",
+			"ready": "Actualización lista para instalar",
+			"installing": "Instalando actualización…",
+			"restarting": "Reiniciando el launcher…",
+			"updated": "Ya tienes la última versión",
+			"error": "No se pudo completar la actualización"
+		},
+		"messages": {
+			"idle": "Busca actualizaciones para comprobar si hay una nueva versión.",
+			"checking": "Estamos comprobando si hay una nueva versión de Cubic Launcher.",
+			"available": "Revisa las novedades y descarga la actualización cuando quieras.",
+			"downloading": "Puedes cerrar esta ventana y seguir usando el launcher. La descarga continuará en segundo plano.",
+			"ready": "Todo está preparado. Puedes reiniciar y actualizar ahora o volver desde Ajustes más tarde.",
+			"installing": "Estamos aplicando la actualización. El launcher se reiniciará cuando termine.",
+			"restarting": "La actualización se instaló. Estamos abriendo la nueva versión.",
+			"updated": "No hay actualizaciones disponibles para esta instalación."
+		},
+		"errors": {
+			"check": "No se pudo comprobar si hay actualizaciones. Revisa tu conexión y vuelve a intentarlo.",
+			"download": "No se pudo descargar o verificar la actualización. Puedes reintentar la descarga.",
+			"install": "La instalación falló. Al reintentar se descargará de nuevo el paquete para prepararlo.",
+			"restart": "La actualización se instaló, pero no se pudo reiniciar el launcher. Puedes reintentar el reinicio."
+		}
 	},
 	"main": {
 		"noInstanceTitle": "No se ha seleccionado ninguna instancia",

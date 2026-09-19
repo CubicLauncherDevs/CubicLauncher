@@ -1,306 +1,103 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
-	import CheckIcon from "$lib/icons/CheckIcon.svelte";
-	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
+	import { updater } from "$lib/api/updaterServices";
+	import { updaterState } from "$lib/state/updaterState.svelte";
 
-	let {
-		currentVersion,
-		pendingUpdate,
-		updateProgress,
-		updateDownloaded,
-		checking,
-		downloading,
-		installing,
-		onCheck,
-		onDownload,
-		onInstall,
-	}: {
-		currentVersion: string;
-		pendingUpdate: { version?: string; body?: string } | null;
-		updateProgress: number;
-		updateDownloaded: boolean;
-		checking: boolean;
-		downloading: boolean;
-		installing: boolean;
-		onCheck: () => void;
-		onDownload: () => void;
-		onInstall: () => void;
-	} = $props();
+	const status = $derived(t(`updater.status.${updaterState.status}`));
 </script>
 
-<div class="card">
-	<div class="main-row">
-		<div class="content">
-			<div class="version-row">
-				<div class="ver-info">
-					<span class="ver-label"
-						>{t("settings.launcher.currentVersion")}</span
-					>
-					<span class="ver-value">v{currentVersion}</span>
-				</div>
-				{#if pendingUpdate}
-					<div class="ver-info">
-						<span class="ver-label"
-							>{t("settings.launcher.available")}</span
-						>
-						<span class="ver-value ver-available"
-							>v{pendingUpdate.version}</span
-						>
-					</div>
-				{:else}
-					<div class="ver-info">
-						<span class="ver-label"
-							>{t("settings.launcher.status")}</span
-						>
-						<span class="ver-value ver-ok"
-							>{t("settings.launcher.updateOk")}</span
-						>
-					</div>
-				{/if}
+<div class="update-card">
+	<div class="version-row">
+		<div class="version-info">
+			<span>{t("settings.launcher.currentVersion")}</span>
+			<strong>v{__APP_VERSION__}</strong>
+		</div>
+		{#if updaterState.update}
+			<div class="version-info">
+				<span>{t("settings.launcher.available")}</span>
+				<strong class="available">v{updaterState.update.version}</strong
+				>
 			</div>
-		</div>
-		<div class="action">
-			{#if checking}
-				<button
-					type="button"
-					class="action-btn"
-					disabled
-					aria-label={t("settings.launcher.checkingBtn")}
-				>
-					<span class="spinner"></span>
-				</button>
-			{:else if downloading}
-				<button
-					type="button"
-					class="action-btn"
-					disabled
-					aria-label={t("settings.launcher.downloadingBtn")}
-				>
-					<span class="spinner"></span>
-				</button>
-			{:else if installing}
-				<button
-					type="button"
-					class="action-btn"
-					disabled
-					aria-label={t("settings.launcher.installingBtn")}
-				>
-					<span class="spinner"></span>
-				</button>
-			{:else if pendingUpdate && !updateDownloaded}
-				<button
-					type="button"
-					class="action-btn"
-					onclick={onDownload}
-					title={t("settings.launcher.downloadInstallBtn")}
-				>
-					<DownloadIcon size={20} />
-				</button>
-			{:else if pendingUpdate && updateDownloaded}
-				<button
-					type="button"
-					class="action-btn"
-					onclick={onInstall}
-					title={t("settings.launcher.installUpdateBtn")}
-				>
-					<CheckIcon size={16} />
-				</button>
-			{:else}
-				<button
-					type="button"
-					class="action-btn"
-					onclick={onCheck}
-					title={t("settings.launcher.searchBtn")}
-				>
-					<Icon name="instance:clock" size={18} />
-				</button>
-			{/if}
-		</div>
+		{/if}
 	</div>
-
-	{#if pendingUpdate?.body}
-		<div class="bottom-section">
-			<div class="notes">
-				<span class="notes-label">{t("settings.launcher.notes")}</span>
-				<p class="notes-text">{pendingUpdate.body}</p>
-			</div>
-		</div>
-	{/if}
-
-	{#if updateProgress > 0 && updateProgress < 100}
-		<div class="bottom-section">
-			<div class="progress-wrap">
-				<div class="progress-track">
-					<div
-						class="progress-fill"
-						style="width: {updateProgress}%"
-					></div>
-				</div>
-				<span class="progress-pct">{updateProgress}%</span>
-			</div>
-		</div>
-	{/if}
+	<div class="update-status" role="status">
+		<span
+			>{status}{#if updaterState.status === "downloading" && updaterState.progress !== null}
+				· {updaterState.progress}%{/if}</span
+		>
+	</div>
+	<button type="button" onclick={updater.open}>
+		<Icon
+			name={updaterState.update ? "ui:download" : "ui:refresh"}
+			size={16}
+		/>
+		{updaterState.update ||
+		updaterState.status === "checking" ||
+		updaterState.status === "error"
+			? t("updater.view")
+			: t("updater.check")}
+	</button>
 </div>
 
 <style>
-	.card {
-		background: var(--bg-card);
-		border: 1px solid var(--border-color);
-		border-radius: var(--border-radius-sm);
-		box-shadow:
-			var(--shadow-sm),
-			inset 0 1px 0 var(--surface-selected);
-		overflow: hidden;
-	}
-
-	.main-row {
-		display: flex;
-	}
-
-	.content {
-		flex: 1;
-		padding: 10px 14px;
+	.update-card {
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
-		min-width: 0;
+		gap: 12px;
+		padding: 14px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--surface-card);
 	}
-
 	.version-row {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 20px;
 	}
-
-	.ver-info {
+	.version-info {
 		display: flex;
 		flex-direction: column;
-		gap: 1px;
+		gap: 5px;
+		min-width: 0;
 	}
-
-	.ver-label {
-		font-size: 0.6rem;
-		text-transform: uppercase;
-		letter-spacing: 0.8px;
-		color: var(--text-muted);
-		font-weight: 600;
-	}
-
-	.ver-value {
-		font-size: 0.85rem;
-		font-weight: 700;
-		color: var(--text-primary);
-	}
-
-	.ver-available {
-		color: var(--color-warning);
-	}
-
-	.ver-ok {
-		color: var(--color-success);
-	}
-
-	.action {
-		border-left: 1px solid var(--border-color);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-	}
-
-	.action-btn {
-		background: transparent;
-		border: none;
+	.version-info span {
+		font-size: 0.72rem;
 		color: var(--text-secondary);
-		width: 48px;
-		height: 100%;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition:
-			color 0.15s,
-			background 0.15s;
 	}
-
-	.action-btn:hover:not(:disabled) {
+	.version-info strong {
+		font-size: 0.85rem;
 		color: var(--text-primary);
-		background: var(--surface-selected);
+		overflow-wrap: anywhere;
 	}
-
-	.action-btn:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
+	.version-info .available {
+		color: var(--accent);
 	}
-
-	.spinner {
-		width: 14px;
-		height: 14px;
-		border: 2px solid var(--border-color);
-		border-top-color: var(--text-secondary);
-		border-radius: 50%;
-		animation: spin 0.7s linear infinite;
-		will-change: transform;
-		display: inline-block;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	.bottom-section {
-		border-top: 1px solid var(--border-color);
-	}
-
-	.notes {
-		padding: 10px 14px;
-	}
-
-	.notes-label {
-		display: block;
-		font-size: 0.6rem;
-		text-transform: uppercase;
-		letter-spacing: 0.8px;
-		color: var(--text-muted);
-		font-weight: 600;
-		margin-bottom: 4px;
-	}
-
-	.notes-text {
+	.update-status {
 		font-size: 0.75rem;
 		color: var(--text-secondary);
-		line-height: 1.5;
-		white-space: pre-wrap;
 	}
-
-	.progress-wrap {
-		display: flex;
+	button {
+		display: inline-flex;
 		align-items: center;
-		gap: 10px;
-		padding: 8px 14px;
+		justify-content: center;
+		gap: 8px;
+		align-self: flex-start;
+		padding: 8px 12px;
+		background: var(--surface-input);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		color: var(--text-primary);
+		font: inherit;
+		font-size: 0.78rem;
+		cursor: pointer;
 	}
-
-	.progress-track {
-		flex: 1;
-		height: 4px;
-		background: var(--bg-input);
-		border-radius: 0;
-		overflow: hidden;
+	button:hover {
+		background: var(--surface-hover);
+		border-color: var(--accent);
 	}
-
-	.progress-fill {
-		height: 100%;
-		background: var(--accent);
-		transition: width 0.3s ease;
-	}
-
-	.progress-pct {
-		font-size: 0.7rem;
-		font-weight: 700;
-		color: var(--text-secondary);
-		min-width: 30px;
-		text-align: right;
+	button:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 3px;
 	}
 </style>

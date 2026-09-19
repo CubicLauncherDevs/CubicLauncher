@@ -17,6 +17,7 @@
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
 	import JreInstallPrompt from "$lib/components/ui/JreInstallPrompt.svelte";
+	import UpdateModal from "$lib/components/ui/UpdateModal.svelte";
 	import Tutorial from "$lib/components/layout/welcome/welcome.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
 	import { initDiscordPresence } from "$lib/api/cubicApi";
@@ -517,6 +518,7 @@
 
 	<NotificationContainer />
 	<JreInstallPrompt />
+	<UpdateModal />
 {/if}
 
 <style>
