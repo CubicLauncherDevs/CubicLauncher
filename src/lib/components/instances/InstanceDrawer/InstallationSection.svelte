@@ -8,12 +8,16 @@
 		selectedLoaderVersion = $bindable(""),
 		onRepair,
 		repairing = false,
+		installed = true,
+		loading = $bindable(false),
 	}: {
 		selectedLoader: string;
 		selectedMcVersion: string;
 		selectedLoaderVersion: string;
 		onRepair: () => void;
 		repairing: boolean;
+		installed?: boolean;
+		loading?: boolean;
 	} = $props();
 
 	$effect(() => {
@@ -39,6 +43,8 @@
 		bind:selectedLoader
 		bind:selectedMcVersion
 		bind:selectedLoaderVersion
+		bind:loading
+		includeAvailable
 		compact={true}
 	/>
 
@@ -47,13 +53,15 @@
 			type="button"
 			class="repair-btn"
 			onclick={onRepair}
-			disabled={repairing || !canRepair}
+			disabled={repairing || loading || !canRepair}
 		>
-			Repair
+			{installed ? "Repair" : t("versionDownloader.downloadBtn")}
 		</button>
-		<span class="repair-hint">
-			{t("instanceEditor.repairHint")}
-		</span>
+		{#if installed}
+			<span class="repair-hint">
+				{t("instanceEditor.repairHint")}
+			</span>
+		{/if}
 	</div>
 </div>
 

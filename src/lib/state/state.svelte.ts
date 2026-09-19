@@ -151,7 +151,11 @@ export function showErrorParsed(rawError: unknown) {
 		if (parsed.code) {
 			const params = parsed.params || {};
 			const msg = t(`errors.${parsed.code}`, params);
-			addNotification(t("errors.title"), msg, "error", 8000);
+			if (parsed.code === "INST_VERSION_NOT_FOUND") {
+				showWarning(t("errors.warningTitle"), msg);
+			} else {
+				showError(t("errors.title"), msg);
+			}
 			return;
 		}
 	} catch {

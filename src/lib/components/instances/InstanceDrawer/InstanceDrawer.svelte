@@ -4,7 +4,8 @@
 	import type { InstanceDto } from "$lib/types/types";
 	import { onMount, onDestroy } from "svelte";
 	import { updateInst } from "$lib/api/launcherService";
-	import { reinstallVersion } from "$lib/api/cubicApi";
+	import { addToQueue, reinstallVersion } from "$lib/api/cubicApi";
+	import { isVersionInstalled } from "$lib/state/versionsState.svelte";
 	import GeneralSection from "./GeneralSection.svelte";
 	import AdvancedSection from "./AdvancedSection.svelte";
 	import InstallationSection from "./InstallationSection.svelte";
@@ -43,6 +44,7 @@
 	});
 
 	let repairing = $state(false);
+	let loadingVersions = $state(false);
 
 	const JavaOptions = [
 		{
@@ -74,6 +76,7 @@
 	});
 
 	const isVersionValid = $derived.by(() => {
+		if (loadingVersions) return false;
 		if (!selectedLoader) return false;
 		if (!selectedMcVersion) return false;
 		if (selectedLoader !== "vanilla" && !selectedLoaderVersion)
@@ -164,11 +167,20 @@
 	}
 
 	async function handleRepair() {
-		if (!isVersionValid) return;
+		if (!isVersionValid || repairing) return;
 		repairing = true;
-		await reinstallVersion(finalVersionId);
-		repairing = false;
-		onclose?.();
+		const version = finalVersionId;
+		try {
+			if (isVersionInstalled(version)) {
+				await reinstallVersion(version);
+			} else {
+				await handleSave();
+				await addToQueue(version);
+			}
+			onclose?.();
+		} finally {
+			repairing = false;
+		}
 	}
 
 	function handleJavaChange() {
@@ -218,6 +230,8 @@
 					bind:selectedLoader
 					bind:selectedMcVersion
 					bind:selectedLoaderVersion
+					bind:loading={loadingVersions}
+					installed={isVersionInstalled(finalVersionId)}
 					onRepair={handleRepair}
 					{repairing}
 				/>
@@ -245,7 +259,7 @@
 			type="button"
 			class="qm-save-btn"
 			onclick={handleSave}
-			disabled={saving || !isVersionValid}
+			disabled={saving || repairing || !isVersionValid}
 		>
 			{saving ? t("settings.java.saving") : t("settings.java.saveBtn")}
 		</button>

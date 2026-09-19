@@ -8,18 +8,114 @@
 	import Select from "$lib/components/layout/Select.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
 	import { t } from "$lib/i18n";
+	import {
+		getFabricLoaderVersions,
+		getQuiltLoaderVersions,
+	} from "$lib/api/cubicApi";
+	import {
+		createCatalogCache,
+		type GroupedLoaderVersions,
+	} from "$lib/components/layout/VersionDownloader/versionCatalog";
+	import { getSelectionCatalog } from "./availableVersions";
 
 	let {
 		selectedLoader = $bindable<string>("vanilla"),
 		selectedMcVersion = $bindable<string>(""),
 		selectedLoaderVersion = $bindable<string>(""),
 		compact = false,
+		includeAvailable = false,
+		loading = $bindable(false),
 	}: {
 		selectedLoader: string;
 		selectedMcVersion: string;
 		selectedLoaderVersion: string;
 		compact?: boolean;
+		includeAvailable?: boolean;
+		loading?: boolean;
 	} = $props();
+
+	const catalogCache = createCatalogCache<GroupedLoaderVersions>();
+	const loaderCache = createCatalogCache<string[]>();
+	let catalog = $state<GroupedLoaderVersions | null>(null);
+	let catalogLoader = $state("");
+	let remoteLoaderVersions = $state<string[]>([]);
+	let remoteLoaderKey = $state("");
+	let sourceError = $state("");
+	const loadingMc = $derived(
+		versionsState.loading ||
+			(includeAvailable && catalogLoader !== selectedLoader),
+	);
+	const loadingLoader = $derived(
+		loadingMc ||
+			(includeAvailable &&
+				selectedLoader !== "vanilla" &&
+				!!selectedMcVersion &&
+				remoteLoaderKey !== `${selectedLoader}:${selectedMcVersion}`),
+	);
+
+	$effect(() => {
+		loading = loadingMc || loadingLoader;
+	});
+
+	$effect(() => {
+		if (!includeAvailable) return;
+		const loader = selectedLoader;
+		let cancelled = false;
+		sourceError = "";
+		catalogLoader = "";
+		catalog = null;
+		catalogCache
+			.get(loader, () => getSelectionCatalog(loader))
+			.then((result) => {
+				if (!cancelled) catalog = result;
+			})
+			.catch((error) => {
+				if (!cancelled) sourceError = String(error);
+			})
+			.finally(() => {
+				if (!cancelled) catalogLoader = loader;
+			});
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	$effect(() => {
+		if (!includeAvailable || loadingMc) return;
+		const loader = selectedLoader;
+		const mc = selectedMcVersion;
+		const key = `${loader}:${mc}`;
+		remoteLoaderKey = "";
+		remoteLoaderVersions = [];
+		if (!mc || loader === "vanilla") return;
+		let cancelled = false;
+		const groupedVersions =
+			catalog?.byGame.get(mc)?.map((v) => v.display_version) ?? [];
+		loaderCache
+			.get(key, async () => {
+				if (loader === "fabric")
+					return (await getFabricLoaderVersions(mc)).map(
+						(v) => v.version,
+					);
+				if (loader === "quilt")
+					return (await getQuiltLoaderVersions(mc)).map(
+						(v) => v.version,
+					);
+				return groupedVersions;
+			})
+			.then((result) => {
+				if (!cancelled) remoteLoaderVersions = result;
+			})
+			.catch((error) => {
+				if (!cancelled) sourceError = String(error);
+			})
+			.finally(() => {
+				if (!cancelled) remoteLoaderKey = key;
+			});
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	$effect(() => {
 		if (selectedLoader == null || selectedLoader === "") {
@@ -114,7 +210,16 @@
 	}
 
 	const availableMcVersions = $derived(
-		getMcVersionsForLoader(selectedLoader),
+		includeAvailable
+			? Array.from(
+					new SvelteSet([
+						...(catalogLoader === selectedLoader
+							? (catalog?.gameVersions ?? [])
+							: []),
+						...getMcVersionsForLoader(selectedLoader),
+					]),
+				)
+			: getMcVersionsForLoader(selectedLoader),
 	);
 
 	const mcVersionOptions = $derived(
@@ -122,8 +227,12 @@
 	);
 
 	const mcPlaceholder = $derived(
-		!versionsState.loading && availableMcVersions.length === 0
-			? t("createInstance.noVersionsErr")
+		!loadingMc && availableMcVersions.length === 0
+			? t(
+					includeAvailable
+						? "versionDownloader.notFound"
+						: "createInstance.noVersionsErr",
+				)
 			: t("createInstance.selectMcVersion"),
 	);
 
@@ -132,7 +241,14 @@
 		const key = `${selectedLoader}:${selectedMcVersion}`;
 		const installed =
 			versionsState.loaderVersions?.get(key) ?? new Set<string>();
-		return Array.from(installed).sort(compareVersions);
+		return Array.from(
+			new SvelteSet([
+				...installed,
+				...(includeAvailable && remoteLoaderKey === key
+					? remoteLoaderVersions
+					: []),
+			]),
+		).sort(compareVersions);
 	});
 
 	const loaderVersionOptions = $derived(
@@ -140,6 +256,7 @@
 	);
 
 	$effect(() => {
+		if (loadingMc || (includeAvailable && sourceError)) return;
 		if (availableMcVersions.length === 0) {
 			selectedMcVersion = "";
 			return;
@@ -153,6 +270,7 @@
 	});
 
 	$effect(() => {
+		if (loadingLoader || (includeAvailable && sourceError)) return;
 		if (selectedLoader === "vanilla") {
 			selectedLoaderVersion = "";
 			return;
@@ -176,7 +294,7 @@
 	});
 </script>
 
-<div class="version-selector" class:compact>
+<div class="version-selector" class:compact aria-busy={loading}>
 	<div class="loader-unified">
 		{#each LOADERS as loader (loader.value)}
 			<button
@@ -198,9 +316,9 @@
 			bind:value={selectedMcVersion}
 			options={mcVersionOptions}
 			placeholder={mcPlaceholder}
-			loading={versionsState.loading}
+			loading={loadingMc}
 			loadingPlaceholder={t("createInstance.loading")}
-			disabled={versionsState.loading || mcVersionOptions.length === 0}
+			disabled={loadingMc || mcVersionOptions.length === 0}
 		/>
 
 		<Select
@@ -209,13 +327,16 @@
 			placeholder={selectedLoader === "vanilla"
 				? t("createInstance.noLoader")
 				: t("createInstance.selectLoaderVersion")}
-			loading={versionsState.loading}
+			loading={loadingLoader}
 			loadingPlaceholder={t("createInstance.loading")}
 			disabled={selectedLoader === "vanilla" ||
-				versionsState.loading ||
+				loadingLoader ||
 				loaderVersionOptions.length === 0}
 		/>
 	</div>
+	{#if sourceError}
+		<p role="alert">{sourceError}</p>
+	{/if}
 </div>
 
 <style>
