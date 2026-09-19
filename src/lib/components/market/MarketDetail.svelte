@@ -13,6 +13,7 @@
 	import MarkdownRenderer from "$lib/components/ui/MarkdownRenderer.svelte";
 	import HtmlRenderer from "$lib/components/ui/HtmlRenderer.svelte";
 	import MarketDependenciesModal from "./MarketDependenciesModal.svelte";
+	import MarketProjectInfo from "./MarketProjectInfo.svelte";
 	import type { MarketDetailState } from "$lib/state/marketState.svelte";
 	import type {
 		MarketProject,
@@ -249,17 +250,6 @@
 				? "shader"
 				: "mod",
 	);
-
-	function openProjectUrl() {
-		const slug = detail.fullProject?.slug ?? project.slug;
-		if (!slug) return;
-
-		if (project.source === "curseforge") {
-			openUrl(`https://curseforge.com/minecraft/mc-mods/${slug}`);
-			return;
-		}
-		openUrl(`https://modrinth.com/${modrinthTypePath}/${slug}`);
-	}
 </script>
 
 <div class="market-detail">
@@ -277,34 +267,34 @@
 	</div>
 
 	<div class="market-detail-scroll">
-		<div class="market-detail-hero">
-			<div class="market-detail-icon">
-				{#if icon && !iconError}
-					<img
-						src={icon}
-						alt={project.title}
-						loading="lazy"
-						decoding="async"
-						onerror={() => (iconError = true)}
-					/>
-				{:else}
-					<CubicLogo />
-				{/if}
-			</div>
-
-			<div class="market-detail-identity">
-				<h2 class="market-detail-title">{project.title}</h2>
-				<p class="market-detail-author">
-					{t("market.detail.by")}
-					{project.author || t("market.detail.unknownAuthor")}
-				</p>
-			</div>
-		</div>
-
 		<div class="market-detail-columns">
+			<div class="market-detail-hero">
+				<div class="market-detail-icon">
+					{#if icon && !iconError}
+						<img
+							src={icon}
+							alt={project.title}
+							loading="lazy"
+							decoding="async"
+							onerror={() => (iconError = true)}
+						/>
+					{:else}
+						<CubicLogo />
+					{/if}
+				</div>
+
+				<div class="market-detail-identity">
+					<h2 class="market-detail-title">{project.title}</h2>
+					<p class="market-detail-author">
+						{t("market.detail.by")}
+						{project.author || t("market.detail.unknownAuthor")}
+					</p>
+				</div>
+			</div>
+
 			<aside
 				class="market-detail-sidebar"
-				aria-label={t("market.detail.installation")}
+				aria-label={t("market.detail.projectInfo")}
 			>
 				{#if source !== "local"}
 					<div class="market-detail-stats">
@@ -333,7 +323,7 @@
 						{:else}
 							<div class="market-detail-version-row">
 								<span class="market-detail-version-label"
-									>{t("market.detail.version")}</span
+									>{t("market.detail.selectedVersion")}</span
 								>
 								<Dropdown
 									value={selectedVersion?.id ?? ""}
@@ -413,28 +403,10 @@
 					</p>
 				{/if}
 
-				{#if project.source !== "local"}
-					<button
-						type="button"
-						class="market-detail-open-link"
-						onclick={openProjectUrl}
-					>
-						<Icon name="instance:external-link" size={14} />
-						{project.source === "curseforge"
-							? t("market.detail.openOnCurseForge")
-							: t("market.detail.openOnModrinth")}
-					</button>
-				{/if}
+				<MarketProjectInfo {project} {detail} {contentType} />
 			</aside>
 
 			<div class="market-detail-content">
-				{#if project.source !== "curseforge" && (detail.fullProject as ModrinthProjectFull)?.categories?.length}
-					<div class="market-detail-tags">
-						{#each (detail.fullProject as ModrinthProjectFull).categories as category (category)}
-							<span class="market-detail-tag">{category}</span>
-						{/each}
-					</div>
-				{/if}
 				{#if project.description}
 					<p class="market-detail-description">
 						{project.description}
@@ -534,6 +506,9 @@
 	}
 
 	.market-detail-hero {
+		grid-column: 1;
+		grid-row: 1;
+		min-width: 0;
 		display: flex;
 		align-items: center;
 		gap: 18px;
@@ -551,26 +526,23 @@
 		grid-template-columns: minmax(0, 1fr) var(
 				--market-detail-sidebar-width
 			);
+		grid-template-rows: auto 1fr;
 		align-items: start;
 		gap: 24px;
 	}
 
 	.market-detail-sidebar {
 		grid-column: 2;
-		grid-row: 1;
+		grid-row: 1 / 3;
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
-		padding: 16px;
-		background: var(--bg-card-gradient), var(--surface-card);
-		border: var(--border-width) solid var(--border);
-		border-radius: var(--market-card-radius);
 	}
 
 	.market-detail-content {
 		grid-column: 1;
-		grid-row: 1;
+		grid-row: 2;
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
@@ -637,22 +609,6 @@
 		font-variant-numeric: tabular-nums;
 		font-weight: 700;
 		color: var(--text-primary);
-	}
-
-	.market-detail-tags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 6px;
-	}
-
-	.market-detail-tag {
-		font-size: 0.68rem;
-		background: var(--surface-selected);
-		border: 1px solid var(--border);
-		padding: 2px 8px;
-		border-radius: var(--border-radius-sm);
-		color: var(--text-secondary);
-		text-transform: capitalize;
 	}
 
 	.market-detail-version {
@@ -802,30 +758,6 @@
 		border-top: 1px solid var(--border);
 	}
 
-	.market-detail-open-link {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 8px;
-		padding: 8px;
-		background: transparent;
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		color: var(--text-secondary);
-		font-size: 0.75rem;
-		font-weight: 700;
-		cursor: pointer;
-		transition:
-			background-color 0.15s,
-			color 0.15s;
-		font-family: inherit;
-	}
-
-	.market-detail-open-link:hover {
-		background: var(--surface-hover);
-		color: var(--text-primary);
-	}
-
 	.market-detail-loading {
 		display: flex;
 		align-items: center;
@@ -849,8 +781,10 @@
 		}
 		.market-detail-columns {
 			grid-template-columns: minmax(0, 1fr);
+			grid-template-rows: auto;
 			gap: 20px;
 		}
+		.market-detail-hero,
 		.market-detail-sidebar,
 		.market-detail-content {
 			grid-column: auto;

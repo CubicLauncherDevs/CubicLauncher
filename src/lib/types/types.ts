@@ -431,6 +431,15 @@ export interface ModrinthProjectFull {
 	categories: string[];
 	client_side: string;
 	server_side: string;
+	issues_url?: string | null;
+	source_url?: string | null;
+	wiki_url?: string | null;
+	discord_url?: string | null;
+	license?: {
+		id: string;
+		name: string;
+		url?: string | null;
+	} | null;
 	downloads: number;
 	follows: number;
 	date_created: string;
@@ -482,6 +491,12 @@ export interface CurseForgeProject {
 	id: number;
 	name: string;
 	slug: string;
+	links?: {
+		websiteUrl?: string | null;
+		wikiUrl?: string | null;
+		issuesUrl?: string | null;
+		sourceUrl?: string | null;
+	} | null;
 	summary: string;
 	logo: CurseForgeLogo | null;
 	categories: CurseForgeCategory[];

@@ -189,7 +189,7 @@
 			{/if}
 		{/snippet}
 
-		{#snippet detailSnippet()}
+		{#snippet detailSnippet(closeDetail)}
 			{#if market.selectedProject}
 				{@const project = market.selectedProject}
 				<MarketDetail
@@ -220,7 +220,7 @@
 							project.disabled ? "enable" : "disable",
 							[project.installed.filename],
 						)}
-					onClose={() => market.selectProject(null)}
+					onClose={closeDetail}
 				/>
 			{/if}
 		{/snippet}

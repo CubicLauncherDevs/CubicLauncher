@@ -1,5 +1,9 @@
 <script lang="ts">
 	import { onDestroy, type Snippet } from "svelte";
+	import { MediaQuery } from "svelte/reactivity";
+	import { fly } from "svelte/transition";
+	import { cubicOut } from "svelte/easing";
+	import { animDuration } from "$lib/utils/animations";
 	import type { MarketProject } from "$lib/types/market";
 	import MarketGrid from "./MarketGrid.svelte";
 	import VirtualList from "$lib/components/layout/VirtualList.svelte";
@@ -24,7 +28,7 @@
 		filterPanel: Snippet;
 		itemSnippet: Snippet<[MarketProject]>;
 		emptySnippet: Snippet;
-		detailSnippet: Snippet;
+		detailSnippet: Snippet<[() => void]>;
 		listView?: boolean;
 	}
 
@@ -51,6 +55,23 @@
 		listView = false,
 	}: Props = $props();
 	let lastCatalogFocus: WeakRef<HTMLElement> | undefined;
+	let closingDetail = $state(false);
+	const reducedMotion = new MediaQuery("(prefers-reduced-motion: reduce)");
+	const detailDuration = $derived(
+		reducedMotion.current ? 0 : animDuration(200),
+	);
+
+	function requestClose() {
+		if (selectedId && !closingDetail) closingDetail = true;
+	}
+
+	function finishClose() {
+		if (!closingDetail) return;
+		// Keep the selected project and its metadata alive until the pane exits.
+		onClose();
+		closingDetail = false;
+	}
+
 	onDestroy(() => {
 		lastCatalogFocus = undefined;
 	});
@@ -83,16 +104,19 @@
 		)
 			return;
 		event.preventDefault();
-		onClose();
+		requestClose();
 	}
 </script>
 
 <svelte:window onkeydown={handleDetailKey} />
 
-<div class="market-layout">
+<div
+	class="market-layout"
+	style:--detail-transition-duration={`${detailDuration}ms`}
+>
 	<div
 		class="market-catalog"
-		class:covered={selectedId !== null}
+		class:covered={selectedId !== null && !closingDetail}
 		inert={selectedId !== null}
 		onfocusin={(event) => {
 			if (event.target instanceof HTMLElement)
@@ -190,15 +214,21 @@
 			</div>
 		{/if}
 	</div>
-	{#if selectedId}
+	{#if selectedId && !closingDetail}
 		{#key selectedId}
 			<section
 				class="market-detail-pane"
 				aria-label={detailTitle}
 				tabindex="-1"
 				use:focusDetail
+				transition:fly|global={{
+					x: 24,
+					duration: detailDuration,
+					easing: cubicOut,
+				}}
+				onoutroend={finishClose}
 			>
-				{@render detailSnippet()}
+				{@render detailSnippet(requestClose)}
 			</section>
 		{/key}
 	{/if}
@@ -218,9 +248,19 @@
 		flex-direction: column;
 		height: 100%;
 		min-height: 0;
+		transition:
+			opacity var(--detail-transition-duration) ease,
+			transform var(--detail-transition-duration) ease,
+			visibility 0s;
 	}
 	.market-catalog.covered {
+		opacity: 0;
+		transform: translateX(-12px);
 		visibility: hidden;
+		transition:
+			opacity var(--detail-transition-duration) ease,
+			transform var(--detail-transition-duration) ease,
+			visibility 0s var(--detail-transition-duration);
 	}
 	.results-bar {
 		display: flex;
