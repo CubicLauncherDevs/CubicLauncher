@@ -41,7 +41,7 @@
 		installStep = "",
 		needsCustomName = false,
 		customName = $bindable(""),
-		customNameError = null,
+		customNameError = $bindable<string | null>(null),
 		searchPlaceholder = "",
 		emptySearchingText = "",
 		emptyNoResultsText = "",
@@ -95,6 +95,7 @@
 	} = $props();
 
 	let sentinelEl: HTMLDivElement | undefined = $state();
+	const nameInputId = $props.id();
 	const resizeDuration = $derived(animDuration(300));
 	const detailDuration = $derived(animDuration(200));
 
@@ -355,16 +356,22 @@
 
 			{#if needsCustomName}
 				<div class="custom-name-section">
-					<p class="custom-name-hint">
-						{t("createInstance.customNameNeeded")}
-					</p>
+					<label class="custom-name-hint" for={nameInputId}>
+						{t("createInstance.nameLabel")}
+					</label>
 					<div class="custom-name-input-row">
 						<input
+							id={nameInputId}
 							type="text"
 							class="text-input"
 							class:error={customNameError}
 							bind:value={customName}
 							maxlength={MAX_INSTANCE_NAME_LEN}
+							required
+							aria-invalid={!!customNameError}
+							aria-describedby={customNameError
+								? `${nameInputId}-error`
+								: undefined}
 							disabled={installing}
 							oninput={() => (customNameError = null)}
 							onkeydown={(e) =>
@@ -377,7 +384,11 @@
 							type="button"
 							class="btn-primary"
 							onclick={onConfirmCustomName}
-							disabled={installing || !customName.trim()}
+							disabled={installing ||
+								loadingVersions ||
+								!selectedVersion ||
+								versionOptions.length === 0 ||
+								!customName.trim()}
 						>
 							{installing
 								? t("createInstance.installingModpack")
@@ -385,7 +396,11 @@
 						</button>
 					</div>
 					{#if customNameError}
-						<span class="input-error">{customNameError}</span>
+						<span
+							id={`${nameInputId}-error`}
+							class="input-error"
+							role="alert">{customNameError}</span
+						>
 					{/if}
 				</div>
 			{/if}

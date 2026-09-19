@@ -16,6 +16,7 @@
 	} from "$lib/types/types";
 	import MarkdownRenderer from "$lib/components/ui/MarkdownRenderer.svelte";
 	import {
+		MAX_INSTANCE_NAME_LEN,
 		isValidInstanceName,
 		sanitizeInstanceName,
 	} from "$lib/utils/instanceName";
@@ -186,6 +187,8 @@
 	}
 
 	async function handleSelect(item: ModpackItem) {
+		handleCancelCustomName();
+		installError = null;
 		selectedItem = item;
 		selectedVersion = "";
 		loadingVersions = true;
@@ -217,6 +220,7 @@
 	}
 
 	function handleBack() {
+		handleCancelCustomName();
 		selectedItem = null;
 		selectedPack = null;
 		versions = [];
@@ -228,28 +232,23 @@
 		return existingNames.includes(name.trim());
 	}
 
-	async function handleInstall() {
-		if (!selectedPack || !selectedVersion) return;
-
-		const rawName = selectedPack.title;
-		if (!isValidInstanceName(rawName) || isNameTaken(rawName)) {
-			customName = sanitizeInstanceName(rawName);
-			customNameError = isNameTaken(customName)
-				? t("createInstance.nameExists")
-				: null;
-			needsCustomName = true;
-			installError = null;
+	function handleInstall() {
+		if (!selectedPack || !selectedVersion || loadingVersions || installing)
 			return;
-		}
 
-		await doInstall(rawName);
+		customName = sanitizeInstanceName(selectedPack.title);
+		customNameError = isNameTaken(customName)
+			? t("createInstance.nameExists")
+			: null;
+		needsCustomName = true;
+		installError = null;
 	}
 
 	async function doInstall(name: string) {
-		if (!selectedPack || !selectedVersion) return;
+		if (!selectedPack || !selectedVersion || loadingVersions || installing)
+			return;
 		installing = true;
 		installError = null;
-		needsCustomName = false;
 		try {
 			const ver = versions.find((v) => v.id === selectedVersion);
 			if (!ver) throw new Error("Version not found");
@@ -290,9 +289,14 @@
 	}
 
 	function handleConfirmCustomName() {
+		if (!needsCustomName || installing || loadingVersions) return;
 		const trimmed = customName.trim();
 		if (!trimmed) {
 			customNameError = t("createInstance.emptyNameErr");
+			return;
+		}
+		if (trimmed.length > MAX_INSTANCE_NAME_LEN) {
+			customNameError = t("createInstance.nameTooLong");
 			return;
 		}
 		if (!isValidInstanceName(trimmed)) {
@@ -303,6 +307,7 @@
 			customNameError = t("createInstance.nameExists");
 			return;
 		}
+		customNameError = null;
 		doInstall(trimmed);
 	}
 
@@ -333,7 +338,7 @@
 	{installStep}
 	{needsCustomName}
 	bind:customName
-	{customNameError}
+	bind:customNameError
 	bind:filters
 	categoryOptions={categories}
 	{gameVersionOptions}
