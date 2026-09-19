@@ -100,6 +100,7 @@ pub async fn install_mrpack(
             other => format!("Failed to create instance: {}", other),
         })?;
 
+    let _files_guard = handle.try_lock_files()?;
     let instance_dir = handle.get_instance_dir().await;
 
     // Save upstream metadata if provided
@@ -116,11 +117,18 @@ pub async fn install_mrpack(
         info!("Saved upstream metadata to {:?}", upstream_path);
     }
 
-    DownloadQueue::get().enqueue_work("mods").await;
+    let download_label: Arc<str> = format!("modpack-{}", handle.uuid).into();
+    DownloadQueue::get()
+        .enqueue_work(download_label.clone())
+        .await;
+    emit(AppEvent::InstanceCreated {
+        id: handle.uuid.to_string().into(),
+        dto: handle.to_dto().await,
+    });
 
     let (progress_tx, mut progress_rx) =
         tokio::sync::watch::channel(aqua::progress::DownloadProgress::empty(0));
-    let mods_label: Arc<str> = "mods".into();
+    let mods_label = download_label.clone();
     let progress_task = tokio::spawn(async move {
         loop {
             if progress_rx.changed().await.is_err() {
@@ -150,9 +158,10 @@ pub async fn install_mrpack(
 
     let _ = progress_task.await;
 
-    DownloadQueue::get().finish_work("mods").await;
-
-    install_result.map_err(|e| format!("Failed to install mrpack: {}", e))?;
+    if let Err(e) = install_result {
+        DownloadQueue::get().finish_work(&download_label).await;
+        return Err(format!("Failed to install mrpack: {}", e));
+    }
 
     // Download icon from Modrinth if available and set as instance icon
     let icon = if let Some(url) = icon_url {
@@ -198,9 +207,11 @@ pub async fn install_mrpack(
         }
     }
 
-    emit(AppEvent::InstanceCreated {
+    DownloadQueue::get().finish_work(&download_label).await;
+
+    emit(AppEvent::InstanceEdited {
         id: handle.uuid.to_string().into(),
-        dto: handle.to_dto().await,
+        dto: Some(handle.to_dto().await),
     });
 
     Ok(MrpackInfo {
@@ -329,6 +340,7 @@ pub async fn install_curseforge_modpack(
             other => format!("Failed to create instance: {}", other),
         })?;
 
+    let _files_guard = handle.try_lock_files()?;
     let instance_dir = handle.get_instance_dir().await;
 
     // Save upstream metadata if provided
@@ -345,11 +357,18 @@ pub async fn install_curseforge_modpack(
         info!("Saved upstream metadata to {:?}", upstream_path);
     }
 
-    DownloadQueue::get().enqueue_work("mods").await;
+    let download_label: Arc<str> = format!("modpack-{}", handle.uuid).into();
+    DownloadQueue::get()
+        .enqueue_work(download_label.clone())
+        .await;
+    emit(AppEvent::InstanceCreated {
+        id: handle.uuid.to_string().into(),
+        dto: handle.to_dto().await,
+    });
 
     let (progress_tx, mut progress_rx) =
         tokio::sync::watch::channel(aqua::progress::DownloadProgress::empty(0));
-    let mods_label: Arc<str> = "mods".into();
+    let mods_label = download_label.clone();
     let progress_task = tokio::spawn(async move {
         loop {
             if progress_rx.changed().await.is_err() {
@@ -379,9 +398,10 @@ pub async fn install_curseforge_modpack(
 
     let _ = progress_task.await;
 
-    DownloadQueue::get().finish_work("mods").await;
-
-    install_result.map_err(|e| format!("Failed to install CurseForge modpack: {}", e))?;
+    if let Err(e) = install_result {
+        DownloadQueue::get().finish_work(&download_label).await;
+        return Err(format!("Failed to install CurseForge modpack: {}", e));
+    }
 
     // Download icon if available and set as instance icon
     let icon = if let Some(url) = icon_url {
@@ -427,9 +447,11 @@ pub async fn install_curseforge_modpack(
         }
     }
 
-    emit(AppEvent::InstanceCreated {
+    DownloadQueue::get().finish_work(&download_label).await;
+
+    emit(AppEvent::InstanceEdited {
         id: handle.uuid.to_string().into(),
-        dto: handle.to_dto().await,
+        dto: Some(handle.to_dto().await),
     });
 
     Ok(CurseForgeModpackInfo {

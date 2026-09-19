@@ -21,7 +21,7 @@ const common = `
 export const calls={};
 export const count=key=>{calls[key]=(calls[key]??0)+1};
 export const hooks={settings:null};
-export const launcherStore=$state({loadedInstances:[],settings:{theme:'test',show_tutorial:false,license_accepted:true,discord_presence:true,auto_updates:true,interface_preferences:{scale:100,density:'theme'}}});
+export const launcherStore=$state({loadedInstances:[],settings:{language:'en-US',theme:'test',show_tutorial:false,license_accepted:true,discord_presence:true,auto_updates:true,interface_preferences:{scale:100,density:'theme'}}});
 export const syncSettings=async()=>{count('settings');await hooks.settings};
 export const getVersions=async()=>count('instances');
 export const loadInstalledVersions=async()=>count('installed');
@@ -34,7 +34,7 @@ export const applyTheme=()=>count('theme');
 export const applyInterfaceScale=async()=>count('scale');
 export const applyInterfaceDensity=()=>{};
 export const interfacePreferences=value=>value;
-export const animDuration=()=>0;
+export const animDuration=normal=>hooks.animate?normal:0;
 export const shouldReduceAnimations=()=>true;
 export const animateHeight=()=>({destroy(){}});
 export const t=key=>key;
@@ -43,12 +43,17 @@ export const showSuccess=()=>{};
 export const importThemeZip=async()=>{};
 export const import_theme_cbth=async()=>{};
 export const saveSettings=async()=>{};
+export const getLoaderLogo=()=>'';
+export const getDisplayIconSrc=()=>'';
+export const subscribeLogPreview=()=>()=>{};
+export const invoke=async()=>{};
 `;
 
 const entry = `
 import {mount,unmount,flushSync,tick} from 'svelte';
 import Page from ${JSON.stringify(page)};
-import {calls,hooks} from 'startup-common';
+import Header from ${JSON.stringify(join(root, "src/lib/components/instances/InstanceView/InstanceHeader.svelte"))};
+import {calls,count,hooks,launcherStore} from 'startup-common';
 const assert=(ok,message)=>{if(!ok)throw Error(message)};
 const settle=async()=>{flushSync();await tick();await new Promise(r=>setTimeout(r,30));flushSync();await tick()};
 const click=async selector=>{const el=document.querySelector(selector);assert(el,'missing '+selector);el.click();await settle()};
@@ -69,8 +74,66 @@ async function run(){
  await click('#close-downloader');
  await click('#open-downloader');
  assert(calls.catalog===1,'reopening downloader repeated startup');
+ hooks.startModpack('My pack');
+ launcherStore.loadedInstances.push({uuid:'other',name:'Other'});
+ await settle();
+ assert(!document.querySelector('#selected-instance'),'unrelated instance was selected');
+ launcherStore.loadedInstances.push({uuid:'pack',name:'My pack'});
+ await settle();
+ assert(document.querySelector('#selected-instance')?.textContent==='pack','new modpack was not selected while installing');
+ hooks.startModpack('Failed pack');
+ hooks.failModpack('Failed pack');
+ launcherStore.loadedInstances.push({uuid:'failed',name:'Failed pack'});
+ await settle();
+ assert(document.querySelector('#selected-instance')?.textContent==='pack','failed install left a pending selection');
+ hooks.startModpack('Older pack');
+ hooks.startModpack('Latest pack');
+ hooks.failModpack('Older pack');
+ launcherStore.loadedInstances.push({uuid:'latest',name:'Latest pack'});
+ await settle();
+ assert(document.querySelector('#selected-instance')?.textContent==='latest','earlier failure cancelled the latest install');
  await unmount(app);
  assert(calls.unlistenDrag===1,'drag listener not released');
+ document.documentElement.style.setProperty('--border-radius-sm','6px');
+ const instance={uuid:'pack',name:'My pack',loader:'Fabric',version:'1.21',status:'off',last_played:0,path:'/pack'};
+ hooks.animate=true;
+ let headerProps=$state({instance,bannerState:'Idle',activeSection:'detalles',downloadKind:null,downloadProgress:0,onPlay:()=>count('play')});
+ app=mount(Header,{target:document.querySelector('main'),props:headerProps});
+ await settle();
+ const originalButton=document.querySelector('.launch-btn');
+ for(const [kind,progress] of [['mods',0],['mods',37],['mods',100],['version',62]]){
+  const previousWidth=originalButton.getBoundingClientRect().width;
+  headerProps.downloadKind=kind;
+  headerProps.downloadProgress=progress;
+  await settle();
+  const buttons=[...document.querySelectorAll('.launch-btn')];
+  assert(buttons.length===2,'missing expanded or compact download button');
+  assert(buttons[0]===originalButton,'download changes replaced the animated button');
+  if(kind==='mods' && progress===0 && !matchMedia('(prefers-reduced-motion: reduce)').matches){
+   assert(originalButton.getAnimations().length>0,'button width did not animate');
+   assert(originalButton.getBoundingClientRect().width>=previousWidth,'button expanded in the wrong direction');
+  }
+  for(const button of buttons){
+   assert(button.disabled,'download button allowed launching');
+   assert(button.textContent.includes(kind==='mods'?'instanceView.downloadingMods':'instanceView.downloadingVersion'),'wrong download phase');
+   assert(button.textContent.includes(progress+'%'),'download percentage missing');
+   const border=button.querySelector('rect');
+   assert(border?.getAttribute('stroke-dasharray')===progress+' 100','border does not match progress');
+   assert(border.getTotalLength()>0,'download border has no geometry');
+   button.click();
+  }
+  assert(!calls.play,'disabled button launched instance');
+  await new Promise(r=>setTimeout(r,250));
+ }
+ headerProps.downloadKind=null;
+ await settle();
+ assert(document.querySelector('.launch-btn')===originalButton,'completion replaced the button');
+ assert(!originalButton.disabled && !originalButton.querySelector('rect'),'completed download did not restore play');
+ originalButton.click();
+ await settle();
+ assert(calls.play===1,'restored play button did not launch: '+calls.play);
+ await unmount(app);
+ hooks.animate=false;
  reset();
  history.replaceState(null,'','/?log=test&name=Test');
  localStorage.setItem('sidebarMode','compact');
@@ -98,7 +161,7 @@ run().then(()=>fetch('/result',{method:'POST',body:JSON.stringify({ok:true})})).
 `;
 
 test.skipIf(!browserPath)(
-	"page loads panels on demand and keeps log startup minimal",
+	"page handles startup, modpack navigation and animated download buttons",
 	async () => {
 		const bundle = await Bun.build({
 			entrypoints: ["startup-entry"],
@@ -115,6 +178,18 @@ test.skipIf(!browserPath)(
 						build.onResolve(
 							{ filter: /.*/ },
 							({ path, importer }) => {
+								if (path === "$lib/utils/animateWidth")
+									return {
+										path: join(
+											root,
+											"src/lib/utils/animateWidth.ts",
+										),
+									};
+								if (path === "$lib/icons/logos")
+									return {
+										path: "startup-common",
+										namespace: "fixture",
+									};
 								if (path.endsWith(".css"))
 									return {
 										path: "empty",
@@ -155,7 +230,10 @@ test.skipIf(!browserPath)(
 								resolveDir: root,
 								contents:
 									path === "startup-entry"
-										? entry
+										? compileModule(entry, {
+												filename: "entry.svelte.js",
+												generate: "client",
+											}).js.code
 										: path === "startup-common"
 											? compileModule(common, {
 													filename:
@@ -177,6 +255,12 @@ test.skipIf(!browserPath)(
 									source = `<script module>import {count} from 'startup-common';count('downloaderImport')</script><script>import {onMount} from 'svelte';let {open=$bindable(false)}=$props();onMount(()=>{count('catalog')})</script>{#if open}<button id="close-downloader" onclick={()=>open=false}>Close</button>{/if}`;
 								if (path.endsWith("/LogWindow.svelte"))
 									source = `<script>import {onMount} from 'svelte';import {count} from 'startup-common';onMount(()=>{count('logMount')})</script>`;
+								if (
+									path.endsWith("/CreateInstanceModal.svelte")
+								)
+									source = `<script>import {onMount} from 'svelte';import {hooks} from 'startup-common';let {oninstallstarted,oninstallfailed}=$props();onMount(()=>{hooks.startModpack=oninstallstarted;hooks.failModpack=oninstallfailed})</script>`;
+								if (path.endsWith("/InstanceView.svelte"))
+									source = `<script>let {selectedInstance}=$props()</script><div id="selected-instance">{selectedInstance.uuid}</div>`;
 								return {
 									loader: "js",
 									resolveDir: root,

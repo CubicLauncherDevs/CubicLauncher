@@ -5,6 +5,10 @@
 	import { fade } from "svelte/transition";
 	import { killInst } from "$lib/api/launcherService";
 	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
+	import {
+		downloads,
+		getOverallPct,
+	} from "$lib/state/downloadQueueState.svelte";
 	import InstanceHeader from "./InstanceHeader.svelte";
 	import GridIcon from "$lib/icons/GridIcon.svelte";
 	import ResourcesIcon from "$lib/icons/ResourcesIcon.svelte";
@@ -32,9 +36,22 @@
 	});
 	const supportsMods = $derived(selectedInstance.loader !== "Vanilla");
 	const supportsShaders = $derived(selectedInstance.loader !== "Vanilla");
-	const isDownloadingVersion = $derived(
-		isVersionDownloading(selectedInstance.version),
+	const modpackDownloadId = $derived(`modpack-${selectedInstance.uuid}`);
+	const downloadKind = $derived(
+		isVersionDownloading(modpackDownloadId)
+			? "mods"
+			: isVersionDownloading(selectedInstance.version)
+				? "version"
+				: null,
 	);
+	const downloadProgress = $derived.by(() => {
+		const item = downloads.get(
+			downloadKind === "mods"
+				? modpackDownloadId
+				: selectedInstance.version,
+		);
+		return item ? Math.min(100, Math.max(0, getOverallPct(item))) : 0;
+	});
 
 	$effect(() => {
 		if (
@@ -79,7 +96,7 @@
 	function handlePlay() {
 		if (bannerState === "Started") {
 			killInst(selectedInstance.uuid);
-		} else {
+		} else if (!downloadKind) {
 			launchInstance(selectedInstance);
 		}
 	}
@@ -89,7 +106,8 @@
 	<InstanceHeader
 		instance={selectedInstance}
 		{bannerState}
-		{isDownloadingVersion}
+		{downloadKind}
+		{downloadProgress}
 		bind:activeSection
 		onPlay={handlePlay}
 	/>

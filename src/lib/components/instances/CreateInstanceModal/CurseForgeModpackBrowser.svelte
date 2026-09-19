@@ -22,16 +22,18 @@
 		isValidInstanceName,
 		sanitizeInstanceName,
 	} from "$lib/utils/instanceName";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { launcherStore, showErrorParsed } from "$lib/state/state.svelte";
 	import ModpackBrowser, {
 		type ModpackItem,
 		type ModpackFilters,
 	} from "./ModpackBrowser.svelte";
 
 	let {
-		onInstalled,
+		onInstallStarted,
+		onInstallFailed,
 	}: {
-		onInstalled?: () => void;
+		onInstallStarted?: (name: string) => void;
+		onInstallFailed?: (name: string) => void;
 	} = $props();
 
 	const limit = 10;
@@ -247,14 +249,17 @@
 			return;
 		installing = true;
 		installError = null;
+		const pack = selectedPack;
+		const versionId = selectedVersion;
+		onInstallStarted?.(name);
 		try {
-			const file = versions.find((v) => String(v.id) === selectedVersion);
+			const file = versions.find((v) => String(v.id) === versionId);
 			if (!file) throw new Error("Version not found");
 
 			let url = file.downloadUrl;
 			if (!url) {
 				url = await getCurseForgeFileDownloadUrl(
-					selectedPack.id,
+					pack.id,
 					file.id,
 					file.fileName,
 				);
@@ -265,16 +270,13 @@
 			const packPath = await downloadCurseForgeModpack(url, file.id);
 			if (!packPath) throw new Error("Failed to download modpack");
 
-			installStep = t("createInstance.importingBtn");
 			const result = await installCurseForgeModpack(
 				packPath,
 				name,
-				selectedPack.id,
+				pack.id,
 				file.id,
-				selectedPack.logo?.url ?? undefined,
-				() => {
-					onInstalled?.();
-				},
+				pack.logo?.url ?? undefined,
+				undefined,
 				(err) => {
 					installError = String(err);
 				},
@@ -284,9 +286,11 @@
 			}
 		} catch (e) {
 			installError = String(e);
+			showErrorParsed(e);
 		} finally {
 			installing = false;
 			installStep = "";
+			if (installError) onInstallFailed?.(name);
 		}
 	}
 

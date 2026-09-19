@@ -426,6 +426,8 @@
 		"lastPlayed": "Última vez jugado: {date}",
 		"playBtn": "Jugar",
 		"downloadingBtn": "Descargando...",
+		"downloadingMods": "Descargando mods",
+		"downloadingVersion": "Descargando versión",
 		"close": "Forzar cierre",
 		"deleteSelected": "Eliminar Seleccionados",
 		"deleteConfirm": "¿Estás seguro de que deseas eliminar {name}?",

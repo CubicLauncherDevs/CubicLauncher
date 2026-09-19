@@ -7,22 +7,44 @@
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { getLoaderLogo, getDisplayIconSrc } from "$lib/icons/logos";
 	import Icon from "$lib/icons/Icon.svelte";
+	import { animateWidth } from "$lib/utils/animateWidth";
+	import { animDuration } from "$lib/utils/animations";
 
 	let {
 		instance,
 		bannerState = "Idle",
-		isDownloadingVersion = false,
+		downloadKind = null,
+		downloadProgress = 0,
 		activeSection = $bindable("detalles"),
 		onPlay = () => {},
 	}: {
 		instance: InstanceDto;
 		bannerState: string;
-		isDownloadingVersion: boolean;
+		downloadKind?: "mods" | "version" | null;
+		downloadProgress?: number;
 		activeSection: string;
 		onPlay: () => void;
 	} = $props();
 
 	const loaderIcon = $derived(getLoaderLogo(instance.loader));
+	const downloadLabel = $derived(
+		downloadKind === "mods"
+			? t("instanceView.downloadingMods")
+			: t("instanceView.downloadingVersion"),
+	);
+	const buttonDownloading = $derived(
+		!!downloadKind &&
+			bannerState !== "Started" &&
+			bannerState !== "Starting",
+	);
+	const buttonLabel = $derived(
+		bannerState === "Started"
+			? t("instanceView.close")
+			: buttonDownloading
+				? downloadLabel
+				: t("instanceView.playBtn"),
+	);
+	const resizeDuration = $derived(animDuration(220));
 
 	const statusLabel = $derived(
 		instance.status === "started"
@@ -103,6 +125,37 @@
 		});
 	}
 </script>
+
+{#snippet launchButton()}
+	<button
+		type="button"
+		class="launch-btn"
+		class:downloading={buttonDownloading}
+		use:animateWidth={resizeDuration}
+		disabled={bannerState === "Starting" || buttonDownloading}
+		onclick={onPlay}
+		aria-label={buttonDownloading
+			? `${buttonLabel} ${downloadProgress}%`
+			: buttonLabel}
+	>
+		<span class="launch-label">
+			<span>{buttonLabel}</span>
+			{#if buttonDownloading}
+				<span class="download-percent">{downloadProgress}%</span>
+			{/if}
+		</span>
+		{#if buttonDownloading}
+			<svg class="download-border" aria-hidden="true">
+				<rect
+					width="100%"
+					height="100%"
+					pathLength="100"
+					stroke-dasharray={`${downloadProgress} 100`}
+				/>
+			</svg>
+		{/if}
+	</button>
+{/snippet}
 
 <header class="instance-header" class:compact={activeSection !== "detalles"}>
 	<div class="header-bg"></div>
@@ -220,31 +273,7 @@
 					</span>
 				</div>
 				<div class="launch-area">
-					{#if bannerState == "Started"}
-						<button
-							type="button"
-							class="launch-btn"
-							onclick={onPlay}
-						>
-							{t("instanceView.close")}
-						</button>
-					{:else if bannerState == "Starting"}
-						<button type="button" class="launch-btn" disabled>
-							{t("instanceView.playBtn")}
-						</button>
-					{:else if isDownloadingVersion}
-						<button type="button" class="launch-btn" disabled>
-							{t("instanceView.downloadingBtn")}
-						</button>
-					{:else}
-						<button
-							type="button"
-							class="launch-btn"
-							onclick={onPlay}
-						>
-							{t("instanceView.playBtn")}
-						</button>
-					{/if}
+					{@render launchButton()}
 				</div>
 			</div>
 
@@ -296,23 +325,7 @@
 			</div>
 			<div class="compact-spacer"></div>
 			<div class="launch-area">
-				{#if bannerState == "Started"}
-					<button type="button" class="launch-btn" onclick={onPlay}>
-						{t("instanceView.close")}
-					</button>
-				{:else if bannerState == "Starting"}
-					<button type="button" class="launch-btn" disabled>
-						{t("instanceView.playBtn")}
-					</button>
-				{:else if isDownloadingVersion}
-					<button type="button" class="launch-btn" disabled>
-						{t("instanceView.downloadingBtn")}
-					</button>
-				{:else}
-					<button type="button" class="launch-btn" onclick={onPlay}>
-						{t("instanceView.playBtn")}
-					</button>
-				{/if}
+				{@render launchButton()}
 			</div>
 		</div>
 	</div>
@@ -519,13 +532,14 @@
 	}
 
 	.launch-btn {
+		box-sizing: border-box;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
 		background: var(--accent);
 		color: var(--accent-text);
-		border: none;
+		border: 1px solid transparent;
 		min-width: 145px;
 		padding: 10px 28px;
 		border-radius: var(--border-radius-sm);
@@ -555,6 +569,42 @@
 		cursor: not-allowed;
 		box-shadow: none;
 		border: 1px solid var(--border);
+	}
+
+	.launch-btn.downloading {
+		position: relative;
+		padding-inline: 16px;
+		color: var(--text-secondary);
+	}
+
+	.launch-label {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		width: max-content;
+		flex-shrink: 0;
+		white-space: nowrap;
+	}
+
+	.download-border {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+		pointer-events: none;
+	}
+
+	.download-border rect {
+		fill: none;
+		stroke: var(--accent);
+		stroke-width: 2px;
+		rx: var(--border-radius-sm);
+	}
+
+	.download-percent {
+		font-variant-numeric: tabular-nums;
+		color: var(--accent);
 	}
 
 	.details-row {

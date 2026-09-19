@@ -20,7 +20,7 @@
 		isValidInstanceName,
 		sanitizeInstanceName,
 	} from "$lib/utils/instanceName";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { launcherStore, showErrorParsed } from "$lib/state/state.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
 	import ModpackBrowser, {
 		type ModpackItem,
@@ -28,9 +28,11 @@
 	} from "./ModpackBrowser.svelte";
 
 	let {
-		onInstalled,
+		onInstallStarted,
+		onInstallFailed,
 	}: {
-		onInstalled?: () => void;
+		onInstallStarted?: (name: string) => void;
+		onInstallFailed?: (name: string) => void;
 	} = $props();
 
 	const limit = 10;
@@ -249,30 +251,27 @@
 			return;
 		installing = true;
 		installError = null;
+		const pack = selectedPack;
+		const versionId = selectedVersion;
+		onInstallStarted?.(name);
 		try {
-			const ver = versions.find((v) => v.id === selectedVersion);
+			const ver = versions.find((v) => v.id === versionId);
 			if (!ver) throw new Error("Version not found");
 			const primaryFile =
 				ver.files.find((f) => f.primary) ?? ver.files[0];
 			if (!primaryFile) throw new Error("No file found in version");
 
 			installStep = t("createInstance.downloadingModpack");
-			const mrpackPath = await downloadMrpack(
-				primaryFile.url,
-				selectedVersion,
-			);
+			const mrpackPath = await downloadMrpack(primaryFile.url, versionId);
 			if (!mrpackPath) throw new Error("Failed to download modpack");
 
-			installStep = t("createInstance.importingBtn");
 			const result = await installMrpackWithUpstream(
 				mrpackPath,
 				name,
-				selectedPack.project_id,
-				selectedVersion,
-				selectedPack.icon_url ?? undefined,
-				() => {
-					onInstalled?.();
-				},
+				pack.project_id,
+				versionId,
+				pack.icon_url ?? undefined,
+				undefined,
 				(err) => {
 					installError = String(err);
 				},
@@ -282,9 +281,11 @@
 			}
 		} catch (e) {
 			installError = String(e);
+			showErrorParsed(e);
 		} finally {
 			installing = false;
 			installStep = "";
+			if (installError) onInstallFailed?.(name);
 		}
 	}
 

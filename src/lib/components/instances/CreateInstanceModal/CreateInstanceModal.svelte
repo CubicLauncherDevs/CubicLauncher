@@ -37,11 +37,15 @@
 		mrpackPath = $bindable<string | null>(null),
 		instanceZipPath = $bindable<string | null>(null),
 		oncreated,
+		oninstallstarted,
+		oninstallfailed,
 	} = $props<{
 		open: boolean;
 		mrpackPath?: string | null;
 		instanceZipPath?: string | null;
 		oncreated?: () => void;
+		oninstallstarted?: (name: string) => void;
+		oninstallfailed?: (name: string) => void;
 	}>();
 
 	type Tab = "manual" | "modrinth" | "curseforge" | "local";
@@ -265,6 +269,11 @@
 		resetState();
 	}
 
+	function handleModpackInstallStarted(instanceName: string) {
+		oninstallstarted?.(instanceName);
+		reset();
+	}
+
 	$effect(() => {
 		if (open && tab === "manual") {
 			updateIconForLoader();
@@ -302,9 +311,15 @@
 	{#key tab === "manual" ? `${tab}:${manualStep}` : tab}
 		<div class="step-content" in:fade={{ duration: contentDuration }}>
 			{#if tab === "modrinth"}
-				<ModrinthModpackBrowser onInstalled={reset} />
+				<ModrinthModpackBrowser
+					onInstallStarted={handleModpackInstallStarted}
+					onInstallFailed={oninstallfailed}
+				/>
 			{:else if tab === "curseforge"}
-				<CurseForgeModpackBrowser onInstalled={reset} />
+				<CurseForgeModpackBrowser
+					onInstallStarted={handleModpackInstallStarted}
+					onInstallFailed={oninstallfailed}
+				/>
 			{:else if tab === "local"}
 				<LocalImportStep
 					bind:name

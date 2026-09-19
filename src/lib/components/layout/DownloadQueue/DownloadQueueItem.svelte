@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
 	import CheckIcon from "$lib/icons/CheckIcon.svelte";
+	import { launcherStore } from "$lib/state/state.svelte";
 
 	let {
 		version,
@@ -15,6 +16,16 @@
 		error: string | null;
 		statusLabel: string | null;
 	} = $props();
+
+	const downloadLabel = $derived(
+		version.startsWith("modpack-")
+			? (launcherStore.loadedInstances.find(
+					(instance) => `modpack-${instance.uuid}` === version,
+				)?.name ?? t("sidebar.downloadingMods"))
+			: version === "mods"
+				? t("sidebar.downloadingMods")
+				: version,
+	);
 </script>
 
 <div class="sd-item" class:done class:error>
@@ -28,11 +39,7 @@
 				<span class="sd-spinner-sm"></span>
 			{/if}
 			<div class="sd-version-wrap">
-				<span class="sd-version"
-					>{version === "mods"
-						? t("sidebar.downloadingMods")
-						: version}</span
-				>
+				<span class="sd-version">{downloadLabel}</span>
 				{#if statusLabel}
 					<span class="sd-status-label">{statusLabel}</span>
 				{/if}

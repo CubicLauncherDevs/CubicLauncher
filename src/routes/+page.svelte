@@ -53,6 +53,7 @@
 	});
 
 	let selectedInstance = $state<InstanceDto | null>(null);
+	let pendingModpackName = $state<string | null>(null);
 	const selectedInstanceId = $derived(selectedInstance?.uuid);
 	const lastSelectedInstanceKey = "lastSelectedInstanceId";
 	let sidebarMode = $state<"normal" | "compact">("normal");
@@ -334,6 +335,22 @@
 		saveSettings();
 	}
 
+	function selectPendingModpack() {
+		if (!pendingModpackName) return;
+		const instance = launcherStore.loadedInstances.find(
+			(instance) => instance.name === pendingModpackName,
+		);
+		if (instance) {
+			selectedInstance = instance;
+			showProfileView = false;
+			pendingModpackName = null;
+		}
+	}
+
+	$effect(() => {
+		selectPendingModpack();
+	});
+
 	$effect(() => {
 		const instances = launcherStore.loadedInstances;
 		const sel = selectedInstance;
@@ -486,6 +503,10 @@
 		bind:open={openCreateModal}
 		bind:mrpackPath={droppedMrpackPath}
 		bind:instanceZipPath={droppedInstanceZipPath}
+		oninstallstarted={(name) => (pendingModpackName = name)}
+		oninstallfailed={(name) => {
+			if (pendingModpackName === name) pendingModpackName = null;
+		}}
 	/>
 
 	<Tutorial
