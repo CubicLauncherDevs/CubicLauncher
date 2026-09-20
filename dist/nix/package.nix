@@ -28,7 +28,12 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   nodeModules = stdenv.mkDerivation {
     pname = "${finalAttrs.pname}-node_modules";
-    inherit (finalAttrs) version src;
+    inherit (finalAttrs) version;
+    # Dependency installation must depend only on the manifest and its lockfile.
+    src = lib.fileset.toSource {
+      root = ./../..;
+      fileset = lib.fileset.unions [ ../../package.json ../../bun.lock ];
+    };
 
     nativeBuildInputs = [
       bun
@@ -40,6 +45,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
     buildPhase = ''
       runHook preBuild
+      test -f bun.lock || { echo "bun.lock is required for reproducible dependency hashes" >&2; exit 1; }
       bun install --frozen-lockfile --allow-scripts --no-progress
       runHook postBuild
     '';
@@ -55,9 +61,9 @@ rustPlatform.buildRustPackage (finalAttrs: {
     outputHashAlgo = "sha256";
     outputHash =
       {
-        x86_64-linux = "sha256-jrC6IdExDE0a0IyxQzbLV4Bpdq8R5iitFnzOkvPnQ3g=";
-        aarch64-linux = "sha256-WmUcAa5YqkVGyt383+38PzW3YYraq8Y2Ul7NF8QSChY=";
-        aarch64-darwin = "sha256-LYqKyiEFjEUh7jU+3e2UUmg/DNvGsheZl0GJLAXUBRs=";
+        x86_64-linux = "sha256-xdQpzq2+d6/53AtZ2cVFryO/ddn7eBN7jSMEfiFL5AM=";
+        aarch64-linux = "sha256-UxIWsn4FTY+57FQGlDy8mDdM+zVTWJin4DnyIraj5s0=";
+        aarch64-darwin = "sha256-IeWlSySva2I6+zT0+/pWtoZIFt0iXH8dnWLdoh1M1xo=";
       }.${stdenv.hostPlatform.system} or (throw "Unsupported system ${stdenv.hostPlatform.system}");
   };
 
