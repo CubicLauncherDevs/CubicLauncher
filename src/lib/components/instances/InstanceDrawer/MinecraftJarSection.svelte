@@ -198,13 +198,6 @@
 	{/if}
 
 	{#if working}<p role="status">{t("minecraftJar.working")}</p>{/if}
-
-	<details class="more-info">
-		<summary>{t("minecraftJar.moreInfo")}</summary>
-		<p class="hint">{t("minecraftJar.orderHint")}</p>
-		<p class="hint">{t("minecraftJar.savedHint")}</p>
-		<p class="hint">{t("minecraftJar.compatibility")}</p>
-	</details>
 </section>
 
 <style>
@@ -345,12 +338,5 @@
 		font-size: 0.8rem;
 	}
 
-	.more-info {
-		margin-top: 4px;
-	}
-	.more-info > summary {
-		cursor: pointer;
-		font-size: 0.8rem;
-		color: var(--text-secondary);
-	}
+
 </style>
