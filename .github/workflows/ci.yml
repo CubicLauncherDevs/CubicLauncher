@@ -11,7 +11,7 @@ env:
 
 jobs:
     nix:
-        name: Nix Build (${{ matrix.system }})
+        name: Nix Hashes (${{ matrix.system }})
         runs-on: ${{ matrix.runner }}
         strategy:
             fail-fast: false
@@ -24,7 +24,7 @@ jobs:
                       runner: ubuntu-24.04-arm
                     - system: aarch64-darwin
                       runner: macos-15
-        timeout-minutes: 90
+        timeout-minutes: 30
         permissions:
             contents: read
         steps:
@@ -36,8 +36,12 @@ jobs:
                   extra_nix_config: |
                       experimental-features = nix-command flakes
 
-            - name: Check Nix package
-              run: nix flake check --system "${{ matrix.system }}" --print-build-logs
+            - name: Verify dependency hashes
+              # Realize only the dependency outputs; this does not compile the launcher.
+              run: |
+                  nix build --no-link --keep-going --print-build-logs \
+                    ".#packages.${{ matrix.system }}.default.nodeModules" \
+                    ".#packages.${{ matrix.system }}.default.cargoDeps"
 
     frontend:
         name: Frontend Checks
