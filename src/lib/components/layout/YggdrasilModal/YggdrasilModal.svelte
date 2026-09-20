@@ -20,12 +20,16 @@
 		initialServerUrl = "",
 		title,
 		serverInstruction,
+		signupUrl,
+		autoConnect = false,
 		onsuccess,
 	} = $props<{
 		open: boolean;
 		initialServerUrl?: string;
 		title?: string;
 		serverInstruction?: string;
+		signupUrl?: string;
+		autoConnect?: boolean;
 		onsuccess?: () => void;
 	}>();
 
@@ -45,13 +49,20 @@
 
 	$effect(() => {
 		if (open) {
-			step = "server";
 			clearTimeout(closeTimer);
 			serverUrl = initialServerUrl;
 			username = "";
 			password = "";
 			serverInfo = null;
 			error = null;
+			if (autoConnect && serverUrl?.trim()) {
+				step = "loading";
+				queueMicrotask(() => {
+					void handleConnectServer();
+				});
+			} else {
+				step = "server";
+			}
 		}
 	});
 
@@ -151,6 +162,7 @@
 				{serverInfo}
 				bind:username
 				bind:password
+				signupUrl={signupUrl}
 				onback={() => {
 					step = "server";
 					serverInfo = null;

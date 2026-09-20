@@ -132,6 +132,10 @@
 			serverInstruction={provider === "cubicAuth"
 				? t("userMenu.accountSetup.cubicAuthServer")
 				: undefined}
+			signupUrl={provider === "cubicAuth"
+				? "https://accounts.cubiclauncher.org/"
+				: undefined}
+			autoConnect={provider === "cubicAuth"}
 			{onsuccess}
 		/>
 	{/if}

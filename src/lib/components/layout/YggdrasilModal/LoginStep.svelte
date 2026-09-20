@@ -1,17 +1,20 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
 	import type { YggdrasilServerInfo } from "$lib/types/types";
+	import { openUrl } from "$lib/api/cubicApi";
 
 	let {
 		serverInfo,
 		username = $bindable(""),
 		password = $bindable(""),
+		signupUrl,
 		onback,
 		onlogin,
 	}: {
 		serverInfo: YggdrasilServerInfo | null;
 		username?: string;
 		password?: string;
+		signupUrl?: string;
 		onback: () => void;
 		onlogin: () => void;
 	} = $props();
@@ -73,6 +76,17 @@
 			{t("userMenu.yggdrasilModal.login")}
 		</button>
 	</div>
+	{#if signupUrl}
+		<div class="cta-actions">
+			<button
+				type="button"
+				class="action-btn cta"
+				onclick={() => openUrl(signupUrl!)}
+			>
+				{t("userMenu.yggdrasilModal.createAccount")}
+			</button>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -150,6 +164,12 @@
 		max-width: 340px;
 	}
 
+	.cta-actions {
+		width: 100%;
+		max-width: 340px;
+		margin-top: 8px;
+	}
+
 	.action-btn {
 		padding: 0.6rem 1.5rem;
 		border-radius: var(--border-radius-sm);
@@ -185,6 +205,16 @@
 	.action-btn.secondary:hover:not(:disabled) {
 		background: rgba(var(--surface-rgb), 0.04);
 		color: var(--text-primary);
+	}
+
+	.action-btn.cta {
+		border: 1px solid var(--accent);
+		background: var(--bg-input);
+		color: var(--accent);
+	}
+
+	.action-btn.cta:hover:not(:disabled) {
+		background: var(--surface-selected);
 	}
 
 	@keyframes fadeIn {

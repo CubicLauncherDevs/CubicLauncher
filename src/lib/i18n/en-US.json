@@ -491,6 +491,7 @@
 			"passwordLabel": "Password",
 			"back": "Back",
 			"login": "Log in",
+			"createAccount": "Create account",
 			"loading": "Connecting...",
 			"errorTitle": "Error",
 			"errorUnknown": "Unknown error",

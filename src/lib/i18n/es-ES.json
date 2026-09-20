@@ -491,6 +491,7 @@
 			"passwordLabel": "Contraseña",
 			"back": "Atrás",
 			"login": "Iniciar sesión",
+			"createAccount": "Crear cuenta",
 			"loading": "Conectando...",
 			"errorTitle": "Error",
 			"errorUnknown": "Error desconocido",
