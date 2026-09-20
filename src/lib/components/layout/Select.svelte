@@ -11,6 +11,8 @@
 		label: string;
 		badge?: string;
 		icon?: string;
+		subtitle?: string;
+		status?: "loading" | "download";
 	}
 
 	let {
@@ -171,9 +173,11 @@
 			typed = now - lastTypedAt > 700 ? event.key : typed + event.key;
 			lastTypedAt = now;
 			const index = options.findIndex((option: Option) =>
-				option.label
-					.toLocaleLowerCase()
-					.startsWith(typed.toLocaleLowerCase()),
+				[option.label, option.subtitle].some((text) =>
+					text
+						?.toLocaleLowerCase()
+						.startsWith(typed.toLocaleLowerCase()),
+				),
 			);
 			if (index >= 0) activeIndex = index;
 		}
@@ -212,6 +216,9 @@
 
 	const selectedIcon = $derived(
 		options.find((o: Option) => o.value === value)?.icon,
+	);
+	const selectedOption = $derived(
+		options.find((o: Option) => o.value === value),
 	);
 </script>
 
@@ -255,8 +262,20 @@
 					{/if}
 				</span>
 			{/if}
-			{loading ? loadingPlaceholder : selectedLabel}
+			<span class="option-copy">
+				<span class="select-option-label"
+					>{loading ? loadingPlaceholder : selectedLabel}</span
+				>
+				{#if !loading && selectedOption?.subtitle}
+					<span class="option-subtitle"
+						>{selectedOption.subtitle}</span
+					>
+				{/if}
+			</span>
 		</span>
+		{#if !loading && selectedOption?.status === "loading"}
+			<span class="select-spinner" aria-hidden="true"></span>
+		{/if}
 		{#if !loading}
 			<ChevronDownIcon size={16} class="chevron-icon" />
 		{/if}
@@ -302,9 +321,25 @@
 							{/if}
 						</span>
 					{/if}
-					<span class="select-option-label">{option.label}</span>
+					<span class="option-copy">
+						<span class="select-option-label">{option.label}</span>
+						{#if option.subtitle}
+							<span class="option-subtitle"
+								>{option.subtitle}</span
+							>
+						{/if}
+					</span>
 					{#if option.badge}
 						<span class="select-option-badge">{option.badge}</span>
+					{/if}
+					{#if option.status}
+						<span class="option-status" aria-hidden="true">
+							{#if option.status === "loading"}
+								<span class="select-spinner"></span>
+							{:else}
+								<Icon name="ui:download" size={14} />
+							{/if}
+						</span>
 					{/if}
 					{#if option.value === value}
 						<CheckIcon size={14} class="check-icon" />
@@ -316,6 +351,33 @@
 </div>
 
 <style>
+	.selected-value {
+		display: flex;
+		align-items: center;
+		min-width: 0;
+		flex: 1;
+	}
+	.option-copy {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		min-width: 0;
+		flex: 1;
+		text-align: start;
+	}
+	.option-subtitle {
+		font-size: var(--font-size-label);
+		font-weight: normal;
+		color: var(--text-secondary);
+		line-height: 1.4;
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+	.option-status {
+		display: inline-flex;
+		color: var(--text-muted);
+		flex-shrink: 0;
+	}
 	.select-trigger:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
@@ -323,6 +385,10 @@
 	.select-dropdown {
 		box-sizing: border-box;
 		overscroll-behavior: contain;
+		scrollbar-width: none;
+	}
+	.select-dropdown::-webkit-scrollbar {
+		display: none;
 	}
 	.select-option.highlighted {
 		background: var(--surface-hover);
@@ -416,5 +482,11 @@
 
 	.selected-value .option-icon {
 		margin-right: 4px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.select-spinner {
+			animation: none;
+		}
 	}
 </style>

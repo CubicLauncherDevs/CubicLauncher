@@ -1,16 +1,10 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import {
-		t,
-		locales,
-		downloadLocale,
-		loadAvailableLocales,
-	} from "$lib/i18n";
+	import { t } from "$lib/i18n";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { saveSettings } from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
 	import Icon from "$lib/icons/Icon.svelte";
-	import Select from "$lib/components/layout/Select.svelte";
+	import LanguageSelect from "$lib/components/layout/LanguageSelect.svelte";
 
 	let {
 		stepKey,
@@ -21,21 +15,6 @@
 		isFirstStep: boolean;
 		isLicenseStep: boolean;
 	} = $props();
-
-	const languageOptions = $derived(
-		locales.map((l) => ({
-			value: l.code,
-			label: l.label,
-		})),
-	);
-	onMount(() => {
-		void loadAvailableLocales();
-	});
-
-	async function onLanguageChange() {
-		downloadLocale(launcherStore.settings.language);
-		await saveSettings();
-	}
 </script>
 
 <div class="tut-body">
@@ -47,10 +26,9 @@
 	</p>
 	{#if isFirstStep}
 		<div class="tut-lang">
-			<Select
+			<LanguageSelect
 				bind:value={launcherStore.settings.language}
-				options={languageOptions}
-				onchange={onLanguageChange}
+				onchange={() => void saveSettings()}
 			/>
 		</div>
 	{/if}

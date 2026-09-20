@@ -9,14 +9,8 @@
 		onAppEvent,
 	} from "$lib/api/launcherService";
 	import { openUrl } from "$lib/api/cubicApi";
-	import {
-		t,
-		locales,
-		downloadLocale,
-		loadAvailableLocales,
-	} from "$lib/i18n";
-	import { i18nLoader } from "$lib/i18n/loader.svelte";
-	import Select from "$lib/components/layout/Select.svelte";
+	import { t } from "$lib/i18n";
+	import LanguageSelect from "$lib/components/layout/LanguageSelect.svelte";
 	import { listThemes } from "$lib/api/themeManager";
 	import ThemeSelector from "./ThemeSelector.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
@@ -165,18 +159,6 @@
 		{ id: "java", label: t("settings.tabs.java") },
 	]);
 
-	const languageOptions = $derived(
-		locales.map((l) => ({
-			value: l.code,
-			label: `${t(`languages.${l.code}`)} (${l.label})`,
-			icon:
-				i18nLoader.loading === l.code
-					? "⏳"
-					: i18nLoader.fetched.has(l.code)
-						? l.flag
-						: "ui:download",
-		})),
-	);
 	let availableThemes = $state<ThemeEntry[]>([]);
 
 	async function loadThemes() {
@@ -184,7 +166,6 @@
 	}
 
 	onMount(() => {
-		void loadAvailableLocales();
 		loadThemes();
 		refreshJreStatus();
 		loadRecommendedRam();
@@ -256,15 +237,10 @@
 					iconName="nav:sliders"
 					storageKey="section_general"
 				>
-					<Select
+					<LanguageSelect
 						id="language"
-						label={t("settings.launcher.language")}
-						options={languageOptions}
 						bind:value={launcherStore.settings.language}
-						onchange={(val) => {
-							downloadLocale(val);
-							handleSave();
-						}}
+						onchange={handleSave}
 					/>
 					<div class="qm-field-checkbox">
 						<input
