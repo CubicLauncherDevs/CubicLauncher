@@ -1,5 +1,40 @@
 import { expect, test } from "bun:test";
-import { isElyByAccount } from "../../../src/lib/utils/accountProviders.ts";
+import {
+	isElyByAccount,
+	getAccountProvider,
+} from "../../../src/lib/utils/accountProviders.ts";
+
+test("saved accounts identify their provider without confusing custom servers", () => {
+	for (const [user_type, server, provider] of [
+		["Microsoft", null, "premium"],
+		["Cracked", "https://auth.cubiclauncher.org", "offline"],
+		["Yggdrasil", "https://account.ely.by/api/authlib-injector", "ely"],
+		["Yggdrasil", "auth.cubiclauncher.org", "cubicAuth"],
+		[
+			"Yggdrasil",
+			"https://AUTH.CUBICLAUNCHER.ORG/api/yggdrasil",
+			"cubicAuth",
+		],
+		[
+			"Yggdrasil",
+			"https://auth.cubiclauncher.org.example.com",
+			"authinject",
+		],
+		[
+			"Yggdrasil",
+			"https://auth.cubiclauncher.org@other.example.com",
+			"authinject",
+		],
+		["Yggdrasil", "https://auth.cubiclauncher.org:8443", "authinject"],
+		["Yggdrasil", "ftp://auth.cubiclauncher.org", "authinject"],
+		["Yggdrasil", "invalid server", "authinject"],
+		["Yggdrasil", null, "authinject"],
+	]) {
+		expect(
+			getAccountProvider({ user_type, yggdrasil_server_url: server }),
+		).toBe(provider);
+	}
+});
 
 test("Ely.by skin panel is available only for official Ely.by accounts", () => {
 	for (const server of [

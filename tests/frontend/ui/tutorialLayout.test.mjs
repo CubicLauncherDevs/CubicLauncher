@@ -10,7 +10,7 @@ const browserPath = ["google-chrome", "chromium", "firefox"]
 	.find(Boolean);
 
 test.skipIf(!browserPath)(
-	"tutorial stays anchored and skip confirmation stays centered",
+	"tutorial and profile account setup preserve layout, selection and keyboard navigation",
 	async () => {
 		const strings = await readFile(
 			join(root, "src/lib/i18n/en-US.json"),
@@ -18,13 +18,27 @@ test.skipIf(!browserPath)(
 		);
 		const mocks = {
 			"$lib/state/state.svelte": compileModule(
-				`export const launcherStore = $state({settings: {license_accepted:false,show_tutorial:true,language:'en-US',reduce_animations:true}});`,
+				`export const launcherStore = $state({settings: {user:[],active_user_idx:0,license_accepted:false,show_tutorial:true,language:'en-US',reduce_animations:true}}); export const showError=()=>{};`,
 				{ filename: "state.svelte.js", generate: "client" },
 			).js.code,
-			"$lib/i18n": `const strings=${strings}; export const t=key=>key.split('.').reduce((v,k)=>v?.[k],strings)??key; export const locales=[]; export const downloadLocale=async()=>{}; export const loadAvailableLocales=async()=>{};`,
+			"$lib/i18n": `const strings=${strings}; export const t=(key,params={})=>Object.entries(params).reduce((text,[key,value])=>text.replaceAll('{'+key+'}',String(value)),key.split('.').reduce((v,k)=>v?.[k],strings)??key); export const locales=[]; export const downloadLocale=async()=>{}; export const loadAvailableLocales=async()=>{};`,
 			"$lib/api/launcherService":
-				"export const saveSettings=async()=>{};",
-			"$lib/api/cubicApi": "export const openUrl=async()=>{};",
+				"export const saves=[]; export const hooks={failSave:false}; export const markLocalSettingsChange=()=>{}; export const saveSettings=async()=>{if(hooks.failSave) throw Error('Save failed'); saves.push(true);};",
+			"$lib/state/avatarCache.svelte": `export const DEFAULT_AVATAR_SVG='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="gray"/></svg>'; export const fetchAvatarSvg=async()=>DEFAULT_AVATAR_SVG;`,
+			"profile-skin-stub": compile("<div></div>", {
+				filename: "SkinStub.svelte",
+				generate: "client",
+			}).js.code,
+			"$lib/api/cubicApi": `
+				export const calls=[];
+				export const openUrl=async()=>{};
+				export const logout=async()=>{};
+				export const switchUser=async()=>null;
+				export const removeUser=async()=>{};
+				export const startWebviewAuth=async()=>{calls.push('microsoft');return {username:'PremiumPlayer',uuid:'premium-id',user_type:'Microsoft',access_token:'test',refresh_token:null};};
+				export const getYggdrasilServerInfo=async url=>{calls.push(url);return {server_name:'Test server',non_email_login:true,skin_domains:[]};};
+				export const yggdrasilAuthenticate=async (url,username)=>({username,uuid:url,user_type:'Yggdrasil',yggdrasil_server_url:url,access_token:'test',refresh_token:null});
+			`,
 		};
 		const bundle = await Bun.build({
 			entrypoints: [
@@ -36,6 +50,15 @@ test.skipIf(!browserPath)(
 				{
 					name: "tutorial-layout",
 					setup(build) {
+						build.onResolve(
+							{
+								filter: /^\.\/(SkinCapeManager|ElySkinManager)\.svelte$/,
+							},
+							() => ({
+								path: "profile-skin-stub",
+								namespace: "fixture",
+							}),
+						);
 						build.onResolve({ filter: /^\$lib\// }, ({ path }) =>
 							path in mocks
 								? { path, namespace: "fixture" }

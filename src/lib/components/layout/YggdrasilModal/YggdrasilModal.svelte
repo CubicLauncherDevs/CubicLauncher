@@ -15,7 +15,19 @@
 	import ServerStep from "./ServerStep.svelte";
 	import LoginStep from "./LoginStep.svelte";
 
-	let { open = $bindable(false) } = $props<{ open: boolean }>();
+	let {
+		open = $bindable(false),
+		initialServerUrl = "",
+		title,
+		serverInstruction,
+		onsuccess,
+	} = $props<{
+		open: boolean;
+		initialServerUrl?: string;
+		title?: string;
+		serverInstruction?: string;
+		onsuccess?: () => void;
+	}>();
 
 	type Step = "server" | "login" | "loading" | "success" | "error";
 
@@ -34,7 +46,8 @@
 	$effect(() => {
 		if (open) {
 			step = "server";
-			serverUrl = "";
+			clearTimeout(closeTimer);
+			serverUrl = initialServerUrl;
 			username = "";
 			password = "";
 			serverInfo = null;
@@ -79,6 +92,7 @@
 			}
 			await saveSettings();
 			step = "success";
+			onsuccess?.();
 			closeTimer = setTimeout(() => {
 				open = false;
 			}, 2000);
@@ -89,7 +103,7 @@
 	}
 </script>
 
-<ModalBase bind:open title={t("userMenu.yggdrasilModal.title")}>
+<ModalBase bind:open title={title ?? t("userMenu.yggdrasilModal.title")}>
 	<div class="ygg-container">
 		<div class="ygg-logo-wrapper">
 			<svg
@@ -127,7 +141,11 @@
 				subtitle={t("userMenu.yggdrasilModal.successSubtitle")}
 			/>
 		{:else if step === "server"}
-			<ServerStep bind:serverUrl onconnect={handleConnectServer} />
+			<ServerStep
+				bind:serverUrl
+				onconnect={handleConnectServer}
+				instruction={serverInstruction}
+			/>
 		{:else if step === "login"}
 			<LoginStep
 				{serverInfo}

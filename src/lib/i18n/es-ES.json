@@ -390,6 +390,25 @@
 		"yes": "Sí",
 		"no": "No",
 		"selectAccount": "Selecciona una cuenta para ver sus detalles",
+		"accountSetup": {
+			"title": "Agregar cuenta",
+			"subtitle": "Elegí cómo querés iniciar sesión.",
+			"offline": "Offline",
+			"premium": "Premium (Microsoft)",
+			"ely": "Ely.by",
+			"cubicAuth": "CubicAuth",
+			"authinject": "Authinject",
+			"cubicAuthServer": "Conectá tu cuenta al servidor CubicAuth preconfigurado: auth.cubiclauncher.org.",
+			"useAccount": "Usar esta cuenta",
+			"invalidName": "El nombre debe tener entre 3 y 16 caracteres y solo contener letras, números y guiones bajos (_).",
+			"descriptions": {
+				"offline": "Usá un nombre de jugador",
+				"premium": "Iniciá sesión con Microsoft",
+				"ely": "Conectá tu cuenta Ely.by",
+				"cubicAuth": "auth.cubiclauncher.org",
+				"authinject": "Usá un servidor personalizado"
+			}
+		},
 		"skinCape": {
 			"title": "Skin y Capa",
 			"loading": "Cargando perfil de Minecraft...",
@@ -775,8 +794,12 @@
 			"desc": "Es un launcher moderno y rápido para Minecraft. Te permite gestionar múltiples instancias, mods, configuraciones de Java y mucho más. ¡Hagamos un recorrido rápido!"
 		},
 		"slide2": {
-			"title": "Tus Cuentas",
-			"desc": "Aquí puedes gestionar tus cuentas de Minecraft. Añade cuentas de Microsoft, cuentas offline o servidores personalizados, y cambia entre ellas fácilmente."
+			"title": "¿Qué cuenta querés usar?",
+			"desc": "Elegí un tipo de cuenta para configurarla ahora. Después podés agregar más cuentas o cambiar la cuenta activa desde tu perfil."
+		},
+		"accounts": {
+			"active": "Cuenta activa: {name}",
+			"later": "También podés pulsar Siguiente y configurar tu cuenta más tarde."
 		},
 		"slide3": {
 			"title": "Tus Instancias",

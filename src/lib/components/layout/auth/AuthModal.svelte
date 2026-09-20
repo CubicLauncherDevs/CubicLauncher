@@ -9,7 +9,10 @@
 	import AuthError from "./AuthError.svelte";
 	import AuthSuccess from "./AuthSuccess.svelte";
 
-	let { open = $bindable(false) } = $props<{ open: boolean }>();
+	let { open = $bindable(false), onsuccess } = $props<{
+		open: boolean;
+		onsuccess?: () => void;
+	}>();
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -39,7 +42,9 @@
 					launcherStore.settings.user.length - 1;
 			}
 			await saveSettings();
+			loading = false;
 			success = true;
+			onsuccess?.();
 
 			closeTimer = setTimeout(() => {
 				open = false;

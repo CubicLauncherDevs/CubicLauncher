@@ -4,9 +4,11 @@
 	let {
 		serverUrl = $bindable(""),
 		onconnect,
+		instruction,
 	}: {
 		serverUrl?: string;
 		onconnect: () => void;
+		instruction?: string;
 	} = $props();
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -16,7 +18,7 @@
 
 <div class="form-step">
 	<p class="instruction-text">
-		{t("userMenu.yggdrasilModal.serverInstruction")}
+		{instruction ?? t("userMenu.yggdrasilModal.serverInstruction")}
 	</p>
 	<div class="form-group">
 		<label class="form-label" for="ygg-server-url"

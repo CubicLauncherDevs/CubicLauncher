@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from "$lib/i18n";
 	interface Account {
 		username: string;
 		user_type: string;
@@ -22,6 +23,7 @@
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === "Enter" || e.key === " ") {
+			e.preventDefault();
 			onselect?.();
 		}
 	}
@@ -48,10 +50,10 @@
 	</div>
 	<div class="account-info">
 		<span class="account-name">{user.username}</span>
-		<span class="account-type">{typeLabel}</span>
+		<span class="account-type" title={typeLabel}>{typeLabel}</span>
 	</div>
 	{#if isActive}
-		<span class="active-badge">Activo</span>
+		<span class="active-badge">{t("userMenu.active")}</span>
 	{/if}
 </div>
 
@@ -73,6 +75,11 @@
 	.account-item:hover {
 		background: var(--surface-hover);
 		border-color: var(--border);
+	}
+
+	.account-item:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: -2px;
 	}
 
 	.account-item.selected {

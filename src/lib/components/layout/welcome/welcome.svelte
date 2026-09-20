@@ -7,6 +7,11 @@
 	import TutorialTipContent from "./TutorialTipContent.svelte";
 	import TutorialTipFooter from "./TutorialTipFooter.svelte";
 	import ModalBase from "../ModalBase.svelte";
+	import AccountSetup from "../auth/AccountSetup.svelte";
+	import {
+		ACCOUNT_PROVIDERS,
+		type AccountProvider,
+	} from "$lib/utils/accountProviders";
 
 	interface Step {
 		sel: string;
@@ -73,6 +78,11 @@
 	let missingTarget = $state(false);
 	let showSkipConfirmation = $state(false);
 	let skipping = $state(false);
+	let accountProvider = $state<AccountProvider | null>(null);
+	const isAccountStep = $derived(steps[currentStep]?.key === "slide2");
+	const activeUser = $derived(
+		launcherStore.settings.user[launcherStore.settings.active_user_idx],
+	);
 
 	let closeTimer: ReturnType<typeof setTimeout> | undefined;
 	let stepTimer: ReturnType<typeof setTimeout> | undefined;
@@ -99,7 +109,7 @@
 	}
 
 	function requestSkip() {
-		if (!canSkip || skipping) return;
+		if (!canSkip || skipping || accountProvider) return;
 		showSkipConfirmation = true;
 	}
 
@@ -131,7 +141,7 @@
 	}
 
 	function goToStep(i: number) {
-		if (i === currentStep) return;
+		if (i === currentStep || accountProvider) return;
 		clearTimeout(stepTimer);
 		positioning = true;
 		stepTimer = setTimeout(() => {
@@ -284,10 +294,11 @@
 		class:fading={positioning}
 		class:left={tipLeft}
 		class:center={isCentered}
+		class:account-step={isAccountStep}
 		style="--tx:{tx}px;--ty:{ty}px"
 		bind:this={tipEl}
 		role="dialog"
-		inert={showSkipConfirmation || skipping}
+		inert={showSkipConfirmation || skipping || accountProvider !== null}
 	>
 		<div class="tut-arrow"></div>
 
@@ -307,6 +318,27 @@
 			isFirstStep={currentStep === 0}
 			{isLicenseStep}
 		/>
+		{#if isAccountStep}
+			<div class="account-options">
+				{#each ACCOUNT_PROVIDERS as provider (provider)}
+					<button
+						type="button"
+						class="btn-secondary account-option"
+						onclick={() => (accountProvider = provider)}
+					>
+						{t(`userMenu.accountSetup.${provider}`)}
+					</button>
+				{/each}
+			</div>
+			{#if activeUser}
+				<p class="account-note" role="status">
+					{t("tutorial.accounts.active", {
+						name: activeUser.username,
+					})}
+				</p>
+			{/if}
+			<p class="account-note">{t("tutorial.accounts.later")}</p>
+		{/if}
 
 		<TutorialTipFooter
 			{currentStep}
@@ -327,6 +359,13 @@
 			</button>
 		{/if}
 	</div>
+
+	{#if accountProvider}
+		<AccountSetup
+			provider={accountProvider}
+			onclose={() => (accountProvider = null)}
+		/>
+	{/if}
 
 	<ModalBase
 		bind:open={showSkipConfirmation}
@@ -356,6 +395,35 @@
 {/if}
 
 <style>
+	.tut-tip.account-step {
+		width: min(380px, calc(100vw - 20px));
+		max-height: calc(100vh - 20px);
+		box-sizing: border-box;
+		overflow-y: auto;
+	}
+
+	.account-options {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+	}
+
+	.account-option {
+		padding: 10px;
+		white-space: normal;
+	}
+
+	.account-option:last-child {
+		grid-column: 1 / -1;
+	}
+
+	.account-note {
+		margin: 0;
+		font-size: 0.78rem;
+		color: var(--text-secondary);
+		overflow-wrap: anywhere;
+	}
+
 	.tut-skip {
 		align-self: flex-end;
 	}

@@ -1,5 +1,9 @@
 import { mount, unmount } from "svelte";
 import Tutorial from "$lib/components/layout/welcome/welcome.svelte";
+import { launcherStore } from "$lib/state/state.svelte";
+import { calls } from "$lib/api/cubicApi";
+import { saves, hooks } from "$lib/api/launcherService";
+import { checkProfileAccounts } from "./profileAccounts.entry.mjs";
 
 const wait = (ms = 350) => new Promise((resolve) => setTimeout(resolve, ms));
 function assert(value, message) {
@@ -14,6 +18,39 @@ function centered(element) {
 	assert(
 		Math.abs(r.y + r.height / 2 - innerHeight / 2) < 2,
 		"Not centered vertically",
+	);
+}
+
+function input(selector, value) {
+	const element = document.querySelector(selector);
+	element.value = value;
+	element.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+async function chooseAccount(label) {
+	const option = [...document.querySelectorAll(".account-option")].find(
+		(button) => button.textContent.trim() === label,
+	);
+	assert(option, `Missing account option: ${label}`);
+	option.click();
+	await wait();
+	centered(document.querySelector(".modal"));
+	assert(
+		document.querySelector(".tut-tip").inert,
+		"Tutorial must pause during account setup",
+	);
+}
+
+async function closeAccount() {
+	document.querySelector(".modal-header .action-btn").click();
+	await wait();
+	assert(
+		!document.querySelector(".tut-tip").inert,
+		"Tutorial did not resume",
+	);
+	assert(
+		document.querySelector(".account-options"),
+		"Closing account setup changed the step",
 	);
 }
 
@@ -58,6 +95,104 @@ try {
 		);
 	}
 
+	// Account dialogs must sit above the tutorial without inheriting its position.
+	document.querySelectorAll(".tut-dot")[1].click();
+	await wait();
+	assert(
+		document.querySelectorAll(".account-option").length === 5,
+		"Expected five providers",
+	);
+	assert(
+		tip.getBoundingClientRect().bottom <= innerHeight - 9,
+		"Account choices overflow",
+	);
+	await chooseAccount("Offline");
+	input("#account-offline-name", "x!");
+	assert(
+		!document.querySelector("#account-offline-name").checkValidity(),
+		"Invalid offline name accepted",
+	);
+	input("#account-offline-name", "TestPlayer");
+	await wait();
+	hooks.failSave = true;
+	document.querySelector(".offline-form").requestSubmit();
+	await wait();
+	assert(
+		document
+			.querySelector('[role="alert"]')
+			.textContent.includes("Save failed"),
+		"Save error not shown",
+	);
+	hooks.failSave = false;
+	document.querySelector(".offline-form").requestSubmit();
+	await wait();
+	assert(
+		!document.querySelector(".modal"),
+		"Offline setup did not close after saving",
+	);
+	assert(
+		launcherStore.settings.user.length === 1,
+		"Retry duplicated offline account",
+	);
+	assert(saves.length === 1, "Offline account was not saved");
+	assert(
+		document
+			.querySelector('[role="status"]')
+			.textContent.includes("TestPlayer"),
+		"Active account not shown",
+	);
+	await chooseAccount("Premium (Microsoft)");
+	assert(calls.includes("microsoft"), "Premium did not start Microsoft auth");
+	assert(
+		launcherStore.settings.user[launcherStore.settings.active_user_idx]
+			.username === "PremiumPlayer",
+		"Premium was not activated",
+	);
+	await closeAccount();
+
+	for (const [provider, url] of [
+		["Ely.by", "https://account.ely.by/api/authlib-injector"],
+		["CubicAuth", "https://auth.cubiclauncher.org"],
+		["Authinject", "https://custom.example.test/api/yggdrasil"],
+	]) {
+		await chooseAccount(provider);
+		const serverInput = document.querySelector("#ygg-server-url");
+		assert(
+			serverInput.value === (provider === "Authinject" ? "" : url),
+			"Wrong server preset",
+		);
+		input("#ygg-server-url", url);
+		await wait();
+		document.querySelector(".form-step .action-btn.primary").click();
+		await wait();
+		assert(calls.includes(url), "Wrong server used for login");
+		input("#ygg-username", "ServerPlayer");
+		input("#ygg-password", "test-password");
+		await wait();
+		document.querySelector(".form-actions .action-btn.primary").click();
+		await wait();
+		assert(
+			launcherStore.settings.user[launcherStore.settings.active_user_idx]
+				.yggdrasil_server_url === url,
+			"Server account not activated",
+		);
+		await closeAccount();
+	}
+	await chooseAccount("Offline");
+	await closeAccount();
+	assert(
+		launcherStore.settings.user.length === 5,
+		"Cancelling added an account",
+	);
+	document.querySelector(".tut-nav .btn-primary").click();
+	await wait();
+	assert(
+		!document.querySelector(".account-options"),
+		"Cannot continue after account setup",
+	);
+	document.querySelectorAll(".tut-dot")[0].click();
+	await wait();
+
 	// Simulate a translation/content change while the current step is open.
 	tip.style.height = "460px";
 	await wait();
@@ -77,6 +212,7 @@ try {
 	);
 	centered(tip);
 	await unmount(tutorial);
+	await checkProfileAccounts();
 	await fetch("/result", {
 		method: "POST",
 		body: JSON.stringify({ ok: true }),

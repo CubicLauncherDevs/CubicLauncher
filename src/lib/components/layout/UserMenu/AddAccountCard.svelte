@@ -1,200 +1,198 @@
 <script lang="ts">
 	import { t } from "$lib/i18n";
+	import Icon from "$lib/icons/Icon.svelte";
+	import {
+		ACCOUNT_PROVIDERS,
+		type AccountProvider,
+	} from "$lib/utils/accountProviders";
 
 	let {
-		addingOffline = $bindable(false),
-		offlineName = $bindable(""),
-		onAddOffline,
-		onOpenAuth,
-		onOpenYggdrasil,
-		showYggdrasilModal = false,
+		onselect,
 	}: {
-		addingOffline?: boolean;
-		offlineName?: string;
-		onAddOffline: () => void;
-		onOpenAuth: () => void;
-		onOpenYggdrasil: () => void;
-		showYggdrasilModal?: boolean;
+		onselect: (
+			provider: AccountProvider,
+			trigger: HTMLButtonElement,
+		) => void;
 	} = $props();
-
-	function handleCancel() {
-		addingOffline = false;
-		offlineName = "";
-	}
 </script>
 
-<div class="card add-card">
-	<div class="add-toggle">
-		<button
-			type="button"
-			class="add-toggle-btn"
-			class:active={addingOffline}
-			onclick={() => (addingOffline = true)}
-		>
-			{t("userMenu.addOffline")}
-		</button>
-		<button
-			type="button"
-			class="add-toggle-btn"
-			class:active={!addingOffline && !showYggdrasilModal}
-			onclick={onOpenAuth}
-		>
-			{t("userMenu.loginMicrosoft")}
-		</button>
-		<button
-			type="button"
-			class="add-toggle-btn ygg"
-			onclick={onOpenYggdrasil}
-		>
-			{t("userMenu.authInjector")}
-		</button>
+<section class="add-card" aria-labelledby="add-account-title">
+	<header class="add-header">
+		<h3 id="add-account-title">{t("userMenu.accountSetup.title")}</h3>
+		<p>{t("userMenu.accountSetup.subtitle")}</p>
+	</header>
+	<div class="provider-grid">
+		{#each ACCOUNT_PROVIDERS as provider (provider)}
+			<button
+				type="button"
+				class="provider-option"
+				class:custom={provider === "authinject"}
+				data-provider={provider}
+				onclick={(event) => onselect(provider, event.currentTarget)}
+			>
+				<span class="provider-icon" aria-hidden="true">
+					{#if provider === "premium"}
+						<img
+							src="/images/icons/brand/microsoft.svg"
+							alt=""
+							width="22"
+							height="22"
+						/>
+					{:else if provider === "cubicAuth"}
+						<Icon src="/images/cubic.svg" size={24} />
+					{:else if provider === "ely"}
+						<span class="ely-mark">E</span>
+					{:else if provider === "offline"}
+						<svg
+							width="22"
+							height="22"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.6"
+							stroke-linecap="round"
+						>
+							<circle cx="12" cy="8" r="4" />
+							<path d="M4 21v-2a8 8 0 0 1 16 0v2" />
+						</svg>
+					{:else}
+						<Icon name="instance:servers" size={22} />
+					{/if}
+				</span>
+				<span class="provider-name"
+					>{t(`userMenu.accountSetup.${provider}`)}</span
+				>
+				<span class="provider-description"
+					>{t(`userMenu.accountSetup.descriptions.${provider}`)}</span
+				>
+			</button>
+		{/each}
 	</div>
-	{#if addingOffline}
-		<div class="add-form">
-			<input
-				type="text"
-				bind:value={offlineName}
-				placeholder={t("userMenu.usernamePlaceholder")}
-				maxlength="16"
-				class="env-input"
-				onkeydown={(e) => e.key === "Enter" && onAddOffline()}
-			/>
-			<div class="add-form-actions">
-				<button
-					type="button"
-					class="btn-primary"
-					onclick={onAddOffline}
-				>
-					{t("userMenu.add")}
-				</button>
-				<button
-					type="button"
-					class="btn-secondary"
-					onclick={handleCancel}
-				>
-					{t("userMenu.cancel")}
-				</button>
-			</div>
-		</div>
-	{/if}
-</div>
+</section>
 
 <style>
-	.card {
-		background: var(--bg-card);
-		border: 1px solid var(--border-color);
-		border-radius: var(--border-radius-sm);
-		box-shadow:
-			var(--shadow-sm),
-			inset 0 1px 0 var(--surface-selected);
-		overflow: hidden;
-	}
-
 	.add-card {
-		display: flex;
-		flex-direction: column;
+		container: account-picker / inline-size;
+		flex-shrink: 0;
+		min-width: 0;
+		padding: 16px;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius);
 	}
 
-	.add-toggle {
-		display: flex;
-		gap: 0;
+	.add-header {
+		margin-bottom: 14px;
 	}
 
-	.add-toggle-btn {
-		flex: 1;
-		padding: 10px;
-		font-size: 0.78rem;
-		font-weight: 600;
-		cursor: pointer;
-		text-align: center;
-		font-family: inherit;
-		background: var(--bg-input);
-		border: none;
-		color: var(--text-secondary);
-		transition: all 0.15s;
-	}
-
-	.add-toggle-btn:first-child {
-		border-right: 1px solid var(--border-color);
-	}
-
-	.add-toggle-btn:last-child {
-		border-left: 1px solid var(--border-color);
-	}
-
-	.add-toggle-btn.active {
-		background: var(--accent);
-		color: var(--accent-text);
-	}
-
-	.add-toggle-btn:hover:not(.active) {
-		background: var(--surface-selected);
+	.add-header h3 {
+		margin: 0 0 5px;
+		font-size: 0.9rem;
+		font-weight: 700;
 		color: var(--text-primary);
 	}
 
-	.add-form {
-		display: flex;
-		gap: 8px;
-		padding: 12px 14px;
-		border-top: 1px solid var(--border-color);
-		align-items: center;
+	.add-header p {
+		margin: 0;
+		font-size: 0.75rem;
+		line-height: 1.5;
+		color: var(--text-secondary);
 	}
 
-	.add-form-actions {
+	.provider-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+	}
+
+	.provider-option {
 		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
 		gap: 6px;
+		min-width: 0;
+		padding: 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--bg-input);
+		color: var(--text-primary);
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+		transition:
+			background-color 0.15s,
+			border-color 0.15s;
+	}
+
+	.provider-option:hover {
+		background: var(--surface-hover);
+		border-color: var(--accent);
+	}
+
+	.provider-option:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+
+	.provider-icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: var(--border-radius-sm);
+		background: var(--surface-selected);
+		color: var(--accent);
 		flex-shrink: 0;
 	}
 
-	.env-input {
-		flex: 1;
-		min-width: 0;
-		width: 0;
-		background: var(--bg-input);
-		border: 1px solid var(--border-color);
-		color: var(--text-primary);
-		padding: 4px 8px;
-		border-radius: var(--border-radius-sm);
+	.ely-mark {
+		font-size: 1.25rem;
+		font-weight: 800;
+	}
+
+	.provider-name {
 		font-size: 0.8rem;
-		height: 28px;
-		box-sizing: border-box;
+		font-weight: 650;
+		line-height: 1.4;
+		overflow-wrap: anywhere;
 	}
 
-	.env-input:focus {
-		outline: none;
-		border-color: var(--text-muted);
-	}
-
-	.btn-primary {
-		background: var(--accent);
-		color: var(--accent-text);
-		border: none;
-		cursor: pointer;
-		padding: 5px 14px;
-		border-radius: var(--border-radius-sm);
-		font-size: 0.75rem;
-		font-weight: 600;
-		transition: opacity 0.15s;
-	}
-
-	.btn-primary:hover {
-		opacity: 0.85;
-	}
-
-	.btn-secondary {
-		background: transparent;
-		border: 1px solid var(--border-color);
+	.provider-description {
+		font-size: 0.7rem;
+		line-height: 1.5;
 		color: var(--text-secondary);
-		cursor: pointer;
-		padding: 5px 14px;
-		border-radius: var(--border-radius-sm);
-		font-size: 0.75rem;
-		font-weight: 600;
-		transition: all 0.15s;
+		overflow-wrap: anywhere;
 	}
 
-	.btn-secondary:hover {
-		background: var(--surface-selected);
-		color: var(--text-primary);
+	.provider-option.custom {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: 32px minmax(0, 1fr);
+		column-gap: 10px;
+		row-gap: 2px;
+	}
+
+	.custom .provider-icon {
+		grid-row: span 2;
+		align-self: center;
+	}
+
+	@container account-picker (max-width: 280px) {
+		.provider-grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.provider-option {
+			display: grid;
+			grid-template-columns: 32px minmax(0, 1fr);
+			column-gap: 10px;
+			row-gap: 2px;
+		}
+
+		.provider-icon {
+			grid-row: span 2;
+			align-self: center;
+		}
 	}
 </style>

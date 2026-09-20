@@ -390,6 +390,25 @@
 		"yes": "Yes",
 		"no": "No",
 		"selectAccount": "Select an account to view its details",
+		"accountSetup": {
+			"title": "Add account",
+			"subtitle": "Choose how you want to sign in.",
+			"offline": "Offline",
+			"premium": "Premium (Microsoft)",
+			"ely": "Ely.by",
+			"cubicAuth": "CubicAuth",
+			"authinject": "Authinject",
+			"cubicAuthServer": "Connect your account to the preconfigured CubicAuth server: auth.cubiclauncher.org.",
+			"useAccount": "Use this account",
+			"invalidName": "The name must be 3–16 characters long and contain only letters, numbers and underscores (_).",
+			"descriptions": {
+				"offline": "Use a player name",
+				"premium": "Sign in with Microsoft",
+				"ely": "Connect your Ely.by account",
+				"cubicAuth": "auth.cubiclauncher.org",
+				"authinject": "Use a custom server"
+			}
+		},
 		"skinCape": {
 			"title": "Skin & Cape",
 			"loading": "Loading Minecraft profile...",
@@ -775,8 +794,12 @@
 			"desc": "A modern, fast Minecraft launcher. Manage multiple instances, mods, Java configurations and more. Let's take a quick tour!"
 		},
 		"slide2": {
-			"title": "Your Accounts",
-			"desc": "Manage your Minecraft accounts here. Add Microsoft accounts, offline accounts or custom servers, and switch between them easily."
+			"title": "Which account would you like to use?",
+			"desc": "Choose an account type to set it up now. You can add more accounts or switch the active account from your profile later."
+		},
+		"accounts": {
+			"active": "Active account: {name}",
+			"later": "You can also click Next and set up your account later."
 		},
 		"slide3": {
 			"title": "Your Instances",

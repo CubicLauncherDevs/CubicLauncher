@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { tick } from "svelte";
+	import type { MinecraftUser } from "$lib/types/types";
 	import { launcherStore, showError } from "$lib/state/state.svelte";
 	import {
 		fetchAvatarSvg,
@@ -13,13 +15,16 @@
 	} from "$lib/api/launcherService";
 	import { t } from "$lib/i18n";
 	import { logout, switchUser, removeUser } from "$lib/api/cubicApi";
-	import AuthModal from "$lib/components/layout/auth/AuthModal.svelte";
-	import YggdrasilModal from "$lib/components/layout/YggdrasilModal/YggdrasilModal.svelte";
+	import AccountSetup from "$lib/components/layout/auth/AccountSetup.svelte";
 	import AddAccountCard from "$lib/components/layout/UserMenu/AddAccountCard.svelte";
 	import AccountListItem from "./AccountListItem.svelte";
 	import SkinCapeManager from "./SkinCapeManager.svelte";
 	import ElySkinManager from "./ElySkinManager.svelte";
-	import { isElyByAccount } from "$lib/utils/accountProviders";
+	import {
+		isElyByAccount,
+		getAccountProvider,
+		type AccountProvider,
+	} from "$lib/utils/accountProviders";
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
 	import Lupa from "$lib/icons/Lupa.svelte";
 
@@ -31,10 +36,8 @@
 
 	let editingIdx = $state<number | null>(null);
 	let editingName = $state("");
-	let showAuthModal = $state(false);
-	let showYggdrasilModal = $state(false);
-	let addingOffline = $state(false);
-	let offlineName = $state("");
+	let accountProvider = $state<AccountProvider | null>(null);
+	let accountTrigger: HTMLElement | null = null;
 	let removingUserUuid = $state<string | null>(null);
 	let selectedIdx = $state(launcherStore.settings.active_user_idx ?? 0);
 	let closing = $state(false);
@@ -106,22 +109,24 @@
 		await removeUser(uuid);
 	}
 
-	async function handleAddOffline() {
-		const name = offlineName.trim();
-		if (!name) return;
-		launcherStore.settings.user.push({
-			username: name,
-			uuid: "",
-			access_token: "",
-			refresh_token: null,
-			user_type: "Cracked",
-		});
-		launcherStore.settings.active_user_idx =
-			launcherStore.settings.user.length - 1;
-		addingOffline = false;
-		offlineName = "";
+	function openAccountSetup(
+		provider: AccountProvider,
+		trigger: HTMLButtonElement,
+	) {
+		accountTrigger = trigger;
+		accountProvider = provider;
+	}
+
+	function accountAdded() {
 		selectedIdx = launcherStore.settings.active_user_idx;
-		await saveSettings();
+		editingIdx = null;
+		removingUserUuid = null;
+	}
+
+	async function closeAccountSetup() {
+		accountProvider = null;
+		await tick();
+		accountTrigger?.focus();
 	}
 
 	function userKey(u: {
@@ -172,27 +177,28 @@
 	function getYggdrasilServer(user: {
 		yggdrasil_server_url?: string | null;
 	}): string {
-		return (
-			user.yggdrasil_server_url?.split("//")[1]?.split("/")[0] ??
-			"Servidor"
-		);
+		const server = user.yggdrasil_server_url?.trim() ?? "";
+		try {
+			return new URL(
+				server.includes("://") ? server : `https://${server}`,
+			).host;
+		} catch {
+			return server || t("userMenu.server");
+		}
 	}
 
 	function getUserTypeLabel(
-		userType: string,
-		yggdrasilServer?: string | null,
+		user: Pick<MinecraftUser, "user_type" | "yggdrasil_server_url">,
 	): string {
-		if (userType === "Yggdrasil") {
-			return `${t("userMenu.authInjector")} - ${getYggdrasilServer({ yggdrasil_server_url: yggdrasilServer })}`;
-		}
-		if (userType === "Microsoft") {
-			return t("userMenu.premium");
-		}
-		return t("userMenu.offline");
+		const provider = getAccountProvider(user);
+		const label = t(`userMenu.accountSetup.${provider}`);
+		return provider === "authinject"
+			? `${label} · ${getYggdrasilServer(user)}`
+			: label;
 	}
 
 	function onKeydown(e: KeyboardEvent) {
-		if (e.key === "Escape") handleClose();
+		if (e.key === "Escape" && !accountProvider) handleClose();
 	}
 
 	function startEditingName() {
@@ -219,7 +225,11 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<div class="profile-view" transition:fly={{ y: 16, duration: flyDuration }}>
+<div
+	class="profile-view"
+	inert={accountProvider !== null}
+	transition:fly={{ y: 16, duration: flyDuration }}
+>
 	<header class="profile-header">
 		<h2 class="profile-title">{t("userMenu.title")}</h2>
 		<button
@@ -290,10 +300,7 @@
 								</h3>
 							{/if}
 							<span class="hero-type">
-								{getUserTypeLabel(
-									selectedUser.user_type,
-									selectedUser.yggdrasil_server_url,
-								)}
+								{getUserTypeLabel(selectedUser)}
 							</span>
 						</div>
 
@@ -373,13 +380,9 @@
 						</div>
 						<div class="stat-card">
 							<span class="stat-value">
-								{#if selectedUser.user_type === "Microsoft"}
-									Microsoft
-								{:else if selectedUser.user_type === "Yggdrasil"}
-									{t("userMenu.authInjector")}
-								{:else}
-									Offline
-								{/if}
+								{t(
+									`userMenu.accountSetup.${getAccountProvider(selectedUser)}`,
+								)}
 							</span>
 							<span class="stat-label">{t("userMenu.type")}</span>
 						</div>
@@ -429,14 +432,7 @@
 		</section>
 
 		<aside class="profile-list">
-			<AddAccountCard
-				bind:addingOffline
-				bind:offlineName
-				onAddOffline={handleAddOffline}
-				onOpenAuth={() => (showAuthModal = true)}
-				onOpenYggdrasil={() => (showYggdrasilModal = true)}
-				{showYggdrasilModal}
-			/>
+			<AddAccountCard onselect={openAccountSetup} />
 
 			{#if launcherStore.settings.user.length > 0}
 				<h3 class="list-title">{t("userMenu.savedAccounts")}</h3>
@@ -444,10 +440,7 @@
 					{#each launcherStore.settings.user as u, i (i)}
 						<AccountListItem
 							user={u}
-							typeLabel={getUserTypeLabel(
-								u.user_type,
-								u.yggdrasil_server_url,
-							)}
+							typeLabel={getUserTypeLabel(u)}
 							isActive={i === activeUserIdx}
 							isSelected={i === selectedIdx}
 							avatarSvg={avatarSvgs.get(userKey(u)) ??
@@ -468,8 +461,13 @@
 	</div>
 </div>
 
-<AuthModal bind:open={showAuthModal} />
-<YggdrasilModal bind:open={showYggdrasilModal} />
+{#if accountProvider}
+	<AccountSetup
+		provider={accountProvider}
+		onsuccess={accountAdded}
+		onclose={closeAccountSetup}
+	/>
+{/if}
 
 <style>
 	.profile-view {
@@ -623,6 +621,7 @@
 		color: var(--text-secondary);
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
+		overflow-wrap: anywhere;
 	}
 
 	.hero-stats {
@@ -640,6 +639,7 @@
 		flex-direction: column;
 		gap: 4px;
 		min-width: 110px;
+		max-width: 100%;
 	}
 
 	.stat-card.wide {
@@ -651,6 +651,7 @@
 		font-size: 1.1rem;
 		font-weight: 700;
 		color: var(--text-primary);
+		overflow-wrap: anywhere;
 	}
 
 	.stat-label {
@@ -760,7 +761,7 @@
 		border-left: 1px solid var(--border);
 		display: flex;
 		flex-direction: column;
-		overflow: hidden;
+		overflow-y: auto;
 		padding: 20px;
 		gap: 16px;
 	}
@@ -778,8 +779,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
-		overflow-y: auto;
-		flex: 1;
+		flex-shrink: 0;
 	}
 
 	.list-empty {
