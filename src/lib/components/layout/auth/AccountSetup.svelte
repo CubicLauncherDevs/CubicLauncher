@@ -135,7 +135,6 @@
 			signupUrl={provider === "cubicAuth"
 				? "https://accounts.cubiclauncher.org/"
 				: undefined}
-			autoConnect={provider === "cubicAuth"}
 			{onsuccess}
 		/>
 	{/if}
