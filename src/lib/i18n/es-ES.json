@@ -18,7 +18,8 @@
 		"running": "Cierra Minecraft antes de modificar el JAR.",
 		"loading": "Cargando configuración del JAR…",
 		"working": "Guardando cambios del JAR…",
-		"retry": "Reintentar"
+		"retry": "Reintentar",
+		"moreInfo": "Más info"
 	},
 	"servers": {
 		"title": "Servidores",

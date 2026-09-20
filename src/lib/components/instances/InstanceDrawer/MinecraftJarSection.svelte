@@ -9,6 +9,8 @@
 		type MinecraftJarConfig,
 		type JarAction,
 	} from "$lib/api/minecraftJar";
+	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
+	import Trash from "$lib/icons/Trash.svelte";
 
 	let { instance } = $props<{ instance: InstanceDto }>();
 	let config = $state<MinecraftJarConfig | null>(null);
@@ -99,31 +101,39 @@
 				>{t("minecraftJar.retry")}</button
 			>{/if}
 	{/if}
+
 	{#if config}
-		<p class="current">
-			<strong>{t("minecraftJar.current")}</strong>
-			{config.replacement?.name ?? t("minecraftJar.original")}
-		</p>
+		<div class="current-row">
+			<div class="current">
+				<span class="label">{t("minecraftJar.current")}</span>
+				<span class="badge">{config.replacement?.name ?? t("minecraftJar.original")}</span>
+			</div>
+			<button
+				type="button"
+				class="btn-danger restore-btn"
+				disabled={disabled || !config?.replacement}
+				onclick={() => perform(() => ({ type: "restore" }))}
+			>
+				{t("minecraftJar.restore")}
+			</button>
+		</div>
 	{/if}
-	<div class="actions">
-		<button type="button" {disabled} onclick={() => selectFiles(false)}
-			>{t("minecraftJar.add")}</button
-		>
-		<button type="button" {disabled} onclick={() => selectFiles(true)}
-			>{t("minecraftJar.replace")}</button
-		>
-		<button
-			type="button"
-			disabled={disabled || !config?.replacement}
-			onclick={() => perform(() => ({ type: "restore" }))}
-			>{t("minecraftJar.restore")}</button
-		>
+
+	<div class="action-bar">
+		<button type="button" class="btn-primary" {disabled} onclick={() => selectFiles(false)}>
+			{t("minecraftJar.add")}
+		</button>
+		<button type="button" class="btn-secondary" {disabled} onclick={() => selectFiles(true)}>
+			{t("minecraftJar.replace")}
+		</button>
 	</div>
+
 	{#if config}
 		{#if config.mods.length}
+			<h4 class="mods-title">Mods ({config.mods.length})</h4>
 			<ol class="mods">
 				{#each config.mods as mod, index (mod.file)}
-					<li>
+					<li class="mod-row">
 						<label class="mod-name">
 							<input
 								type="checkbox"
@@ -144,66 +154,64 @@
 						<div class="mod-actions">
 							<button
 								type="button"
+								class="icon-btn"
 								disabled={disabled || index === 0}
-								aria-label={t("minecraftJar.moveUp", {
-									name: mod.name,
-								})}
-								title={t("minecraftJar.moveUp", {
-									name: mod.name,
-								})}
+								aria-label={t("minecraftJar.moveUp", { name: mod.name })}
+								title={t("minecraftJar.moveUp", { name: mod.name })}
 								onclick={() =>
-									perform(() => ({
-										type: "move",
-										file: mod.file,
-										offset: -1,
-									}))}>↑</button
+									perform(() => ({ type: "move", file: mod.file, offset: -1 }))
+								}
 							>
+								<ChevronDownIcon class="chev rotate-180" size={16} />
+							</button>
 							<button
 								type="button"
-								disabled={disabled ||
-									index === config.mods.length - 1}
-								aria-label={t("minecraftJar.moveDown", {
-									name: mod.name,
-								})}
-								title={t("minecraftJar.moveDown", {
-									name: mod.name,
-								})}
+								class="icon-btn"
+								disabled={disabled || index === config.mods.length - 1}
+								aria-label={t("minecraftJar.moveDown", { name: mod.name })}
+								title={t("minecraftJar.moveDown", { name: mod.name })}
 								onclick={() =>
-									perform(() => ({
-										type: "move",
-										file: mod.file,
-										offset: 1,
-									}))}>↓</button
+									perform(() => ({ type: "move", file: mod.file, offset: 1 }))
+								}
 							>
+								<ChevronDownIcon class="chev" size={16} />
+							</button>
 							<button
 								type="button"
+								class="icon-btn"
 								{disabled}
-								aria-label={t("minecraftJar.removeNamed", {
-									name: mod.name,
-								})}
+								aria-label={t("minecraftJar.removeNamed", { name: mod.name })}
 								onclick={() =>
-									perform(() => ({
-										type: "remove",
-										file: mod.file,
-									}))}>{t("minecraftJar.remove")}</button
+									perform(() => ({ type: "remove", file: mod.file }))
+								}
+								title={t("minecraftJar.remove")}
 							>
+								<Trash width="16" height="16" />
+							</button>
 						</div>
 					</li>
 				{/each}
 			</ol>
-			<p class="hint">{t("minecraftJar.orderHint")}</p>
-		{:else}<p class="hint">{t("minecraftJar.empty")}</p>{/if}
+		{:else}
+			<p class="empty">{t("minecraftJar.empty")}</p>
+		{/if}
 	{/if}
+
 	{#if working}<p role="status">{t("minecraftJar.working")}</p>{/if}
-	<p class="hint">{t("minecraftJar.savedHint")}</p>
-	<p class="hint">{t("minecraftJar.compatibility")}</p>
+
+	<details class="more-info">
+		<summary>{t("minecraftJar.moreInfo")}</summary>
+		<p class="hint">{t("minecraftJar.orderHint")}</p>
+		<p class="hint">{t("minecraftJar.savedHint")}</p>
+		<p class="hint">{t("minecraftJar.compatibility")}</p>
+	</details>
 </section>
 
 <style>
-	.jar-section {
+.jar-section {
 		display: flex;
 		flex-direction: column;
-		gap: 10px;
+		gap: 12px;
 		border-top: 1px solid var(--border-color);
 		padding-top: 16px;
 		margin-top: 16px;
@@ -230,12 +238,13 @@
 	.error {
 		color: var(--danger, #ef4444);
 	}
-	.actions,
+	.action-bar,
 	.mod-actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 6px;
+		gap: 8px;
 	}
+
 	button {
 		background: var(--bg-card);
 		color: var(--text-primary);
@@ -243,7 +252,7 @@
 		border-radius: var(--border-radius-sm);
 		padding: 8px 10px;
 		font: inherit;
-		font-size: 0.75rem;
+		font-size: 0.8rem;
 		cursor: pointer;
 	}
 	button:hover:not(:disabled) {
@@ -253,11 +262,48 @@
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
+
+	.current-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.current .label {
+		font-weight: 700;
+		margin-right: 8px;
+		font-size: 0.8rem;
+	}
+
+	.badge {
+		display: inline-block;
+		padding: 2px 8px;
+		border-radius: var(--border-radius-sm);
+		background: var(--surface-selected);
+		border: 1px solid var(--border-color);
+		font-size: 0.75rem;
+	}
+
+	.restore-btn {
+		padding: 6px 10px;
+		font-size: 0.75rem;
+	}
+
+	.mods-title {
+		margin: 8px 0 0;
+		font-size: 0.85rem;
+		color: var(--text-secondary);
+	}
 	.mods {
 		margin: 0;
-		padding-left: 22px;
+		padding-left: 0;
 	}
-	.mods li {
+	.mod-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
 		padding: 8px 0;
 		border-bottom: 1px solid var(--border-color);
 	}
@@ -266,11 +312,45 @@
 		align-items: center;
 		gap: 8px;
 		font-size: 0.8rem;
+		min-width: 0;
 	}
 	.mod-name input {
 		flex-shrink: 0;
 	}
 	.mod-actions {
-		margin-top: 6px;
+		gap: 4px;
+	}
+
+	.icon-btn {
+		background: transparent;
+		border: 1px solid var(--border-color);
+		padding: 4px 6px;
+		border-radius: var(--border-radius-sm);
+		color: var(--text-secondary);
+	}
+	.icon-btn:hover:not(:disabled) {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+	.chev {
+		display: inline-block;
+		color: currentColor;
+	}
+	.rotate-180 {
+		transform: rotate(180deg);
+	}
+
+	.empty {
+		color: var(--text-muted);
+		font-size: 0.8rem;
+	}
+
+	.more-info {
+		margin-top: 4px;
+	}
+	.more-info > summary {
+		cursor: pointer;
+		font-size: 0.8rem;
+		color: var(--text-secondary);
 	}
 </style>
