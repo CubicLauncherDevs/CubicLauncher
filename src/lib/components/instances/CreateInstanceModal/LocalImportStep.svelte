@@ -3,6 +3,7 @@
 	import { animDuration } from "$lib/utils/animations";
 	import ModpackImportStep from "./ModpackImportStep.svelte";
 	import InstanceImportStep from "./InstanceImportStep.svelte";
+	import LauncherMigrationStep from "./LauncherMigrationStep.svelte";
 
 	let {
 		initialMrpackPath = null,
@@ -16,7 +17,7 @@
 		onImported?: () => void;
 	} = $props();
 
-	type SubTab = "modpack" | "instance";
+	type SubTab = "modpack" | "instance" | "migration";
 	let subTab = $state<SubTab>("modpack");
 	const contentDuration = $derived(animDuration(180));
 
@@ -54,6 +55,16 @@
 		>
 			{t("createInstance.localInstanceTab")}
 		</button>
+		<button
+			type="button"
+			class="sub-tab-btn"
+			role="tab"
+			aria-selected={subTab === "migration"}
+			class:active={subTab === "migration"}
+			onclick={() => (subTab = "migration")}
+		>
+			{t("migration.title")}
+		</button>
 	</div>
 
 	<div class="sub-tab-panel" class:hidden={subTab !== "modpack"}>
@@ -67,6 +78,11 @@
 	<div class="sub-tab-panel" class:hidden={subTab !== "instance"}>
 		<InstanceImportStep {onImported} initialPath={initialInstanceZipPath} />
 	</div>
+	{#if subTab === "migration"}
+		<div class="sub-tab-panel">
+			<LauncherMigrationStep {onImported} />
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -79,6 +95,7 @@
 
 	.sub-tab-bar {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 6px;
 		border-bottom: 1px solid var(--border);
 		padding-bottom: 8px;

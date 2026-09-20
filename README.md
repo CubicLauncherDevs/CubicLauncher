@@ -32,6 +32,7 @@ La aplicación utiliza **Tauri v2**, **Rust** y **SvelteKit**. El código fuente
 ## Características
 
 - **Instancias independientes:** creación, configuración, importación y exportación de instalaciones de Minecraft.
+- **Migración de launchers:** copia directa de perfiles del launcher oficial e instancias de MultiMC (Forks), incluyendo PolyMC y Prism Launcher.
 - **Versiones y loaders:** soporte para Vanilla, Fabric, Forge, Quilt y NeoForge.
 - **Cuentas:** autenticación con Microsoft y Yggdrasil, además de perfiles sin conexión.
 - **Contenido:** búsqueda e instalación de mods, paquetes de recursos y shaders mediante Modrinth y CurseForge; importación de modpacks.
@@ -76,6 +77,22 @@ nix run github:CubicLauncherDevs/CubicLauncher
 El flake define paquetes para `x86_64-linux`, `aarch64-linux` y `aarch64-darwin`. Los detalles de empaquetado, configuración y solución de problemas se documentan en la [guía de Nix](dist/nix/README.md).
 
 La disponibilidad en otras distribuciones puede consultarse en [Repology](https://repology.org/project/cubiclauncher/versions).
+
+## Migrar desde otro launcher
+
+1. Abre **Crear instancia → Local → Migrar**.
+2. Elige **Launcher oficial** o **MultiMC (Forks)** y pulsa **Buscar instalaciones**.
+3. Para una instalación portable o una ruta personalizada, usa **Elegir carpeta**:
+   - Oficial: la carpeta `.minecraft` que contiene `launcher_profiles.json`.
+   - MultiMC, PolyMC o Prism: la carpeta del launcher, `instances` o una instancia individual.
+4. Selecciona las instancias, revisa sus versiones y ajusta los nombres de destino si lo necesitas.
+5. Pulsa **Migrar**. El asistente muestra el progreso y un resumen por instancia.
+
+Se copian mundos, mods, configuraciones, packs, capturas, servidores y opciones del juego. Los originales se conservan. Las versiones y loaders se instalan desde la cola de descargas de CubicLauncher. Las cuentas se configuran desde CubicLauncher.
+
+Los perfiles oficiales que comparten una carpeta de juego se indican en la vista previa; cada instancia seleccionada recibe su propia copia. Fabric incluye sus mappings Intermediary y NeoForge se reconoce también por sus argumentos de arranque. Los parches de loaders conocidos de MultiMC permiten recuperar sus versiones; la vista previa indica que se reinstalarán los componentes publicados, sin copiar cambios locales en bibliotecas o argumentos. Los componentes desconocidos y los parches del juego base aparecen como no compatibles. No se admiten enlaces simbólicos dentro de los datos copiados.
+
+Puedes cancelar la operación durante la copia. Se eliminan los datos temporales y la instancia incompleta, conservando las instancias que ya terminaron. Cerrar el asistente o cambiar de pestaña también cancela la migración pendiente.
 
 ## Desarrollo
 

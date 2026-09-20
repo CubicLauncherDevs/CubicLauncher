@@ -6,6 +6,7 @@
 
 mod extractor;
 mod launchers;
+pub mod migration;
 mod preview;
 pub mod types;
 

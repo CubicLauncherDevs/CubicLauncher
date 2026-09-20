@@ -13,7 +13,7 @@ use std::pin::Pin;
 use tracing::{info, warn};
 
 pub mod migrate;
-mod parser;
+pub(crate) mod parser;
 
 /// Provider para ZIPs de MultiMC / Prism Launcher.
 pub struct MultimcProvider;
@@ -24,7 +24,7 @@ impl InstanceImporter for MultimcProvider {
     }
 
     fn display_name(&self) -> &'static str {
-        "MultiMC / Prism"
+        "MultiMC (Forks)"
     }
 
     fn detect(&self, preview_dir: &Path) -> bool {

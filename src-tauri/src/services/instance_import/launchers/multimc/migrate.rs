@@ -4,7 +4,7 @@ use super::ImportError;
 use std::path::{Path, PathBuf};
 
 /// Datos de Minecraft que migraremos desde el directorio de juego.
-const FOLDERS_TO_MIGRATE: &[&str] = &[
+pub(crate) const FOLDERS_TO_MIGRATE: &[&str] = &[
     "mods",
     "resourcepacks",
     "shaderpacks",
@@ -18,6 +18,11 @@ const FOLDERS_TO_MIGRATE: &[&str] = &[
     "options.txt",
     "optionsof.txt",
     "servers.dat",
+    "texturepacks",
+    "optionsshaders.txt",
+    "journeymap",
+    "XaeroWaypoints",
+    "XaeroWorldMap",
 ];
 
 /// Devuelve el directorio de juego real dentro de la instancia extraída.

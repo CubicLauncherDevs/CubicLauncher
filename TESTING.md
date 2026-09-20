@@ -102,6 +102,17 @@ bun run tauri build
 
 ## Flujos manuales a verificar
 
+### Migración de launchers
+
+- Abrir **Crear instancia → Local → Migrar** y comprobar detección automática y selección manual para el launcher oficial y **MultiMC (Forks)**.
+- Con carpetas de prueba, migrar perfiles oficiales Vanilla y Fabric/Forge con `gameDir` personalizado; revisar la indicación de carpetas compartidas y la resolución de `latest-release` / `latest-snapshot`.
+- Migrar instancias de Prism/PolyMC con `minecraft` y `.minecraft`, iconos personalizados y memoria sobrescrita explícitamente.
+- Seleccionar varias instancias con nombres repetidos; comprobar las sugerencias únicas y la validación de nombres editados.
+- Comprobar progreso de copia, resumen por instancia y versiones añadidas a la cola; comparar los archivos de mundos, mods y opciones con los originales.
+- Cancelar una copia grande y cerrar el asistente durante otra; verificar que no queda una instancia incompleta y que las ya terminadas permanecen.
+- Probar archivos ilegibles, origen eliminado después de la vista previa, espacio insuficiente y componentes no compatibles; comprobar que se informa del fallo sin modificar el origen.
+- Pruebas automatizadas específicas: `cargo test -p cubiclauncher --lib services::instance_import::migration` y `bun test --conditions=browser ./tests/frontend/ui/migrationNames.test.mjs`.
+
 ### CSP y avatares
 
 - Ejecutar `cargo test -p cubiclauncher --lib commands::avatar::tests` para validar skins modernas, legacy, HD y dimensiones invalidas.
