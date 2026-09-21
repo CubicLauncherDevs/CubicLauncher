@@ -180,11 +180,11 @@ export function isMarketProjectInstalled(project: MarketProject): boolean {
 }
 
 export function parseInstanceVersion(instance: InstanceDto): {
-	loader: string;
-	gameVersion: string;
+    loader: string;
+    gameVersion: string;
 } {
-	const version = instance.version;
-	const lower = version.toLowerCase();
+    const version = instance.version;
+    const lower = version.toLowerCase();
 
 	if (lower.startsWith("fabric-loader-")) {
 		const lastDash = version.lastIndexOf("-");
@@ -205,12 +205,22 @@ export function parseInstanceVersion(instance: InstanceDto): {
 		return { loader: "forge", gameVersion: version.slice(0, idx) };
 	}
 
-	if (lower.includes("-neoforge-")) {
-		const idx = lower.indexOf("-neoforge-");
-		return { loader: "neoforge", gameVersion: version.slice(0, idx) };
-	}
+    if (lower.includes("-neoforge-")) {
+        const idx = lower.indexOf("-neoforge-");
+        return { loader: "neoforge", gameVersion: version.slice(0, idx) };
+    }
 
-	return { loader: instance.loader.toLowerCase(), gameVersion: version };
+    // OptiFine installs often encode the MC version as
+    // "Minecraft <mcVersion>-OptiFine_<...>" or "<mcVersion>-OptiFine_<...>".
+    // Normalize to the plain MC version so external APIs like Modrinth work.
+    if (lower.includes("-optifine_")) {
+        const idx = lower.indexOf("-optifine_");
+        const before = version.slice(0, idx);
+        const gameVersion = before.replace(/^Minecraft\s+/i, "");
+        return { loader: "optifine", gameVersion };
+    }
+
+    return { loader: instance.loader.toLowerCase(), gameVersion: version };
 }
 
 export function modrinthVersionToMarket(

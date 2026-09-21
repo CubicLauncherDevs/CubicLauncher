@@ -10,7 +10,8 @@
 	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
 	import Trash from "$lib/icons/Trash.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
-	import { themeDiagnostics } from "$lib/state/themeDiagnostics.svelte";
+import { themeDiagnostics } from "$lib/state/themeDiagnostics.svelte";
+import { showSuccess, showError } from "$lib/state/state.svelte";
 
 	let {
 		themes = $bindable(),
@@ -45,40 +46,44 @@
 		openUrl("https://www.cubiclauncher.org/themes");
 	}
 
-	async function handleImport() {
-		const selected = await open({
-			multiple: false,
-			filters: [
-				{
-					name: "Themes",
-					extensions: ["zip", "cbth"],
-				},
-			],
-		});
-		if (!selected) return;
-		importing = true;
-		try {
-			if (typeof selected === "string") {
-				const ext = selected.split(".").pop()?.toLowerCase();
-				let entry: ThemeEntry;
-				if (ext === "cbth") {
-					entry = await invoke<ThemeEntry>("import_theme_cbth", {
-						cbthPath: selected,
-					});
-				} else {
-					entry = await invoke<ThemeEntry>("import_theme_zip", {
-						zipPath: selected,
-					});
-				}
-				await onrefresh?.();
-				selectTheme(`user:${entry.id}`);
-			}
-		} catch (e) {
-			console.error("Error importing theme:", e);
-		} finally {
-			importing = false;
-		}
-	}
+async function handleImport() {
+    const selected = await open({
+      multiple: false,
+      filters: [
+        {
+          name: "Themes",
+          extensions: ["zip", "cbth"],
+        },
+      ],
+    });
+    if (!selected) return;
+    importing = true;
+    try {
+      if (typeof selected === "string") {
+        const ext = selected.split(".").pop()?.toLowerCase();
+        let entry: ThemeEntry;
+        if (ext === "cbth") {
+          entry = await invoke<ThemeEntry>("import_theme_cbth", {
+            cbthPath: selected,
+          });
+        } else {
+          entry = await invoke<ThemeEntry>("import_theme_zip", {
+            zipPath: selected,
+          });
+        }
+        await onrefresh?.();
+        selectTheme(`user:${entry.id}`);
+        showSuccess(
+          t("themes.importSuccess"),
+          t("themes.importSuccessMessage"),
+        );
+      }
+    } catch (e) {
+      showError(t("themes.importError"), String(e));
+    } finally {
+      importing = false;
+    }
+  }
 
 	async function handleExport(theme: ThemeEntry) {
 		const rawId = theme.id.startsWith("user:")
