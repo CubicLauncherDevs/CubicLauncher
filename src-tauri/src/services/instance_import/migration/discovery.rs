@@ -22,15 +22,28 @@ pub fn default_roots(provider: Provider) -> Vec<PathBuf> {
         ],
         Provider::Multimc => {
             let mut paths = Vec::new();
-            for name in ["multimc", "MultiMC", "PrismLauncher", "PolyMC"] {
+            // Known MultiMC-compatible launchers (directories vary by distro and fork)
+            for name in [
+                "multimc",
+                "MultiMC",
+                "PrismLauncher",
+                "PolyMC",
+                // PineconeMC / Ely Prism Launcher forks
+                "ElyPrismLauncher",
+                "PineconeMC",
+            ] {
                 paths.push(base.data_dir().join(name));
                 paths.push(home.join(name));
                 paths.push(home.join(".config").join(name));
             }
+            // Flatpak sandboxed app data directories
             for (app, name) in [
                 ("org.prismlauncher.PrismLauncher", "PrismLauncher"),
                 ("org.polymc.PolyMC", "PolyMC"),
                 ("org.multimc.MultiMC", "multimc"),
+                // PineconeMC Flatpak ID storing data under ElyPrismLauncher or PineconeMC
+                ("ru.pineconemc.launcher", "ElyPrismLauncher"),
+                ("ru.pineconemc.launcher", "PineconeMC"),
             ] {
                 paths.push(home.join(".var/app").join(app).join("data").join(name));
             }

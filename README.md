@@ -32,7 +32,7 @@ La aplicación utiliza **Tauri v2**, **Rust** y **SvelteKit**. El código fuente
 ## Características
 
 - **Instancias independientes:** creación, configuración, importación y exportación de instalaciones de Minecraft.
-- **Migración de launchers:** copia directa de perfiles del launcher oficial e instancias de MultiMC (Forks), incluyendo PolyMC y Prism Launcher.
+- **Migración de launchers:** copia directa de perfiles del launcher oficial e instancias de MultiMC (Forks), incluyendo PolyMC, Prism Launcher y PineconeMC.
 - **Versiones y loaders:** soporte para Vanilla, Fabric, Forge, Quilt y NeoForge.
 - **Cuentas:** autenticación con Microsoft y Yggdrasil, además de perfiles sin conexión.
 - **Contenido:** búsqueda e instalación de mods, paquetes de recursos y shaders mediante Modrinth y CurseForge; importación de modpacks.
@@ -84,7 +84,7 @@ La disponibilidad en otras distribuciones puede consultarse en [Repology](https:
 2. Elige **Launcher oficial** o **MultiMC (Forks)** y pulsa **Buscar instalaciones**.
 3. Para una instalación portable o una ruta personalizada, usa **Elegir carpeta**:
    - Oficial: la carpeta `.minecraft` que contiene `launcher_profiles.json`.
-   - MultiMC, PolyMC o Prism: la carpeta del launcher, `instances` o una instancia individual.
+   - MultiMC, PolyMC, Prism o PineconeMC: la carpeta del launcher, `instances` o una instancia individual.
 4. Selecciona las instancias, revisa sus versiones y ajusta los nombres de destino si lo necesitas.
 5. Pulsa **Migrar**. El asistente muestra el progreso y un resumen por instancia.
 

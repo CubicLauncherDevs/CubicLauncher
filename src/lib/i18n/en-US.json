@@ -770,7 +770,7 @@
 		"nameInvalidChars": "The name contains invalid characters. Use only ASCII letters, numbers, and basic punctuation.",
 		"nameInvalidNonAscii": "The name can only contain ASCII characters (a-z, 0-9, -, _).",
 		"importInstanceTab": "Import Instance",
-		"importInstanceHint": "Select a .zip file exported from MultiMC, Prism Launcher or a compatible launcher.",
+		"importInstanceHint": "Select a .zip file exported from MultiMC, Prism Launcher, PineconeMC or a compatible launcher.",
 		"importInstanceSelect": "Select .zip",
 		"importInstanceAnalyzing": "Analyzing...",
 		"importInstanceChangeFile": "Change file",
