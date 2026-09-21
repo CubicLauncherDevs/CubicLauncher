@@ -18,7 +18,7 @@
 ,
 }:
 
-rustPlatform.buildRustPackage (finalAttrs: {
+rustPlatform.buildRustPackage rec {
   pname = "cubiclauncher";
   version = "34.0.1";
 
@@ -27,8 +27,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
   cargoHash = "sha256-RXqSVsXae6KUeo6UivIcSF6RpMle9O3Y9GJ+9VU84Xk="";
 
   nodeModules = stdenv.mkDerivation {
-    pname = "${finalAttrs.pname}-node_modules";
-    inherit (finalAttrs) version;
+    pname = "${pname}-node_modules";
+    inherit version;
     # Dependency installation must depend only on the manifest and its lockfile.
     src = lib.fileset.toSource {
       root = ./../..;
@@ -68,7 +68,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   };
 
   postPatch = ''
-    cp -r ${finalAttrs.nodeModules}/node_modules .
+    cp -r ${nodeModules}/node_modules .
     chmod -R +w node_modules
     patchShebangs --build node_modules
 
@@ -122,4 +122,4 @@ rustPlatform.buildRustPackage (finalAttrs: {
     mainProgram = "cubiclauncher";
     platforms = lib.platforms.linux ++ lib.platforms.darwin;
   };
-})
+}
