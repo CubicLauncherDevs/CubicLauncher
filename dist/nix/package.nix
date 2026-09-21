@@ -60,11 +60,11 @@ rustPlatform.buildRustPackage rec {
     outputHashMode = "recursive";
     outputHashAlgo = "sha256";
     outputHash =
-      {
-        x86_64-linux = "sha256-xdQpzq2+d6/53AtZ2cVFryO/ddn7eBN7jSMEfiFL5AM=";
-        aarch64-linux = "sha256-UxIWsn4FTY+57FQGlDy8mDdM+zVTWJin4DnyIraj5s0=";
-        aarch64-darwin = "sha256-IeWlSySva2I6+zT0+/pWtoZIFt0iXH8dnWLdoh1M1xo=";
-      }.${stdenv.hostPlatform.system} or (throw "Unsupported system ${stdenv.hostPlatform.system}");
+    {
+      x86_64-linux = "sha256-xdQpzq2+d6/53AtZ2cVFryO/ddn7eBN7jSMEfiFL5AM=";
+      aarch64-linux = "sha256-tmeeXF9mtcrKEKRM5JTgZBf0+Rzs8Nv73dH7B5Fwtv8=";
+      aarch64-darwin = "sha256-IeWlSySva2I6+zT0+/pWtoZIFt0iXH8dnWLdoh1M1xo=";
+    }.${stdenv.hostPlatform.system} or (throw "Unsupported system ${stdenv.hostPlatform.system}");
   };
 
   postPatch = ''
