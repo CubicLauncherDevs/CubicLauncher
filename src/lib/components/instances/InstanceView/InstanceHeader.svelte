@@ -27,6 +27,7 @@
 	} = $props();
 
 	const loaderIcon = $derived(getLoaderLogo(instance.loader));
+	const isDefaultIcon = $derived(!instance.icon);
 	const downloadLabel = $derived(
 		downloadKind === "mods"
 			? t("instanceView.downloadingMods")
@@ -166,11 +167,19 @@
 		>
 			<div class="title-row">
 				<div class="title-left">
+				{#if isDefaultIcon}
+					<div
+						class="instance-icon instance-icon--accent"
+						role="img"
+						aria-label={instance.name}
+					></div>
+				{:else}
 					<img
 						class="instance-icon"
 						src={getDisplayIconSrc(instance.icon)}
 						alt={instance.name}
 					/>
+				{/if}
 					<h1 class="instance-title">{instance.name}</h1>
 				</div>
 				<div class="actions-row">
@@ -314,11 +323,19 @@
 			>
 				<Icon name="ui:chevron-left" size={18} />
 			</button>
-			<img
-				class="compact-icon"
-				src={getDisplayIconSrc(instance.icon)}
-				alt={instance.name}
-			/>
+			{#if isDefaultIcon}
+				<div
+					class="compact-icon compact-icon--accent"
+					role="img"
+					aria-label={instance.name}
+				></div>
+			{:else}
+				<img
+					class="compact-icon"
+					src={getDisplayIconSrc(instance.icon)}
+					alt={instance.name}
+				/>
+			{/if}
 			<div class="compact-title-area">
 				<span class="compact-title">{instance.name}</span>
 				<span class="compact-version">{instance.version}</span>
@@ -752,6 +769,18 @@
 		border-radius: 5px;
 		object-fit: contain;
 		flex-shrink: 0;
+	}
+
+	.instance-icon--accent {
+		background-color: var(--text-primary);
+		-webkit-mask: url('/images/cubic.svg') center/contain no-repeat;
+		mask: url('/images/cubic.svg') center/contain no-repeat;
+	}
+
+	.compact-icon--accent {
+		background-color: var(--text-primary);
+		-webkit-mask: url('/images/cubic.svg') center/contain no-repeat;
+		mask: url('/images/cubic.svg') center/contain no-repeat;
 	}
 
 	.compact-title-area {
