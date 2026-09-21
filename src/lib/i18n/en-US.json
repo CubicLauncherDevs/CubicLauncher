@@ -321,6 +321,11 @@
 		"notNow": "Not now",
 		"later": "Later",
 		"close": "Close",
+		"channel": {
+			"label": "Update channel",
+			"stable": "Stable",
+			"prerelease": "Pre-release"
+		},
 		"releaseNotes": "What's new",
 		"receiving": "Receiving update…",
 		"status": {

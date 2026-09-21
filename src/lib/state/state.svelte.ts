@@ -43,6 +43,7 @@ export const launcherStore = $state<LauncherState>({
 		jre25_managed: true,
 		language: "es",
 		auto_updates: true,
+		update_channel: "stable",
 		close_launcher_on_play: true,
 		hide_on_launch: false,
 		open_console_on_launch: false,

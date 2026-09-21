@@ -67,6 +67,7 @@ export interface Settings {
 	jre25_managed: boolean;
 	language: string;
 	auto_updates: boolean;
+	update_channel: string;
 	close_launcher_on_play: boolean;
 	hide_on_launch: boolean;
 	open_console_on_launch: boolean;

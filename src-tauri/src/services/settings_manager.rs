@@ -50,6 +50,9 @@ fn default_lang() -> CompactString {
 fn default_true() -> bool {
     true
 }
+fn default_update_channel() -> CompactString {
+    CompactString::from("stable")
+}
 fn default_theme() -> CompactString {
     CompactString::from("dark")
 }
@@ -97,6 +100,8 @@ pub struct SettingsManager {
     pub language: CompactString,
     #[serde(default = "default_true")]
     pub auto_updates: bool,
+    #[serde(default = "default_update_channel")]
+    pub update_channel: CompactString,
     #[serde(default)]
     pub show_error_console: bool,
     #[serde(default = "default_true")]
@@ -206,6 +211,7 @@ impl Default for SettingsManager {
             jre25_managed: true,
             language: CompactString::from("es"),
             auto_updates: true,
+            update_channel: CompactString::from("stable"),
             show_error_console: false,
             close_launcher_on_play: true,
             hide_on_launch: false,

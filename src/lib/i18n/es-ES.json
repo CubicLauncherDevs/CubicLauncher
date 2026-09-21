@@ -321,6 +321,11 @@
 		"notNow": "Ahora no",
 		"later": "Más tarde",
 		"close": "Cerrar",
+		"channel": {
+			"label": "Canal de actualización",
+			"stable": "Estable",
+			"prerelease": "Pre-lanzamiento"
+		},
 		"releaseNotes": "Qué cambió",
 		"receiving": "Recibiendo actualización…",
 		"status": {
