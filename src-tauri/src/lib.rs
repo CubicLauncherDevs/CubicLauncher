@@ -18,9 +18,8 @@ pub fn run() {
     let mut context = tauri::generate_context!();
 
     // CUBIC_UPDATE_URL env var overrides the base URL (for local testing).
-    let base_url = std::env::var("CUBIC_UPDATE_URL").unwrap_or_else(|_| {
-        "https://updates.cubiclauncher.org".to_string()
-    });
+    let base_url = std::env::var("CUBIC_UPDATE_URL")
+        .unwrap_or_else(|_| "https://updates.cubiclauncher.org".to_string());
 
     let channel = read_update_channel().unwrap_or_default();
     let endpoint_url = if channel == "prerelease" {
@@ -36,10 +35,7 @@ pub fn run() {
             .or_insert_with(|| serde_json::json!({}));
 
         if let Some(obj) = updater_cfg.as_object_mut() {
-            obj.insert(
-                "endpoints".to_string(),
-                serde_json::json!([endpoint_url]),
-            );
+            obj.insert("endpoints".to_string(), serde_json::json!([endpoint_url]));
         }
     }
 
