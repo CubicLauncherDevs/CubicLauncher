@@ -816,6 +816,10 @@
 		"importSuccessMessage": "The theme has been imported and applied successfully.",
 		"importError": "Error importing theme",
 		"deleteConfirm": "Are you sure you want to delete {name}?",
+		"music": {
+			"pause": "Pause theme music",
+			"resume": "Resume theme music"
+		},
 		"diagnostics": {
 			"title": "Theme resource advisory",
 			"advisory": "These resource counts and estimates are not measured performance. All theme resources and visuals are preserved.",

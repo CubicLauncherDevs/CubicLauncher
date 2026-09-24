@@ -35,6 +35,7 @@ pub struct ThemeResponse {
     pub r#type: String,
     pub variables: HashMap<String, String>,
     pub bg_image: Option<String>,
+    pub bg_music: Option<String>,
     pub bg_image_blur: Option<f64>,
     pub bg_image_opacity: Option<f64>,
     pub fonts: Vec<FontFace>,
@@ -165,6 +166,29 @@ fn validate_theme_icon(path: &str) -> bool {
             false
         }
     }
+}
+
+const THEME_MUSIC_FILE: &str = "BG.mp3";
+
+fn find_theme_music(theme_base: &Path, background: Option<&str>) -> Option<String> {
+    let mut candidates = Vec::with_capacity(3);
+
+    if let Some(parent) = background
+        .map(Path::new)
+        .and_then(Path::parent)
+        .filter(|parent| parent.starts_with(theme_base))
+    {
+        candidates.push(parent.join(THEME_MUSIC_FILE));
+    }
+    candidates.push(theme_base.join("assets").join(THEME_MUSIC_FILE));
+    candidates.push(theme_base.join(THEME_MUSIC_FILE));
+
+    candidates.into_iter().find_map(|path| {
+        std::fs::symlink_metadata(&path)
+            .ok()
+            .filter(|metadata| metadata.file_type().is_file())
+            .map(|_| path.to_string_lossy().into_owned())
+    })
 }
 
 // Serialize installation/removal, not extraction. Transactions are siblings of
@@ -624,6 +648,7 @@ fn load_user_theme(theme_base: &Path, id: &str) -> Result<ThemeResponse, String>
         };
         let mut intermediate: ThemeResponse = v2.to_theme_res();
         intermediate.inject_css = inject;
+        intermediate.bg_music = find_theme_music(theme_base, intermediate.bg_image.as_deref());
         info!("Theme V2 convertido a intermediario correctamente");
         Ok(intermediate)
     } else {
@@ -674,7 +699,9 @@ fn load_user_theme(theme_base: &Path, id: &str) -> Result<ThemeResponse, String>
                 font.src = resolved.to_string_lossy().to_string().into();
             }
         }
-        Ok(theme.to_theme_res())
+        let mut intermediate = theme.to_theme_res();
+        intermediate.bg_music = find_theme_music(theme_base, intermediate.bg_image.as_deref());
+        Ok(intermediate)
     }
 }
 

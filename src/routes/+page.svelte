@@ -16,6 +16,7 @@
 	import Drawer from "$lib/components/layout/Drawer.svelte";
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
+	import ThemeMusicControl from "$lib/components/layout/ThemeMusicControl.svelte";
 	import JreInstallPrompt from "$lib/components/ui/JreInstallPrompt.svelte";
 	import UpdateModal from "$lib/components/ui/UpdateModal.svelte";
 	import Tutorial from "$lib/components/layout/welcome/welcome.svelte";
@@ -450,6 +451,7 @@
 
 		<main class="main-content">
 			<div class="background-overlay"></div>
+			<ThemeMusicControl />
 
 			{#if showProfileView}
 				<ProfileView onclose={() => (showProfileView = false)} />

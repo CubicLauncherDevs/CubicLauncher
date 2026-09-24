@@ -29,8 +29,13 @@ plugin({
 	},
 });
 
-const { applyTheme, themeIcons, getThemeIcon, invalidateThemeCache } =
-	await import("../../../src/lib/api/themeManager.ts");
+const {
+	applyTheme,
+	themeIcons,
+	themeMusic,
+	getThemeIcon,
+	invalidateThemeCache,
+} = await import("../../../src/lib/api/themeManager.ts");
 const { themeDiagnostics } =
 	await import("../../../src/lib/state/themeDiagnostics.svelte.ts");
 
@@ -556,6 +561,29 @@ test("current fonts and image finish while the next theme read is pending", asyn
 	expect(registeredFonts.size).toBe(0);
 	expect(properties.size).toBe(0);
 	expect(diagnostics()).toEqual({ themeId: "user:B", warnings: [] });
+});
+
+test("theme music is revisioned for user themes and cleared on replacement", async () => {
+	await commit(
+		"user:A",
+		theme("Music", { bg_music: "/themes/A/assets/BG.mp3" }),
+	);
+	const first = themeMusic.get("source");
+	expect(first).toMatch(
+		/^asset:\/\/localhost\/themes\/A\/assets\/BG\.mp3\?theme-revision=\d+-\d+$/,
+	);
+
+	const pending = applyTheme("user:B");
+	expect(themeMusic.get("source")).toBe(first);
+	respond(reads.at(-1), theme("Silent"));
+	await pending;
+	expect(themeMusic.size).toBe(0);
+
+	await commit(
+		"dark",
+		theme("Built in", { bg_music: "/themes/dark/BG.mp3" }),
+	);
+	expect(themeMusic.get("source")).toBe("/themes/dark/BG.mp3");
 });
 
 for (const id of ["user:B", "user:A"]) {
