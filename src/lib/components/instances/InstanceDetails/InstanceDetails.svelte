@@ -6,6 +6,7 @@
 	import InfoHeader from "./InfoHeader.svelte";
 	import ActionChips from "./ActionChips.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
+	import { formatPlaytime } from "$lib/utils/playtime";
 
 	let { instance } = $props<{ instance: InstanceDto }>();
 
@@ -56,6 +57,10 @@
 		return formatter.format(new Date(instance.last_played * 1000));
 	});
 
+	const playtimeLabel = $derived(
+		formatPlaytime(instance.playtime_seconds, t),
+	);
+
 	function openDir(subDir?: string) {
 		invoke("open_instance_dir", {
 			id: instance.uuid,
@@ -83,6 +88,11 @@
 	<div class="last-played-row">
 		<Icon name="instance:clock" size={14} />
 		<span>{t("instanceView.lastPlayed", { date: lastPlayedLabel })}</span>
+	</div>
+
+	<div class="last-played-row">
+		<Icon name="instance:clock" size={14} />
+		<span>{t("instanceView.playtime", { time: playtimeLabel })}</span>
 	</div>
 
 	<ActionChips onOpenDir={openDir} onOpenLogs={openLogs} />

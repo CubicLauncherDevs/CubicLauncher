@@ -10,6 +10,14 @@ fn legacy_instances_default_to_original_minecraft_jar() {
 }
 
 #[test]
+fn legacy_instances_default_playtime_to_zero() {
+    let data: InstanceData =
+        serde_json::from_str(r#"{"name":"Old","version":"1.12.2","last_played":0,"uuid":"test"}"#)
+            .unwrap();
+    assert_eq!(data.playtime_seconds, 0);
+}
+
+#[test]
 fn test_validate_name_empty() {
     assert!(validate_instance_name("").is_err());
 }

@@ -5,7 +5,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
+use tracing::warn;
 
 use super::data::{InstanceData, InstanceDto};
 
@@ -36,6 +38,9 @@ pub struct InstanceHandle {
     status: Arc<AtomicStatus>,
     files_lock: Arc<tokio::sync::Mutex<()>>,
     deleted: Arc<AtomicBool>,
+    /// Inicio de la sesión de juego en curso, solo en memoria. El total se
+    /// persiste en `playtime_seconds` al cerrar la sesión.
+    play_session_start: Arc<std::sync::Mutex<Option<Instant>>>,
 }
 
 /// Admission to an instance's filesystem. Clones share deletion state and the lock.
@@ -63,6 +68,7 @@ impl InstanceHandle {
             status: Arc::new(AtomicStatus::new()),
             files_lock: Arc::new(tokio::sync::Mutex::new(())),
             deleted: Arc::new(AtomicBool::new(false)),
+            play_session_start: Arc::new(std::sync::Mutex::new(None)),
         }
     }
 
@@ -242,6 +248,7 @@ impl InstanceHandle {
             version: data.version.clone(),
             loader: std::borrow::Cow::Borrowed(data.get_loader()),
             last_played: data.last_played,
+            playtime_seconds: data.playtime_seconds,
             status: self.get_status(),
             cover_image: data.cover_image.clone(),
             icon: Self::resolve_icon_absolute(&data),
@@ -284,11 +291,54 @@ impl InstanceHandle {
 
     pub async fn update_last_played(&self) {
         let mut data = self.data.write().await;
-        data.last_played = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
+        data.last_played = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
         data.dirty = true;
+    }
+
+    pub async fn get_playtime_seconds(&self) -> u64 {
+        self.data.read().await.playtime_seconds
+    }
+
+    /// Marca el inicio de una sesión de juego (solo en memoria).
+    pub fn begin_play_session(&self) {
+        let mut slot = self
+            .play_session_start
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        *slot = Some(Instant::now());
+    }
+
+    /// Cierra la sesión en curso y acumula el tiempo jugado en `playtime_seconds`.
+    /// Notifica a la UI con el DTO actualizado para que el total se vea al
+    /// instante, sin esperar al siguiente refresco.
+    pub async fn end_play_session(&self) {
+        let start = self
+            .play_session_start
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
+        let Some(start) = start else {
+            return;
+        };
+        let elapsed = start.elapsed().as_secs();
+        if elapsed == 0 {
+            return;
+        }
+        {
+            let mut data = self.data.write().await;
+            data.playtime_seconds = data.playtime_seconds.saturating_add(elapsed);
+            data.dirty = true;
+            if let Err(e) = data.save().await {
+                warn!("No se pudo guardar el tiempo jugado: {e}");
+            }
+        }
+        emit(AppEvent::InstanceEdited {
+            id: self.uuid.to_compact_string(),
+            dto: Some(self.to_dto().await),
+        });
     }
 
     pub async fn save_if_dirty(&self) -> Result<(), io::Error> {

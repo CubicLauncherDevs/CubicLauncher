@@ -6,6 +6,7 @@ export interface InstanceDto {
 	version: string;
 	loader: string;
 	last_played: number;
+	playtime_seconds: number;
 	status: InstState;
 	cover_image: string | null;
 	icon: string | null;

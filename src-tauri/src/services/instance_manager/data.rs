@@ -15,6 +15,9 @@ pub(crate) struct InstanceData {
     pub name: Arc<str>,
     pub version: Arc<str>,
     pub last_played: u64,
+    /// Segundos acumulados de juego (estilo Prism). Se suma al cerrar cada sesión.
+    #[serde(default)]
+    pub playtime_seconds: u64,
     pub min_memory: Option<u32>,
     pub max_memory: Option<u32>,
     pub cover_image: Option<PathBuf>,
@@ -51,6 +54,7 @@ impl InstanceData {
             name: name.into(),
             version: version.into(),
             last_played: 0,
+            playtime_seconds: 0,
             min_memory: None,
             max_memory: None,
             cover_image: None,
@@ -101,6 +105,7 @@ pub struct InstanceDto {
     pub version: Arc<str>,
     pub loader: Cow<'static, str>,
     pub last_played: u64,
+    pub playtime_seconds: u64,
     pub status: InstanceStatus,
     pub cover_image: Option<PathBuf>,
     pub icon: Option<Arc<str>>,

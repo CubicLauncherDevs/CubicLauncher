@@ -557,6 +557,10 @@
 	"instanceView": {
 		"neverPlayed": "Never played",
 		"lastPlayed": "Last played: {date}",
+		"playtime": "Played: {time}",
+		"playtimeSeconds": "{seconds}s",
+		"playtimeMinutes": "{minutes} min",
+		"playtimeHoursMinutes": "{hours}h {minutes}m",
 		"playBtn": "Play",
 		"downloadingBtn": "Downloading...",
 		"downloadingMods": "Downloading mods",

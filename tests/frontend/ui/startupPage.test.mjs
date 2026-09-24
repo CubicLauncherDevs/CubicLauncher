@@ -45,6 +45,7 @@ export const import_theme_cbth=async()=>{};
 export const saveSettings=async()=>{};
 export const getLoaderLogo=()=>'';
 export const getDisplayIconSrc=()=>'';
+export const formatPlaytime=()=>'';
 export const subscribeLogPreview=()=>()=>{};
 export const invoke=async()=>{};
 `;

@@ -44,6 +44,32 @@ async fn minecraft_jar_settings_survive_save_reload_and_instance_rename() {
 }
 
 #[tokio::test]
+async fn play_session_accumulates_elapsed_seconds_and_persists() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut data = InstanceData::new("Pack".into(), "1.21".into(), None);
+    data.instance_root = temp.path().to_path_buf();
+    let dir = data.get_instance_dir();
+    tokio::fs::create_dir(&dir).await.unwrap();
+    let handle = InstanceHandle::new(data);
+    assert_eq!(handle.get_playtime_seconds().await, 0);
+
+    // Una sesión demasiado corta no altera el total.
+    handle.begin_play_session();
+    handle.end_play_session().await;
+    assert_eq!(handle.get_playtime_seconds().await, 0);
+
+    handle.begin_play_session();
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    handle.end_play_session().await;
+    let total = handle.get_playtime_seconds().await;
+    assert!(total >= 1, "se esperaba al menos un segundo, hubo {total}");
+
+    let saved: InstanceData =
+        serde_json::from_slice(&std::fs::read(dir.join("instance.cub")).unwrap()).unwrap();
+    assert_eq!(saved.playtime_seconds, total);
+}
+
+#[tokio::test]
 async fn a_save_queued_before_deletion_is_rejected_after_admission() {
     let temp = tempfile::tempdir().unwrap();
     let mut data = InstanceData::new("Pack".into(), "1.21".into(), None);

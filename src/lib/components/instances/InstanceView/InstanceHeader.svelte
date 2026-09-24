@@ -9,6 +9,7 @@
 	import Icon from "$lib/icons/Icon.svelte";
 	import { animateWidth } from "$lib/utils/animateWidth";
 	import { animDuration } from "$lib/utils/animations";
+	import { formatPlaytime } from "$lib/utils/playtime";
 
 	let {
 		instance,
@@ -82,6 +83,9 @@
 		}
 		return formatter.format(new Date(instance.last_played * 1000));
 	});
+	const playtimeLabel = $derived(
+		formatPlaytime(instance.playtime_seconds, t),
+	);
 
 	let lastLog = $state("");
 	let visible = $state(true);
@@ -167,19 +171,19 @@
 		>
 			<div class="title-row">
 				<div class="title-left">
-				{#if isDefaultIcon}
-					<div
-						class="instance-icon instance-icon--accent"
-						role="img"
-						aria-label={instance.name}
-					></div>
-				{:else}
-					<img
-						class="instance-icon"
-						src={getDisplayIconSrc(instance.icon)}
-						alt={instance.name}
-					/>
-				{/if}
+					{#if isDefaultIcon}
+						<div
+							class="instance-icon instance-icon--accent"
+							role="img"
+							aria-label={instance.name}
+						></div>
+					{:else}
+						<img
+							class="instance-icon"
+							src={getDisplayIconSrc(instance.icon)}
+							alt={instance.name}
+						/>
+					{/if}
 					<h1 class="instance-title">{instance.name}</h1>
 				</div>
 				<div class="actions-row">
@@ -306,6 +310,14 @@
 					<span
 						>{t("instanceView.lastPlayed", {
 							date: lastPlayedLabel,
+						})}</span
+					>
+				</div>
+				<div class="playtime">
+					<Icon name="instance:clock" size={12} />
+					<span
+						>{t("instanceView.playtime", {
+							time: playtimeLabel,
 						})}</span
 					>
 				</div>
@@ -663,7 +675,8 @@
 		color: var(--text-primary);
 	}
 
-	.last-played {
+	.last-played,
+	.playtime {
 		display: flex;
 		align-items: center;
 		gap: 5px;
@@ -672,7 +685,8 @@
 		white-space: nowrap;
 	}
 
-	.last-played :global(.icon-svg) {
+	.last-played :global(.icon-svg),
+	.playtime :global(.icon-svg) {
 		flex-shrink: 0;
 	}
 
@@ -773,14 +787,14 @@
 
 	.instance-icon--accent {
 		background-color: var(--text-primary);
-		-webkit-mask: url('/images/cubic.svg') center/contain no-repeat;
-		mask: url('/images/cubic.svg') center/contain no-repeat;
+		-webkit-mask: url("/images/cubic.svg") center/contain no-repeat;
+		mask: url("/images/cubic.svg") center/contain no-repeat;
 	}
 
 	.compact-icon--accent {
 		background-color: var(--text-primary);
-		-webkit-mask: url('/images/cubic.svg') center/contain no-repeat;
-		mask: url('/images/cubic.svg') center/contain no-repeat;
+		-webkit-mask: url("/images/cubic.svg") center/contain no-repeat;
+		mask: url("/images/cubic.svg") center/contain no-repeat;
 	}
 
 	.compact-title-area {

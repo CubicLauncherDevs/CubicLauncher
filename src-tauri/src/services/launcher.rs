@@ -795,6 +795,7 @@ impl Launcher {
                 info!("Handle {} lanzado", lw_handle.id().to_string());
                 let (kill_tx, mut kill_rx) = tokio::sync::oneshot::channel::<()>();
                 let kill_requested = register_kill_sender(&handle.uuid, kill_tx);
+                handle.begin_play_session();
                 handle.set_status(InstanceStatus::Started);
 
                 let loader = handle.to_dto().await.loader;
@@ -883,6 +884,7 @@ impl Launcher {
 
                     discord_presence::on_instance_stop(&inst_name).await;
                     remove_log_ring(&uuid);
+                    h.end_play_session().await;
                     h.set_status(InstanceStatus::Off);
                     drop(session);
                 });

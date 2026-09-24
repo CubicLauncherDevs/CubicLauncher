@@ -364,6 +364,7 @@
 					updated.loader !== sel.loader ||
 					updated.version !== sel.version ||
 					updated.last_played !== sel.last_played ||
+					updated.playtime_seconds !== sel.playtime_seconds ||
 					updated.icon !== sel.icon)
 			) {
 				selectedInstance = updated;
