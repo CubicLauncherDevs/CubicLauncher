@@ -6,8 +6,10 @@
 use crate::core::PathManager;
 use crate::services::{InstanceManager, SettingsManager};
 use serde::Serialize;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Condvar, Mutex};
 use tracing::{error, info, warn};
 
 static MIGRATION_RUNNING: AtomicBool = AtomicBool::new(false);
@@ -64,12 +66,17 @@ fn collect_files(
     for entry in std::fs::read_dir(dir).map_err(|e| (dir.to_string_lossy().to_string(), e))? {
         let entry = entry.map_err(|e| (dir.to_string_lossy().to_string(), e))?;
         let path = entry.path();
-        let meta = entry
-            .metadata()
+        // `file_type` sale de la propia entrada de readdir (d_type en Unix): evita
+        // un `stat` por carpeta. El tamaño solo se consulta para archivos.
+        let file_type = entry
+            .file_type()
             .map_err(|e| (path.to_string_lossy().to_string(), e))?;
-        if meta.is_dir() {
+        if file_type.is_dir() {
             collect_files(&path, root, entries, total, cancelled)?;
-        } else if meta.is_file() {
+        } else if file_type.is_file() {
+            let meta = entry
+                .metadata()
+                .map_err(|e| (path.to_string_lossy().to_string(), e))?;
             *total += meta.len();
             entries.push(FileEntry {
                 relative: path
@@ -109,8 +116,9 @@ fn remove_tree(dir: &Path) {
     fn walk(dir: &Path) -> std::io::Result<()> {
         for entry in std::fs::read_dir(dir)?.flatten() {
             let path = entry.path();
-            if entry.metadata()?.is_dir() {
-                walk(&path)?;
+            // `file_type` no sigue symlinks ni cuesta un `stat` extra por entrada.
+            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                let _ = walk(&path);
             } else {
                 let _ = std::fs::remove_file(&path);
             }
@@ -126,8 +134,30 @@ fn remove_tree(dir: &Path) {
     }
 }
 
+/// Descuenta un worker activo al salir del scope, incluso si entra en pánico:
+/// así el bucle de progreso nunca espera para siempre.
+struct ActiveWorker<'a> {
+    active: &'a AtomicUsize,
+    done: &'a Mutex<bool>,
+    done_cv: &'a Condvar,
+}
+
+impl Drop for ActiveWorker<'_> {
+    fn drop(&mut self) {
+        if self.active.fetch_sub(1, Ordering::Relaxed) == 1 {
+            *self.done.lock().unwrap() = true;
+            self.done_cv.notify_all();
+        }
+    }
+}
+
 /// Traslada el árbol de `source_root` a `dest_root` con hardlinks (fallback a
-/// copia). Devuelve la última estrategia usada y los archivos que fallaron.
+/// copia). Devuelve la estrategia global usada y los archivos que fallaron.
+///
+/// El trabajo pesado (enlazar/copiar) se reparte entre varios hilos: es
+/// syscall + latencia de disco, así que un pool pequeño satura mejor la cola
+/// que un recorrido secuencial. El progreso se emite desde un único hilo para
+/// respetar el callback `FnMut`.
 fn move_tree(
     source_root: &Path,
     dest_root: &Path,
@@ -143,52 +173,134 @@ fn move_tree(
         &mut total,
         cancelled,
     )?;
-    let mut copied = 0u64;
-    let mut last_report = std::time::Instant::now();
-    let mut last_strategy = "hardlink";
-    let mut failures = Vec::new();
-    progress(0, total, String::new(), "hardlink");
-    for entry in entries {
-        if cancelled.load(Ordering::Relaxed) {
-            return Err((
-                entry.source.to_string_lossy().to_string(),
-                std::io::Error::other("Cancelado"),
-            ));
-        }
-        let dest = dest_root.join(&entry.relative);
-        if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| (parent.to_string_lossy().to_string(), e))?;
-        }
-        match transfer_file(&entry.source, &dest) {
-            Ok(strategy) => {
-                last_strategy = strategy;
-                copied += entry.len;
-            }
-            Err(e) => {
-                error!(
-                    "No se pudo trasladar {} a {}: {}",
-                    entry.source.display(),
-                    dest.display(),
-                    e
-                );
-                failures.push(entry.relative.to_string_lossy().to_string());
-                continue;
-            }
-        }
-        // Progreso espaciado: miles de hardlinks por segundo saturarían el canal IPC.
-        if last_report.elapsed() >= std::time::Duration::from_millis(100) {
-            progress(
-                copied,
-                total,
-                entry.relative.to_string_lossy().to_string(),
-                last_strategy,
-            );
-            last_report = std::time::Instant::now();
+
+    // Esqueleto de directorios una sola vez: `create_dir_all` por archivo
+    // multiplicaría syscalls sin aportar nada (los archivos de una carpeta son
+    // contiguos, así que basta con crear cada carpeta una vez).
+    let mut dirs = HashSet::new();
+    for entry in &entries {
+        if let Some(parent) = entry.relative.parent().filter(|p| !p.as_os_str().is_empty()) {
+            dirs.insert(dest_root.join(parent));
         }
     }
-    progress(copied, total, String::new(), last_strategy);
-    Ok((last_strategy, failures))
+    for dir in &dirs {
+        std::fs::create_dir_all(dir).map_err(|e| (dir.to_string_lossy().to_string(), e))?;
+    }
+
+    let next = AtomicUsize::new(0);
+    let done_index = AtomicUsize::new(usize::MAX);
+    let copied = AtomicU64::new(0);
+    let used_copy = AtomicBool::new(false);
+    let active = AtomicUsize::new(0);
+    let cancelled_at = Mutex::new(None::<String>);
+    let failures: Mutex<Vec<String>> = Mutex::new(Vec::new());
+    let done = Mutex::new(false);
+    let done_cv = Condvar::new();
+
+    let worker_count = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(2)
+        .clamp(1, 8)
+        .min(entries.len().max(1));
+
+    progress(0, total, String::new(), "hardlink");
+
+    std::thread::scope(|scope| {
+        active.store(worker_count, Ordering::Relaxed);
+        for _ in 0..worker_count {
+            scope.spawn(|| {
+                let _worker = ActiveWorker {
+                    active: &active,
+                    done: &done,
+                    done_cv: &done_cv,
+                };
+                loop {
+                    if cancelled.load(Ordering::Relaxed) {
+                        // Si ya no queda trabajo sin reclamar, un cancel tardío no
+                        // debe abortar un traslado que en realidad terminó.
+                        if next.load(Ordering::Relaxed) < entries.len() {
+                            let mut slot = cancelled_at.lock().unwrap();
+                            if slot.is_none() {
+                                *slot = entries
+                                    .get(next.load(Ordering::Relaxed))
+                                    .map(|e| e.source.to_string_lossy().to_string());
+                            }
+                        }
+                        break;
+                    }
+                    let index = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(entry) = entries.get(index) else {
+                        break;
+                    };
+                    let dest = dest_root.join(&entry.relative);
+                    match transfer_file(&entry.source, &dest) {
+                        Ok(strategy) => {
+                            // Basta con que un archivo copie para que el traslado
+                            // pierda la optimización; no la revertimos después.
+                            if strategy == "copy" {
+                                used_copy.store(true, Ordering::Relaxed);
+                            }
+                            copied.fetch_add(entry.len, Ordering::Relaxed);
+                        }
+                        Err(e) => {
+                            error!(
+                                "No se pudo trasladar {} a {}: {}",
+                                entry.source.display(),
+                                dest.display(),
+                                e
+                            );
+                            failures
+                                .lock()
+                                .unwrap()
+                                .push(entry.relative.to_string_lossy().to_string());
+                        }
+                    }
+                    done_index.store(index, Ordering::Relaxed);
+                }
+            });
+        }
+
+        // Progreso espaciado desde el hilo principal: el callback es `FnMut` y
+        // no puede tocarse desde varios workers. El `Condvar` despierta al
+        // terminar para no añadir latencia al final de cada instancia.
+        let mut last_report = std::time::Instant::now();
+        let mut done_guard = done.lock().unwrap();
+        while !*done_guard {
+            let (guard, timeout) = done_cv
+                .wait_timeout(done_guard, std::time::Duration::from_millis(100))
+                .unwrap();
+            done_guard = guard;
+            if *done_guard {
+                break;
+            }
+            if timeout.timed_out() && last_report.elapsed() >= std::time::Duration::from_millis(100)
+            {
+                let file = entries
+                    .get(done_index.load(Ordering::Relaxed))
+                    .map(|e| e.relative.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                let strategy = if used_copy.load(Ordering::Relaxed) {
+                    "copy"
+                } else {
+                    "hardlink"
+                };
+                progress(copied.load(Ordering::Relaxed), total, file, strategy);
+                last_report = std::time::Instant::now();
+            }
+        }
+    });
+
+    if let Some(path) = cancelled_at.into_inner().unwrap() {
+        return Err((path, std::io::Error::other("Cancelado")));
+    }
+    let strategy = if used_copy.load(Ordering::Relaxed) {
+        "copy"
+    } else {
+        "hardlink"
+    };
+    let failures = failures.into_inner().unwrap();
+    progress(copied.load(Ordering::Relaxed), total, String::new(), strategy);
+    Ok((strategy, failures))
 }
 
 fn is_empty_dir(path: &Path) -> bool {

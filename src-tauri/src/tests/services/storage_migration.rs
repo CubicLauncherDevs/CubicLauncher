@@ -71,6 +71,51 @@ fn cancellation_leaves_the_destination_empty_and_the_source_intact() {
 }
 
 #[test]
+fn a_wide_tree_is_transferred_by_several_workers_without_losing_files() {
+    let source = tempfile::tempdir().unwrap();
+    let target = tempfile::tempdir().unwrap();
+    let mut expected = Vec::new();
+    for dir in 0..4 {
+        let sub = source.path().join(format!("dir{dir}"));
+        fs::create_dir_all(&sub).unwrap();
+        for file in 0..8 {
+            let name = format!("file{file}.dat");
+            let content = format!("{dir}-{file}");
+            fs::write(sub.join(&name), &content).unwrap();
+            expected.push((format!("dir{dir}/{name}"), content));
+        }
+    }
+    let mut total = 0u64;
+    let mut reported = (0u64, 0u64);
+    let (strategy, failures) = move_tree(
+        source.path(),
+        target.path(),
+        &AtomicBool::new(false),
+        |current, t, _, _| {
+            if t > 0 {
+                total = t;
+                reported = (current, t);
+            }
+        },
+    )
+    .unwrap();
+    assert_eq!(strategy, "hardlink");
+    assert!(failures.is_empty());
+    assert_eq!(reported, (total, total));
+    for (relative, content) in &expected {
+        assert_eq!(
+            fs::read_to_string(target.path().join(relative)).unwrap(),
+            *content
+        );
+        // El original sigue intacto hasta que el llamador confirma el traslado.
+        assert_eq!(
+            fs::read_to_string(source.path().join(relative)).unwrap(),
+            *content
+        );
+    }
+}
+
+#[test]
 fn remove_tree_deletes_the_whole_original_directory() {
     let (source, _target) = fixture();
     remove_tree(source.path());
