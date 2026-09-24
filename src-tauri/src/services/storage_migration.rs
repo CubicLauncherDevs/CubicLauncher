@@ -179,7 +179,11 @@ fn move_tree(
     // contiguos, así que basta con crear cada carpeta una vez).
     let mut dirs = HashSet::new();
     for entry in &entries {
-        if let Some(parent) = entry.relative.parent().filter(|p| !p.as_os_str().is_empty()) {
+        if let Some(parent) = entry
+            .relative
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+        {
             dirs.insert(dest_root.join(parent));
         }
     }
@@ -299,7 +303,12 @@ fn move_tree(
         "hardlink"
     };
     let failures = failures.into_inner().unwrap();
-    progress(copied.load(Ordering::Relaxed), total, String::new(), strategy);
+    progress(
+        copied.load(Ordering::Relaxed),
+        total,
+        String::new(),
+        strategy,
+    );
     Ok((strategy, failures))
 }
 
