@@ -64,6 +64,7 @@ export interface ThemeResponse {
 	type: string;
 	variables: Record<string, string>;
 	bg_image?: string | null;
+	bg_music?: string | null;
 	bg_image_blur?: number | null;
 	bg_image_opacity?: number | null;
 	fonts: ThemeFontFace[];
@@ -124,6 +125,7 @@ const MAX_LOADED_FONTS = 20;
 
 export const themeIcons = new SvelteMap<string, string>();
 export const themeIconDefinitions = new SvelteMap<string, string>();
+export const themeMusic = new SvelteMap<"source", string>();
 // Memoization must not mutate reactive state from Icon.svelte's $derived.
 // The reactive definitions still notify consumers when the theme changes.
 const lazyThemeIcons = new Map<string, string>();
@@ -284,6 +286,7 @@ function clearThemeResources() {
 	themeIcons.clear();
 	themeIconDefinitions.clear();
 	lazyThemeIcons.clear();
+	themeMusic.clear();
 }
 
 let currentRevision = "";
@@ -376,6 +379,8 @@ export function applyTheme(
 			.map(([key, path]) => [key, assetUrl(path)] as const);
 		const bgImg = theme.bg_image;
 		const imgUrl = bgImg && assetUrl(bgImg);
+		const bgMusic = theme.bg_music;
+		const musicUrl = bgMusic && assetUrl(bgMusic);
 
 		// Pending reads do not own the displayed resources until they commit.
 		const gen = ++currentGeneration;
@@ -391,6 +396,7 @@ export function applyTheme(
 		for (const [key, path] of iconEntries) {
 			themeIconDefinitions.set(key, path);
 		}
+		if (musicUrl) themeMusic.set("source", musicUrl);
 
 		const root = document.documentElement;
 

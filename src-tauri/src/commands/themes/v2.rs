@@ -118,6 +118,7 @@ impl Theme for V2Theme {
             r#type: "user".to_string(),
             variables: vars,
             bg_image: self.theme.background.reference_path.clone(),
+            bg_music: None,
             bg_image_blur: self.theme.background.image_blur,
             bg_image_opacity: self.theme.background.image_opacity,
             fonts: self.theme.fonts.clone(),
