@@ -27,6 +27,7 @@
 	import EnvVarEditor from "./EnvVarEditor.svelte";
 	import NotificationSettings from "./NotificationSettings.svelte";
 	import InterfaceSettings from "./InterfaceSettings.svelte";
+	import StorageSection from "./StorageSection.svelte";
 	import "./controls.css";
 
 	interface Props {
@@ -279,6 +280,14 @@
 							>{t("settings.launcher.openConsoleOnLaunch")}</label
 						>
 					</div>
+				</CollapsibleSection>
+
+				<CollapsibleSection
+					title={t("settings.storage.title")}
+					iconName="instance:database"
+					storageKey="section_storage"
+				>
+					<StorageSection />
 				</CollapsibleSection>
 
 				<CollapsibleSection

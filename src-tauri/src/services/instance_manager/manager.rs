@@ -22,7 +22,9 @@ const DELETION_DIR: &str = ".cubic-pending-instance-deletions";
 
 pub struct InstanceManager {
     instances: Arc<RwLock<HashMap<String, InstanceHandle>>>,
-    instance_dir: PathBuf,
+    /// Base de instancias. RwLock (parking_lot) porque la migración de
+    /// almacenamiento la reapunta en caliente.
+    instance_dir: parking_lot::RwLock<PathBuf>,
     _sync_handle: tokio::task::JoinHandle<()>,
 }
 
@@ -75,7 +77,9 @@ impl InstanceManager {
     pub async fn init() -> Arc<Self> {
         let manager = Arc::new(Self {
             instances: Arc::new(RwLock::new(HashMap::new())),
-            instance_dir: PathManager::get().get_instance_dir().to_path_buf(),
+            instance_dir: parking_lot::RwLock::new(
+                PathManager::get().get_instance_dir().to_path_buf(),
+            ),
             _sync_handle: tokio::spawn(Self::sync_task()),
         });
 
@@ -112,6 +116,17 @@ impl InstanceManager {
             .expect("BUG: InstanceManager usado antes de inicializar")
     }
 
+    /// Directorio base actual de las instancias.
+    pub(crate) fn base_dir(&self) -> PathBuf {
+        self.instance_dir.read().clone()
+    }
+
+    /// Reapunta el directorio base tras una migración de almacenamiento
+    /// completada. Las instancias existentes actualizan su raíz por su cuenta.
+    pub(crate) fn update_base_dir(&self, dir: PathBuf) {
+        *self.instance_dir.write() = dir;
+    }
+
     async fn sync_task() {
         let mut interval = time::interval(Duration::from_secs(SYNC_INTERVAL_SECS));
         interval.tick().await;
@@ -136,7 +151,7 @@ impl InstanceManager {
                     error!("Error guardando instancia {}: {:?}", handle.uuid, e);
                 }
             }
-            cleanup_deleted_instances(&trash_dir(&manager.instance_dir)).await;
+            cleanup_deleted_instances(&trash_dir(&manager.base_dir())).await;
         }
     }
 
@@ -149,7 +164,7 @@ impl InstanceManager {
         validate_instance_name(&name).map_err(InstanceError::InstNameParse)?;
 
         let mut data = InstanceData::new(name, version, icon);
-        data.instance_root = self.instance_dir.clone();
+        data.instance_root = self.base_dir();
         // Reserve the name while publishing the new instance, including against renames.
         let mut instances = self.instances.write().await;
         for existing in instances.values() {
@@ -226,7 +241,7 @@ impl InstanceManager {
             return Err("No se puede eliminar una instancia mientras está en ejecución".into());
         }
         let instances = self.instances.clone();
-        let trash = trash_dir(&self.instance_dir);
+        let trash = trash_dir(&self.base_dir());
         // Finish the transaction even if the IPC caller is cancelled after the rename.
         tokio::spawn(async move {
             let uuid = handle.uuid.as_ref();
@@ -285,7 +300,7 @@ impl InstanceManager {
                         return Err("Ya existe una instancia con ese nombre".to_string());
                     }
                 }
-                let base_dir = &self.instance_dir;
+                let base_dir = self.base_dir();
                 let old_dir = base_dir.join(&*old_name);
                 let new_dir = base_dir.join(&name);
 

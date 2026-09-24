@@ -9,5 +9,5 @@ pub(crate) mod webview;
 pub use errors::*;
 pub use event_bus::{AppEvent, emit, init};
 pub use http_client::HTTP;
-pub use path_manager::PathManager;
+pub use path_manager::{PathManager, default_instances_dir};
 pub use path_security::{safe_join, sanitize_path, validate_filename, validate_identifier};

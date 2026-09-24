@@ -213,6 +213,22 @@
 				"wide": "Amplio"
 			}
 		},
+		"storage": {
+			"title": "Almacenamiento",
+			"description": "Elige en qué disco se guardan las instancias. El traslado usa enlaces duros (hardlinks): no duplica espacio y solo borra el original cuando cada instancia quedó completa en el nuevo disco.",
+			"currentDir": "Ubicación actual",
+			"instanceCount": "Instancias",
+			"change": "Cambiar ubicación",
+			"reset": "Restablecer ubicación",
+			"pickTitle": "Selecciona la nueva carpeta de instancias",
+			"preparing": "Preparando traslado…",
+			"linking": "Trasladando con enlaces duros",
+			"copyingFallback": "Discos distintos: copiando datos",
+			"progress": "Instancia {index} de {count}",
+			"cancelling": "Cancelando…",
+			"done": "{count} instancia(s) trasladada(s)",
+			"partial": "{failed} archivo(s) no se pudieron trasladar:"
+		},
 		"launcher": {
 			"generalTitle": "General",
 			"language": "Idioma",

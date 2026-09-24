@@ -61,9 +61,9 @@ rustPlatform.buildRustPackage rec {
     outputHashAlgo = "sha256";
     outputHash =
     {
-      x86_64-linux = "sha256-xdQpzq2+d6/53AtZ2cVFryO/ddn7eBN7jSMEfiFL5AM=";
+      x86_64-linux = "sha256-ls6BV3qHMB0LVbWk2j2oSR4IXZ17IaAWyMi4JH2JZiY=";
       aarch64-linux = "sha256-tmeeXF9mtcrKEKRM5JTgZBf0+Rzs8Nv73dH7B5Fwtv8=";
-      aarch64-darwin = "sha256-IeWlSySva2I6+zT0+/pWtoZIFt0iXH8dnWLdoh1M1xo=";
+      aarch64-darwin = "sha256-UPe0OJPWc026U8H1/PrH8K+S3KuogWD5xXz5hrhPAm8=";
     }.${stdenv.hostPlatform.system} or (throw "Unsupported system ${stdenv.hostPlatform.system}");
   };
 

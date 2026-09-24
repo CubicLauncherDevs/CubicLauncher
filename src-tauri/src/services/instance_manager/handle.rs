@@ -116,6 +116,19 @@ impl InstanceHandle {
         })
     }
 
+    /// Reapunta la raíz de la instancia tras una migración de almacenamiento.
+    /// Resincroniza desde disco: el archivo instance.cub quedó en la nueva
+    /// ubicación y podría diferir de la copia en memoria.
+    pub(crate) async fn repoint_root(&self, new_root: std::path::PathBuf) {
+        let mut data = self.data.write().await;
+        data.instance_root = new_root;
+        if let Some(loaded) = InstanceData::load(&data.name).await {
+            let dirty = data.dirty;
+            *data = loaded;
+            data.dirty = dirty;
+        }
+    }
+
     fn ensure_alive(&self) -> Result<(), io::Error> {
         if self.deleted.load(Ordering::Acquire) {
             return Err(io::Error::new(

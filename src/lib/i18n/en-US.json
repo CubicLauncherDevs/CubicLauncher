@@ -213,6 +213,22 @@
 				"wide": "Wide"
 			}
 		},
+		"storage": {
+			"title": "Storage",
+			"description": "Choose which disk stores your instances. Moving uses hardlinks: no extra disk space and the original folder is only removed after each instance is fully transferred.",
+			"currentDir": "Current location",
+			"instanceCount": "Instances",
+			"change": "Change location",
+			"reset": "Restore default location",
+			"pickTitle": "Select the new instances folder",
+			"preparing": "Preparing transfer…",
+			"linking": "Transferring with hardlinks",
+			"copyingFallback": "Different disks: copying data",
+			"progress": "Instance {index} of {count}",
+			"cancelling": "Cancelling…",
+			"done": "{count} instance(s) transferred",
+			"partial": "{failed} file(s) could not be transferred:"
+		},
 		"launcher": {
 			"generalTitle": "General",
 			"language": "Language",

@@ -6,7 +6,7 @@ async fn fixture() -> (tempfile::TempDir, Arc<InstanceManager>) {
     tokio_fs::create_dir(&instance_dir).await.unwrap();
     let manager = Arc::new(InstanceManager {
         instances: Arc::new(RwLock::new(HashMap::new())),
-        instance_dir,
+        instance_dir: parking_lot::RwLock::new(instance_dir),
         _sync_handle: tokio::spawn(async {}),
     });
     (temp, manager)
@@ -77,7 +77,7 @@ async fn failed_quarantine_keeps_the_complete_instance_and_allows_retry() {
     tokio_fs::write(dir.join("world.dat"), "world data")
         .await
         .unwrap();
-    let trash = trash_dir(&manager.instance_dir);
+    let trash = trash_dir(&manager.base_dir());
     tokio_fs::write(&trash, "blocked destination")
         .await
         .unwrap();
@@ -126,7 +126,7 @@ async fn quarantine_is_recoverable_and_cleanup_does_not_touch_live_instances() {
     let (_temp, manager) = fixture().await;
     let handle = create(&manager).await;
     let dir = handle.get_instance_dir().await;
-    let trash = trash_dir(&manager.instance_dir);
+    let trash = trash_dir(&manager.base_dir());
     quarantine_instance(&dir, &trash, &handle.uuid)
         .await
         .unwrap();
@@ -187,7 +187,7 @@ async fn admitted_deletion_finishes_when_the_caller_is_cancelled() {
 #[tokio::test]
 async fn failed_cleanup_retains_the_pending_entry_for_a_later_retry() {
     let (_temp, manager) = fixture().await;
-    let trash = trash_dir(&manager.instance_dir);
+    let trash = trash_dir(&manager.base_dir());
     tokio_fs::create_dir(&trash).await.unwrap();
     let pending = trash.join(uuid::Uuid::new_v4().to_string());
     // An unexpected file cannot be removed with remove_dir_all on any platform.
@@ -213,7 +213,7 @@ async fn deletion_staging_stays_inside_a_symlinked_instance_root() {
     std::os::unix::fs::symlink(&physical, &logical).unwrap();
     let manager = InstanceManager {
         instances: Arc::new(RwLock::new(HashMap::new())),
-        instance_dir: logical.clone(),
+        instance_dir: parking_lot::RwLock::new(logical.clone()),
         _sync_handle: tokio::spawn(async {}),
     };
     let handle = create(&manager).await;
