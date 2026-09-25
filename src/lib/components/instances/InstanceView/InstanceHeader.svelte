@@ -4,12 +4,11 @@
 	import { onMount } from "svelte";
 	import { subscribeLogPreview } from "$lib/api/logStream";
 	import type { InstanceDto } from "$lib/types/types";
-	import { launcherStore } from "$lib/state/state.svelte";
 	import { getLoaderLogo, getDisplayIconSrc } from "$lib/icons/logos";
 	import Icon from "$lib/icons/Icon.svelte";
 	import { animateWidth } from "$lib/utils/animateWidth";
 	import { animDuration } from "$lib/utils/animations";
-	import { formatPlaytime } from "$lib/utils/playtime";
+	import { formatPlaytime, hasPlaytime } from "$lib/utils/playtime";
 
 	let {
 		instance,
@@ -67,22 +66,6 @@
 					: "status-idle",
 	);
 
-	const lang = $derived(launcherStore.settings.language);
-	const formatter = $derived(
-		new Intl.DateTimeFormat(lang, {
-			year: "numeric",
-			month: "long",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-		}),
-	);
-	const lastPlayedLabel = $derived.by(() => {
-		if (instance.last_played < 1) {
-			return t("instanceView.neverPlayed");
-		}
-		return formatter.format(new Date(instance.last_played * 1000));
-	});
 	const playtimeLabel = $derived(
 		formatPlaytime(instance.playtime_seconds, t),
 	);
@@ -305,22 +288,16 @@
 						<Icon name="instance:external-link" size={13} />
 					</button>
 				</div>
-				<div class="last-played">
-					<Icon name="instance:clock" size={12} />
-					<span
-						>{t("instanceView.lastPlayed", {
-							date: lastPlayedLabel,
-						})}</span
-					>
-				</div>
-				<div class="playtime">
-					<Icon name="instance:clock" size={12} />
-					<span
-						>{t("instanceView.playtime", {
-							time: playtimeLabel,
-						})}</span
-					>
-				</div>
+				{#if hasPlaytime(instance.playtime_seconds)}
+					<div class="playtime">
+						<Icon name="instance:clock" size={12} />
+						<span
+							>{t("instanceView.playtime", {
+								time: playtimeLabel,
+							})}</span
+						>
+					</div>
+				{/if}
 			</div>
 		</div>
 		<div
@@ -675,7 +652,6 @@
 		color: var(--text-primary);
 	}
 
-	.last-played,
 	.playtime {
 		display: flex;
 		align-items: center;
@@ -685,7 +661,6 @@
 		white-space: nowrap;
 	}
 
-	.last-played :global(.icon-svg),
 	.playtime :global(.icon-svg) {
 		flex-shrink: 0;
 	}

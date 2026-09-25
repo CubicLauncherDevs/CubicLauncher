@@ -555,12 +555,15 @@
 		"jreMissingBody": "Java {version} no está instalado. ¿Quieres instalarlo ahora para iniciar esta instancia?"
 	},
 	"instanceView": {
-		"neverPlayed": "Nunca jugado",
-		"lastPlayed": "Última vez jugado: {date}",
 		"playtime": "Tiempo jugado: {time}",
 		"playtimeSeconds": "{seconds} s",
 		"playtimeMinutes": "{minutes} min",
+		"playtimeHours": "{hours} h",
 		"playtimeHoursMinutes": "{hours} h {minutes} min",
+		"playtimeDays": "{days} d",
+		"playtimeDaysMinutes": "{days} d {minutes} min",
+		"playtimeDaysHours": "{days} d {hours} h",
+		"playtimeDaysHoursMinutes": "{days} d {hours} h {minutes} min",
 		"playBtn": "Jugar",
 		"downloadingBtn": "Descargando...",
 		"downloadingMods": "Descargando mods",

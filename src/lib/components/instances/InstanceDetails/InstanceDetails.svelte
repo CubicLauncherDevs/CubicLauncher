@@ -2,11 +2,10 @@
 	import type { InstanceDto } from "$lib/types/types";
 	import { t } from "$lib/i18n";
 	import { invoke } from "@tauri-apps/api/core";
-	import { launcherStore } from "$lib/state/state.svelte";
 	import InfoHeader from "./InfoHeader.svelte";
 	import ActionChips from "./ActionChips.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
-	import { formatPlaytime } from "$lib/utils/playtime";
+	import { formatPlaytime, hasPlaytime } from "$lib/utils/playtime";
 
 	let { instance } = $props<{ instance: InstanceDto }>();
 
@@ -39,24 +38,6 @@
 					: "status-idle",
 	);
 
-	const lang = $derived(launcherStore.settings.language);
-	const formatter = $derived(
-		new Intl.DateTimeFormat(lang, {
-			year: "numeric",
-			month: "long",
-			day: "2-digit",
-			hour: "2-digit",
-			minute: "2-digit",
-		}),
-	);
-
-	const lastPlayedLabel = $derived.by(() => {
-		if (instance.last_played < 1) {
-			return t("instanceView.neverPlayed");
-		}
-		return formatter.format(new Date(instance.last_played * 1000));
-	});
-
 	const playtimeLabel = $derived(
 		formatPlaytime(instance.playtime_seconds, t),
 	);
@@ -85,15 +66,12 @@
 		onOpenDir={openDir}
 	/>
 
-	<div class="last-played-row">
-		<Icon name="instance:clock" size={14} />
-		<span>{t("instanceView.lastPlayed", { date: lastPlayedLabel })}</span>
-	</div>
-
-	<div class="last-played-row">
-		<Icon name="instance:clock" size={14} />
-		<span>{t("instanceView.playtime", { time: playtimeLabel })}</span>
-	</div>
+	{#if hasPlaytime(instance.playtime_seconds)}
+		<div class="playtime-row">
+			<Icon name="instance:clock" size={14} />
+			<span>{t("instanceView.playtime", { time: playtimeLabel })}</span>
+		</div>
+	{/if}
 
 	<ActionChips onOpenDir={openDir} onOpenLogs={openLogs} />
 </div>
@@ -105,7 +83,7 @@
 		gap: 20px;
 	}
 
-	.last-played-row {
+	.playtime-row {
 		display: flex;
 		align-items: center;
 		gap: 6px;
@@ -113,7 +91,7 @@
 		color: var(--text-secondary);
 	}
 
-	.last-played-row :global(.icon-svg) {
+	.playtime-row :global(.icon-svg) {
 		flex-shrink: 0;
 	}
 </style>

@@ -46,6 +46,7 @@ export const saveSettings=async()=>{};
 export const getLoaderLogo=()=>'';
 export const getDisplayIconSrc=()=>'';
 export const formatPlaytime=()=>'';
+export const hasPlaytime=seconds=>Number.isFinite(seconds)&&seconds>=1;
 export const subscribeLogPreview=()=>()=>{};
 export const invoke=async()=>{};
 `;
