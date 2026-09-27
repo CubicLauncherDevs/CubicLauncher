@@ -229,6 +229,26 @@
 			"done": "{count} instancia(s) trasladada(s)",
 			"partial": "{failed} archivo(s) no se pudieron trasladar:"
 		},
+		"sharedStorage": {
+			"title": "Archivos compartidos",
+			"description": "Versiones, librerías y assets que comparten todas las instancias. Si se borran, se re-descargan solos al lanzar una instancia; tus mundos y ajustes no se tocan.",
+			"currentDir": "Ubicación actual",
+			"usage": "Espacio en disco",
+			"files": "{count} archivo(s)",
+			"empty": "Vacío",
+			"change": "Cambiar ubicación",
+			"reset": "Restablecer ubicación",
+			"purge": "Borrar todo",
+			"purgeConfirmTitle": "¿Borrar todos los archivos compartidos?",
+			"purgeConfirmDesc": "Se liberará {size}. Las versiones y librerías se re-descargarán automáticamente la próxima vez que juegues.",
+			"changeConfirmTitle": "¿Cambiar la ubicación de los archivos compartidos?",
+			"changeConfirmDesc": "La carpeta nueva debe estar vacía: su contenido se borrará ({size} detectados). Nada se copia ni se re-descarga hasta que lances una instancia.",
+			"pickTitle": "Selecciona la nueva carpeta compartida",
+			"purging": "Borrando…",
+			"purged": "{size} liberados ({files})",
+			"changed": "Ubicación actualizada. Se liberaron {size}.",
+			"busy": "Cierra Minecraft y espera a que terminen las descargas antes de modificar estos archivos."
+		},
 		"launcher": {
 			"generalTitle": "General",
 			"language": "Idioma",

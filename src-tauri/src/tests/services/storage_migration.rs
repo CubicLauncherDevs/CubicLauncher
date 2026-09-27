@@ -122,6 +122,22 @@ fn remove_tree_deletes_the_whole_original_directory() {
     assert!(!source.path().exists());
 }
 
+#[test]
+fn the_pending_deletions_folder_does_not_block_a_destination() {
+    let target = tempfile::tempdir().unwrap();
+    assert!(is_empty_dir(target.path()));
+
+    // La carpeta interna de borrados diferidos (aunque tenga contenido)
+    // cuenta como vacía: sus nombres nunca chocan con instancias.
+    let deletions = target.path().join(crate::services::instance_manager::DELETION_DIR);
+    fs::create_dir_all(deletions.join("stale-instance")).unwrap();
+    assert!(is_empty_dir(target.path()));
+
+    // Una carpeta de instancia real sí bloquea el traslado.
+    fs::create_dir(target.path().join("My Instance")).unwrap();
+    assert!(!is_empty_dir(target.path()));
+}
+
 #[cfg(unix)]
 #[test]
 fn hardlinks_share_one_copy_and_survive_removing_the_original() {

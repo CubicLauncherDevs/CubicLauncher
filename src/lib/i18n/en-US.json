@@ -229,6 +229,26 @@
 			"done": "{count} instance(s) transferred",
 			"partial": "{failed} file(s) could not be transferred:"
 		},
+		"sharedStorage": {
+			"title": "Shared files",
+			"description": "Versions, libraries and assets shared by every instance. If deleted, they re-download automatically when you launch an instance; your worlds and settings are untouched.",
+			"currentDir": "Current location",
+			"usage": "Disk usage",
+			"files": "{count} file(s)",
+			"empty": "Empty",
+			"change": "Change location",
+			"reset": "Restore default location",
+			"purge": "Delete all",
+			"purgeConfirmTitle": "Delete all shared files?",
+			"purgeConfirmDesc": "{size} will be freed. Versions and libraries re-download automatically the next time you play.",
+			"changeConfirmTitle": "Change the shared files location?",
+			"changeConfirmDesc": "The new folder must be empty: its contents will be deleted ({size} detected). Nothing is copied or re-downloaded until you launch an instance.",
+			"pickTitle": "Select the new shared folder",
+			"purging": "Deleting…",
+			"purged": "{size} freed ({files})",
+			"changed": "Location updated. {size} were freed.",
+			"busy": "Close Minecraft and wait for downloads to finish before modifying these files."
+		},
 		"launcher": {
 			"generalTitle": "General",
 			"language": "Language",

@@ -195,7 +195,7 @@ impl DownloadQueue {
     }
 
     async fn process_version(queue: &Arc<DownloadQueue>, version: Arc<str>) {
-        let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+        let shared_dir = PathManager::get().get_shared_dir();
         let manager = DownloadManager::new(shared_dir.clone());
 
         if let Some(mut state) = queue.active.get_mut(&version) {

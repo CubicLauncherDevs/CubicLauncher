@@ -11,7 +11,9 @@ static PATH_MANAGER: LazyLock<PathManager> = LazyLock::new(PathManager::initiali
 pub struct PathManager {
     /// Único directorio que puede cambiar en caliente (migración de disco).
     instances_dir: RwLock<Box<Path>>,
-    shared_dir: Box<Path>,
+    /// También cambia en caliente: el cambio de ruta de shared purga el
+    /// contenido y lo re-descarga bajo demanda.
+    shared_dir: RwLock<Box<Path>>,
     settings_dir: Box<Path>,
     themes_dir: Box<Path>,
     skin_closet_dir: Box<Path>,
@@ -25,8 +27,10 @@ impl PathManager {
     pub fn get_instance_dir(&self) -> PathBuf {
         self.instances_dir.read().to_path_buf()
     }
-    pub fn get_shared_dir(&self) -> &Path {
-        &self.shared_dir
+    /// Copia del directorio shared vigente (se lee bajo lock porque puede
+    /// reapuntarse en caliente).
+    pub fn get_shared_dir(&self) -> PathBuf {
+        self.shared_dir.read().to_path_buf()
     }
     pub fn get_settings_dir(&self) -> &Path {
         &self.settings_dir
@@ -54,10 +58,26 @@ impl PathManager {
         *manager.instances_dir.write() = dir.into_boxed_path();
     }
 
+    /// Reapunta el directorio shared en caliente. Solo se usa tras purgar el
+    /// contenido; el arranque lo resuelve desde settings.cub.
+    pub fn set_shared_dir(dir: PathBuf) {
+        let manager = Self::get();
+        let current = manager.shared_dir.read().clone();
+        if current.as_ref() == dir.as_path() {
+            return;
+        }
+        info!(
+            "Directorio shared actualizado: {} -> {}",
+            current.display(),
+            dir.display()
+        );
+        *manager.shared_dir.write() = dir.into_boxed_path();
+    }
+
     pub fn ensure_dirs() -> Result<(), SmallVec<[String; 4]>> {
         let dirs = [
             Self::get().get_instance_dir(),
-            Self::get().get_shared_dir().to_path_buf(),
+            Self::get().get_shared_dir(),
             Self::get().get_settings_dir().to_path_buf(),
             Self::get().get_themes_dir().to_path_buf(),
             Self::get().get_skin_closet_dir().to_path_buf(),
@@ -85,7 +105,7 @@ impl PathManager {
 
         PathManager {
             instances_dir: RwLock::new(resolve_instances_dir(&base_dir).into_boxed_path()),
-            shared_dir: base_dir.join(".cubic").join("shared").into_boxed_path(),
+            shared_dir: RwLock::new(resolve_shared_dir(&base_dir).into_boxed_path()),
             settings_dir: base_dir.join(".cubic").join("settings").into_boxed_path(),
             themes_dir: base_dir.join(".cubic").join("themes").into_boxed_path(),
             skin_closet_dir: base_dir.join(".cubic").join("skins").into_boxed_path(),
@@ -98,6 +118,40 @@ impl PathManager {
 /// Directorio de instancias por defecto (para mensajes de UI).
 pub fn default_instances_dir() -> PathBuf {
     resolve_base_dir().join(".cubic").join("instances")
+}
+
+/// Directorio shared por defecto (para mensajes de UI).
+pub fn default_shared_dir() -> PathBuf {
+    resolve_base_dir().join(".cubic").join("shared")
+}
+
+/// Lee `custom_shared_dir` de settings.cub, si existe y es válido.
+/// Debe tolerar un archivo corrupto: en ese caso se usa el directorio por defecto.
+fn resolve_shared_dir(base_dir: &Path) -> PathBuf {
+    let default = base_dir.join(".cubic").join("shared");
+    let path = base_dir
+        .join(".cubic")
+        .join("settings")
+        .join("settings.cub");
+    let Ok(content) = std::fs::read_to_string(&path) else {
+        return default;
+    };
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) else {
+        warn!("settings.cub inválido al resolver el directorio shared");
+        return default;
+    };
+    match json
+        .get("custom_shared_dir")
+        .and_then(|v| v.as_str())
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+    {
+        Some(dir) => {
+            info!("Directorio shared configurado: {}", dir.display());
+            dir
+        }
+        None => default,
+    }
 }
 
 /// Lee `custom_instances_dir` de settings.cub, si existe y es válido.

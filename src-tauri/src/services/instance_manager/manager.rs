@@ -18,7 +18,7 @@ use super::handle::InstanceHandle;
 
 pub(crate) const SYNC_INTERVAL_SECS: u64 = 30;
 // Longer than a valid instance name, and inside the root to stay on its filesystem.
-const DELETION_DIR: &str = ".cubic-pending-instance-deletions";
+pub(crate) const DELETION_DIR: &str = ".cubic-pending-instance-deletions";
 
 pub struct InstanceManager {
     instances: Arc<RwLock<HashMap<String, InstanceHandle>>>,

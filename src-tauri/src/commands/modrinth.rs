@@ -86,7 +86,7 @@ async fn download_mods_inner(
 
     let batch = GenericBatch::new(format!("mods-{}", instance_id), items);
 
-    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let shared_dir = PathManager::get().get_shared_dir();
     let dm = DownloadManager::new(shared_dir);
     let dl_handle = dm
         .prepare_batch(Box::new(batch))
@@ -222,7 +222,7 @@ async fn download_resourcepacks_inner(
 
     let batch = GenericBatch::new(format!("resourcepacks-{}", instance_id), items);
 
-    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let shared_dir = PathManager::get().get_shared_dir();
     let dm = DownloadManager::new(shared_dir);
     let handle = dm
         .prepare_batch(Box::new(batch))
@@ -312,7 +312,7 @@ async fn download_shaderpacks_inner(
 
     let batch = GenericBatch::new(format!("shaderpacks-{}", instance_id), items);
 
-    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let shared_dir = PathManager::get().get_shared_dir();
     let dm = DownloadManager::new(shared_dir);
     let handle = dm
         .prepare_batch(Box::new(batch))
@@ -367,7 +367,7 @@ pub async fn download_mrpack(url: String, version_id: String) -> Result<String, 
     let item = aqua::DownloadItemSpec::new(url, dest.clone(), "mrpack");
     let batch = aqua::GenericBatch::new(format!("mrpack-{}", version_id), vec![item]);
 
-    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let shared_dir = PathManager::get().get_shared_dir();
     let dm = aqua::DownloadManager::new(shared_dir);
     let handle = dm
         .prepare_batch(Box::new(batch))

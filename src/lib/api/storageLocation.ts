@@ -50,3 +50,30 @@ export function resetInstancesDir(
 
 export const cancelInstancesDirChange = () =>
 	invoke<void>("cancel_instances_dir_change");
+
+// ── Shared (versions/libraries/assets) ───────────────────────────────────────
+
+export interface DirUsage {
+	bytes: number;
+	files: number;
+	/** true si alguna entrada no pudo inspeccionarse o borrarse. */
+	blocked: boolean;
+}
+
+export interface SharedDirInfo {
+	current_dir: string;
+	custom_dir: string;
+	default_dir: string;
+	total: DirUsage;
+	breakdown: Array<[string, DirUsage]>;
+}
+
+export const getSharedDirInfo = () =>
+	invoke<SharedDirInfo>("get_shared_dir_info");
+
+export const purgeSharedDir = () => invoke<DirUsage>("purge_shared_dir");
+
+export const changeSharedDir = (newDir: string) =>
+	invoke<DirUsage>("change_shared_dir", { newDir });
+
+export const resetSharedDir = () => invoke<DirUsage>("reset_shared_dir");

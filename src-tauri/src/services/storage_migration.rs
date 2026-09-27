@@ -313,9 +313,17 @@ fn move_tree(
 }
 
 fn is_empty_dir(path: &Path) -> bool {
-    std::fs::read_dir(path)
-        .map(|mut d| d.next().is_none())
-        .unwrap_or(false)
+    // La carpeta de borrados diferidos del manager es interna: si es lo único
+    // presente, el destino cuenta como vacío para el traslado.
+    match std::fs::read_dir(path) {
+        Ok(mut entries) => entries.all(|entry| {
+            entry.is_ok_and(|e| {
+                e.file_name().to_string_lossy()
+                    == crate::services::instance_manager::DELETION_DIR
+            })
+        }),
+        Err(_) => false,
+    }
 }
 
 /// Cancela la migración en curso (las instancias ya trasladadas se conservan).

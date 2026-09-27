@@ -19,6 +19,7 @@ pub mod server_manager;
 mod server_performance_tests;
 pub mod server_status;
 pub(crate) mod settings_manager;
+pub mod shared_storage;
 pub mod skin_closet_manager;
 pub(crate) mod storage_migration;
 pub mod world_manager;

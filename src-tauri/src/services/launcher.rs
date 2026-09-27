@@ -439,7 +439,7 @@ impl Launcher {
         let launcher = Arc::new(Self {
             app_handle: std::sync::Mutex::new(None),
             lw: Arc::new(Launchwerk::new(
-                PathManager::get().get_shared_dir().to_path_buf(),
+                PathManager::get().get_shared_dir(),
             )),
         });
         let _ = LAUNCHER.set(launcher.clone());
@@ -473,7 +473,7 @@ impl Launcher {
 
         let version = handle.get_version().await;
         let name = handle.get_name().await;
-        let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+        let shared_dir = PathManager::get().get_shared_dir();
         let instance_dir = PathManager::get().get_instance_dir().join(name.as_ref());
 
         if !instance_dir.exists() {

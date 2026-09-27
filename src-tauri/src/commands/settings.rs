@@ -37,6 +37,9 @@ pub async fn update_settings(mut new_settings: SettingsManager) -> Result<(), St
     // (commands::storage); el guardado normal del frontend no debe revertirlo.
     let current_instances_dir = SettingsManager::read().custom_instances_dir.clone();
     new_settings.custom_instances_dir = current_instances_dir;
+    // Igual que el de instancias: shared solo cambia con purga (commands::storage).
+    let current_shared_dir = SettingsManager::read().custom_shared_dir.clone();
+    new_settings.custom_shared_dir = current_shared_dir;
     SettingsManager::write(|s| {
         for new_user in &mut new_settings.user {
             let _ = new_user.load_tokens();

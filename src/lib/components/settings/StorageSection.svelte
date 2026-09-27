@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
-	import { open } from "@tauri-apps/plugin-dialog";
+	import { ask, open } from "@tauri-apps/plugin-dialog";
 	import { t } from "$lib/i18n";
 	import Icon from "$lib/icons/Icon.svelte";
 	import {
@@ -8,8 +8,13 @@
 		changeInstancesDir,
 		resetInstancesDir,
 		cancelInstancesDirChange,
+		getSharedDirInfo,
+		purgeSharedDir,
+		changeSharedDir,
+		resetSharedDir,
 		type InstancesDirInfo,
 		type InstancesMoveProgress,
+		type SharedDirInfo,
 	} from "$lib/api/storageLocation";
 
 	let info = $state<InstancesDirInfo | null>(null);
@@ -20,6 +25,12 @@
 	let progress = $state<InstancesMoveProgress | null>(null);
 	let result = $state<{ moved: number; failed: string[] } | null>(null);
 	let destroyed = false;
+
+	let sharedInfo = $state<SharedDirInfo | null>(null);
+	let sharedLoading = $state(true);
+	let sharedBusy = $state(false);
+	let sharedError = $state("");
+	let sharedResult = $state("");
 
 	const percent = $derived(
 		progress && progress.bytes_total > 0
@@ -40,6 +51,17 @@
 			error = String(e);
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function refreshShared() {
+		sharedLoading = true;
+		try {
+			sharedInfo = await getSharedDirInfo();
+		} catch (e) {
+			sharedError = String(e);
+		} finally {
+			sharedLoading = false;
 		}
 	}
 
@@ -100,11 +122,114 @@
 		}
 	}
 
+	function formatBytes(bytes: number) {
+		const unit = Math.min(
+			4,
+			Math.floor(Math.log2(Math.max(1, bytes)) / 10),
+		);
+		return `${(bytes / 1024 ** unit).toLocaleString(undefined, { maximumFractionDigits: 1 })} ${["B", "KiB", "MiB", "GiB", "TiB"][unit]}`;
+	}
+
+	function sharedUsage(usage: { bytes: number; files: number }) {
+		if (usage.files === 0) return t("settings.sharedStorage.empty");
+		const size = formatBytes(usage.bytes);
+		const files = t("settings.sharedStorage.files", {
+			count: usage.files,
+		});
+		return `${size} · ${files}`;
+	}
+
+	async function purgeShared() {
+		if (sharedBusy || !sharedInfo) return;
+		sharedError = "";
+		sharedResult = "";
+		try {
+			const confirmed = await ask(
+				t("settings.sharedStorage.purgeConfirmDesc", {
+					size: sharedUsage(sharedInfo.total),
+				}),
+				{
+					title: t("settings.sharedStorage.purgeConfirmTitle"),
+					kind: "warning",
+					okLabel: t("settings.sharedStorage.purge"),
+					cancelLabel: t("common.cancel"),
+				},
+			);
+			if (!confirmed) return;
+			sharedBusy = true;
+			const usage = await purgeSharedDir();
+			sharedResult = t("settings.sharedStorage.purged", {
+				size: formatBytes(usage.bytes),
+				files: usage.files,
+			});
+			await refreshShared();
+		} catch (e) {
+			sharedError = String(e);
+		} finally {
+			sharedBusy = false;
+		}
+	}
+
+	async function pickShared() {
+		if (sharedBusy) return;
+		sharedError = "";
+		sharedResult = "";
+		try {
+			const path = await open({
+				directory: true,
+				multiple: false,
+				title: t("settings.sharedStorage.pickTitle"),
+			});
+			if (typeof path !== "string" || destroyed) return;
+			const confirmed = await ask(
+				t("settings.sharedStorage.changeConfirmDesc", {
+					size: sharedInfo ? sharedUsage(sharedInfo.total) : "0",
+				}),
+				{
+					title: t("settings.sharedStorage.changeConfirmTitle"),
+					kind: "warning",
+					okLabel: t("settings.sharedStorage.change"),
+					cancelLabel: t("common.cancel"),
+				},
+			);
+			if (!confirmed) return;
+			sharedBusy = true;
+			const usage = await changeSharedDir(path);
+			sharedResult = t("settings.sharedStorage.changed", {
+				size: formatBytes(usage.bytes),
+			});
+			await refreshShared();
+		} catch (e) {
+			sharedError = String(e);
+		} finally {
+			sharedBusy = false;
+		}
+	}
+
+	async function resetShared() {
+		if (sharedBusy) return;
+		sharedError = "";
+		sharedResult = "";
+		try {
+			sharedBusy = true;
+			const usage = await resetSharedDir();
+			sharedResult = t("settings.sharedStorage.changed", {
+				size: formatBytes(usage.bytes),
+			});
+			await refreshShared();
+		} catch (e) {
+			sharedError = String(e);
+		} finally {
+			sharedBusy = false;
+		}
+	}
+
 	onDestroy(() => {
 		destroyed = true;
 	});
 
 	void refresh();
+	void refreshShared();
 </script>
 
 <div class="storage">
@@ -199,6 +324,77 @@
 			{/if}
 		</div>
 	{/if}
+
+	<hr class="divider" />
+
+	<h4 class="subsection">{t("settings.sharedStorage.title")}</h4>
+	<p class="hint">{t("settings.sharedStorage.description")}</p>
+
+	{#if sharedLoading}
+		<p class="hint">{t("common.loading")}</p>
+	{:else if sharedInfo}
+		<div class="row">
+			<span class="label">{t("settings.sharedStorage.currentDir")}</span>
+			<code class="path" title={sharedInfo.current_dir}
+				>{sharedInfo.current_dir}</code
+			>
+		</div>
+		<div class="row">
+			<span class="label">{t("settings.sharedStorage.usage")}</span>
+			<span class="value">{sharedUsage(sharedInfo.total)}</span>
+		</div>
+		{#if sharedInfo.breakdown.length > 0}
+			<ul class="usage">
+				{#each sharedInfo.breakdown as [name, usage] (name)}
+					<li>
+						<span class="value">{name}</span>
+						<span class="usage-detail"
+							>{formatBytes(usage.bytes)} · {usage.files}</span
+						>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+
+		<div class="actions">
+			<button
+				type="button"
+				class="btn danger"
+				disabled={sharedBusy}
+				onclick={purgeShared}
+			>
+				<Icon name="ui:trash" size={16} />
+				{t("settings.sharedStorage.purge")}
+			</button>
+			<button
+				type="button"
+				class="btn"
+				disabled={sharedBusy}
+				onclick={pickShared}
+			>
+				<Icon name="instance:folder" size={16} />
+				{t("settings.sharedStorage.change")}
+			</button>
+			{#if sharedInfo.custom_dir}
+				<button
+					type="button"
+					class="btn secondary"
+					disabled={sharedBusy}
+					onclick={resetShared}
+				>
+					<Icon name="ui:refresh" size={16} />
+					{t("settings.sharedStorage.reset")}
+				</button>
+			{/if}
+		</div>
+	{/if}
+
+	{#if sharedBusy}
+		<p class="hint" role="status">{t("settings.sharedStorage.purging")}</p>
+	{:else if sharedResult}
+		<p class="ok" role="status">{sharedResult}</p>
+	{/if}
+	{#if sharedError}<p class="error" role="alert">{sharedError}</p>{/if}
 </div>
 
 <style>
@@ -256,6 +452,10 @@
 	.btn.secondary {
 		opacity: 0.9;
 	}
+	.btn.danger:hover:not(:disabled) {
+		border-color: var(--color-error);
+		color: var(--color-error);
+	}
 	.btn:disabled {
 		opacity: var(--disabled-opacity, 0.5);
 		cursor: not-allowed;
@@ -287,6 +487,37 @@
 	}
 	.ok {
 		color: var(--accent);
+		font-size: var(--font-size-sm, 0.8rem);
+		margin: 0;
+	}
+	.divider {
+		border: none;
+		border-top: 1px solid var(--border);
+		margin: 4px 0;
+	}
+	.subsection {
+		font-size: var(--font-size-sm, 0.8rem);
+		font-weight: 600;
+		color: var(--text-primary);
+		margin: 0;
+	}
+	.usage {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		margin: 0;
+		padding: 0 0 0 12px;
+		list-style: none;
+	}
+	.usage li {
+		display: flex;
+		justify-content: space-between;
+		gap: 12px;
+	}
+	.usage-detail {
+		font-size: var(--font-size-label, 0.72rem);
+		color: var(--text-muted);
+		white-space: nowrap;
 	}
 	button:disabled {
 		opacity: var(--disabled-opacity, 0.5);

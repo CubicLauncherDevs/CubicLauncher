@@ -155,6 +155,10 @@ pub struct SettingsManager {
     /// Directorio personalizado para las instancias. Vacío = ubicación por defecto.
     #[serde(default)]
     pub custom_instances_dir: PathBuf,
+    /// Directorio personalizado para shared (versions/libraries/assets).
+    /// Vacío = ubicación por defecto.
+    #[serde(default)]
+    pub custom_shared_dir: PathBuf,
     #[serde(skip)]
     pub dirty: bool,
 }
@@ -240,6 +244,7 @@ impl Default for SettingsManager {
             disable_skin3d_animations: false,
             reduce_log_animations: false,
             custom_instances_dir: PathBuf::new(),
+            custom_shared_dir: PathBuf::new(),
             dirty: true,
         }
     }

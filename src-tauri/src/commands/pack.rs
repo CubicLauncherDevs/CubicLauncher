@@ -165,7 +165,7 @@ async fn install_mrpack_inner(
         }
     });
 
-    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let shared_dir = PathManager::get().get_shared_dir();
     let install_result = cubrinth::mrpack::install_mrpack(
         std::path::Path::new(&path),
         &instance_dir,
@@ -271,7 +271,7 @@ pub async fn download_curseforge_modpack(url: String, file_id: u32) -> Result<St
     let item = aqua::DownloadItemSpec::new(url, dest.clone(), "curseforge-modpack");
     let batch = aqua::GenericBatch::new(format!("curseforge-modpack-{}", file_id), vec![item]);
 
-    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let shared_dir = PathManager::get().get_shared_dir();
     let dm = aqua::DownloadManager::new(shared_dir);
     let handle = dm
         .prepare_batch(Box::new(batch))
@@ -423,7 +423,7 @@ async fn install_curseforge_modpack_inner(
         }
     });
 
-    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let shared_dir = PathManager::get().get_shared_dir();
     let install_result = crate::services::curseforge_modpack::install_curseforge_modpack(
         std::path::Path::new(&path),
         &instance_dir,

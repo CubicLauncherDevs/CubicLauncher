@@ -484,7 +484,7 @@ pub struct VersionStatus {
 /// Check if a version and all its dependencies are fully installed.
 #[tauri::command]
 pub async fn check_version_integrity(version_id: String) -> Result<VersionIntegrity, String> {
-    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let shared_dir = PathManager::get().get_shared_dir();
     let deps = zellkern::resolve_dependencies(&version_id);
 
     let missing = tokio::task::spawn_blocking(move || {
@@ -514,7 +514,7 @@ pub async fn check_version_integrity(version_id: String) -> Result<VersionIntegr
 #[tauri::command]
 pub async fn get_installed_versions_with_status() -> Vec<VersionStatus> {
     let versions_dir = PathManager::get().get_shared_dir().join("versions");
-    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let shared_dir = PathManager::get().get_shared_dir();
 
     let versions = tokio::task::spawn_blocking(move || -> Vec<String> {
         match std::fs::read_dir(&versions_dir) {
@@ -557,7 +557,7 @@ pub async fn get_installed_versions_with_status() -> Vec<VersionStatus> {
 #[tauri::command]
 pub async fn reinstall_version(version: String) -> Result<(), String> {
     info!("Reinstalando versión: {}", version);
-    let shared_dir = PathManager::get().get_shared_dir().to_path_buf();
+    let shared_dir = PathManager::get().get_shared_dir();
     let deps = zellkern::resolve_dependencies(&version);
 
     for dep in &deps {
