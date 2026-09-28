@@ -1,5 +1,5 @@
 use crate::core::default_instances_dir;
-use crate::services::shared_storage::{self, SharedDirInfo, DirUsage};
+use crate::services::shared_storage::{self, DirUsage, SharedDirInfo};
 use crate::services::storage_migration::{self, InstancesDirInfo, MoveProgress, MoveResult};
 use std::path::PathBuf;
 use tauri::ipc::Channel;

@@ -69,7 +69,10 @@ fn clear_dir_removes_symlinks_but_never_their_target() {
     // El enlace se borra; el destino queda exactamente como estaba.
     assert!(!dir.path().join("link").exists());
     assert!(!dir.path().join("a.txt").exists());
-    assert_eq!(fs::read_to_string(target.path().join("precious.txt")).unwrap(), "keep");
+    assert_eq!(
+        fs::read_to_string(target.path().join("precious.txt")).unwrap(),
+        "keep"
+    );
 }
 
 #[tokio::test]

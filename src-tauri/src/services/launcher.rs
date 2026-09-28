@@ -438,9 +438,7 @@ impl Launcher {
     pub fn init() -> Arc<Self> {
         let launcher = Arc::new(Self {
             app_handle: std::sync::Mutex::new(None),
-            lw: Arc::new(Launchwerk::new(
-                PathManager::get().get_shared_dir(),
-            )),
+            lw: Arc::new(Launchwerk::new(PathManager::get().get_shared_dir())),
         });
         let _ = LAUNCHER.set(launcher.clone());
         launcher

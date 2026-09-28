@@ -318,8 +318,7 @@ fn is_empty_dir(path: &Path) -> bool {
     match std::fs::read_dir(path) {
         Ok(mut entries) => entries.all(|entry| {
             entry.is_ok_and(|e| {
-                e.file_name().to_string_lossy()
-                    == crate::services::instance_manager::DELETION_DIR
+                e.file_name().to_string_lossy() == crate::services::instance_manager::DELETION_DIR
             })
         }),
         Err(_) => false,

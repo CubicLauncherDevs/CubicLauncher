@@ -180,10 +180,7 @@ fn clear_dir(dir: &Path) -> Result<Vec<String>, std::io::Error> {
         } else if file_type.is_file() || file_type.is_symlink() {
             std::fs::remove_file(&path)
         } else {
-            warn!(
-                "Entrada desconocida durante la purga: {}",
-                path.display()
-            );
+            warn!("Entrada desconocida durante la purga: {}", path.display());
             failures.push(name);
             continue;
         };
@@ -212,8 +209,7 @@ async fn purge_shared_at(path: PathBuf) -> Result<DirUsage, String> {
 
     if total.blocked {
         return Err(
-            "La carpeta contiene enlaces o archivos inaccesibles: bórralos a mano"
-                .to_string(),
+            "La carpeta contiene enlaces o archivos inaccesibles: bórralos a mano".to_string(),
         );
     }
 
@@ -273,17 +269,13 @@ async fn change_shared_dir_impl(new_dir: PathBuf) -> Result<DirUsage, String> {
     if !new_dir.is_absolute() {
         return Err("La ruta debe ser absoluta".into());
     }
-    let new_dir = new_dir
-        .canonicalize()
-        .unwrap_or_else(|_| new_dir.clone());
+    let new_dir = new_dir.canonicalize().unwrap_or_else(|_| new_dir.clone());
 
     if let Some(name) = shared_is_busy().await {
         return Err(if name.is_empty() {
             "Hay descargas activas; espera a que terminen".to_string()
         } else {
-            format!(
-                "La instancia '{name}' está en ejecución; ciérrala antes de cambiar la ruta"
-            )
+            format!("La instancia '{name}' está en ejecución; ciérrala antes de cambiar la ruta")
         });
     }
 
@@ -291,9 +283,7 @@ async fn change_shared_dir_impl(new_dir: PathBuf) -> Result<DirUsage, String> {
     // del destino recorra datos ajenos.
     let current_dir = PathManager::get().get_shared_dir();
     if new_dir.starts_with(&current_dir) || current_dir.starts_with(&new_dir) {
-        return Err(
-            "La nueva ubicación no puede estar dentro de la actual (ni contenerla)".into(),
-        );
+        return Err("La nueva ubicación no puede estar dentro de la actual (ni contenerla)".into());
     }
     std::fs::create_dir_all(&new_dir)
         .map_err(|e| format!("No se pudo crear {}: {e}", new_dir.display()))?;

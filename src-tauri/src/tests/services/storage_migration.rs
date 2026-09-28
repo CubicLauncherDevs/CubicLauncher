@@ -129,7 +129,9 @@ fn the_pending_deletions_folder_does_not_block_a_destination() {
 
     // La carpeta interna de borrados diferidos (aunque tenga contenido)
     // cuenta como vacía: sus nombres nunca chocan con instancias.
-    let deletions = target.path().join(crate::services::instance_manager::DELETION_DIR);
+    let deletions = target
+        .path()
+        .join(crate::services::instance_manager::DELETION_DIR);
     fs::create_dir_all(deletions.join("stale-instance")).unwrap();
     assert!(is_empty_dir(target.path()));
 
