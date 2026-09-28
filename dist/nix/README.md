@@ -51,6 +51,29 @@ nix build .
 ls -la result/bin
 ```
 
+## Actualizar el hash de Cargo (`cargoHash`)
+
+`cargoHash` cubre el árbol de dependencias de Rust (`cargoDeps`). Su valor
+depende únicamente del `Cargo.lock` **y de la versión de Cargo que provee el
+nixpkgs fijado en `flake.lock`**, así que es el mismo para los tres sistemas y
+no hace falta un hash por plataforma.
+
+Cada vez que cambie `Cargo.lock` hay que regenerarlo:
+
+```bash
+# El build falla a propósito y muestra el hash correcto en la línea `got:`.
+nix build --no-link \
+  ".#packages.$(nix eval --raw --impure --expr builtins.currentSystem).default.cargoDeps"
+```
+
+Luego copiar ese valor en `cargoHash` de `dist/nix/package.nix`.
+
+> **Importante:** generarlo siempre con `nix build .#...`, que respeta el
+> `flake.lock` commiteado. Un hash obtenido con el canal de nixpkgs del sistema
+> (o con un `flake.lock` distinto, por ejemplo tras un `nix flake update` local
+> sin commitear) no coincidirá con CI y el trabajo **Nix Hashes** fallará. Si se
+> actualiza `flake.lock`, hay que regenerar este hash en el mismo commit.
+
 ## Soportar otras arquitecturas
 
 Para agregar una nueva plataforma hay que:
