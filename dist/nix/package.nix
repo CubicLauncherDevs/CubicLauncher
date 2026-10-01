@@ -24,7 +24,7 @@ rustPlatform.buildRustPackage rec {
 
   src = lib.cleanSource ./../..;
 
-  cargoHash = "sha256-NIf4qlCVC1jsqWWjbAs/tfoqaVYyygUyR0TtNMB8pVY=";
+  cargoHash = "sha256-9s5KZ0f47CZzuChlISDE1PGcQC4j8r59VQbboV7ykCk=";
 
   nodeModules = stdenv.mkDerivation {
     pname = "${pname}-node_modules";
