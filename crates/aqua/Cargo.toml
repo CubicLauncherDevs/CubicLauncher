@@ -15,6 +15,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 zellkern = { path = "../zellkern" }
 sha1 = "0.11"
+sha2 = "0.11"
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }
 uuid = { version = "1", features = ["v4"] }

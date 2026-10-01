@@ -1155,8 +1155,30 @@ export async function getJreVersions(): Promise<JreStatus[]> {
 	);
 }
 
-export async function installJre(version: number): Promise<void> {
-	return invokeThrowing("install_jre", { version });
+// La lista de proveedores es opcional: si la consulta falla, la interfaz usa
+// los proveedores conocidos y no interrumpe al usuario con un error.
+export async function getAvailableJreVendors(
+	version: number,
+): Promise<string[]> {
+	try {
+		return await invoke<string[]>("get_available_jre_vendors", { version });
+	} catch (err) {
+		console.error(
+			`Failed to get available JRE vendors for ${version}:`,
+			err,
+		);
+		return [];
+	}
+}
+
+export async function installJre(
+	version: number,
+	vendor?: string,
+): Promise<void> {
+	return invokeThrowing("install_jre", {
+		version,
+		vendor: vendor && vendor !== "auto" ? vendor : null,
+	});
 }
 
 export async function uninstallJre(version: number): Promise<void> {

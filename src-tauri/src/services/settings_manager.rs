@@ -62,6 +62,10 @@ fn default_console_history_limit() -> u32 {
 fn default_active_user_idx() -> usize {
     0
 }
+/// Proveedor de JRE elegido por el usuario. `auto` usa la cadena por defecto.
+fn default_jre_vendor() -> CompactString {
+    CompactString::from("auto")
+}
 fn default_user() -> Vec<MinecraftUser> {
     let vec = vec![MinecraftUser::cracked("Steve")];
     vec
@@ -84,18 +88,26 @@ pub struct SettingsManager {
     pub jre8_path: PathBuf,
     #[serde(default = "default_true")]
     pub jre8_managed: bool,
+    #[serde(default = "default_jre_vendor")]
+    pub jre8_vendor: CompactString,
     #[serde(default)]
     pub jre17_path: PathBuf,
     #[serde(default = "default_true")]
     pub jre17_managed: bool,
+    #[serde(default = "default_jre_vendor")]
+    pub jre17_vendor: CompactString,
     #[serde(default)]
     pub jre21_path: PathBuf,
     #[serde(default = "default_true")]
     pub jre21_managed: bool,
+    #[serde(default = "default_jre_vendor")]
+    pub jre21_vendor: CompactString,
     #[serde(default)]
     pub jre25_path: PathBuf,
     #[serde(default = "default_true")]
     pub jre25_managed: bool,
+    #[serde(default = "default_jre_vendor")]
+    pub jre25_vendor: CompactString,
     #[serde(default = "default_lang")]
     pub language: CompactString,
     #[serde(default = "default_true")]
@@ -210,12 +222,16 @@ impl Default for SettingsManager {
             max_memory: 2048,
             jre8_path: PathBuf::new(),
             jre8_managed: true,
+            jre8_vendor: default_jre_vendor(),
             jre17_path: PathBuf::new(),
             jre17_managed: true,
+            jre17_vendor: default_jre_vendor(),
             jre21_path: PathBuf::new(),
             jre21_managed: true,
+            jre21_vendor: default_jre_vendor(),
             jre25_path: PathBuf::new(),
             jre25_managed: true,
+            jre25_vendor: default_jre_vendor(),
             language: CompactString::from("es"),
             auto_updates: true,
             update_channel: CompactString::from("stable"),
@@ -303,6 +319,18 @@ impl SettingsManager {
     }
     pub fn get_max_memory(&self) -> u32 {
         self.max_memory
+    }
+
+    /// Proveedor de JRE configurado para una versión de Java. Devuelve `auto`
+    /// para versiones sin preferencia explícita.
+    pub fn get_jre_vendor(&self, version: u8) -> &str {
+        match version {
+            8 => &self.jre8_vendor,
+            17 => &self.jre17_vendor,
+            21 => &self.jre21_vendor,
+            25 => &self.jre25_vendor,
+            _ => "auto",
+        }
     }
     pub fn add_user(&mut self, user: MinecraftUser) {
         self.user.push(user);

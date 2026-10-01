@@ -35,12 +35,16 @@ export const launcherStore = $state<LauncherState>({
 		max_memory: 2048,
 		jre8_path: "",
 		jre8_managed: true,
+		jre8_vendor: "auto",
 		jre17_path: "",
 		jre17_managed: true,
+		jre17_vendor: "auto",
 		jre21_path: "",
 		jre21_managed: true,
+		jre21_vendor: "auto",
 		jre25_path: "",
 		jre25_managed: true,
+		jre25_vendor: "auto",
 		language: "es",
 		auto_updates: true,
 		update_channel: "stable",
@@ -144,6 +148,40 @@ export function setPendingJreLaunch(
 
 export function clearPendingJreLaunch() {
 	launcherStore.pendingJreLaunch = null;
+}
+
+/** Proveedor de JRE configurado para una versión de Java. */
+export function jreVendorFor(version: number): string {
+	switch (version) {
+		case 8:
+			return launcherStore.settings.jre8_vendor || "auto";
+		case 17:
+			return launcherStore.settings.jre17_vendor || "auto";
+		case 21:
+			return launcherStore.settings.jre21_vendor || "auto";
+		case 25:
+			return launcherStore.settings.jre25_vendor || "auto";
+		default:
+			return "auto";
+	}
+}
+
+/** Guarda el proveedor de JRE elegido para una versión de Java. */
+export function setJreVendor(version: number, vendor: string) {
+	switch (version) {
+		case 8:
+			launcherStore.settings.jre8_vendor = vendor;
+			break;
+		case 17:
+			launcherStore.settings.jre17_vendor = vendor;
+			break;
+		case 21:
+			launcherStore.settings.jre21_vendor = vendor;
+			break;
+		case 25:
+			launcherStore.settings.jre25_vendor = vendor;
+			break;
+	}
 }
 
 export function showErrorParsed(rawError: unknown) {

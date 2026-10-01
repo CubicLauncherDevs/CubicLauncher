@@ -1,7 +1,10 @@
 use crate::core::path_manager::PathManager;
 use crate::core::{AppEvent, emit};
 use crate::services::java_manager::JavaManager;
-use aqua::{DownloadBatch, DownloadManager, DownloadProgress, JreBatch, java_runtime_preferences};
+use crate::services::settings_manager::SettingsManager;
+use aqua::{
+    DownloadBatch, DownloadManager, DownloadProgress, JreBatch, JreVendor, java_runtime_preferences,
+};
 use compact_str::CompactString;
 use dashmap::DashMap;
 use std::borrow::Cow;
@@ -59,6 +62,11 @@ pub struct DownloadQueue {
     sender: mpsc::Sender<Arc<str>>,
     active: DashMap<Arc<str>, DownloadState>,
     pending_batches: DashMap<Arc<str>, Box<dyn DownloadBatch + 'static>>,
+}
+
+/// Proveedor de JRE elegido por el usuario para una versión de Java.
+fn preferred_jre_vendor(java_version: u8) -> Option<JreVendor> {
+    JreVendor::from_id(SettingsManager::read().get_jre_vendor(java_version))
 }
 
 impl DownloadQueue {
@@ -355,9 +363,10 @@ impl DownloadQueue {
                 "jre",
                 Some(format!("Java {java_version} para OptiFine")),
             );
-            let pkg = JavaManager::get_latest_package(java_version)
-                .await
-                .map_err(|e| aqua::AquaError::Other(e.to_string()))?;
+            let pkg =
+                JavaManager::get_latest_package(java_version, preferred_jre_vendor(java_version))
+                    .await
+                    .map_err(|e| aqua::AquaError::Other(e.to_string()))?;
             let batch = JreBatch::new(java_version, pkg, JavaManager::get_jre_dir(java_version));
             let handle = manager.prepare_batch(Box::new(batch)).await?;
             download_with_progress(version.clone(), handle, queue.clone()).await?;
@@ -402,9 +411,10 @@ impl DownloadQueue {
                 "jre",
                 Some(format!("Java {} para Forge {}", java_version, version)),
             );
-            let pkg = JavaManager::get_latest_package(java_version)
-                .await
-                .map_err(|e| aqua::AquaError::Other(e.to_string()))?;
+            let pkg =
+                JavaManager::get_latest_package(java_version, preferred_jre_vendor(java_version))
+                    .await
+                    .map_err(|e| aqua::AquaError::Other(e.to_string()))?;
             let dest_dir = JavaManager::get_jre_dir(java_version);
             let jre_batch = JreBatch::new(java_version, pkg, dest_dir);
             let jre_handle = manager.prepare_batch(Box::new(jre_batch)).await?;
@@ -460,9 +470,10 @@ impl DownloadQueue {
                 "jre",
                 Some(format!("Java {} para NeoForge {}", java_version, version)),
             );
-            let pkg = JavaManager::get_latest_package(java_version)
-                .await
-                .map_err(|e| aqua::AquaError::Other(e.to_string()))?;
+            let pkg =
+                JavaManager::get_latest_package(java_version, preferred_jre_vendor(java_version))
+                    .await
+                    .map_err(|e| aqua::AquaError::Other(e.to_string()))?;
             let dest_dir = JavaManager::get_jre_dir(java_version);
             let jre_batch = JreBatch::new(java_version, pkg, dest_dir);
             let jre_handle = manager.prepare_batch(Box::new(jre_batch)).await?;

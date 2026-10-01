@@ -344,7 +344,28 @@
 			"envVarsAdd": "Add",
 			"saveBtn": "Save Settings",
 			"saving": "Saving...",
-			"zuluCredit": "Java runtimes provided by Azul Zulu (Zulu.org)"
+			"provider": "Java provider",
+			"providerAuto": "Automatic (recommended)",
+			"providerAutoHint": "Uses Azul Zulu and Eclipse Temurin depending on availability.",
+			"installedVendor": "Provider: {vendor}",
+			"providerMismatch": "Uninstall and install again to use {vendor}.",
+			"vendors": {
+				"zulu": "Azul Zulu",
+				"zuluHint": "Default option. Balanced performance, available for Java 8, 17, 21 and 25.",
+				"temurin": "Eclipse Temurin",
+				"temurinHint": "Eclipse distribution, the OpenJDK reference.",
+				"liberica": "BellSoft Liberica",
+				"libericaHint": "Long-term support builds from BellSoft.",
+				"graalvm": "GraalVM",
+				"graalvmHint": "Graal JIT compiler, often faster with mods. JDK for Java 17 and newer.",
+				"corretto": "Amazon Corretto",
+				"correttoHint": "Amazon builds with long-term support. Distributed as JDK.",
+				"microsoft": "Microsoft OpenJDK",
+				"microsoftHint": "Microsoft builds, used by many Minecraft launchers. Distributed as JDK.",
+				"semeru": "IBM Semeru (OpenJ9)",
+				"semeruHint": "OpenJ9 virtual machine. Uses less RAM, useful on low-memory systems."
+			},
+			"providersCredit": "Java runtimes provided by Azul, Eclipse Temurin, BellSoft, Amazon, Microsoft, IBM and GraalVM through foojay."
 		}
 	},
 	"updater": {

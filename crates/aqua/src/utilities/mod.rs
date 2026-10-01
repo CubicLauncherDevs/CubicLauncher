@@ -5,6 +5,7 @@ use log::{debug, error, warn};
 use reqwest::Client;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use sha1::{Digest, Sha1};
+use sha2::Sha256;
 use tokio::io::AsyncWriteExt;
 
 #[cfg(test)]
@@ -21,6 +22,41 @@ pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
 });
 
 const MAX_DOWNLOAD_ATTEMPTS: usize = 3;
+
+/// Hasher polimórfico para la verificación de descargas.
+///
+/// El launcher convive con hashes SHA-1 (assets de Minecraft, 40 caracteres
+/// hex) y SHA-256 (paquetes de JRE, 64 caracteres), así que el algoritmo se
+/// elige según la longitud del hash esperado. Cualquier longitud desconocida
+/// se trata como SHA-1 para conservar el comportamiento previo.
+enum FileHasher {
+    Sha1(Sha1),
+    Sha256(Sha256),
+}
+
+impl FileHasher {
+    fn for_hash(expected_hash: &str) -> Self {
+        if expected_hash.len() == 64 {
+            Self::Sha256(Sha256::new())
+        } else {
+            Self::Sha1(Sha1::new())
+        }
+    }
+
+    fn update(&mut self, data: &[u8]) {
+        match self {
+            Self::Sha1(hasher) => hasher.update(data),
+            Self::Sha256(hasher) => hasher.update(data),
+        }
+    }
+
+    fn finalize_hex(self) -> String {
+        match self {
+            Self::Sha1(hasher) => hex_encode(hasher.finalize().as_slice()),
+            Self::Sha256(hasher) => hex_encode(hasher.finalize().as_slice()),
+        }
+    }
+}
 
 /// Abstraction over any progress reporter that can track bytes for a single
 /// download item. Allows the shared download loop to be reused by callers
@@ -138,7 +174,7 @@ pub async fn download_file_with_headers(
             Err(e) => return Err(AquaError::IoError(e)),
         };
 
-        let mut hasher = Sha1::new();
+        let mut hasher = FileHasher::for_hash(expected_hash);
         let mut stream = response.bytes_stream();
 
         use futures::StreamExt;
@@ -177,7 +213,7 @@ pub async fn download_file_with_headers(
 
         // Verify hash if provided
         if !expected_hash.is_empty() {
-            let actual_hash = hex_encode(hasher.finalize().as_slice());
+            let actual_hash = hasher.finalize_hex();
             if actual_hash != expected_hash {
                 warn!(
                     "Hash mismatch attempt {}/{}: expected={}, got={}",
@@ -209,7 +245,7 @@ pub async fn verify_file_hash(path: &Path, expected_hash: &str) -> Result<bool, 
     tokio::task::spawn_blocking(move || {
         use std::io::Read;
         let mut file = std::io::BufReader::with_capacity(1 << 18, std::fs::File::open(&path)?);
-        let mut hasher = Sha1::new();
+        let mut hasher = FileHasher::for_hash(&expected);
         let mut buf = [0u8; 1 << 16];
         loop {
             let n = file.read(&mut buf)?;
@@ -218,7 +254,7 @@ pub async fn verify_file_hash(path: &Path, expected_hash: &str) -> Result<bool, 
             }
             hasher.update(&buf[..n]);
         }
-        Ok::<_, AquaError>(hex_encode(hasher.finalize().as_slice()) == expected)
+        Ok::<_, AquaError>(hasher.finalize_hex() == expected)
     })
     .await?
 }

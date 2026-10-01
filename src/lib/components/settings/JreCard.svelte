@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { JreStatus } from "$lib/types/types";
 	import { t } from "$lib/i18n";
+	import Select from "$lib/components/layout/Select.svelte";
 
 	interface Props {
 		version: number;
@@ -10,10 +11,15 @@
 		pathLabel: string;
 		isInstalling: boolean;
 		isUninstalling: boolean;
+		/** Proveedores con build descargable para esta versión de Java. */
+		vendors: string[];
+		/** Proveedor elegido; `auto` usa la cadena por defecto. */
+		vendor: string;
 		onToggleManaged: (managed: boolean) => void;
 		onInstall: (version: number) => void;
 		onUninstall: (version: number) => void;
 		onPathChange: (path: string) => void;
+		onVendorChange: (vendor: string) => void;
 	}
 
 	let {
@@ -24,11 +30,47 @@
 		pathLabel,
 		isInstalling,
 		isUninstalling,
+		vendors,
+		vendor,
 		onToggleManaged,
 		onInstall,
 		onUninstall,
 		onPathChange,
+		onVendorChange,
 	}: Props = $props();
+
+	function vendorLabel(id: string): string {
+		const key = `settings.java.vendors.${id}`;
+		const label = t(key);
+		return label === key ? id : label;
+	}
+
+	function vendorHint(id: string): string | undefined {
+		const key = `settings.java.vendors.${id}Hint`;
+		const hint = t(key);
+		return hint === key ? undefined : hint;
+	}
+
+	/** El runtime instalado pertenece a otro proveedor del elegido. */
+	const vendorMismatch = $derived(
+		status?.installed === true &&
+			vendor !== "auto" &&
+			!!status.vendor &&
+			vendor !== status.vendor,
+	);
+
+	const vendorOptions = $derived([
+		{
+			value: "auto",
+			label: t("settings.java.providerAuto"),
+			subtitle: t("settings.java.providerAutoHint"),
+		},
+		...vendors.map((id) => ({
+			value: id,
+			label: vendorLabel(id),
+			subtitle: vendorHint(id),
+		})),
+	]);
 </script>
 
 <div class="qm-jre-card">
@@ -55,13 +97,26 @@
 	</div>
 	{#if managed}
 		<div class="qm-jre-managed">
+			<div class="qm-jre-provider">
+				<Select
+					id={`jre${version}-vendor`}
+					compact
+					label={t("settings.java.provider")}
+					value={vendor}
+					options={vendorOptions}
+					onchange={(value) => onVendorChange(value)}
+				/>
+			</div>
 			{#if status}
 				{#if status.installed}
 					<div class="qm-jre-installed">
 						<span class="qm-jre-version"
 							>{t("settings.java.installedVersion", {
 								version: status.java_version ?? "?",
-							})}</span
+							})}{#if status.vendor}
+								· {t("settings.java.installedVendor", {
+									vendor: vendorLabel(status.vendor),
+								})}{/if}</span
 						>
 						<button
 							type="button"
@@ -78,6 +133,13 @@
 								: t("settings.java.uninstall")}
 						</button>
 					</div>
+					{#if vendorMismatch}
+						<span class="qm-jre-hint"
+							>{t("settings.java.providerMismatch", {
+								vendor: vendorLabel(vendor),
+							})}</span
+						>
+					{/if}
 				{:else}
 					<div class="qm-jre-not-installed">
 						<span>{t("settings.java.notInstalled")}</span>
@@ -165,6 +227,17 @@
 
 	.qm-jre-managed {
 		padding-top: 4px;
+	}
+
+	.qm-jre-provider {
+		margin-bottom: 10px;
+	}
+
+	.qm-jre-hint {
+		display: block;
+		margin-top: 6px;
+		font-size: 0.75rem;
+		color: var(--text-muted);
 	}
 
 	.qm-jre-installed,

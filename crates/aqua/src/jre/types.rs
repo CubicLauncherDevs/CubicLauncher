@@ -47,4 +47,8 @@ pub struct JreStatus {
     pub version: u8,
     pub installed: bool,
     pub java_version: Option<String>,
+    /// Identificador del proveedor detectado en el runtime instalado, cuando
+    /// puede reconocerse a partir de `java -version`.
+    #[serde(default)]
+    pub vendor: Option<String>,
 }

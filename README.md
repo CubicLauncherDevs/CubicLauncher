@@ -37,7 +37,7 @@ La aplicación utiliza **Tauri v2**, **Rust** y **SvelteKit**. El código fuente
 - **Cuentas:** autenticación con Microsoft y Yggdrasil, además de perfiles sin conexión.
 - **Contenido:** búsqueda e instalación de mods, paquetes de recursos y shaders mediante Modrinth y CurseForge; importación de modpacks.
 - **Mundos y servidores:** administración de mundos locales y listas de servidores por instancia, con consultas de estado y conexión al juego.
-- **Configuración de ejecución:** selección de Java, asignación de memoria y consola de registros.
+- **Configuración de ejecución:** selección de Java y de su proveedor (Azul Zulu, Eclipse Temurin, BellSoft Liberica, GraalVM, Amazon Corretto, Microsoft e IBM Semeru), asignación de memoria y consola de registros.
 - **Personalización:** temas, idiomas e integración con Discord Rich Presence.
 
 ## Instalación

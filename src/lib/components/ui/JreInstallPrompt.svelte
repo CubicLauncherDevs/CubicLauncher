@@ -3,6 +3,7 @@
 		dismissJreInstallPrompt,
 		setPendingJreLaunch,
 		clearPendingJreLaunch,
+		jreVendorFor,
 	} from "$lib/state/state.svelte";
 	import { installJre } from "$lib/api/cubicApi";
 	import { launcherStore } from "$lib/state/state.svelte";
@@ -25,7 +26,7 @@
 		dismissJreInstallPrompt();
 
 		try {
-			await installJre(jreVersion);
+			await installJre(jreVersion, jreVendorFor(jreVersion));
 		} catch {
 			clearPendingJreLaunch();
 		}

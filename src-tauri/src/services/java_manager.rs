@@ -1,5 +1,5 @@
 use crate::core::{AppError, FsError, PathManager};
-use aqua::{JrePackage, JreProviderChain, JreStatus};
+use aqua::{JrePackage, JreProviderChain, JreStatus, JreVendor};
 use std::path::PathBuf;
 use tokio::fs;
 use tracing::info;
@@ -30,21 +30,32 @@ impl JavaManager {
 
     pub async fn get_status(version: u8) -> Result<JreStatus, AppError> {
         let installed = Self::is_installed(version);
-        let java_version = if installed {
-            Self::detect_java_version(version).await
+        let (java_version, vendor) = if installed {
+            Self::detect_runtime(version).await
         } else {
-            None
+            (None, None)
         };
 
         Ok(JreStatus {
             version,
             installed,
             java_version,
+            vendor,
         })
     }
 
-    pub async fn get_latest_package(version: u8) -> Result<JrePackage, AppError> {
-        JreProviderChain::get_latest_package(version)
+    pub async fn get_latest_package(
+        version: u8,
+        vendor: Option<JreVendor>,
+    ) -> Result<JrePackage, AppError> {
+        JreProviderChain::get_package(version, vendor)
+            .await
+            .map_err(|e| AppError::CoreError(crate::core::CoreError::Other(e.to_string())))
+    }
+
+    /// Proveedores con un build descargable para la versión indicada.
+    pub async fn get_available_vendors(version: u8) -> Result<Vec<JreVendor>, AppError> {
+        JreProviderChain::available_vendors(version)
             .await
             .map_err(|e| AppError::CoreError(crate::core::CoreError::Other(e.to_string())))
     }
@@ -63,7 +74,25 @@ impl JavaManager {
         Ok(())
     }
 
-    async fn detect_java_version(version: u8) -> Option<String> {
+    /// Devuelve la versión de Java y el identificador del proveedor detectado
+    /// en el runtime administrado.
+    async fn detect_runtime(version: u8) -> (Option<String>, Option<String>) {
+        let Some(output) = Self::fetch_version_output(version).await else {
+            return (None, None);
+        };
+
+        let parsed_version = parse_java_version(&output);
+        let vendor = JreVendor::detect(&output).map(|vendor| vendor.id().to_string());
+
+        info!(
+            "Detected Java {} version: {:?} (vendor: {:?})",
+            version, parsed_version, vendor
+        );
+
+        (parsed_version, vendor)
+    }
+
+    async fn fetch_version_output(version: u8) -> Option<String> {
         let java_bin = Self::get_java_binary(version);
         if !java_bin.exists() {
             return None;
@@ -75,26 +104,31 @@ impl JavaManager {
             .await
             .ok()?;
 
-        let version_str = String::from_utf8_lossy(if output.stderr.is_empty() {
-            &output.stdout
-        } else {
-            &output.stderr
-        })
-        .to_string();
-
-        // Parse version line like: openjdk version "21.0.11" 2025-...
-        let version_line = version_str.lines().next()?;
-        let parsed_version = version_line
-            .split('"')
-            .nth(1)
-            .or_else(|| {
-                version_line
-                    .split_whitespace()
-                    .find(|s| s.chars().next().is_some_and(|c| c.is_ascii_digit()))
+        Some(
+            String::from_utf8_lossy(if output.stderr.is_empty() {
+                &output.stdout
+            } else {
+                &output.stderr
             })
-            .map(|s| s.to_string());
-
-        info!("Detected Java {} version: {:?}", version, parsed_version);
-        parsed_version
+            .to_string(),
+        )
     }
 }
+
+/// Extrae la versión de un texto como `openjdk version "21.0.11" 2025-...`.
+fn parse_java_version(version_output: &str) -> Option<String> {
+    let version_line = version_output.lines().next()?;
+    version_line
+        .split('"')
+        .nth(1)
+        .or_else(|| {
+            version_line
+                .split_whitespace()
+                .find(|s| s.chars().next().is_some_and(|c| c.is_ascii_digit()))
+        })
+        .map(|s| s.to_string())
+}
+
+#[cfg(test)]
+#[path = "../tests/services/java_manager.rs"]
+mod tests;

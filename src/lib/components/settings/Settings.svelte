@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import {
+		launcherStore,
+		jreVendorFor,
+		setJreVendor,
+	} from "$lib/state/state.svelte";
 	import {
 		saveSettings,
 		scheduleSettingsSave,
@@ -18,6 +22,7 @@
 		getJreVersions,
 		installJre,
 		uninstallJre,
+		getAvailableJreVendors,
 		getRecommendedRam,
 	} from "$lib/api/cubicApi";
 	import type { JreStatus, ThemeEntry } from "$lib/types/types";
@@ -49,8 +54,20 @@
 	let currentTab = $state("launcher");
 
 	const JRE_VERSIONS = [8, 17, 21, 25];
+	/** Proveedores conocidos; se usan mientras no llega la lista del backend. */
+	const DEFAULT_JRE_VENDORS = [
+		"zulu",
+		"temurin",
+		"liberica",
+		"graalvm",
+		"corretto",
+		"microsoft",
+		"semeru",
+	];
 	let jreStatuses = $state<Record<number, JreStatus>>({});
 	let jreActionStates = $state<Record<number, string | undefined>>({});
+	let jreVendors = $state<Record<number, string[]>>({});
+	let jreVendorsLoaded = false;
 
 	async function refreshJreStatus() {
 		const statuses = await getJreVersions();
@@ -61,15 +78,44 @@
 		jreStatuses = map;
 	}
 
+	async function refreshJreVendors() {
+		if (jreVendorsLoaded) return;
+		jreVendorsLoaded = true;
+
+		const entries = await Promise.all(
+			JRE_VERSIONS.map(async (version) => {
+				const available = await getAvailableJreVendors(version);
+				return [version, available] as const;
+			}),
+		);
+
+		const map: Record<number, string[]> = {};
+		for (const [version, available] of entries) {
+			map[version] =
+				available.length > 0 ? available : DEFAULT_JRE_VENDORS;
+		}
+		jreVendors = map;
+	}
+
+	function selectTab(id: string) {
+		currentTab = id;
+		if (id === "java") void refreshJreVendors();
+	}
+
 	async function handleInstallJre(version: number) {
 		if (jreActionStates[version]) return;
 		jreActionStates[version] = "downloading";
 		try {
-			await installJre(version);
+			await installJre(version, jreVendorFor(version));
 		} catch (e) {
 			console.error(`Failed to queue JRE ${version}:`, e);
 			jreActionStates[version] = undefined;
 		}
+	}
+
+	function handleVendorChange(version: number, vendor: string) {
+		setJreVendor(version, vendor);
+		void handleSave();
 	}
 
 	async function handleUninstallJre(version: number) {
@@ -222,7 +268,7 @@
 				type="button"
 				class="qm-tab-btn"
 				class:active={currentTab === tab.id}
-				onclick={() => (currentTab = tab.id)}
+				onclick={() => selectTab(tab.id)}
 				data-tutorial="tab-{tab.id}"
 			>
 				<span class="qm-tab-label">{tab.label}</span>
@@ -755,12 +801,15 @@
 						pathLabel={t("settings.java.java8Path")}
 						isInstalling={jreActionStates[8] === "downloading"}
 						isUninstalling={jreActionStates[8] === "uninstalling"}
+						vendors={jreVendors[8] ?? DEFAULT_JRE_VENDORS}
+						vendor={launcherStore.settings.jre8_vendor}
 						onToggleManaged={(v) =>
 							(launcherStore.settings.jre8_managed = v)}
 						onInstall={handleInstallJre}
 						onUninstall={handleUninstallJre}
 						onPathChange={(v) =>
 							(launcherStore.settings.jre8_path = v)}
+						onVendorChange={(v) => handleVendorChange(8, v)}
 					/>
 					<JreCard
 						version={17}
@@ -770,12 +819,15 @@
 						pathLabel={t("settings.java.java17Path")}
 						isInstalling={jreActionStates[17] === "downloading"}
 						isUninstalling={jreActionStates[17] === "uninstalling"}
+						vendors={jreVendors[17] ?? DEFAULT_JRE_VENDORS}
+						vendor={launcherStore.settings.jre17_vendor}
 						onToggleManaged={(v) =>
 							(launcherStore.settings.jre17_managed = v)}
 						onInstall={handleInstallJre}
 						onUninstall={handleUninstallJre}
 						onPathChange={(v) =>
 							(launcherStore.settings.jre17_path = v)}
+						onVendorChange={(v) => handleVendorChange(17, v)}
 					/>
 					<JreCard
 						version={21}
@@ -785,12 +837,15 @@
 						pathLabel={t("settings.java.java21Path")}
 						isInstalling={jreActionStates[21] === "downloading"}
 						isUninstalling={jreActionStates[21] === "uninstalling"}
+						vendors={jreVendors[21] ?? DEFAULT_JRE_VENDORS}
+						vendor={launcherStore.settings.jre21_vendor}
 						onToggleManaged={(v) =>
 							(launcherStore.settings.jre21_managed = v)}
 						onInstall={handleInstallJre}
 						onUninstall={handleUninstallJre}
 						onPathChange={(v) =>
 							(launcherStore.settings.jre21_path = v)}
+						onVendorChange={(v) => handleVendorChange(21, v)}
 					/>
 					<JreCard
 						version={25}
@@ -800,12 +855,15 @@
 						pathLabel={t("settings.java.java25Path")}
 						isInstalling={jreActionStates[25] === "downloading"}
 						isUninstalling={jreActionStates[25] === "uninstalling"}
+						vendors={jreVendors[25] ?? DEFAULT_JRE_VENDORS}
+						vendor={launcherStore.settings.jre25_vendor}
 						onToggleManaged={(v) =>
 							(launcherStore.settings.jre25_managed = v)}
 						onInstall={handleInstallJre}
 						onUninstall={handleUninstallJre}
 						onPathChange={(v) =>
 							(launcherStore.settings.jre25_path = v)}
+						onVendorChange={(v) => handleVendorChange(25, v)}
 					/>
 					<div style="margin-top: 12px;">
 						<button
@@ -816,7 +874,7 @@
 						>
 					</div>
 					<div class="zulu-credit">
-						{t("settings.java.zuluCredit")}
+						{t("settings.java.providersCredit")}
 					</div>
 					<span
 						class="qm-themes-hint"

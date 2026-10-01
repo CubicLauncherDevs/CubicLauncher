@@ -60,12 +60,17 @@ export interface Settings {
 	max_memory: number;
 	jre8_path: string;
 	jre8_managed: boolean;
+	/** Proveedor de JRE de cada versión de Java; "auto" usa la cadena por defecto. */
+	jre8_vendor: string;
 	jre17_path: string;
 	jre17_managed: boolean;
+	jre17_vendor: string;
 	jre21_path: string;
 	jre21_managed: boolean;
+	jre21_vendor: string;
 	jre25_path: string;
 	jre25_managed: boolean;
+	jre25_vendor: string;
 	language: string;
 	auto_updates: boolean;
 	update_channel: string;
@@ -98,6 +103,8 @@ export interface JreStatus {
 	version: number;
 	installed: boolean;
 	java_version: string | null;
+	/** Identificador del proveedor detectado en el runtime instalado. */
+	vendor?: string | null;
 }
 
 export type AccountType = "Cracked" | "Microsoft" | "Yggdrasil";
