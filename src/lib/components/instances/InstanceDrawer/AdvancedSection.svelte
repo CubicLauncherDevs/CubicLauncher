@@ -5,6 +5,7 @@
 	let {
 		useOverrides = $bindable(false),
 		selectedJavaVersion = $bindable(""),
+		jvmArgs = $bindable(""),
 		minMem = $bindable(1),
 		maxMem = $bindable(2),
 		javaOptions = [] as { value: string; label: string; badge?: string }[],
@@ -13,6 +14,7 @@
 	}: {
 		useOverrides: boolean;
 		selectedJavaVersion: string;
+		jvmArgs: string;
 		minMem: number;
 		maxMem: number;
 		javaOptions: { value: string; label: string; badge?: string }[];
@@ -33,6 +35,15 @@
 		onchange={onJavaChange}
 	/>
 	<span class="qm-themes-hint">{t("instanceEditor.javaHint")}</span>
+	<div class="qm-field">
+		<label for="instance-jvm-args">{t("instanceEditor.jvmArgs")}</label>
+		<textarea
+			id="instance-jvm-args"
+			bind:value={jvmArgs}
+			placeholder="-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=..."
+			class="qm-jvm-args-textarea"></textarea>
+		<span class="qm-themes-hint">{t("instanceEditor.jvmArgsHint")}</span>
+	</div>
 	<div class="qm-field-group">
 		<div class="qm-field">
 			<label for="min-mem">{t("settings.minecraft.minRam")}</label>
@@ -221,5 +232,25 @@
 		color: var(--text-muted);
 		line-height: 1.5;
 		padding: 0 4px;
+	}
+
+	.qm-jvm-args-textarea {
+		width: 100%;
+		background: var(--bg-input);
+		border: 1px solid var(--border-color);
+		color: var(--text-primary);
+		padding: 8px 10px;
+		border-radius: var(--border-radius-sm);
+		font-size: 0.85rem;
+		resize: vertical;
+		min-height: 60px;
+		font-family: var(--font-family-mono);
+		box-shadow: var(--shadow-inset);
+		box-sizing: border-box;
+	}
+
+	.qm-jvm-args-textarea:focus {
+		outline: none;
+		border-color: var(--text-muted);
 	}
 </style>

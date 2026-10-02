@@ -778,7 +778,9 @@
 		"recommended": "Recommended",
 		"repairHint": "This reinstalls the mod loader and game version.",
 		"versionChangeWarning": "Changing the version or loader may damage the installation and make mods stop working.",
-		"useCustomConfig": "Use custom configuration"
+		"useCustomConfig": "Use custom configuration",
+		"jvmArgs": "JVM Arguments",
+		"jvmArgsHint": "Extra JVM arguments for this instance, appended after the global ones. Separate arguments with spaces or new lines."
 	},
 	"createInstance": {
 		"title": "Create New Instance",

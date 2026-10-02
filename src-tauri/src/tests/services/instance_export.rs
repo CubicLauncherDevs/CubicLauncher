@@ -123,4 +123,32 @@ fn test_build_instance_cfg() {
     assert!(cfg.contains("MinMemAlloc=1024"));
     assert!(cfg.contains("MaxMemAlloc=4096"));
     assert!(!cfg.contains("iconKey"));
+    assert!(!cfg.contains("JvmArgs"));
+}
+
+#[test]
+fn test_build_instance_cfg_exports_per_instance_jvm_args() {
+    use crate::services::instance_manager::data::InstOverrides;
+    let input = ExportInput {
+        uuid: "uuid".into(),
+        name: "ConArgs".into(),
+        version_id: "1.20.1".into(),
+        mc_version: "1.20.1".into(),
+        loader_name: "Vanilla".into(),
+        loader_version: None,
+        loader_mmc_uid: None,
+        instance_dir: PathBuf::new(),
+        min_memory: 1024,
+        max_memory: 4096,
+        overrides: Some(InstOverrides {
+            java_version: None,
+            memory: None,
+            jvm_args: Some(vec!["-XX:+UseG1GC".into(), "-Dfoo=bar".into()]),
+        }),
+        minecraft_jar: Default::default(),
+        icon_src: None,
+    };
+    let cfg = build_instance_cfg(&input);
+    assert!(cfg.contains("OverrideJavaArgs=true"));
+    assert!(cfg.contains("JvmArgs=-XX:+UseG1GC -Dfoo=bar"));
 }

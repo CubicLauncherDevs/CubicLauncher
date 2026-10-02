@@ -130,13 +130,16 @@ async fn import_multimc_instance(
         }
     }
 
-    if meta.min_memory.is_some() || meta.max_memory.is_some() {
+    let has_memory = meta.min_memory.is_some() || meta.max_memory.is_some();
+    let jvm_args = (!meta.jvm_args.is_empty()).then(|| meta.jvm_args.clone());
+    if has_memory || jvm_args.is_some() {
         let overrides = InstOverrides {
             java_version: None,
-            memory: Some(RamOverrides {
+            memory: has_memory.then(|| RamOverrides {
                 min_mem: meta.min_memory.unwrap_or(512),
                 max_mem: meta.max_memory.unwrap_or(2048),
             }),
+            jvm_args,
         };
         handle.set_overrides(Some(overrides)).await;
     }

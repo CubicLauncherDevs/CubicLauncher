@@ -48,6 +48,9 @@ pub struct MultiMcInstanceMeta {
     pub icon_key: Option<String>,
     pub min_memory: Option<u32>,
     pub max_memory: Option<u32>,
+    /// Argumentos JVM propios de la instancia. Solo se importan si el fork
+    /// activó `OverrideJavaArgs`, igual que hace MultiMC/Prism al lanzar.
+    pub jvm_args: Vec<String>,
     pub game_version: Option<zellkern::GameVersion>,
     pub unsupported_loaders: Vec<String>,
 }
@@ -83,6 +86,7 @@ pub fn parse_multimc_instance(path: &Path) -> Result<MultiMcInstanceMeta, Import
         .general
         .get("MaxMemAlloc")
         .and_then(|v| v.parse::<u32>().ok());
+    let jvm_args = parse_jvm_args(&cfg.general);
 
     let (game_version, unsupported_loaders) = read_mmc_pack(path)
         .map(|pack| resolve_game_version(&pack))
@@ -94,9 +98,26 @@ pub fn parse_multimc_instance(path: &Path) -> Result<MultiMcInstanceMeta, Import
         icon_key,
         min_memory,
         max_memory,
+        jvm_args,
         game_version,
         unsupported_loaders,
     })
+}
+
+/// Extrae los argumentos JVM de `instance.cfg`.
+///
+/// MultiMC/Prism solo aplican `JvmArgs` cuando `OverrideJavaArgs=true`; el
+/// valor por defecto del fork contiene argumentos que no queremos arrastrar.
+fn parse_jvm_args(cfg: &HashMap<String, String>) -> Vec<String> {
+    let overrides = cfg
+        .get("OverrideJavaArgs")
+        .is_some_and(|v| v.eq_ignore_ascii_case("true"));
+    if !overrides {
+        return Vec::new();
+    }
+    cfg.get("JvmArgs")
+        .map(|raw| raw.split_whitespace().map(str::to_string).collect())
+        .unwrap_or_default()
 }
 
 pub fn read_mmc_pack(path: &Path) -> Option<MmcPack> {

@@ -318,6 +318,7 @@ async fn migrate_one(
                 .set_overrides(Some(InstOverrides {
                     java_version: None,
                     memory: Some(RamOverrides { min_mem, max_mem }),
+                    jvm_args: None,
                 }))
                 .await;
         }

@@ -213,6 +213,17 @@ fn build_instance_cfg(input: &ExportInput) -> String {
     lines.push(format!("MinMemAlloc={}", input.min_memory));
     lines.push(format!("MaxMemAlloc={}", input.max_memory));
 
+    // Preserva los argumentos JVM por instancia al exportar para MultiMC/Prism.
+    if let Some(args) = input
+        .overrides
+        .as_ref()
+        .and_then(|o| o.jvm_args.as_ref())
+        .filter(|args| !args.is_empty())
+    {
+        lines.push("OverrideJavaArgs=true".to_string());
+        lines.push(format!("JvmArgs={}", args.join(" ")));
+    }
+
     lines.join("\n") + "\n"
 }
 
@@ -278,7 +289,7 @@ fn build_cubic_manifest(input: &ExportInput) -> String {
         loader_version: input.loader_version.clone(),
         min_memory: input.min_memory,
         max_memory: input.max_memory,
-        overrides: input.overrides,
+        overrides: input.overrides.clone(),
         minecraft_jar: input.minecraft_jar.clone(),
     };
 

@@ -19,6 +19,8 @@ export interface InstanceDto {
 export interface InstOverrides {
 	javaVersion: number | null;
 	memory: MemOverrides | null;
+	/** Argumentos JVM propios de la instancia (estilo MultiMC/Prism). */
+	jvmArgs?: string[] | null;
 }
 
 export interface MemOverrides {

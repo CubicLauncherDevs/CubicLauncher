@@ -34,11 +34,15 @@ pub(crate) struct InstanceData {
     pub instance_root: PathBuf,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct InstOverrides {
     pub java_version: Option<u8>,
     pub memory: Option<RamOverrides>,
+    /// Argumentos JVM adicionales de esta instancia. Se añaden después de los
+    /// globales, igual que el `JvmArgs` por instancia de MultiMC/Prism.
+    #[serde(default)]
+    pub jvm_args: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]

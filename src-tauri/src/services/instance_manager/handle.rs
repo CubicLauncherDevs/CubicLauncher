@@ -188,7 +188,7 @@ impl InstanceHandle {
     }
 
     pub async fn get_overrides(&self) -> Option<InstOverrides> {
-        self.data.read().await.overrides
+        self.data.read().await.overrides.clone()
     }
 
     pub async fn get_pinned(&self) -> bool {
@@ -254,7 +254,7 @@ impl InstanceHandle {
             icon: Self::resolve_icon_absolute(&data),
             uuid: self.uuid.clone(),
             path: data.get_instance_dir(),
-            overrides: data.overrides,
+            overrides: data.overrides.clone(),
             pinned: data.pinned,
         }
     }

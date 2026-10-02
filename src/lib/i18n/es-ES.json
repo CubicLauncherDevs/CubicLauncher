@@ -778,7 +778,9 @@
 		"recommended": "Recomendado",
 		"repairHint": "Esto reinstala el cargador de mods y la versión del juego.",
 		"versionChangeWarning": "Cambiar la versión o el cargador puede dañar la instalación y hacer que los mods dejen de funcionar.",
-		"useCustomConfig": "Usar configuración personalizada"
+		"useCustomConfig": "Usar configuración personalizada",
+		"jvmArgs": "Argumentos JVM",
+		"jvmArgsHint": "Argumentos JVM extra para esta instancia, se añaden después de los globales. Separa cada argumento con espacios o saltos de línea."
 	},
 	"createInstance": {
 		"title": "Crear Nueva Instancia",

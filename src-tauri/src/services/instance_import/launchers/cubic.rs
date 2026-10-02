@@ -170,6 +170,7 @@ async fn import_cubic_instance(
     }
 
     let java_version = manifest.overrides.as_ref().and_then(|o| o.java_version);
+    let jvm_args = manifest.overrides.as_ref().and_then(|o| o.jvm_args.clone());
     let memory = Some(RamOverrides {
         min_mem: manifest.min_memory,
         max_mem: manifest.max_memory,
@@ -178,6 +179,7 @@ async fn import_cubic_instance(
         .set_overrides(Some(InstOverrides {
             java_version,
             memory,
+            jvm_args,
         }))
         .await;
 

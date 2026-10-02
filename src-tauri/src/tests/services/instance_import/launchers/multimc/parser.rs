@@ -11,6 +11,20 @@ fn test_sanitize_instance_name() {
 }
 
 #[test]
+fn test_parse_jvm_args_requires_override_flag() {
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("JvmArgs".to_string(), "-Xmx4G -XX:+UseG1GC".to_string());
+    // Sin OverrideJavaArgs=true se ignoran los argumentos del fork.
+    assert!(parse_jvm_args(&cfg).is_empty());
+
+    cfg.insert("OverrideJavaArgs".to_string(), "true".to_string());
+    assert_eq!(
+        parse_jvm_args(&cfg),
+        vec!["-Xmx4G".to_string(), "-XX:+UseG1GC".to_string()]
+    );
+}
+
+#[test]
 fn test_resolve_game_version_fabric() {
     let pack = MmcPack {
         components: vec![

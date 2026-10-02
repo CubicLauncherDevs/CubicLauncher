@@ -581,7 +581,7 @@ impl Launcher {
             }
         }
         let overrides = handle.get_overrides().await;
-        let (java_version, java_path) = if let Some(overrides) = overrides {
+        let (java_version, java_path) = if let Some(ref overrides) = overrides {
             if let Some(java_meta) = overrides.java_version {
                 resolve_java_path(
                     &settings_m,
@@ -614,15 +614,16 @@ impl Launcher {
         // let min_mem = format!("{}G", settings_m.min_memory);
         // let max_mem = format!("{}G", settings_m.max_memory);
 
-        let (max_mem, min_mem) = if let Some(ram_overrides) = overrides.and_then(|o| o.memory) {
-            let max_memf = format!("{}M", ram_overrides.max_mem);
-            let min_memf = format!("{}M", ram_overrides.min_mem);
-            (max_memf, min_memf)
-        } else {
-            let min_memf = format!("{}M", settings_m.min_memory);
-            let max_memf = format!("{}M", settings_m.max_memory);
-            (max_memf, min_memf)
-        };
+        let (max_mem, min_mem) =
+            if let Some(ram_overrides) = overrides.as_ref().and_then(|o| o.memory) {
+                let max_memf = format!("{}M", ram_overrides.max_mem);
+                let min_memf = format!("{}M", ram_overrides.min_mem);
+                (max_memf, min_memf)
+            } else {
+                let min_memf = format!("{}M", settings_m.min_memory);
+                let max_memf = format!("{}M", settings_m.max_memory);
+                (max_memf, min_memf)
+            };
 
         // Datos que necesitamos mostrar en el log antes de mover los originales.
         let java_path_str = java_path.display().to_string();
@@ -708,6 +709,18 @@ impl Launcher {
             .map(String::from)
             .collect();
         extra_jvm_args.extend(parsed_jvm_args);
+
+        // Argumentos JVM propios de la instancia (estilo MultiMC/Prism).
+        if let Some(instance_jvm_args) = overrides.as_ref().and_then(|o| o.jvm_args.as_ref()) {
+            extra_jvm_args.extend(
+                instance_jvm_args
+                    .iter()
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .map(String::from),
+            );
+        }
+
         builder = builder.extra_jvm_args(extra_jvm_args);
 
         let instance_name = name.clone();

@@ -31,6 +31,7 @@
 
 	let selectedJavaVersion = $state("");
 	let useOverrides = $state(false);
+	let jvmArgs = $state("");
 
 	let parsedVersion = $derived(parseInstanceVersion(instance.version));
 
@@ -143,6 +144,11 @@
 	async function handleSave() {
 		if (!isVersionValid) return;
 		saving = true;
+		const parsedJvmArgs = jvmArgs
+			.split("\n")
+			.flatMap((line) => line.split(/\s+/))
+			.map((arg) => arg.trim())
+			.filter(Boolean);
 		const newOverrides = useOverrides
 			? {
 					javaVersion:
@@ -153,6 +159,7 @@
 						minMem: Math.round(minMem * 1024),
 						maxMem: Math.round(maxMem * 1024),
 					},
+					jvmArgs: parsedJvmArgs.length > 0 ? parsedJvmArgs : null,
 				}
 			: null;
 		await updateInst(
@@ -199,6 +206,7 @@
 					: "default";
 			minMem = (instance.overrides.memory?.minMem ?? 1024) / 1024;
 			maxMem = (instance.overrides.memory?.maxMem ?? 2048) / 1024;
+			jvmArgs = (instance.overrides.jvmArgs ?? []).join(" ");
 		}
 	});
 </script>
@@ -248,6 +256,7 @@
 				<AdvancedSection
 					bind:useOverrides
 					bind:selectedJavaVersion
+					bind:jvmArgs
 					bind:minMem
 					bind:maxMem
 					javaOptions={JavaOptions}
