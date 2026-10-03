@@ -32,6 +32,9 @@
 	let working = $state(false);
 	let querying = $state(false);
 	let error = $state("");
+	let copying = $state(false);
+	let copyResult = $state<{ address: string; success: boolean } | null>(null);
+	let copyTimer: ReturnType<typeof setTimeout> | undefined;
 	let search = $state("");
 	let page = $state(0);
 	let selectedIndex = $state<number | null>(null);
@@ -165,8 +168,28 @@
 	onDestroy(() => {
 		alive = false;
 		generation++;
+		clearTimeout(copyTimer);
 		resources.dispose();
 	});
+
+	async function copyAddress(address: string) {
+		if (copying) return;
+		copying = true;
+		copyResult = null;
+		clearTimeout(copyTimer);
+		try {
+			await navigator.clipboard.writeText(address);
+			if (!alive) return;
+			copyResult = { address, success: true };
+			copyTimer = setTimeout(() => {
+				copyResult = null;
+			}, 2000);
+		} catch {
+			if (alive) copyResult = { address, success: false };
+		} finally {
+			if (alive) copying = false;
+		}
+	}
 
 	function showModal(action: "add" | "edit" | "delete") {
 		if (disabled || running || (action !== "add" && !selected)) return;
@@ -327,8 +350,8 @@
 								/>{/if}
 						</div>
 						<div class="server-label">
-							<strong>{server.name}</strong><span class="ip-span blurred"
-								>{server.address}</span
+							<strong>{server.name}</strong><span
+								class="ip-span blurred">{server.address}</span
 							><small class:online={status?.online}
 								>{statusLabel(status)}{#if status?.online}
 									· {playerCount(status)} · {status.ping} ms{/if}</small
@@ -357,7 +380,37 @@
 						</p>{/if}
 					<dl>
 						<dt>{t("servers.address")}</dt>
-						<dd class="blurred">{selected.address}</dd>
+						<dd>
+							<div class="server-address">
+								<span class="blurred">{selected.address}</span>
+								<button
+									type="button"
+									class="copy-address"
+									disabled={copying}
+									onclick={() =>
+										selected &&
+										void copyAddress(selected.address)}
+									><Icon name="ui:copy" size={15} />{t(
+										"servers.copyIp",
+									)}</button
+								>
+							</div>
+							{#if copyResult?.address === selected.address}
+								<p
+									class="hint"
+									class:error={!copyResult.success}
+									role={copyResult.success
+										? "status"
+										: "alert"}
+								>
+									{t(
+										copyResult.success
+											? "servers.ipCopied"
+											: "servers.copyFailed",
+									)}
+								</p>
+							{/if}
+						</dd>
 						<dt>{t("servers.status")}</dt>
 						<dd>{statusLabel(selectedStatus)}</dd>
 						{#if selectedStatus?.online}
@@ -548,6 +601,7 @@
 		cursor: pointer;
 	}
 	.actions button,
+	.copy-address,
 	.connect {
 		display: flex;
 		align-items: center;
@@ -649,15 +703,25 @@
 		color: var(--text-secondary);
 		font-size: 0.8rem;
 	}
-	.ip-span,
-	dd.blurred {
+	.blurred {
 		filter: blur(4px);
 		transition: filter 0.2s ease;
 		user-select: none;
 	}
-	.ip-span:hover,
-	dd.blurred:hover {
+	.blurred:hover {
 		filter: blur(0);
+	}
+	.server-address {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	.server-address .blurred {
+		min-width: 0;
+	}
+	.copy-address {
+		flex-shrink: 0;
 	}
 	.server-label .online {
 		color: var(--accent-primary);
