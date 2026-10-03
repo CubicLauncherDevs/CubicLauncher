@@ -17,11 +17,34 @@ use crate::path_security::safe_join;
 pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
         .user_agent("Cubic Proton/2.0")
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .read_timeout(std::time::Duration::from_secs(30))
         .build()
         .expect("Failed to build reqwest client")
 });
 
 const MAX_DOWNLOAD_ATTEMPTS: usize = 3;
+
+/// Publish fetched metadata only after the batch has completed successfully.
+pub(crate) async fn write_metadata(path: &Path, bytes: &[u8]) -> Result<(), AquaError> {
+    let temporary = path.with_extension(format!("json.tmp.{}", uuid::Uuid::new_v4()));
+    let result = async {
+        let mut file = tokio::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+            .await?;
+        file.write_all(bytes).await?;
+        file.sync_all().await?;
+        drop(file);
+        tokio::fs::rename(&temporary, path).await
+    }
+    .await;
+    if result.is_err() {
+        let _ = tokio::fs::remove_file(&temporary).await;
+    }
+    result.map_err(AquaError::from)
+}
 
 /// Hasher polimórfico para la verificación de descargas.
 ///

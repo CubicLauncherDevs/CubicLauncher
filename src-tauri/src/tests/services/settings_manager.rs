@@ -1,6 +1,61 @@
 use super::*;
 
 #[test]
+fn changes_during_a_save_remain_dirty_and_are_saved_by_the_next_writer() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("settings.cub");
+    let settings = RwLock::new(SettingsManager::default());
+    let lock = Mutex::new(());
+    let captured = std::sync::Barrier::new(2);
+    let changed = std::sync::Barrier::new(2);
+    std::thread::scope(|scope| {
+        let save = scope.spawn(|| {
+            persist_settings(&settings, &lock, &path, |path, bytes| {
+                captured.wait();
+                changed.wait();
+                crate::core::atomic_file::write(path, bytes)
+            })
+            .unwrap();
+        });
+        captured.wait();
+        {
+            let mut current = settings.write();
+            current.max_memory = 8192;
+            current.revision += 1;
+            current.dirty = true;
+        }
+        changed.wait();
+        save.join().unwrap();
+    });
+    assert!(settings.read().dirty);
+    persist_settings(&settings, &lock, &path, crate::core::atomic_file::write).unwrap();
+    assert!(!settings.read().dirty);
+    let saved: SettingsManager = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    assert_eq!(saved.max_memory, 8192);
+}
+
+#[test]
+fn failed_save_keeps_changes_pending_and_preserves_the_previous_settings() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("settings.cub");
+    let settings = RwLock::new(SettingsManager::default());
+    let lock = Mutex::new(());
+    persist_settings(&settings, &lock, &path, crate::core::atomic_file::write).unwrap();
+    let original = std::fs::read(&path).unwrap();
+    settings.write().dirty = true;
+    assert!(
+        persist_settings(&settings, &lock, &path, |_, _| {
+            Err(std::io::Error::other("disk full"))
+        })
+        .is_err()
+    );
+    assert!(settings.read().dirty);
+    assert_eq!(std::fs::read(&path).unwrap(), original);
+    persist_settings(&settings, &lock, &path, crate::core::atomic_file::write).unwrap();
+    assert!(!settings.read().dirty);
+}
+
+#[test]
 fn offline_profiles_from_ui_are_persisted_with_stable_uuids() {
     let mut settings: SettingsManager = serde_json::from_value(serde_json::json!({
         "user": [

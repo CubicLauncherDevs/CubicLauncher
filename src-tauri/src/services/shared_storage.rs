@@ -10,10 +10,25 @@ use crate::core::{PathManager, default_shared_dir};
 use crate::services::{DownloadQueue, InstanceManager, SettingsManager};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, LazyLock};
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::{error, info, warn};
 
-static PURGE_RUNNING: AtomicBool = AtomicBool::new(false);
+static SHARED_ACCESS: LazyLock<Arc<RwLock<()>>> = LazyLock::new(|| Arc::new(RwLock::new(())));
+
+pub(crate) type SharedGuard = Arc<OwnedRwLockReadGuard<()>>;
+
+/// Acquire before resolving paths; keep this permission until every task/process
+/// using those paths has finished. Clones may be moved into blocking workers.
+pub(crate) async fn acquire() -> SharedGuard {
+    Arc::new(SHARED_ACCESS.clone().read_owned().await)
+}
+
+pub(crate) fn try_exclusive() -> Result<OwnedRwLockWriteGuard<()>, String> {
+    SHARED_ACCESS.clone().try_write_owned().map_err(|_| {
+        "El almacenamiento compartido está en uso; espera a que terminen las operaciones activas".into()
+    })
+}
 
 /// Tope de profundidad del inventario: los árboles de Minecraft nunca llegan
 /// a este nivel, y un límite acotado el recorrido ante árboles patológicos.
@@ -238,31 +253,39 @@ async fn purge_shared_at(path: PathBuf) -> Result<DirUsage, String> {
 
 /// Borra todo el contenido de shared. Se re-descarga al lanzar.
 pub async fn purge_shared_dir() -> Result<DirUsage, String> {
-    if PURGE_RUNNING.swap(true, Ordering::Acquire) {
-        return Err("Ya hay una purga en curso".into());
-    }
-    let result = purge_shared_at(PathManager::get().get_shared_dir()).await;
-    PURGE_RUNNING.store(false, Ordering::Release);
-    match &result {
-        Ok(usage) => info!(
-            "Purga de shared completada: {} bytes en {} archivos liberados",
-            usage.bytes, usage.files
-        ),
-        Err(e) => error!("Purga de shared falló: {e}"),
-    }
-    result
+    let exclusive = try_exclusive()?;
+    // Own admission inside the task: dropping an IPC future must not unlock
+    // storage while spawn_blocking is still deleting its contents.
+    tokio::spawn(async move {
+        let _exclusive = exclusive;
+        if shared_is_busy().await.is_some() {
+            return Err("Hay instancias o descargas activas; espera a que terminen".into());
+        }
+        let result = purge_shared_at(PathManager::get().get_shared_dir()).await;
+        match &result {
+            Ok(usage) => info!(
+                "Purga de shared completada: {} bytes en {} archivos liberados",
+                usage.bytes, usage.files
+            ),
+            Err(e) => error!("Purga de shared falló: {e}"),
+        }
+        result
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Reapunta shared a `new_dir`: borra el contenido de la ubicación elegida,
 /// actualiza PathManager y guarda la ruta en settings. La ubicación anterior
 /// se conserva vacía; borrarla es responsabilidad del usuario.
 pub async fn change_shared_dir(new_dir: PathBuf) -> Result<DirUsage, String> {
-    if PURGE_RUNNING.swap(true, Ordering::Acquire) {
-        return Err("Ya hay una purga o cambio de ruta en curso".into());
-    }
-    let result = change_shared_dir_impl(new_dir).await;
-    PURGE_RUNNING.store(false, Ordering::Release);
-    result
+    let exclusive = try_exclusive()?;
+    tokio::spawn(async move {
+        let _exclusive = exclusive;
+        change_shared_dir_impl(new_dir).await
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 async fn change_shared_dir_impl(new_dir: PathBuf) -> Result<DirUsage, String> {

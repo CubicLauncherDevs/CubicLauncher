@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy, onMount } from "svelte";
 	import { t } from "$lib/i18n";
 	import {
 		searchCurseForgeModpacks,
@@ -84,6 +85,13 @@
 	);
 
 	let searchGen = 0;
+	let alive = true;
+	let detailRequest: AbortController | undefined;
+	onDestroy(() => {
+		alive = false;
+		searchGen++;
+		detailRequest?.abort();
+	});
 
 	const versionOptions = $derived(
 		versions.map((v) => ({
@@ -103,18 +111,15 @@
 
 	async function loadGameVersions() {
 		try {
-			gameVersions = await getAvailableVersions();
+			const result = await getAvailableVersions();
+			if (alive) gameVersions = result;
 		} catch {
-			gameVersions = [];
+			if (alive) gameVersions = [];
 		}
 	}
 
 	function handleFilterChange() {
-		selectedItem = null;
-		selectedPack = null;
-		versions = [];
-		selectedVersion = "";
-		description = "";
+		handleBack();
 		doSearch(true);
 	}
 
@@ -165,6 +170,8 @@
 					? result.pagination.pageSize
 					: offset + result.pagination.pageSize;
 			}
+		} catch (err) {
+			if (alive && gen === searchGen) installError = String(err);
 		} finally {
 			if (gen === searchGen) {
 				searching = false;
@@ -174,11 +181,7 @@
 	}
 
 	function handleSearch() {
-		selectedItem = null;
-		selectedPack = null;
-		versions = [];
-		selectedVersion = "";
-		description = "";
+		handleBack();
 		doSearch(true);
 	}
 
@@ -187,7 +190,7 @@
 	}
 
 	async function handleSelect(item: ModpackItem) {
-		handleCancelCustomName();
+		handleBack();
 		installError = null;
 		selectedItem = item;
 		selectedVersion = "";
@@ -203,23 +206,42 @@
 			return;
 		}
 
+		const request = new AbortController();
+		detailRequest = request;
 		try {
 			const [fetchedVersions, fetchedDescription] = await Promise.all([
-				getCurseForgeProjectFiles(selectedPack.id, "", undefined),
-				getCurseForgeProjectDescription(selectedPack.id),
+				getCurseForgeProjectFiles(
+					selectedPack.id,
+					"",
+					undefined,
+					request.signal,
+				),
+				getCurseForgeProjectDescription(
+					selectedPack.id,
+					request.signal,
+				),
 			]);
+			if (!alive || request.signal.aborted) return;
 			versions = fetchedVersions;
 			if (versions.length > 0) {
 				selectedVersion = String(versions[0].id);
 			}
 			description = fetchedDescription ?? "";
+		} catch (err) {
+			if (alive && !request.signal.aborted) installError = String(err);
 		} finally {
-			loadingVersions = false;
-			loadingDescription = false;
+			if (alive && !request.signal.aborted) {
+				loadingVersions = false;
+				loadingDescription = false;
+			}
 		}
 	}
 
 	function handleBack() {
+		detailRequest?.abort();
+		detailRequest = undefined;
+		loadingVersions = false;
+		loadingDescription = false;
 		handleCancelCustomName();
 		selectedItem = null;
 		selectedPack = null;
@@ -323,9 +345,9 @@
 		customNameError = null;
 	}
 
-	$effect(() => {
-		loadGameVersions();
-		doSearch(true);
+	onMount(() => {
+		void loadGameVersions();
+		void doSearch(true);
 	});
 </script>
 

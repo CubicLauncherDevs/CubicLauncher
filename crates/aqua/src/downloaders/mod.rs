@@ -15,7 +15,6 @@ use std::time::Duration;
 pub use batch::{DownloadBatch, DownloadItemSpec, GenericBatch};
 pub use fabric::FabricBatch;
 pub use forge::{ForgeBatch, ForgeVersionInfo};
-use futures::TryStreamExt;
 use futures::stream::{self, StreamExt};
 pub use jre::JreBatch;
 use log::warn;
@@ -269,6 +268,7 @@ async fn run_download_impl(
     let completed = Arc::clone(&inner.completed_items);
     let max_concurrent = inner.max_downloads;
     let items_vec: Vec<_> = inner.batch.items().to_vec();
+    let failed = Arc::new(AtomicBool::new(false));
 
     let inner_for_finalize = Arc::clone(&inner);
     let progress_state_for_stream = progress_state.clone();
@@ -279,9 +279,10 @@ async fn run_download_impl(
         let state = progress_state_for_stream.clone();
         let notify_tx = progress_tx_for_notify.clone();
         let inner = Arc::clone(&inner);
+        let failed = Arc::clone(&failed);
 
         async move {
-            if inner.cancel_flag.load(Ordering::Relaxed) {
+            if inner.cancel_flag.load(Ordering::Relaxed) || failed.load(Ordering::Relaxed) {
                 return Err(AquaError::Cancelled);
             }
 
@@ -297,7 +298,7 @@ async fn run_download_impl(
                 .as_ref()
                 .map(|r| r as &dyn crate::utilities::ProgressReporter);
 
-            if let Err(e) = download_file_with_headers(
+            let mut result = download_file_with_headers(
                 &item.url,
                 &item.destination,
                 &item.expected_hash,
@@ -305,51 +306,42 @@ async fn run_download_impl(
                 reporter_dyn,
                 &item.headers,
             )
-            .await
+            .await;
+            if result.is_err()
+                && let Some(ref fallback) = item.fallback_url
             {
-                if let Some(ref fallback) = item.fallback_url {
-                    warn!("Main URL failed. Using fallback: {fallback}");
-                    if download_file_with_headers(
-                        fallback,
+                warn!("Main URL failed. Using fallback: {fallback}");
+                result = download_file_with_headers(
+                    fallback,
+                    &item.destination,
+                    &item.expected_hash,
+                    item.size,
+                    reporter_dyn,
+                    &item.headers,
+                )
+                .await;
+                if result.is_err() {
+                    warn!("Fallback failed, using fallback with universal.");
+                    result = download_file_with_headers(
+                        &fallback.replace(".jar", "-universal.jar"),
                         &item.destination,
                         &item.expected_hash,
                         item.size,
                         reporter_dyn,
                         &item.headers,
                     )
-                    .await
-                    .is_err()
-                    {
-                        warn!("Fallback failed, using fallback with universal.");
-                        if download_file_with_headers(
-                            &fallback.replace(".jar", "-universal.jar"),
-                            &item.destination,
-                            &item.expected_hash,
-                            item.size,
-                            reporter_dyn,
-                            &item.headers,
-                        )
-                        .await
-                        .is_err()
-                            && !item.required
-                        {
-                            warn!(
-                                "Non-required library {} failed all URLs, skipping",
-                                item.label
-                            );
-                        } else if !item.required {
-                            // universal succeeded
-                        }
-                    }
-                } else if !item.required {
-                    warn!(
-                        "Non-required library {} download failed (no fallback), skipping",
-                        item.label
-                    );
-                } else {
-                    warn!("Main URL failed but there's no fallback. Aborting");
+                    .await;
+                }
+            }
+            if let Err(e) = result {
+                if item.required {
+                    failed.store(true, Ordering::Relaxed);
                     return Err(e);
                 }
+                warn!(
+                    "Non-required library {} failed all URLs, skipping: {e}",
+                    item.label
+                );
             }
 
             let count = c.fetch_add(1, Ordering::Relaxed) + 1;
@@ -363,9 +355,15 @@ async fn run_download_impl(
         }
     }))
     .buffer_unordered(max_concurrent)
-    .try_collect::<()>()
+    // Stop admitting files after a failure, but drain already-running transfers
+    // before releasing the caller's storage permission. Their filesystem work
+    // must not outlive an error and race a subsequent repair or cleanup.
+    .fold(Ok(()), |result, next| async move { result.and(next) })
     .await?;
 
+    if inner_for_finalize.cancel_flag.load(Ordering::Relaxed) {
+        return Err(AquaError::Cancelled);
+    }
     inner_for_finalize.batch.finalize(progress_tx).await?;
 
     Ok(())

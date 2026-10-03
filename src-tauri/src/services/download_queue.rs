@@ -1,3 +1,4 @@
+use super::version_installation;
 use crate::core::path_manager::PathManager;
 use crate::core::{AppEvent, emit};
 use crate::services::java_manager::JavaManager;
@@ -61,7 +62,13 @@ impl DownloadState {
 pub struct DownloadQueue {
     sender: mpsc::Sender<Arc<str>>,
     active: DashMap<Arc<str>, DownloadState>,
-    pending_batches: DashMap<Arc<str>, Box<dyn DownloadBatch + 'static>>,
+    pending_batches: DashMap<
+        Arc<str>,
+        (
+            Box<dyn DownloadBatch + 'static>,
+            super::shared_storage::SharedGuard,
+        ),
+    >,
 }
 
 /// Proveedor de JRE elegido por el usuario para una versión de Java.
@@ -96,6 +103,7 @@ impl DownloadQueue {
 
     pub async fn enqueue(&self, version: impl Into<Arc<str>>) {
         let version: Arc<str> = version.into();
+        let shared_guard = super::shared_storage::acquire().await;
 
         if let Some(state) = self.active.get(&version)
             && state.is_active()
@@ -103,20 +111,33 @@ impl DownloadQueue {
             return;
         }
 
-        let json_path = PathManager::get()
-            .get_shared_dir()
-            .join("versions")
-            .join(version.as_ref())
-            .join(format!("{}.json", version));
-        if json_path.exists() {
+        let shared = PathManager::get().get_shared_dir();
+        let requested = version.clone();
+        let complete = tokio::task::spawn_blocking(move || {
+            let _shared_guard = shared_guard;
+            version_installation::missing_dependencies(&shared, &requested).is_empty()
+        })
+        .await
+        .unwrap_or(false);
+        if complete {
             info!("{} ya instalada, omitiendo descarga", &*version);
             return;
         }
 
         info!("{} encolada", &*version);
 
-        self.active
-            .insert(version.clone(), DownloadState::new(version.clone()));
+        // Another caller may have enqueued the same version during the disk check.
+        match self.active.entry(version.clone()) {
+            dashmap::mapref::entry::Entry::Occupied(mut entry) => {
+                if entry.get().is_active() {
+                    return;
+                }
+                entry.insert(DownloadState::new(version.clone()));
+            }
+            dashmap::mapref::entry::Entry::Vacant(entry) => {
+                entry.insert(DownloadState::new(version.clone()));
+            }
+        }
 
         emit(AppEvent::DEnqueue {
             version: version.clone(),
@@ -159,6 +180,7 @@ impl DownloadQueue {
         &self,
         version: impl Into<Arc<str>>,
         batch: Box<dyn DownloadBatch + 'static>,
+        shared_guard: super::shared_storage::SharedGuard,
     ) {
         let version: Arc<str> = version.into();
 
@@ -170,7 +192,8 @@ impl DownloadQueue {
 
         info!("Batch {} encolada", &*version);
 
-        self.pending_batches.insert(version.clone(), batch);
+        self.pending_batches
+            .insert(version.clone(), (batch, shared_guard));
         self.active
             .insert(version.clone(), DownloadState::new(version.clone()));
 
@@ -203,6 +226,7 @@ impl DownloadQueue {
     }
 
     async fn process_version(queue: &Arc<DownloadQueue>, version: Arc<str>) {
+        let _shared_guard = super::shared_storage::acquire().await;
         let shared_dir = PathManager::get().get_shared_dir();
         let manager = DownloadManager::new(shared_dir.clone());
 
@@ -216,7 +240,7 @@ impl DownloadQueue {
 
         // JRE batch (pending_batches)
         if let Some(batch) = queue.pending_batches.remove(&version) {
-            let (_, batch) = batch;
+            let (_, (batch, _batch_guard)) = batch;
             let (tx, progress_rx) = watch::channel(DownloadProgress::empty(0));
             let monitor = monitor_download_progress(version.clone(), progress_rx, queue.clone());
 
@@ -246,42 +270,55 @@ impl DownloadQueue {
             return;
         }
 
-        let result = if version.contains("-OptiFine_") {
-            Self::process_optifine_version(shared_dir, &manager, queue, version.clone()).await
-        } else if version.contains("-neoforge-") {
-            Self::process_neoforge_version(shared_dir, &manager, queue, version.clone()).await
-        } else if version.contains("-forge-") && !version.contains("-neoforge-") {
-            Self::process_forge_version(shared_dir, &manager, queue, version.clone()).await
-        } else if let Some((game_version, loader_version)) = parse_fabric_version(&version) {
-            Self::process_fabric_version(
-                shared_dir,
-                &manager,
-                queue,
-                version.clone(),
-                game_version,
-                loader_version,
-            )
-            .await
-        } else if let Some((game_version, loader_version)) = parse_quilt_version(&version) {
-            Self::process_quilt_version(
-                shared_dir,
-                &manager,
-                queue,
-                version.clone(),
-                game_version,
-                loader_version,
-            )
-            .await
-        } else {
-            // Vanilla (or invalid version)
-            match manager.prepare(&version).await {
-                Ok(handle) => download_with_progress(version.clone(), handle, queue.clone()).await,
-                Err(_) => Err(aqua::AquaError::Other(format!(
-                    "La versión solicitada no existe: {}",
-                    version
-                ))),
-            }
-        };
+        let result = async {
+            version_installation::begin(&shared_dir, &version).await?;
+            let result = if version.contains("-OptiFine_") {
+                Self::process_optifine_version(shared_dir.clone(), &manager, queue, version.clone())
+                    .await
+            } else if version.contains("-neoforge-") {
+                Self::process_neoforge_version(shared_dir.clone(), &manager, queue, version.clone())
+                    .await
+            } else if version.contains("-forge-") && !version.contains("-neoforge-") {
+                Self::process_forge_version(shared_dir.clone(), &manager, queue, version.clone())
+                    .await
+            } else if let Some((game_version, loader_version)) = parse_fabric_version(&version) {
+                Self::process_fabric_version(
+                    shared_dir.clone(),
+                    &manager,
+                    queue,
+                    version.clone(),
+                    game_version,
+                    loader_version,
+                )
+                .await
+            } else if let Some((game_version, loader_version)) = parse_quilt_version(&version) {
+                Self::process_quilt_version(
+                    shared_dir.clone(),
+                    &manager,
+                    queue,
+                    version.clone(),
+                    game_version,
+                    loader_version,
+                )
+                .await
+            } else {
+                // Vanilla (or invalid version)
+                match manager.prepare(&version).await {
+                    Ok(handle) => {
+                        download_with_progress(version.clone(), handle, queue.clone()).await
+                    }
+                    Err(_) => Err(aqua::AquaError::Other(format!(
+                        "La versión solicitada no existe: {}",
+                        version
+                    ))),
+                }
+            };
+
+            result?;
+            version_installation::finish(&shared_dir, &version).await?;
+            Ok::<_, aqua::AquaError>(())
+        }
+        .await;
 
         match result {
             Ok(_) => {
@@ -540,8 +577,12 @@ async fn download_base_mc(
     queue: &Arc<DownloadQueue>,
 ) -> Result<(), aqua::AquaError> {
     emit_stage(&version, "mc", Some(format!("Minecraft {}", game_version)));
+    let shared = PathManager::get().get_shared_dir();
+    version_installation::begin(&shared, game_version).await?;
     let base_handle = manager.prepare(game_version).await?;
-    download_with_progress(version, base_handle, queue.clone()).await
+    download_with_progress(version, base_handle, queue.clone()).await?;
+    version_installation::finish(&shared, game_version).await?;
+    Ok(())
 }
 
 fn parse_fabric_version(version: &str) -> Option<(String, String)> {

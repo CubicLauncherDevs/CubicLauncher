@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy, onMount } from "svelte";
 	import { t } from "$lib/i18n";
 	import {
 		searchModrinth,
@@ -83,6 +84,15 @@
 	);
 
 	let searchGen = 0;
+	let alive = true;
+	let detailRequest: AbortController | undefined;
+	let searchRequest: AbortController | undefined;
+	onDestroy(() => {
+		alive = false;
+		searchGen++;
+		detailRequest?.abort();
+		searchRequest?.abort();
+	});
 
 	const versionOptions = $derived(
 		versions.map((v) => ({
@@ -108,17 +118,15 @@
 
 	async function loadGameVersions() {
 		try {
-			gameVersions = await getAvailableVersions();
+			const result = await getAvailableVersions();
+			if (alive) gameVersions = result;
 		} catch {
-			gameVersions = [];
+			if (alive) gameVersions = [];
 		}
 	}
 
 	function handleFilterChange() {
-		selectedItem = null;
-		selectedPack = null;
-		versions = [];
-		selectedVersion = "";
+		handleBack();
 		doSearch(true);
 	}
 
@@ -137,6 +145,8 @@
 		if (!reset && (searching || loadingMore)) return;
 
 		const gen = ++searchGen;
+		searchRequest?.abort();
+		searchRequest = new AbortController();
 
 		if (reset) {
 			searching = true;
@@ -160,6 +170,7 @@
 				limit,
 				reset ? 0 : offset,
 				"modpack",
+				searchRequest.signal,
 			);
 			if (gen !== searchGen) return;
 			if (result) {
@@ -168,6 +179,8 @@
 				totalHits = result.total_hits;
 				offset = reset ? result.limit : offset + result.limit;
 			}
+		} catch (err) {
+			if (alive && gen === searchGen) installError = String(err);
 		} finally {
 			if (gen === searchGen) {
 				searching = false;
@@ -177,10 +190,7 @@
 	}
 
 	function handleSearch() {
-		selectedItem = null;
-		selectedPack = null;
-		versions = [];
-		selectedVersion = "";
+		handleBack();
 		doSearch(true);
 	}
 
@@ -189,7 +199,7 @@
 	}
 
 	async function handleSelect(item: ModpackItem) {
-		handleCancelCustomName();
+		handleBack();
 		installError = null;
 		selectedItem = item;
 		selectedVersion = "";
@@ -205,23 +215,39 @@
 			return;
 		}
 
+		const request = new AbortController();
+		detailRequest = request;
 		try {
 			const [fetchedVersions, projectFull] = await Promise.all([
-				getModrinthProjectVersions(selectedPack.project_id),
-				getModrinthProject(selectedPack.project_id),
+				getModrinthProjectVersions(
+					selectedPack.project_id,
+					undefined,
+					undefined,
+					request.signal,
+				),
+				getModrinthProject(selectedPack.project_id, request.signal),
 			]);
+			if (!alive || request.signal.aborted) return;
 			versions = fetchedVersions;
 			if (versions.length > 0) {
 				selectedVersion = versions[0].id;
 			}
 			fullProject = projectFull?.body ?? "";
+		} catch (err) {
+			if (alive && !request.signal.aborted) installError = String(err);
 		} finally {
-			loadingVersions = false;
-			loadingFullProject = false;
+			if (alive && !request.signal.aborted) {
+				loadingVersions = false;
+				loadingFullProject = false;
+			}
 		}
 	}
 
 	function handleBack() {
+		detailRequest?.abort();
+		detailRequest = undefined;
+		loadingVersions = false;
+		loadingFullProject = false;
 		handleCancelCustomName();
 		selectedItem = null;
 		selectedPack = null;
@@ -318,9 +344,9 @@
 		customNameError = null;
 	}
 
-	$effect(() => {
-		loadGameVersions();
-		doSearch(true);
+	onMount(() => {
+		void loadGameVersions();
+		void doSearch(true);
 	});
 </script>
 

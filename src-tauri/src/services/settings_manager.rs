@@ -3,14 +3,13 @@ use super::notification_preferences::NotificationPreferences;
 use crate::core::{AppError, CoreError, FsError, PathManager, emit};
 use compact_str::CompactString;
 use launchwerk::auth::MinecraftUser;
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::sync::OnceLock;
-use tokio::fs;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 
@@ -20,13 +19,16 @@ static SETTINGS: LazyLock<RwLock<SettingsManager>> =
     LazyLock::new(|| RwLock::new(SettingsManager::load()));
 
 static SAVE_TX: OnceLock<mpsc::UnboundedSender<()>> = OnceLock::new();
+static SAVE_LOCK: Mutex<()> = Mutex::new(());
 
 pub fn init_auto_save() {
     let (tx, mut rx) = mpsc::unbounded_channel::<()>();
     SAVE_TX.set(tx).ok();
     tokio::spawn(async move {
         loop {
-            rx.recv().await;
+            if rx.recv().await.is_none() {
+                break;
+            }
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
             while rx.try_recv().is_ok() {}
             if let Err(e) = SettingsManager::save().await {
@@ -173,6 +175,8 @@ pub struct SettingsManager {
     pub custom_shared_dir: PathBuf,
     #[serde(skip)]
     pub dirty: bool,
+    #[serde(skip)]
+    pub(crate) revision: u64,
 }
 
 // ── SettingsSnapshot ──────────────────────────────────────────────────────────
@@ -262,6 +266,7 @@ impl Default for SettingsManager {
             custom_instances_dir: PathBuf::new(),
             custom_shared_dir: PathBuf::new(),
             dirty: true,
+            revision: 0,
         }
     }
 }
@@ -273,6 +278,7 @@ impl SettingsManager {
 
     pub fn write(f: impl FnOnce(&mut SettingsManager)) -> Result<(), CoreError> {
         let mut settings = SETTINGS.write();
+        let revision = settings.revision.wrapping_add(1);
         let previous_theme = settings.theme.clone();
         f(&mut settings);
         settings.normalize_offline_users();
@@ -283,6 +289,7 @@ impl SettingsManager {
             );
         }
         settings.dirty = true;
+        settings.revision = revision;
         if let Some(tx) = SAVE_TX.get() {
             let _ = tx.send(());
         }
@@ -395,47 +402,23 @@ impl SettingsManager {
     /// Serializa y escribe a disco.
     /// Clona fuera del lock para minimizar la contención.
     pub async fn save() -> Result<(), AppError> {
-        let (clone, path) = {
-            let settings = SETTINGS.read();
-            if !settings.dirty {
-                return Ok(());
-            }
+        // Keep serialization and publication owned by the worker if the IPC
+        // caller disappears. A newer save cannot overtake an older write.
+        tokio::task::spawn_blocking(|| {
             let path = PathManager::get().get_settings_dir().join("settings.cub");
-            (settings.clone(), path)
-        };
-
-        let parent = path.parent().ok_or_else(|| {
-            AppError::CoreError(CoreError::Serialize(format!(
-                "Ruta de settings inválida: {}",
-                path.display()
-            )))
-        })?;
-
-        fs::create_dir_all(parent).await.map_err(|e| {
-            AppError::Fs(FsError::CreateDir {
-                path: parent.to_string_lossy().to_string(),
-                source: e,
-            })
-        })?;
-
-        let json_bytes = serde_json::to_vec(&clone)
-            .map_err(|e| AppError::CoreError(CoreError::Serialize(e.to_string())))?;
-
-        fs::write(&path, json_bytes).await.map_err(|e| {
-            AppError::Fs(FsError::WriteFile {
-                path: path.to_string_lossy().to_string(),
-                source: e,
-            })
-        })?;
-
-        {
-            let mut settings = SETTINGS.write();
-            settings.dirty = false;
-        }
-
-        info!("Configuración guardada en {:?}", path);
-        emit(crate::core::AppEvent::STChanged);
-        Ok(())
+            if persist_settings(
+                &SETTINGS,
+                &SAVE_LOCK,
+                &path,
+                crate::core::atomic_file::write,
+            )? {
+                info!("Configuración guardada en {:?}", path);
+                emit(crate::core::AppEvent::STChanged);
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::CoreError(CoreError::Other(e.to_string())))?
     }
 
     pub fn load() -> Self {
@@ -528,6 +511,39 @@ impl SettingsManager {
             self.dirty = true;
         }
     }
+}
+
+fn persist_settings(
+    settings: &RwLock<SettingsManager>,
+    save_lock: &Mutex<()>,
+    path: &Path,
+    write: impl FnOnce(&Path, &[u8]) -> std::io::Result<()>,
+) -> Result<bool, AppError> {
+    let _save = save_lock.lock();
+    let snapshot = {
+        let settings = settings.read();
+        if !settings.dirty {
+            return Ok(false);
+        }
+        settings.clone()
+    };
+    let parent = path
+        .parent()
+        .ok_or_else(|| CoreError::Other("Missing settings directory".into()))?;
+    std::fs::create_dir_all(parent).map_err(|source| FsError::CreateDir {
+        path: parent.to_string_lossy().into_owned(),
+        source,
+    })?;
+    let bytes = serde_json::to_vec(&snapshot).map_err(|e| CoreError::Serialize(e.to_string()))?;
+    write(path, &bytes).map_err(|source| FsError::WriteFile {
+        path: path.to_string_lossy().into_owned(),
+        source,
+    })?;
+    let mut current = settings.write();
+    if current.revision == snapshot.revision {
+        current.dirty = false;
+    }
+    Ok(true)
 }
 
 #[cfg(test)]

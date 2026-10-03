@@ -2,7 +2,6 @@ use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
-use log::info;
 use uuid::Uuid;
 
 use super::batch::{DownloadBatch, DownloadItemSpec};
@@ -137,11 +136,7 @@ impl DownloadBatch for MinecraftBatch {
 
     fn prepare(&self) -> Pin<Box<dyn Future<Output = Result<(), AquaError>> + Send + '_>> {
         let dirs = self.dirs.clone();
-        let version_id = self.version.id.clone();
         let temp_dir = self.temp_dir.clone();
-        let version_json_bytes = self.version_json_bytes.clone();
-        let asset_index = self.version.asset_index.clone();
-        let asset_index_bytes = self.asset_index_bytes.clone();
         Box::pin(async move {
             tokio::fs::create_dir_all(&dirs.natives_dir).await?;
             tokio::fs::create_dir_all(&dirs.objects_dir).await?;
@@ -149,22 +144,6 @@ impl DownloadBatch for MinecraftBatch {
             tokio::fs::create_dir_all(&dirs.versions_dir).await?;
             tokio::fs::create_dir_all(&dirs.assets_indexes_dir).await?;
             tokio::fs::create_dir_all(&temp_dir).await?;
-
-            // Write version JSON from cached bytes (avoids re-fetching)
-            let vj_path = dirs.versions_dir.join(format!("{version_id}.json"));
-            if !vj_path.exists() {
-                tokio::fs::write(&vj_path, &version_json_bytes).await?;
-                info!("Saved version JSON: {:?}", vj_path);
-            }
-
-            // Write asset index JSON from cached bytes (avoids re-fetching)
-            let ai_path = dirs
-                .assets_indexes_dir
-                .join(format!("{}.json", asset_index.id));
-            if !ai_path.exists() {
-                tokio::fs::write(&ai_path, &asset_index_bytes).await?;
-                info!("Saved asset index JSON: {:?}", ai_path);
-            }
 
             Ok(())
         })
@@ -208,9 +187,12 @@ impl DownloadBatch for MinecraftBatch {
                     }));
                 }
 
+                let mut result = Ok(());
                 while let Some(res) = ext_tasks.next().await {
-                    res??;
+                    let next = res.map_err(AquaError::from).and_then(|result| result);
+                    result = result.and(next);
                 }
+                result?;
 
                 tokio::fs::remove_dir_all(&temp_dir).await?;
             }
@@ -221,7 +203,26 @@ impl DownloadBatch for MinecraftBatch {
                 let _ = natives_dir;
             }
 
-            Ok(())
+            crate::utilities::write_metadata(
+                &self
+                    .dirs
+                    .assets_indexes_dir
+                    .join(format!("{}.json", self.version.asset_index.id)),
+                &self.asset_index_bytes,
+            )
+            .await?;
+            crate::utilities::write_metadata(
+                &self
+                    .dirs
+                    .versions_dir
+                    .join(format!("{}.json", self.version.id)),
+                &self.version_json_bytes,
+            )
+            .await
         })
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/minecraft_publication.rs"]
+mod tests;

@@ -1,6 +1,60 @@
 use super::*;
 use crate::services::instance_manager::signal_kill;
 
+fn attempt_handle() -> InstanceHandle {
+    let data = serde_json::from_value(serde_json::json!({
+        "name": "Launch regression", "version": "1.21", "last_played": 0,
+        "uuid": uuid::Uuid::new_v4().to_string()
+    }))
+    .unwrap();
+    InstanceHandle::new(data)
+}
+
+#[test]
+fn failed_launch_attempts_release_busy_state_and_preserve_specific_errors() {
+    let handle = attempt_handle();
+    for error in [
+        AppError::CoreError(crate::core::CoreError::Other("spawn failed".into())),
+        AppError::Download(DownloadError::ParseJson("bad manifest".into())),
+        AppError::Auth(AuthError::AuthFailed("invalid credentials".into())),
+    ] {
+        handle.set_status(InstanceStatus::Starting);
+        let attempt = LaunchAttempt(handle.clone());
+        attempt.finish(&Err(error));
+        drop(attempt);
+        assert!(matches!(handle.get_status(), InstanceStatus::Error(_)));
+        assert!(!handle.is_busy());
+    }
+    handle.set_status(InstanceStatus::Starting);
+    let attempt = LaunchAttempt(handle.clone());
+    handle.set_status(InstanceStatus::Off); // repair was queued
+    attempt.finish(&Err(AppError::Instance(InstanceError::VersionNotFound(
+        "1.21".into(),
+    ))));
+    drop(attempt);
+    assert!(matches!(handle.get_status(), InstanceStatus::Off));
+}
+
+#[tokio::test]
+async fn abandoned_attempt_releases_starting_but_handoff_keeps_started() {
+    let handle = attempt_handle();
+    handle.set_status(InstanceStatus::Starting);
+    let attempt = LaunchAttempt(handle.clone());
+    let task = tokio::spawn(async move {
+        let _attempt = attempt;
+        std::future::pending::<()>().await;
+    });
+    task.abort();
+    let _ = task.await;
+    assert!(!handle.is_busy());
+    handle.set_status(InstanceStatus::Starting);
+    let attempt = LaunchAttempt(handle.clone());
+    handle.set_status(InstanceStatus::Started);
+    attempt.finish(&Ok(()));
+    drop(attempt);
+    assert!(matches!(handle.get_status(), InstanceStatus::Started));
+}
+
 fn entry(id: u64) -> LogEntryEvent {
     LogEntryEvent {
         id,

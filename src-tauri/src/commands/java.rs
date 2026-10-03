@@ -17,6 +17,7 @@ pub async fn get_jre_status(version: u8) -> Result<JreStatus, String> {
 
 #[command]
 pub async fn install_jre(version: u8, vendor: Option<String>) -> Result<(), String> {
+    let shared_guard = crate::services::shared_storage::acquire().await;
     let preferred = vendor.as_deref().and_then(JreVendor::from_id);
     if vendor.is_some() && preferred.is_none() {
         info!("Unknown JRE vendor requested, using the default chain");
@@ -34,7 +35,7 @@ pub async fn install_jre(version: u8, vendor: Option<String>) -> Result<(), Stri
 
     let batch = JreBatch::new(version, pkg, dest_dir);
     DownloadQueue::get()
-        .enqueue_batch(format!("jre-{}", version), Box::new(batch))
+        .enqueue_batch(format!("jre-{}", version), Box::new(batch), shared_guard)
         .await;
 
     Ok(())

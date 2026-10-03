@@ -1,3 +1,4 @@
+pub(crate) mod atomic_file;
 pub(crate) mod errors;
 pub(crate) mod event_bus;
 pub(crate) mod http_client;

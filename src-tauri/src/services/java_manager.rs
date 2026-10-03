@@ -29,6 +29,7 @@ impl JavaManager {
     }
 
     pub async fn get_status(version: u8) -> Result<JreStatus, AppError> {
+        let _shared_guard = super::shared_storage::acquire().await;
         let installed = Self::is_installed(version);
         let (java_version, vendor) = if installed {
             Self::detect_runtime(version).await
@@ -61,17 +62,24 @@ impl JavaManager {
     }
 
     pub async fn uninstall(version: u8) -> Result<(), AppError> {
-        let dir = Self::get_jre_dir(version);
-        if dir.exists() {
-            fs::remove_dir_all(&dir).await.map_err(|e| {
-                AppError::Fs(FsError::Remove {
-                    path: dir.to_string_lossy().to_string(),
-                    source: e,
-                })
-            })?;
-            info!("JRE {} uninstalled", version);
-        }
-        Ok(())
+        let exclusive =
+            super::shared_storage::try_exclusive().map_err(crate::core::CoreError::Other)?;
+        tokio::spawn(async move {
+            let _exclusive = exclusive;
+            let dir = Self::get_jre_dir(version);
+            if dir.exists() {
+                fs::remove_dir_all(&dir).await.map_err(|e| {
+                    AppError::Fs(FsError::Remove {
+                        path: dir.to_string_lossy().to_string(),
+                        source: e,
+                    })
+                })?;
+                info!("JRE {} uninstalled", version);
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| crate::core::CoreError::Other(e.to_string()))?
     }
 
     /// Devuelve la versión de Java y el identificador del proveedor detectado

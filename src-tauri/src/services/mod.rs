@@ -22,6 +22,7 @@ pub(crate) mod settings_manager;
 pub mod shared_storage;
 pub mod skin_closet_manager;
 pub(crate) mod storage_migration;
+pub(crate) mod version_installation;
 pub mod world_manager;
 
 pub use addon_manager::*;

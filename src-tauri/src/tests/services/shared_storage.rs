@@ -2,6 +2,36 @@ use super::*;
 use std::fs;
 use std::path::Path;
 
+#[tokio::test]
+async fn storage_admission_excludes_cleanup_until_all_readers_and_workers_finish() {
+    // Use the real gate without initializing global paths or touching user data.
+    let first = acquire().await;
+    let second = acquire().await;
+    assert!(try_exclusive().is_err());
+    let worker_guard = first.clone();
+    let (release, wait) = std::sync::mpsc::channel();
+    let worker = tokio::task::spawn_blocking(move || {
+        let _guard = worker_guard;
+        wait.recv().unwrap();
+    });
+    drop(first);
+    drop(second);
+    assert!(
+        try_exclusive().is_err(),
+        "blocking worker still uses shared"
+    );
+    release.send(()).unwrap();
+    worker.await.unwrap();
+    let exclusive = try_exclusive().unwrap();
+    let mut reader = std::pin::pin!(acquire());
+    assert!(futures::poll!(&mut reader).is_pending());
+    drop(exclusive);
+    let reader = reader.await;
+    assert!(try_exclusive().is_err());
+    drop(reader);
+    assert!(try_exclusive().is_ok());
+}
+
 fn fixture() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let versions = dir.path().join("versions").join("1.20.4");

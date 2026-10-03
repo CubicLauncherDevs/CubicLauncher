@@ -158,7 +158,10 @@ impl DownloadBatch for FabricBatch {
         &self.items
     }
 
-    fn prepare(&self) -> Pin<Box<dyn Future<Output = Result<(), AquaError>> + Send + '_>> {
+    fn finalize(
+        &self,
+        _progress: Option<crate::progress::ProgressSender>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), AquaError>> + Send + '_>> {
         let version_dir = self
             .shared_dir
             .join("versions")
@@ -167,13 +170,10 @@ impl DownloadBatch for FabricBatch {
         let json = self.profile_json.clone();
 
         Box::pin(async move {
-            if json_path.exists() {
-                return Ok(());
-            }
             tokio::fs::create_dir_all(&version_dir)
                 .await
                 .map_err(|e| AquaError::Other(format!("Error creating version dir: {}", e)))?;
-            tokio::fs::write(&json_path, &json)
+            crate::utilities::write_metadata(&json_path, json.as_bytes())
                 .await
                 .map_err(|e| AquaError::Other(format!("Error saving profile JSON: {}", e)))?;
             info!("Saved Fabric profile JSON: {:?}", json_path);

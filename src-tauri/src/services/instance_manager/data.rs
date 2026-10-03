@@ -84,8 +84,8 @@ impl InstanceData {
             return Ok(());
         }
         let dir = self.get_instance_dir();
-        let content = serde_json::to_string(self).map_err(io::Error::other)?;
-        tokio_fs::write(dir.join("instance.cub"), content).await?;
+        let content = serde_json::to_vec(self).map_err(io::Error::other)?;
+        crate::core::atomic_file::write_async(dir.join("instance.cub"), content).await?;
         self.dirty = false;
         Ok(())
     }

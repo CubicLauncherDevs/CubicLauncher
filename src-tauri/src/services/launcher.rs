@@ -425,7 +425,26 @@ static LAUNCHER: OnceLock<Arc<Launcher>> = OnceLock::new();
 
 pub struct Launcher {
     app_handle: std::sync::Mutex<Option<tauri::AppHandle>>,
-    lw: Arc<Launchwerk>,
+}
+
+struct LaunchAttempt(InstanceHandle);
+
+impl LaunchAttempt {
+    fn finish(&self, result: &Result<(), AppError>) {
+        if let Err(error) = result
+            && matches!(self.0.get_status(), InstanceStatus::Starting)
+        {
+            self.0.set_status(InstanceStatus::Error(error.to_string()));
+        }
+    }
+}
+
+impl Drop for LaunchAttempt {
+    fn drop(&mut self) {
+        if matches!(self.0.get_status(), InstanceStatus::Starting) {
+            self.0.set_status(InstanceStatus::Off);
+        }
+    }
 }
 
 impl Launcher {
@@ -438,7 +457,6 @@ impl Launcher {
     pub fn init() -> Arc<Self> {
         let launcher = Arc::new(Self {
             app_handle: std::sync::Mutex::new(None),
-            lw: Arc::new(Launchwerk::new(PathManager::get().get_shared_dir())),
         });
         let _ = LAUNCHER.set(launcher.clone());
         launcher
@@ -449,11 +467,12 @@ impl Launcher {
     }
 
     pub async fn launch(
-        &self,
+        self: &Arc<Self>,
         handle: InstanceHandle,
         server: Option<super::server_status::ServerAddress>,
     ) -> Result<(), AppError> {
         trace!("=== CubicLaunchwerk ===");
+        let shared_guard = super::shared_storage::acquire().await;
         let files_guard = handle
             .try_lock_files()
             .map_err(|_| AppError::Instance(InstanceError::FileOperationInProgress))?;
@@ -466,6 +485,25 @@ impl Launcher {
         handle.set_status(InstanceStatus::Starting);
         drop(files_guard);
 
+        let attempt = LaunchAttempt(handle.clone());
+        let launcher = self.clone();
+        // A confirmed launch owns preparation through the hand-off to its process
+        // supervisor, even if the requesting WebView is destroyed meanwhile.
+        tokio::spawn(async move {
+            let result = launcher.launch_inner(handle, server, shared_guard).await;
+            attempt.finish(&result);
+            result
+        })
+        .await
+        .map_err(|e| AppError::CoreError(crate::core::CoreError::Other(e.to_string())))?
+    }
+
+    async fn launch_inner(
+        &self,
+        handle: InstanceHandle,
+        server: Option<super::server_status::ServerAddress>,
+        shared_guard: super::shared_storage::SharedGuard,
+    ) -> Result<(), AppError> {
         let settings_m = SettingsManager::launch_snapshot();
         let hide_on_launch = SettingsManager::read().hide_on_launch;
 
@@ -486,15 +524,15 @@ impl Launcher {
         // Si la versión o alguna de sus dependencias no está descargada,
         // encolar la descarga y salir con error descriptivo.
         // El frontend puede escuchar "download-finished" y reintentar el launch
-        let deps = zellkern::resolve_dependencies(version.as_ref());
-        let missing: Vec<String> = deps
-            .iter()
-            .filter(|dep| {
-                let json_path = shared_dir.join(format!("versions/{dep}/{dep}.json"));
-                !json_path.exists()
-            })
-            .cloned()
-            .collect();
+        let check_shared = shared_dir.clone();
+        let check_version = version.clone();
+        let check_guard = shared_guard.clone();
+        let missing = tokio::task::spawn_blocking(move || {
+            let _shared_guard = check_guard;
+            super::version_installation::missing_dependencies(&check_shared, &check_version)
+        })
+        .await
+        .map_err(|e| crate::core::CoreError::Other(e.to_string()))?;
         if !missing.is_empty() {
             info!(
                 "Faltan dependencias para {}: {:?}, encolando descarga automática...",
@@ -752,7 +790,9 @@ impl Launcher {
             let jar_instance = instance_dir.clone();
             let jar_options = options.clone();
             let jar_guard = handle.try_lock_files();
+            let jar_shared_guard = shared_guard.clone();
             let result = tokio::task::spawn_blocking(move || {
+                let _shared_guard = jar_shared_guard;
                 // Keep filesystem admission even if launch is cancelled while patching.
                 let _jar_guard = jar_guard?;
                 let original = zellkern::CommandBuilder::new(
@@ -782,7 +822,10 @@ impl Launcher {
             }
         }
 
-        let lw_handle = self.lw.prepare(manifest, options, instance_dir);
+        // Resolve the root per launch, after storage admission, rather than
+        // retaining the directory that was active when the launcher started.
+        let lw = Arc::new(Launchwerk::new(shared_dir));
+        let lw_handle = lw.prepare(manifest, options, instance_dir);
         handle.update_last_played().await;
 
         let app_handle = self
@@ -833,8 +876,8 @@ impl Launcher {
                 let h = handle.clone();
                 let inst_name = instance_name.clone();
                 let app_for_show = app_handle.clone();
-                let lw = self.lw.clone();
                 tokio::spawn(async move {
+                    let _shared_guard = shared_guard;
                     let mut ready_seen = false;
                     let result = loop {
                         tokio::select! {
@@ -901,13 +944,14 @@ impl Launcher {
                 });
             }
             Err(e) => {
-                self.lw.remove(lw_handle.id());
+                lw.remove(lw_handle.id());
                 drop(lw_handle);
                 finish_io_forwarding(io_task).await;
                 let msg = e.to_string();
                 error!("{}", msg);
                 push_launcher_message(&handle.uuid, format!("Error al iniciar: {}", msg)).await;
-                handle.set_status(InstanceStatus::Error(msg));
+                handle.set_status(InstanceStatus::Error(msg.clone()));
+                return Err(AppError::CoreError(crate::core::CoreError::Other(msg)));
             }
         }
         Ok(())

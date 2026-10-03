@@ -408,6 +408,37 @@ del stream cuando falla la lectura inicial.
 
 ### Descarga de versiones
 
+#### Recuperación de errores y concurrencia
+
+```bash
+cargo test -p aqua downloaders
+cargo test -p cubiclauncher --lib version_installation
+cargo test -p cubiclauncher --lib settings_manager
+cargo test -p cubiclauncher --lib atomic_file
+cargo test -p cubiclauncher --lib shared_storage
+cargo test -p cubiclauncher --lib services::launcher::tests
+bun test --conditions=browser ./tests/frontend/ui/modpackSelection.test.mjs
+```
+
+- Las descargas obligatorias deben fallar si se agotan todas sus URLs, sin
+  finalizar el batch ni dejar abierto el canal de progreso. Los metadatos de
+  Minecraft/Fabric/Quilt se publican al finalizar y reemplazan perfiles dañados.
+- `.cubic-installing` identifica una instalación interrumpida; `.cubic-complete`
+  vincula la finalización al manifiesto publicado. Se comprueban también las
+  dependencias del loader. Las instalaciones anteriores sin marcadores se
+  comprueban localmente para conservar su uso sin conexión.
+- Probar reintentos después de interrumpir la descarga del cliente, bibliotecas
+  y assets; un JSON existente no debe ocultar la instalación incompleta.
+- Intentar purgar/cambiar `shared`, reinstalar una versión o eliminar un JRE
+  durante un arranque, juego o descarga: debe rechazar la operación incompatible.
+  Tras finalizar, debe volver a permitirse. Cambiar `shared` y lanzar de nuevo:
+  debe usarse la ubicación nueva, sin reiniciar el launcher.
+- Probar manifiestos inválidos, credenciales caducadas y Java no ejecutable:
+  el error debe propagarse y la instancia debe permitir un nuevo intento.
+- La regresión de modpacks controla respuestas fuera de orden de ambos
+  proveedores, navegación atrás, errores y desmontaje; comprueba además que la
+  instalación recibe el proyecto y archivo seleccionados, sin mezclarlos.
+
 #### Arranque y carga bajo demanda
 
 ```bash
