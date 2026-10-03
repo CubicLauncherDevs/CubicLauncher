@@ -4,6 +4,7 @@ pub mod identity;
 pub mod launch_config;
 pub mod loader;
 pub mod manifest;
+pub mod path_security;
 pub mod resolvers;
 pub mod version;
 

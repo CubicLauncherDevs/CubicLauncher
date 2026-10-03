@@ -85,3 +85,55 @@ fn test_get_loader_vanilla() {
     let data = InstanceData::new("test".into(), "1.21".into(), None);
     assert_eq!(data.get_loader(), "Vanilla");
 }
+
+#[tokio::test]
+async fn loaded_metadata_cannot_redirect_instance_paths() {
+    let root = tempfile::tempdir().unwrap();
+    let folder = root.path().join("Pack");
+    std::fs::create_dir(&folder).unwrap();
+    let original = serde_json::json!({"name": "Pack", "version": "1.21", "last_played": 0,
+        "uuid": "11111111-1111-4111-8111-111111111111"});
+    for (key, value) in [
+        ("name", "../outside"),
+        ("name", "/outside"),
+        ("name", "Other"),
+        ("uuid", "../../outside"),
+        ("version", "../../outside"),
+        ("version", "C:\\outside"),
+    ] {
+        let mut poisoned = original.clone();
+        poisoned[key] = value.into();
+        std::fs::write(
+            folder.join("instance.cub"),
+            serde_json::to_vec(&poisoned).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            InstanceData::load_from(root.path(), "Pack").await.is_none(),
+            "{key}={value}"
+        );
+    }
+    std::fs::write(
+        folder.join("instance.cub"),
+        serde_json::to_vec(&original).unwrap(),
+    )
+    .unwrap();
+    let valid = InstanceData::load_from(root.path(), "Pack").await.unwrap();
+    assert_eq!(valid.get_instance_dir(), folder);
+    assert!(
+        InstanceData::load_from(root.path(), "../Pack")
+            .await
+            .is_none()
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn loading_rejects_symlinked_instance_metadata() {
+    let root = tempfile::tempdir().unwrap();
+    let folder = root.path().join("Pack");
+    std::fs::create_dir(&folder).unwrap();
+    std::fs::write(root.path().join("outside"), br#"{"name":"Pack","version":"1.21","last_played":0,"uuid":"11111111-1111-4111-8111-111111111111"}"#).unwrap();
+    std::os::unix::fs::symlink(root.path().join("outside"), folder.join("instance.cub")).unwrap();
+    assert!(InstanceData::load_from(root.path(), "Pack").await.is_none());
+}

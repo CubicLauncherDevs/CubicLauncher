@@ -525,6 +525,29 @@ encuentra un navegador compatible.
 
 ### Modpacks y themes
 
+#### Seguridad de importación CurseForge y ZIP
+
+```bash
+cargo test -p zellkern path_security
+cargo test -p aqua traversal_loader_versions
+cargo test -p cubiclauncher --lib curseforge_modpack
+cargo test -p cubiclauncher --lib instance_manager
+cargo test -p cubiclauncher --lib version_installation
+```
+
+- Las regresiones usan directorios temporales y archivos testigo: traversal en
+  `overrides`, nombres ZIP y versiones; rutas absolutas/Windows; nombres de
+  dispositivo y ADS; metadatos reservados; symlinks y hardlinks; fallos parciales;
+  recarga de `instance.cub` manipulado y cuarentena/eliminación confinada.
+- La instalación valida el ZIP antes de descargar archivos, prepara el contenido
+  en un staging privado y protege los metadatos del launcher. Los identificadores
+  de versión se vuelven a validar en los consumidores de rutas y los temporales
+  Forge/NeoForge no se derivan de esos identificadores.
+- En Windows, verificar también junctions y almacenamiento en otra unidad; en
+  Linux/macOS, verificar almacenamiento configurado mediante un symlink. La raíz
+  configurada puede estar enlazada; los descendientes importados no pueden
+  redirigir las operaciones fuera de ella.
+
 - Ejecutar `bun test --conditions=browser ./tests/frontend/themes` y `cargo test -p cubiclauncher --lib theme` para comprobar cargas concurrentes, limpieza de recursos, avisos, importacion con rollback, watcher y cache de tema activo.
 - [ ] Arrastrar un `.mrpack` o `.zip` al launcher e importarlo.
 - [ ] Cambiar de tema y verificar que apliquen las variables CSS.

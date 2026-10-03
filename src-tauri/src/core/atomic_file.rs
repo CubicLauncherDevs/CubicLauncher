@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tempfile::NamedTempFile;
 
 fn prepare(path: &Path, contents: &[u8]) -> io::Result<NamedTempFile> {
@@ -26,16 +26,6 @@ fn publish(temporary: NamedTempFile, path: &Path) -> io::Result<()> {
 
 pub(crate) fn write(path: &Path, contents: &[u8]) -> io::Result<()> {
     publish(prepare(path, contents)?, path)
-}
-
-pub(crate) async fn write_async(path: PathBuf, contents: Vec<u8>) -> io::Result<()> {
-    let destination = path.clone();
-    let temporary = tokio::task::spawn_blocking(move || prepare(&destination, &contents))
-        .await
-        .map_err(io::Error::other)??;
-    // Publish while the caller still holds its data/filesystem locks. A cancelled
-    // preparation only drops its temporary; it cannot publish an obsolete snapshot.
-    publish(temporary, &path)
 }
 
 #[cfg(test)]

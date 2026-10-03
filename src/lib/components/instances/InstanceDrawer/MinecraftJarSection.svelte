@@ -162,7 +162,9 @@
 									perform(() => ({ type: "move", file: mod.file, offset: -1 }))
 								}
 							>
-								<ChevronDownIcon class="chev rotate-180" size={16} />
+								<span class="chev rotate-180" aria-hidden="true">
+									<ChevronDownIcon size={16} />
+								</span>
 							</button>
 							<button
 								type="button"
@@ -174,7 +176,9 @@
 									perform(() => ({ type: "move", file: mod.file, offset: 1 }))
 								}
 							>
-								<ChevronDownIcon class="chev" size={16} />
+								<span class="chev" aria-hidden="true">
+									<ChevronDownIcon size={16} />
+								</span>
 							</button>
 							<button
 								type="button"

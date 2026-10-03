@@ -77,3 +77,41 @@ fn legacy_profiles_require_runtime_libraries_and_assets() {
     std::fs::write(shared.join("libraries/test.jar"), b"x").unwrap();
     assert!(!is_complete(shared, "1.21"));
 }
+
+#[tokio::test]
+async fn traversal_versions_never_create_or_remove_receipts() {
+    let temp = tempfile::tempdir().unwrap();
+    let shared = temp.path().join("shared");
+    let outside = temp.path().join("outside");
+    std::fs::create_dir(&outside).unwrap();
+    std::fs::write(outside.join(PENDING), b"sentinel").unwrap();
+    for version in [
+        "../../test.txt",
+        "../outside/file.txt",
+        "foo/../../outside/file.txt",
+        "../../outside",
+        "/outside",
+        "C:\\outside",
+        "1.21-forge-x/../../../outside",
+    ] {
+        assert!(begin(&shared, version).await.is_err());
+        assert!(finish(&shared, version).await.is_err());
+        assert!(!is_complete(&shared, version));
+    }
+    assert!(!shared.exists());
+    assert_eq!(std::fs::read(outside.join(PENDING)).unwrap(), b"sentinel");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn receipts_do_not_follow_symlinked_version_directories() {
+    let temp = tempfile::tempdir().unwrap();
+    let shared = temp.path().join("shared");
+    let outside = temp.path().join("outside");
+    std::fs::create_dir_all(shared.join("versions")).unwrap();
+    std::fs::create_dir(&outside).unwrap();
+    std::os::unix::fs::symlink(&outside, shared.join("versions/1.21")).unwrap();
+    assert!(begin(&shared, "1.21").await.is_err());
+    assert!(finish(&shared, "1.21").await.is_err());
+    assert_eq!(std::fs::read_dir(outside).unwrap().count(), 0);
+}

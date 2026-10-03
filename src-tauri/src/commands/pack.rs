@@ -258,15 +258,13 @@ pub async fn download_curseforge_modpack(url: String, file_id: u32) -> Result<St
         url, file_id
     );
 
-    let cache_dir = std::env::temp_dir()
-        .join("cubiclauncher")
-        .join("curseforge-modpack-cache");
-    tokio::fs::create_dir_all(&cache_dir)
-        .await
+    let cache_dir = tempfile::Builder::new()
+        .prefix("cubic-curseforge-download-")
+        .tempdir()
         .map_err(|e| format!("Failed to create cache dir: {}", e))?;
 
     let filename = format!("{}.zip", file_id);
-    let dest = cache_dir.join(&filename);
+    let dest = cache_dir.path().join(&filename);
 
     let item = aqua::DownloadItemSpec::new(url, dest.clone(), "curseforge-modpack");
     let batch = aqua::GenericBatch::new(format!("curseforge-modpack-{}", file_id), vec![item]);
@@ -284,6 +282,7 @@ pub async fn download_curseforge_modpack(url: String, file_id: u32) -> Result<St
         .map_err(|e| format!("Failed to download CurseForge modpack: {}", e))?;
 
     let path_str = dest.to_string_lossy().to_string();
+    let _ = cache_dir.keep();
     info!("CurseForge modpack downloaded to {}", path_str);
     Ok(path_str)
 }
@@ -436,6 +435,10 @@ async fn install_curseforge_modpack_inner(
 
     if let Err(e) = install_result {
         DownloadQueue::get().finish_work(&download_label).await;
+        drop(files_guard);
+        if let Err(cleanup) = manager.delete_instance(&handle.uuid).await {
+            tracing::error!("Failed to roll back CurseForge instance: {cleanup}");
+        }
         return Err(format!("Failed to install CurseForge modpack: {}", e));
     }
 
@@ -445,7 +448,9 @@ async fn install_curseforge_modpack_inner(
             Ok(response) => match response.bytes().await {
                 Ok(bytes) => {
                     let icon_path = instance_dir.join("icon.png");
-                    if let Err(e) = tokio::fs::write(&icon_path, &bytes).await {
+                    if let Err(e) = zellkern::path_security::ConfinedDir::open(&instance_dir)
+                        .and_then(|root| root.write(std::path::Path::new("icon.png"), &bytes))
+                    {
                         tracing::error!("Failed to write icon: {}", e);
                         None
                     } else if let Some(icon_str) = icon_path.to_str() {

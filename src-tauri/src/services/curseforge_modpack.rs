@@ -1,16 +1,17 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use futures::{StreamExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-use crate::core::{safe_join, validate_filename};
+use crate::core::validate_filename;
 use crate::services::curseforge_api::{
     CurseForgeClient, CurseForgeFile, MODPACKS_CLASS_ID, MODS_CLASS_ID, RESOURCE_PACKS_CLASS_ID,
     SHADERS_CLASS_ID, curseforge_cdn_url,
 };
+use zellkern::path_security::{ConfinedDir, archive_path, validate_component, validate_version};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CurseForgeModpackError {
@@ -111,12 +112,8 @@ pub fn parse_curseforge_modpack(
 
     let manifest: CurseForgeModpackManifest = serde_json::from_str(&content)?;
 
-    if manifest.manifest_type != "minecraftModpack" {
-        return Err(CurseForgeModpackError::Invalid(format!(
-            "Unexpected manifest type: {}",
-            manifest.manifest_type
-        )));
-    }
+    validate_manifest(&manifest)?;
+    override_entries(&mut archive, &manifest.overrides)?;
 
     Ok(metadata_from_manifest(&manifest))
 }
@@ -196,7 +193,18 @@ pub async fn install_curseforge_modpack(
         .read_to_string(&mut content)?;
 
     let manifest: CurseForgeModpackManifest = serde_json::from_str(&content)?;
+    validate_manifest(&manifest)?;
+    override_entries(&mut archive, &manifest.overrides)?;
     let metadata = metadata_from_manifest(&manifest);
+
+    // Downloads and extraction never operate on the live instance. On any
+    // failure TempDir removes only this exclusively-created private staging.
+    let target_dir = instance_dir;
+    let destination = ConfinedDir::open(target_dir)?;
+    let staging = tempfile::Builder::new()
+        .prefix("cubic-curseforge-")
+        .tempdir()?;
+    let instance_dir = staging.path();
 
     let client = CurseForgeClient::from_settings_or_default();
 
@@ -206,6 +214,7 @@ pub async fn install_curseforge_modpack(
     if required_files.is_empty() {
         extract_overrides(&mut archive, instance_dir, &manifest.overrides).await?;
         extract_icon(&mut archive, instance_dir).await?;
+        publish_staging(instance_dir, &destination)?;
         return Ok(metadata);
     }
 
@@ -257,6 +266,7 @@ pub async fn install_curseforge_modpack(
                 validate_filename(&file.file_name).map_err(|e| {
                     CurseForgeModpackError::Invalid(format!("Invalid file_name in modpack: {}", e))
                 })?;
+                validate_component(&file.file_name)?;
 
                 let sub_dir = sub_dir_for_class(
                     class_by_mod_id
@@ -307,8 +317,9 @@ pub async fn install_curseforge_modpack(
 
     extract_overrides(&mut archive, instance_dir, &manifest.overrides).await?;
     extract_icon(&mut archive, instance_dir).await?;
+    publish_staging(instance_dir, &destination)?;
 
-    info!("CurseForge modpack installed into {:?}", instance_dir);
+    info!("CurseForge modpack installed into {:?}", target_dir);
     Ok(metadata)
 }
 
@@ -353,67 +364,94 @@ fn sanitize_for_label(name: &str) -> String {
         .collect()
 }
 
+fn validate_manifest(manifest: &CurseForgeModpackManifest) -> Result<(), CurseForgeModpackError> {
+    if manifest.manifest_type != "minecraftModpack" || manifest.manifest_version != 1 {
+        return Err(CurseForgeModpackError::Invalid(
+            "Unsupported CurseForge manifest".into(),
+        ));
+    }
+    validate_component(&manifest.overrides)?;
+    validate_version(&manifest.minecraft.version)?;
+    for loader in &manifest.minecraft.mod_loaders {
+        validate_version(&loader.id)?;
+        for prefix in ["forge-", "neoforge-", "fabric-", "quilt-"] {
+            if let Some(version) = loader.id.to_lowercase().strip_prefix(prefix) {
+                validate_version(version)?;
+            }
+        }
+    }
+    if let Some(version) = infer_game_version(&manifest.minecraft) {
+        validate_version(&version.to_version_id())?;
+    }
+    Ok(())
+}
+
+fn validate_override_destination(path: &Path) -> Result<(), CurseForgeModpackError> {
+    let first = path
+        .iter()
+        .next()
+        .and_then(|p| p.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if matches!(
+        first.as_str(),
+        "instance.cub" | "upstream.json" | "cubic-manifest.json" | "cubic-jar-cache"
+    ) || first.starts_with(".cubic-")
+    {
+        return Err(CurseForgeModpackError::Invalid(format!(
+            "Reserved launcher path: {}",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+
+fn override_entries(
+    archive: &mut zip::ZipArchive<std::fs::File>,
+    overrides_name: &str,
+) -> Result<Vec<(usize, PathBuf)>, CurseForgeModpackError> {
+    validate_component(overrides_name)?;
+    let mut entries = Vec::new();
+    let mut names = HashSet::new();
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i)?;
+        let path = archive_path(entry.name())?;
+        if entry.is_symlink() {
+            return Err(CurseForgeModpackError::Invalid(
+                "ZIP symlinks are not allowed".into(),
+            ));
+        }
+        if let Ok(relative) = path.strip_prefix(overrides_name) {
+            if relative.as_os_str().is_empty() {
+                continue;
+            }
+            validate_override_destination(relative)?;
+            if !entry.is_dir() {
+                if !names.insert(relative.to_string_lossy().to_lowercase()) {
+                    return Err(CurseForgeModpackError::Invalid(
+                        "Duplicate override path".into(),
+                    ));
+                }
+                entries.push((i, relative.to_path_buf()));
+            }
+        }
+    }
+    Ok(entries)
+}
+
 async fn extract_overrides(
     archive: &mut zip::ZipArchive<std::fs::File>,
     instance_dir: &Path,
     overrides_name: &str,
 ) -> Result<(), CurseForgeModpackError> {
-    if overrides_name.contains("..")
-        || overrides_name.contains('/')
-        || overrides_name.contains('\\')
-    {
-        return Err(CurseForgeModpackError::Invalid(format!(
-            "Invalid overrides name: {}",
-            overrides_name
-        )));
-    }
-
-    let prefix = format!("{}/", overrides_name.trim_end_matches('/'));
-    let prefix_path = Path::new(&prefix);
-
-    for i in 0..archive.len() {
-        let entry = archive.by_index(i)?;
-        let entry_name = entry.name().to_string();
-        let is_dir = entry.is_dir();
-
-        // `enclosed_name()` rejects paths with `..` or absolute paths.
-        let Some(enclosed) = entry.enclosed_name() else {
-            tracing::warn!(
-                "CurseForge override with unsafe path ignored: {}",
-                entry_name
-            );
-            drop(entry);
-            continue;
-        };
-        drop(entry);
-
-        if is_dir {
+    let entries = override_entries(archive, overrides_name)?;
+    let root = ConfinedDir::open(instance_dir)?;
+    for (i, relative) in entries {
+        // Downloaded, verified files win over duplicates in overrides.
+        if root.file_exists(&relative)? {
             continue;
         }
-
-        let relative_path = match enclosed.strip_prefix(prefix_path) {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
-
-        if relative_path.as_os_str().is_empty() {
-            continue;
-        }
-
-        // Avoid overwriting files downloaded from CurseForge if the pack
-        // duplicated any file in overrides.
-        let dest = safe_join(instance_dir, relative_path.to_string_lossy().as_ref())
-            .map_err(CurseForgeModpackError::Invalid)?;
-
-        if let Some(parent) = dest.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-
-        tracing::info!("Extracting override {} -> {:?}", entry_name, dest);
-
-        let mut buffer = Vec::new();
-        archive.by_index(i)?.read_to_end(&mut buffer)?;
-        tokio::fs::write(&dest, &buffer).await?;
+        root.copy_from(&relative, &mut archive.by_index(i)?)?;
     }
     Ok(())
 }
@@ -432,11 +470,38 @@ async fn extract_icon(
             continue;
         }
 
-        let icon_dest = instance_dir.join("icon.png");
-        let mut buffer = Vec::new();
-        archive.by_index(i)?.read_to_end(&mut buffer)?;
-        tokio::fs::write(&icon_dest, &buffer).await?;
+        ConfinedDir::open(instance_dir)?
+            .copy_from(Path::new("icon.png"), &mut archive.by_index(i)?)?;
         break;
     }
     Ok(())
 }
+
+fn publish_staging(
+    staging: &Path,
+    destination: &ConfinedDir,
+) -> Result<(), CurseForgeModpackError> {
+    let mut pending = vec![PathBuf::new()];
+    while let Some(relative) = pending.pop() {
+        for entry in std::fs::read_dir(staging.join(&relative))? {
+            let entry = entry?;
+            let path = relative.join(entry.file_name());
+            validate_override_destination(&path)?;
+            let kind = entry.file_type()?;
+            if kind.is_dir() {
+                pending.push(path);
+            } else if kind.is_file() {
+                destination.copy_from(&path, &mut std::fs::File::open(entry.path())?)?;
+            } else {
+                return Err(CurseForgeModpackError::Invalid(
+                    "Special file in modpack staging".into(),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "../tests/services/curseforge_modpack.rs"]
+mod tests;

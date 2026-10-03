@@ -103,6 +103,13 @@ impl DownloadQueue {
 
     pub async fn enqueue(&self, version: impl Into<Arc<str>>) {
         let version: Arc<str> = version.into();
+        if let Err(e) = zellkern::path_security::validate_version(&version) {
+            emit(AppEvent::DError {
+                version: version.clone(),
+                message: e.to_string().into(),
+            });
+            return;
+        }
         let shared_guard = super::shared_storage::acquire().await;
 
         if let Some(state) = self.active.get(&version)

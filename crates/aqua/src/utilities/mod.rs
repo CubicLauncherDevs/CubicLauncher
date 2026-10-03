@@ -12,7 +12,6 @@ use tokio::io::AsyncWriteExt;
 use zellkern::is_native_file;
 
 use crate::AquaError;
-use crate::path_security::safe_join;
 
 pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
     Client::builder()
@@ -373,36 +372,8 @@ pub fn extract_zip_to_dir(zip_path: &Path, dest_dir: &Path) -> Result<(), AquaEr
     let mut archive = zip::ZipArchive::new(file)
         .map_err(|e| AquaError::ForgeExtract(format!("Invalid ZIP: {e}")))?;
 
-    for i in 0..archive.len() {
-        let mut entry = archive
-            .by_index(i)
-            .map_err(|e| AquaError::ForgeExtract(format!("Cannot read ZIP entry: {e}")))?;
-
-        let name = entry.name().to_string();
-
-        // `enclosed_name()` rejects entries that escape the archive root.
-        let Some(enclosed) = entry.enclosed_name() else {
-            warn!("ZIP entry with unsafe path ignored: {}", name);
-            continue;
-        };
-
-        if entry.is_dir() {
-            continue;
-        }
-
-        let out_path = safe_join(dest_dir, enclosed.to_string_lossy().as_ref())
-            .map_err(AquaError::ForgeExtract)?;
-        if let Some(parent) = out_path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| AquaError::ForgeExtract(format!("Cannot create dir: {e}")))?;
-        }
-
-        let mut out_file = std::fs::File::create(&out_path)
-            .map_err(|e| AquaError::ForgeExtract(format!("Cannot create file: {e}")))?;
-        std::io::copy(&mut entry, &mut out_file)
-            .map_err(|e| AquaError::ForgeExtract(format!("Cannot extract file: {e}")))?;
-    }
-
+    zellkern::path_security::extract_zip(&mut archive, dest_dir)
+        .map_err(|e| AquaError::ForgeExtract(e.to_string()))?;
     Ok(())
 }
 

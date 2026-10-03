@@ -11,19 +11,31 @@ fn version_dir(shared: &Path, version: &str) -> PathBuf {
 }
 
 pub(crate) async fn begin(shared: &Path, version: &str) -> io::Result<()> {
-    let dir = version_dir(shared, version);
-    tokio::fs::create_dir_all(&dir).await?;
-    crate::core::atomic_file::write_async(dir.join(PENDING), b"1".to_vec()).await
+    zellkern::path_security::validate_version(version)?;
+    let shared = shared.to_path_buf();
+    let relative = Path::new("versions").join(version).join(PENDING);
+    tokio::task::spawn_blocking(move || {
+        std::fs::create_dir_all(&shared)?;
+        zellkern::path_security::ConfinedDir::open(&shared)?.write(&relative, b"1")
+    })
+    .await
+    .map_err(io::Error::other)?
 }
 
 pub(crate) async fn finish(shared: &Path, version: &str) -> io::Result<()> {
-    let dir = version_dir(shared, version);
-    let manifest = tokio::fs::read(dir.join(format!("{version}.json"))).await?;
-    zellkern::VersionManifest::from_bytes(&manifest).map_err(io::Error::other)?;
-    // Binding the receipt to the manifest also detects an externally replaced
-    // profile. Publish before clearing pending, so crashes remain repairable.
-    crate::core::atomic_file::write_async(dir.join(COMPLETE), manifest).await?;
-    tokio::fs::remove_file(dir.join(PENDING)).await
+    zellkern::path_security::validate_version(version)?;
+    let shared = shared.to_path_buf();
+    let version = version.to_string();
+    tokio::task::spawn_blocking(move || {
+        let root = zellkern::path_security::ConfinedDir::open(&shared)?;
+        let dir = Path::new("versions").join(&version);
+        let manifest = root.read(&dir.join(format!("{version}.json")))?;
+        zellkern::VersionManifest::from_bytes(&manifest).map_err(io::Error::other)?;
+        root.write(&dir.join(COMPLETE), &manifest)?;
+        root.remove_file(&dir.join(PENDING))
+    })
+    .await
+    .map_err(io::Error::other)?
 }
 
 fn file_present(path: &Path, size: Option<u64>) -> bool {
@@ -32,6 +44,9 @@ fn file_present(path: &Path, size: Option<u64>) -> bool {
 }
 
 pub(crate) fn is_complete(shared: &Path, version: &str) -> bool {
+    if zellkern::path_security::validate_version(version).is_err() {
+        return false;
+    }
     let dir = version_dir(shared, version);
     if dir.join(PENDING).exists() {
         return false;

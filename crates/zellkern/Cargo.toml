@@ -11,6 +11,7 @@ log = "0.4"
 uuid = { version = "1", features = ["v4"] }
 md5 = "0.8"
 zip = "8"
+cap-std = "3"
 
 [dev-dependencies]
 tempfile = "3"

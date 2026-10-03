@@ -30,6 +30,7 @@ enum ProfileKind {
 }
 
 pub struct NeoForgeBatch {
+    _temp_dir: tempfile::TempDir,
     version_id: String,
     game_version: String,
     #[allow(dead_code)]
@@ -51,24 +52,23 @@ impl NeoForgeBatch {
         installer_url: &str,
         java_path: Option<PathBuf>,
     ) -> Result<Self, AquaError> {
+        zellkern::path_security::validate_version(game_version)?;
+        zellkern::path_security::validate_version(neoforge_version)?;
         let version_id = format!("{game_version}-neoforge-{neoforge_version}");
-        let temp_dir = shared_dir
-            .join("temp")
-            .join(format!("neoforge-{version_id}"));
-        let staging_dir = temp_dir.join("staging");
-
-        if temp_dir.exists() {
-            tokio::fs::remove_dir_all(&temp_dir).await?;
-        }
+        zellkern::path_security::validate_version(&version_id)?;
+        let temp_dir = tempfile::Builder::new()
+            .prefix("cubic-neoforge-")
+            .tempdir()?;
+        let staging_dir = temp_dir.path().join("staging");
         tokio::fs::create_dir_all(&staging_dir).await?;
 
         // 1. Download installer — try the provided URL directly and propagate errors.
-        let installer_path = temp_dir.join("installer.jar");
+        let installer_path = temp_dir.path().join("installer.jar");
         info!("Downloading NeoForge installer: {installer_url}");
         crate::utilities::download_file(installer_url, &installer_path, "", None, None).await?;
 
         // 2. Extract installer
-        let extract_dir = temp_dir.join("extracted");
+        let extract_dir = temp_dir.path().join("extracted");
         tokio::fs::create_dir_all(&extract_dir).await?;
         let extract_dir_clone = extract_dir.clone();
         let installer_path_clone = installer_path.clone();
@@ -211,6 +211,7 @@ impl NeoForgeBatch {
         );
 
         Ok(Self {
+            _temp_dir: temp_dir,
             version_id,
             game_version: game_version.to_string(),
             neoforge_version: neoforge_version.to_string(),
@@ -708,14 +709,7 @@ fn commit_and_cleanup(staging_dir: &Path, shared_dir: &Path) -> Result<(), AquaE
 
     info!("NeoForge installation committed successfully");
 
-    // Cleanup temp dir (parent of staging)
-    if let Some(temp_dir) = staging_dir.parent()
-        && temp_dir.exists()
-    {
-        std::fs::remove_dir_all(temp_dir)
-            .map_err(|e| AquaError::ForgeExtract(format!("Failed to cleanup temp: {e}")))?;
-        info!("Cleaned up temp dir: {:?}", temp_dir);
-    }
+    // The batch's TempDir owns cleanup, including failed/cancelled installs.
 
     Ok(())
 }

@@ -43,6 +43,7 @@ pub struct MinecraftBatch {
 
 impl MinecraftBatch {
     pub async fn new(game_path: &Path, version_id: &str) -> Result<Self, AquaError> {
+        zellkern::path_security::validate_version(version_id)?;
         let (version, version_json_bytes) = resolve_version_data(version_id).await?;
         let mc_version = &version.parsed_version;
         let dirs = compute_dirs(game_path, version_id, mc_version);

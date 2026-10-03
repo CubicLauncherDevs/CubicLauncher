@@ -2,9 +2,8 @@ use crate::core::path_manager::PathManager;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::fs as tokio_fs;
 
 use super::status::InstanceStatus;
 
@@ -83,21 +82,36 @@ impl InstanceData {
         if !self.dirty {
             return Ok(());
         }
-        let dir = self.get_instance_dir();
+        validate_instance_name(&self.name).map_err(io::Error::other)?;
+        zellkern::path_security::validate_version(&self.version)?;
+        uuid::Uuid::parse_str(&self.uuid).map_err(io::Error::other)?;
         let content = serde_json::to_vec(self).map_err(io::Error::other)?;
-        crate::core::atomic_file::write_async(dir.join("instance.cub"), content).await?;
+        let root = zellkern::path_security::ConfinedDir::open(&self.instance_root)?;
+        root.open_dir(Path::new(self.name.as_ref()))?
+            .write(Path::new("instance.cub"), &content)?;
         self.dirty = false;
         Ok(())
     }
 
     pub async fn load(name: &str) -> Option<Self> {
-        let path = PathManager::get()
-            .get_instance_dir()
-            .join(name)
-            .join("instance.cub");
-        let content = tokio_fs::read_to_string(path).await.ok()?;
-        let mut data: InstanceData = serde_json::from_str(&content).ok()?;
-        data.instance_root = PathManager::get().get_instance_dir().to_path_buf();
+        Self::load_from(&PathManager::get().get_instance_dir(), name).await
+    }
+
+    async fn load_from(root: &Path, name: &str) -> Option<Self> {
+        validate_instance_name(name).ok()?;
+        let content = zellkern::path_security::ConfinedDir::open(root)
+            .ok()?
+            .read(&Path::new(name).join("instance.cub"))
+            .ok()?;
+        let mut data: InstanceData = serde_json::from_slice(&content).ok()?;
+        // The on-disk folder is authoritative. Never adopt a different path
+        // from a file a modpack or another application may have replaced.
+        if data.name.as_ref() != name {
+            return None;
+        }
+        uuid::Uuid::parse_str(&data.uuid).ok()?;
+        zellkern::path_security::validate_version(&data.version).ok()?;
+        data.instance_root = root.to_path_buf();
         data.dirty = false;
         Some(data)
     }
@@ -120,6 +134,7 @@ pub struct InstanceDto {
 }
 
 pub fn validate_instance_name(name: &str) -> Result<(), String> {
+    zellkern::path_security::validate_component(name).map_err(|e| e.to_string())?;
     if name.is_empty() {
         return Err("El nombre de la instancia no puede estar vacío.".into());
     }

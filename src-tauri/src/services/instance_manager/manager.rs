@@ -162,6 +162,8 @@ impl InstanceManager {
         icon: Option<String>,
     ) -> Result<InstanceHandle, InstanceError> {
         validate_instance_name(&name).map_err(InstanceError::InstNameParse)?;
+        zellkern::path_security::validate_version(&version)
+            .map_err(|e| InstanceError::VersionNotFound(e.to_string()))?;
 
         let mut data = InstanceData::new(name, version, icon);
         data.instance_root = self.base_dir();
@@ -276,6 +278,9 @@ impl InstanceManager {
         new_icon: Option<Option<String>>,
         new_overrides: Option<InstOverrides>,
     ) -> Result<(), String> {
+        if let Some(version) = &new_version {
+            zellkern::path_security::validate_version(version).map_err(|e| e.to_string())?;
+        }
         let handle = self
             .get_handle(uuid)
             .await
@@ -338,36 +343,53 @@ fn trash_dir(instances: &Path) -> PathBuf {
 }
 
 async fn quarantine_instance(dir: &Path, trash: &Path, uuid: &str) -> io::Result<()> {
+    uuid::Uuid::parse_str(uuid).map_err(io::Error::other)?;
+    let root = trash
+        .parent()
+        .ok_or_else(|| io::Error::other("Invalid trash root"))?;
+    if dir.parent() != Some(root) {
+        return Err(io::Error::other("Instance is outside its storage root"));
+    }
+    let name = dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| io::Error::other("Invalid instance directory"))?;
+    validate_instance_name(name).map_err(io::Error::other)?;
     match tokio_fs::symlink_metadata(dir).await {
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
         Err(e) => return Err(e),
         Ok(_) => {}
     }
-    tokio_fs::create_dir_all(trash).await?;
-    tokio_fs::rename(dir, trash.join(uuid)).await
+    let confined = zellkern::path_security::ConfinedDir::open(root)?;
+    confined.create_dir_all(Path::new(DELETION_DIR))?;
+    confined.rename(Path::new(name), &Path::new(DELETION_DIR).join(uuid))
 }
 
 async fn cleanup_deleted_instances(trash: &Path) {
-    let mut entries = match tokio_fs::read_dir(trash).await {
-        Ok(entries) => entries,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return,
-        Err(e) => {
-            error!("Error leyendo instancias pendientes de eliminar: {e}");
-            return;
+    let trash = trash.to_path_buf();
+    let result = tokio::task::spawn_blocking(move || -> io::Result<()> {
+        let root = trash
+            .parent()
+            .ok_or_else(|| io::Error::other("Invalid trash root"))?;
+        let directory =
+            zellkern::path_security::ConfinedDir::open(root)?.open_dir(Path::new(DELETION_DIR))?;
+        for name in directory.entries()? {
+            if uuid::Uuid::parse_str(&name.to_string_lossy()).is_err() {
+                continue;
+            }
+            if let Err(e) = directory.remove_dir_all(Path::new(&name))
+                && e.kind() != io::ErrorKind::NotFound
+            {
+                error!("No se pudo limpiar instancia eliminada {name:?}: {e}");
+            }
         }
-    };
-    while let Ok(Some(entry)) = entries.next_entry().await {
-        if uuid::Uuid::parse_str(&entry.file_name().to_string_lossy()).is_err() {
-            continue;
-        }
-        if let Err(e) = tokio_fs::remove_dir_all(entry.path()).await
-            && e.kind() != io::ErrorKind::NotFound
-        {
-            error!(
-                "No se pudo limpiar instancia eliminada {:?}: {e}",
-                entry.path()
-            );
-        }
+        Ok(())
+    })
+    .await;
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) if e.kind() == io::ErrorKind::NotFound => {}
+        other => error!("Error limpiando instancias pendientes de eliminar: {other:?}"),
     }
 }
 

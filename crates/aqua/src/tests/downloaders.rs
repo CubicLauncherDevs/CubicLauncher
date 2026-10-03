@@ -3,6 +3,42 @@ use crate::progress::DownloadProgress;
 use std::time::Duration;
 use tokio::sync::watch;
 
+#[tokio::test]
+async fn traversal_loader_versions_cannot_delete_or_create_staging() {
+    let temp = tempfile::tempdir().unwrap();
+    let shared = temp.path().join("shared");
+    let outside = temp.path().join("outside");
+    std::fs::create_dir(&outside).unwrap();
+    std::fs::write(outside.join("sentinel"), b"unchanged").unwrap();
+    for version in [
+        "../../test.txt",
+        "../outside/file.txt",
+        "foo/../../outside/file.txt",
+        "x/../../../outside",
+        "/outside",
+        "C:\\outside",
+    ] {
+        assert!(
+            ForgeBatch::new(&shared, "1.21", version, "http://127.0.0.1:1/unused", None)
+                .await
+                .is_err()
+        );
+        assert!(
+            NeoForgeBatch::new(&shared, "1.21", version, "http://127.0.0.1:1/unused", None)
+                .await
+                .is_err()
+        );
+        assert!(FabricBatch::new(&shared, "1.21", version).await.is_err());
+        assert!(QuiltBatch::new(&shared, "1.21", version).await.is_err());
+        assert!(MinecraftBatch::new(&shared, version).await.is_err());
+    }
+    assert!(!shared.exists());
+    assert_eq!(
+        std::fs::read(outside.join("sentinel")).unwrap(),
+        b"unchanged"
+    );
+}
+
 struct FinalizingBatch {
     items: Vec<DownloadItemSpec>,
     finalized: Arc<AtomicBool>,

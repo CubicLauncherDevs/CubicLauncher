@@ -85,7 +85,10 @@ impl QuiltBatch {
         game_version: &str,
         loader_version: &str,
     ) -> Result<Self, AquaError> {
+        zellkern::path_security::validate_version(game_version)?;
+        zellkern::path_security::validate_version(loader_version)?;
         let quilt_version_id = format!("quilt-loader-{}-{}", loader_version, game_version);
+        zellkern::path_security::validate_version(&quilt_version_id)?;
 
         let profile_url = format!(
             "https://meta.quiltmc.org/v3/versions/loader/{}/{}/profile/json",

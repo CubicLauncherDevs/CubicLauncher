@@ -203,6 +203,55 @@ async fn failed_cleanup_retains_the_pending_entry_for_a_later_retry() {
     assert!(!pending.exists());
 }
 
+#[tokio::test]
+async fn quarantine_rejects_external_paths_and_untrusted_uuids() {
+    let (temp, manager) = fixture().await;
+    let outside = temp.path().join("outside");
+    tokio_fs::create_dir(&outside).await.unwrap();
+    tokio_fs::write(outside.join("sentinel"), b"unchanged")
+        .await
+        .unwrap();
+    let handle = create(&manager).await;
+    let trash = trash_dir(&manager.base_dir());
+    assert!(
+        quarantine_instance(&outside, &trash, &handle.uuid)
+            .await
+            .is_err()
+    );
+    assert!(
+        quarantine_instance(&handle.get_instance_dir().await, &trash, "../../outside")
+            .await
+            .is_err()
+    );
+    assert!(handle.get_instance_dir().await.is_dir());
+    assert_eq!(
+        tokio_fs::read(outside.join("sentinel")).await.unwrap(),
+        b"unchanged"
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn cleanup_and_quarantine_refuse_a_symlinked_trash_directory() {
+    let (temp, manager) = fixture().await;
+    let outside = temp.path().join("outside");
+    let victim = outside.join(uuid::Uuid::new_v4().to_string());
+    tokio_fs::create_dir_all(&victim).await.unwrap();
+    tokio_fs::write(victim.join("sentinel"), b"unchanged")
+        .await
+        .unwrap();
+    let trash = trash_dir(&manager.base_dir());
+    std::os::unix::fs::symlink(&outside, &trash).unwrap();
+    let handle = create(&manager).await;
+    assert!(manager.delete_instance(&handle.uuid).await.is_err());
+    cleanup_deleted_instances(&trash).await;
+    assert!(handle.get_instance_dir().await.is_dir());
+    assert_eq!(
+        tokio_fs::read(victim.join("sentinel")).await.unwrap(),
+        b"unchanged"
+    );
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn deletion_staging_stays_inside_a_symlinked_instance_root() {

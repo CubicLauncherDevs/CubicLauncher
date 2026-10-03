@@ -15,28 +15,15 @@ pub fn extract_instance_archive(archive_path: &Path) -> Result<PathBuf, ImportEr
     let mut archive = ZipArchive::new(file)
         .map_err(|e| ImportError::InvalidArchive(format!("No es un archivo ZIP válido: {e}")))?;
 
-    let temp_dir = std::env::temp_dir().join(format!(
-        "cubic_instance_import_{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis()
-    ));
-
-    std::fs::create_dir_all(&temp_dir).map_err(|e| {
-        ImportError::ExtractionFailed(format!(
-            "No se pudo crear directorio temporal {:?}: {e}",
-            temp_dir
-        ))
-    })?;
-
-    archive
-        .extract(&temp_dir)
+    let temporary = tempfile::Builder::new()
+        .prefix("cubic_instance_import_")
+        .tempdir()?;
+    zellkern::path_security::extract_zip(&mut archive, temporary.path())
         .map_err(|e| ImportError::ExtractionFailed(e.to_string()))?;
-
-    info!("ZIP extraído a {:?}", temp_dir);
-
-    let preview_dir = normalize_root(&temp_dir)?;
+    let preview_dir = normalize_root(temporary.path())?;
+    info!("ZIP extraído a {:?}", temporary.path());
+    // Ownership is transferred to the preview session only after extraction.
+    let _ = temporary.keep();
     Ok(preview_dir)
 }
 

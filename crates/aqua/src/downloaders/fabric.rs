@@ -75,7 +75,10 @@ impl FabricBatch {
         game_version: &str,
         loader_version: &str,
     ) -> Result<Self, AquaError> {
+        zellkern::path_security::validate_version(game_version)?;
+        zellkern::path_security::validate_version(loader_version)?;
         let fabric_version_id = format!("fabric-loader-{}-{}", loader_version, game_version);
+        zellkern::path_security::validate_version(&fabric_version_id)?;
 
         let profile_url = format!(
             "https://meta.fabricmc.net/v2/versions/loader/{}/{}/profile/json",
