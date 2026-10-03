@@ -70,6 +70,7 @@ impl Theme for ThemeFile {
             r#type: self.r#type.clone().into(),
             variables: self.variables.clone(),
             bg_image: self.bg_image.clone(),
+            bg_music: None,
             bg_image_blur: self
                 .bg_image_blur
                 .as_deref()

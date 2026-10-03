@@ -51,6 +51,7 @@ fn imports_layout<T: ZipImportable>(prefix: &str, metadata: &str) {
         ),
         (&format!("{prefix}Inject.css"), "body { color: red; }"),
         (&format!("{prefix}assets/nested/font.woff2"), "font bytes"),
+        (&format!("{prefix}assets/BG.mp3"), "music bytes"),
     ]);
     let (entry, staged) = stage_zip::<T>(&zip, &themes).unwrap().unwrap();
     assert_eq!(entry.id, "test_author");
@@ -75,6 +76,10 @@ fn imports_layout<T: ZipImportable>(prefix: &str, metadata: &str) {
     assert_eq!(
         std::fs::read_to_string(destination.join("assets/nested/font.woff2")).unwrap(),
         "font bytes"
+    );
+    assert_eq!(
+        std::fs::read_to_string(destination.join("assets/BG.mp3")).unwrap(),
+        "music bytes"
     );
 }
 
@@ -204,6 +209,55 @@ fn runtime_tolerates_missing_assets_and_keeps_inject_css_without_flag() {
     assert_eq!(loaded.inject_css.as_deref(), Some("body { color: red; }"));
     staged.install(&themes.join(entry.id.as_str())).unwrap();
     assert!(load_user_theme(&themes.join(entry.id.as_str()), &entry.id).is_ok());
+}
+
+#[test]
+fn runtime_discovers_bg_mp3_without_manifest_configuration() {
+    for (manifest, metadata, definition, location) in [
+        ("theme.json", V1, None, "assets/BG.mp3"),
+        (
+            "Meta.toml",
+            V2,
+            Some("[background]\nreference_path = 'visuals/BG.png'"),
+            "visuals/BG.mp3",
+        ),
+    ] {
+        let dir = TestDir::new();
+        let themes = dir.0.join("themes");
+        let mut entries = vec![(manifest, metadata), (location, "music bytes")];
+        if let Some(definition) = definition {
+            entries.push(("Definition.toml", definition));
+            entries.push(("visuals/BG.png", "GIF89a0000000000"));
+        }
+        let zip = dir.zip(&entries);
+        let staged = if manifest == "theme.json" {
+            stage_zip::<ThemeFile>(&zip, &themes)
+        } else {
+            stage_zip::<ThemeMeta>(&zip, &themes)
+        }
+        .unwrap()
+        .unwrap()
+        .1;
+        let loaded = load_user_theme(&staged.root.join("theme"), "test_author").unwrap();
+        let expected = staged
+            .root
+            .join("theme")
+            .join(location)
+            .to_string_lossy()
+            .into_owned();
+        assert_eq!(loaded.bg_music.as_deref(), Some(expected.as_str()));
+    }
+}
+
+#[test]
+fn runtime_ignores_other_music_names_and_bg_mp3_directories() {
+    let dir = TestDir::new();
+    let theme = dir.0.join("theme");
+    std::fs::create_dir_all(theme.join("assets/BG.mp3")).unwrap();
+    std::fs::write(theme.join("theme.json"), V1).unwrap();
+    std::fs::write(theme.join("assets/music.mp3"), "music bytes").unwrap();
+    let loaded = load_user_theme(&theme, "test_author").unwrap();
+    assert!(loaded.bg_music.is_none());
 }
 
 #[test]

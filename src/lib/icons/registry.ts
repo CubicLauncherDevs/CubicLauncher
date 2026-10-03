@@ -11,6 +11,7 @@ export const ICON_REGISTRY: Record<string, string> = {
 	"ui:download": "/images/icons/ui/download.svg",
 	"ui:error": "/images/icons/ui/error.svg",
 	"ui:logout": "/images/icons/ui/logout.svg",
+	"ui:pause": "/images/icons/ui/pause.svg",
 	"ui:play": "/images/icons/ui/play.svg",
 	"ui:refresh": "/images/icons/ui/refresh.svg",
 	"ui:search": "/images/icons/ui/search.svg",
