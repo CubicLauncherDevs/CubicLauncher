@@ -824,6 +824,11 @@ impl Launcher {
 
         // Resolve the root per launch, after storage admission, rather than
         // retaining the directory that was active when the launcher started.
+        let beta_hide_delay = beta_readiness_delay(
+            &manifest.id_raw,
+            manifest.inherits_from.as_deref(),
+            hide_on_launch,
+        );
         let lw = Arc::new(Launchwerk::new(shared_dir));
         let lw_handle = lw.prepare(manifest, options, instance_dir);
         handle.update_last_played().await;
@@ -834,7 +839,7 @@ impl Launcher {
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         let session = LaunchSession::new(app_handle.clone(), hide_on_launch);
-        let (ready_tx, mut ready_rx) = tokio::sync::oneshot::channel();
+        let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
         // Subscribe before spawning Java: the first messages can arrive immediately.
         let io_task = spawn_io_forwarding(
             app_handle.clone(),
@@ -846,6 +851,9 @@ impl Launcher {
 
         match lw_handle.launch().await {
             Ok(_) => {
+                // Start the grace period only after Java was successfully spawned.
+                let beta_hide_deadline =
+                    beta_hide_delay.map(|delay| tokio::time::Instant::now() + delay);
                 info!("Handle {} lanzado", lw_handle.id().to_string());
                 let (kill_tx, mut kill_rx) = tokio::sync::oneshot::channel::<()>();
                 let kill_requested = register_kill_sender(&handle.uuid, kill_tx);
@@ -878,6 +886,8 @@ impl Launcher {
                 let app_for_show = app_handle.clone();
                 tokio::spawn(async move {
                     let _shared_guard = shared_guard;
+                    let readiness = wait_for_game_readiness(ready_rx, beta_hide_deadline);
+                    tokio::pin!(readiness);
                     let mut ready_seen = false;
                     let result = loop {
                         tokio::select! {
@@ -893,7 +903,7 @@ impl Launcher {
                                 info!("Instance {} exited: {:?}", uuid, result);
                                 break result;
                             }
-                            Ok(()) = &mut ready_rx, if !ready_seen => {
+                            _ = &mut readiness, if hide_on_launch && !ready_seen => {
                                 ready_seen = true;
                                 session.game_ready();
                             }
@@ -1107,6 +1117,53 @@ fn is_game_ready(line: &str) -> bool {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"(?i)\bsetting user(?::|\s)\s*\S+").unwrap())
         .is_match(line)
+}
+
+/// Old Minecraft betas may never print the modern client-ready marker. Use the
+/// base version ID (including inherited/modded profiles), not the launcher version.
+fn beta_readiness_delay(
+    version: &str,
+    parent: Option<&str>,
+    hide_on_launch: bool,
+) -> Option<std::time::Duration> {
+    if !hide_on_launch {
+        return None;
+    }
+    let base = GameVersion::from_version_id(parent.unwrap_or(version)).mc_version;
+    let beta = base
+        .strip_prefix('b')
+        .and_then(|rest| rest.split_once('.'))
+        .is_some_and(|(major, minor)| {
+            !major.is_empty()
+                && major.bytes().all(|byte| byte.is_ascii_digit())
+                && minor.as_bytes().first().is_some_and(u8::is_ascii_digit)
+        });
+    beta.then_some(std::time::Duration::from_secs(2))
+}
+
+async fn wait_for_game_readiness(
+    mut marker: tokio::sync::oneshot::Receiver<()>,
+    beta_deadline: Option<tokio::time::Instant>,
+) {
+    let fallback = async {
+        match beta_deadline {
+            Some(deadline) => tokio::time::sleep_until(deadline).await,
+            None => std::future::pending::<()>().await,
+        }
+    };
+    tokio::pin!(fallback);
+    tokio::select! {
+        result = &mut marker => {
+            // Closing stdout/stderr is not a readiness signal. Betas may run
+            // without either stream; other versions must still wait for a marker.
+            if result.is_err() {
+                fallback.await;
+            }
+        }
+        _ = &mut fallback => {}
+    }
+    // The supervisor prioritizes kill/exit over this future and drops it on exit,
+    // so the timer cannot hide the launcher after a failed/terminated session.
 }
 
 #[derive(Default)]

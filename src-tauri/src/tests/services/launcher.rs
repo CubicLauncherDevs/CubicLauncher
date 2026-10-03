@@ -153,6 +153,89 @@ fn readiness_uses_the_minecraft_client_marker() {
     }
 }
 
+#[test]
+fn readiness_fallback_is_only_enabled_for_old_minecraft_betas() {
+    for (version, parent) in [
+        ("b1.0", None),
+        ("b1.7_01", None),
+        ("b1.7.3", None),
+        ("b1.8.1", None),
+        ("b1.9-pre4", None),
+        ("b1.7.3-OptiFine_HD_G", None),
+        ("custom-profile", Some("b1.7.3")),
+    ] {
+        assert_eq!(
+            beta_readiness_delay(version, parent, true),
+            Some(std::time::Duration::from_secs(2)),
+            "{version} / {parent:?}"
+        );
+        assert_eq!(beta_readiness_delay(version, parent, false), None);
+    }
+    for version in [
+        "1.21.4",
+        "1.0",
+        "a1.2.6",
+        "26.2-snapshot-5",
+        "36.0.0-beta.1",
+        "fabric-loader-0.16.0-1.21",
+        "bukkit",
+        "b1",
+        "b1.",
+        "beta1.7.3",
+    ] {
+        assert_eq!(beta_readiness_delay(version, None, true), None, "{version}");
+    }
+    assert_eq!(beta_readiness_delay("b1.7.3", Some("1.21"), true), None);
+}
+
+#[tokio::test]
+async fn silent_betas_become_ready_after_the_grace_period_with_open_or_closed_logs() {
+    let delay = beta_readiness_delay("b1.7.3", None, true).unwrap();
+    futures::future::join_all([false, true].map(|closed| async move {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let sender = (!closed).then_some(tx);
+        let deadline = tokio::time::Instant::now() + delay;
+        let readiness = wait_for_game_readiness(rx, Some(deadline));
+        tokio::pin!(readiness);
+        assert!(
+            futures::poll!(&mut readiness).is_pending(),
+            "hid before the grace period"
+        );
+        tokio::time::timeout(std::time::Duration::from_secs(5), readiness)
+            .await
+            .expect("silent beta never became ready");
+        assert!(tokio::time::Instant::now() >= deadline);
+        drop(sender);
+    }))
+    .await;
+}
+
+#[tokio::test]
+async fn client_marker_can_hide_before_the_beta_fallback_deadline() {
+    for deadline in [
+        None,
+        Some(tokio::time::Instant::now() + std::time::Duration::from_secs(60)),
+    ] {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        let readiness = wait_for_game_readiness(rx, deadline);
+        tokio::pin!(readiness);
+        assert!(futures::poll!(&mut readiness).is_pending());
+        tx.send(()).unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(1), readiness)
+            .await
+            .expect("client marker was ignored");
+    }
+}
+
+#[tokio::test]
+async fn closed_logs_without_a_beta_fallback_do_not_signal_readiness() {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    drop(tx);
+    let readiness = wait_for_game_readiness(rx, None);
+    tokio::pin!(readiness);
+    assert!(futures::poll!(&mut readiness).is_pending());
+}
+
 #[tokio::test]
 async fn history_and_live_events_share_ids_and_timestamps() {
     let ring = LogRing::new();
@@ -177,10 +260,12 @@ async fn background_logs_detect_early_readiness_and_drain_both_streams() {
         .unwrap();
     stdout_tx.send("access_token=secret-value".into()).unwrap();
     let task = spawn_io_forwarding(None, id.clone(), stdout_rx, stderr_rx, Some(ready_tx));
-    tokio::time::timeout(std::time::Duration::from_secs(2), ready_rx)
-        .await
-        .unwrap()
-        .unwrap();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        wait_for_game_readiness(ready_rx, None),
+    )
+    .await
+    .unwrap();
     drop(stderr_tx);
     stdout_tx.send("last stdout line".into()).unwrap();
     drop(stdout_tx);

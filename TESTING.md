@@ -232,16 +232,23 @@ cancelación y pérdida de captura, y cierre desde una zona libre.
 cargo test -p cubiclauncher --lib services::launch
 ```
 
-La opción «Ocultar el launcher al jugar» espera el
-mensaje `Setting user...`, como PolyMC. Destruye el WebView principal y mantiene
-el backend supervisando las sesiones. Sin ese mensaje, la ventana permanece
-abierta. La consola conserva su ajuste independiente.
+La opción «Ocultar el launcher al jugar» espera el mensaje `Setting user...`,
+como PolyMC. En las betas antiguas de Minecraft (`b1.7.3`, `b1.8.1`, etc.), que
+pueden no emitirlo, también se oculta tras dos segundos desde el arranque correcto
+de Java, si el proceso sigue activo. La salida o terminación del juego tiene
+prioridad sobre esa espera. Destruye el WebView principal y mantiene el backend
+supervisando las sesiones. La consola conserva su ajuste independiente.
 
 - [ ] Activar la opción y lanzar Vanilla y un modpack. La ventana debe cerrarse al
   aparecer el mensaje y regresar con su posición/tamaño al salir del juego.
 - [ ] Repetir con la opción desactivada y con la consola automática activada.
-- [ ] Comprobar un fallo al ejecutar Java y una salida anterior a `Setting user`:
-  la ventana debe permanecer disponible.
+- [ ] Lanzar `b1.7.3` y `b1.8.1` sin el mensaje `Setting user`: el launcher debe
+  ocultarse tras la espera y reaparecer al cerrar el juego. Con la opción
+  desactivada debe permanecer visible.
+- [ ] Cerrar una beta antes de cumplirse los dos segundos o provocar un fallo al
+  ejecutar Java: la espera no debe ocultar posteriormente la ventana principal.
+- [ ] Comprobar un fallo al ejecutar Java y, en una versión moderna, una salida
+  anterior a `Setting user`: la ventana debe permanecer disponible.
 - [ ] Forzar un crash después del cierre de la ventana: deben reaparecer la ventana
   principal y la consola con las últimas líneas del error.
 - [ ] Terminar el proceso desde la consola y probar una salida inmediatamente
