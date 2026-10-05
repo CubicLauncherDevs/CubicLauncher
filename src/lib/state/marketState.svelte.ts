@@ -32,6 +32,7 @@ import {
 	curseforgeProjectToMarket,
 	curseforgeVersionToMarket,
 	parseInstanceVersion,
+	localModToMarket,
 	type MarketProject,
 	type MarketVersion,
 	type ContentType,
@@ -50,6 +51,12 @@ import type {
 import { showWarning } from "$lib/state/state.svelte";
 import { t } from "$lib/i18n";
 import { createLocalModIcons } from "$lib/state/localModIcons";
+import { requiredDownloadQueue } from "$lib/utils/marketQuickInstall";
+import {
+	canUpdateOwnMod,
+	latestModUpdate,
+	requiredUpdateVersions,
+} from "$lib/utils/localModUpdates";
 import {
 	isPackProtected,
 	matchesModOwnership,
@@ -76,6 +83,18 @@ export interface LocalOperationReport {
 	total: number;
 	completed: number;
 	succeeded: number;
+	failures: { filename: string; error: string }[];
+}
+
+export interface ModUpdateReport {
+	total: number;
+	completed: number;
+	updated: number;
+	current: number;
+	skipped: number;
+	cancelled: boolean;
+	currentFile: string | null;
+	phase: "checking" | "updating" | null;
 	failures: { filename: string; error: string }[];
 }
 
@@ -174,6 +193,20 @@ export function createMarketState(
 	const sortedLocalItems = $derived.by(() => sortLocalItems(rawLocalItems));
 	const checkedFiles = new SvelteSet<string>();
 	let localOperationBusy = $state(false);
+	let modUpdateBusy = $state(false);
+	let modUpdateReport = $state<ModUpdateReport | null>(null);
+	let modUpdateController: AbortController | undefined;
+	let cancelUpdates = false;
+	let quickInstallState = $state<{
+		key: string;
+		status: "preparing" | "installing" | "error";
+		error: string | null;
+	} | null>(null);
+	const quickInstallBusy = $derived(
+		quickInstallState !== null && quickInstallState.status !== "error",
+	);
+	let quickInstallPromise: Promise<void> | undefined;
+	let quickInstallController: AbortController | undefined;
 	let localOperationReport = $state<LocalOperationReport | null>(null);
 	let selectedId = $state<string | null>(null);
 	const detail = $state<MarketDetailState>({
@@ -239,6 +272,8 @@ export function createMarketState(
 	}
 
 	function resetState() {
+		quickInstallController?.abort();
+		quickInstallState = null;
 		hasModpack = false;
 		invalidateSearch();
 		detailGen++;
@@ -871,15 +906,20 @@ export function createMarketState(
 	async function prepareInstall(
 		project: MarketProject,
 		version: MarketVersion,
+		fromQuickInstall = false,
 	): Promise<
-		DependencyResolutionResult & { installedProjectIds: Set<string> }
+		DependencyResolutionResult & {
+			installedProjectIds: Set<string>;
+			installedMods: ModDto[];
+		}
 	> {
 		if (disposed) throw new DOMException("Market closed", "AbortError");
 		if (isInstanceBusy()) {
 			showWarning(t("errors.title"), t("errors.INST_BUSY"));
 			throw new Error(t("errors.INST_BUSY"));
 		}
-		if (localOperationBusy) throw new Error(t("market.modVersions.busy"));
+		if (localOperationBusy || (quickInstallBusy && !fromQuickInstall))
+			throw new Error(t("market.modVersions.busy"));
 		if (project.installed && isModContent) {
 			if (
 				project.installed.pack_name != null ||
@@ -909,7 +949,12 @@ export function createMarketState(
 		);
 
 		if (!isModContent) {
-			return { tree: [], conflicts: [], installedProjectIds };
+			return {
+				tree: [],
+				conflicts: [],
+				installedProjectIds,
+				installedMods: mods,
+			};
 		}
 
 		const source =
@@ -956,7 +1001,410 @@ export function createMarketState(
 			};
 			visit(result.tree);
 		}
-		return { ...result, installedProjectIds };
+		return { ...result, installedProjectIds, installedMods: mods };
+	}
+
+	async function projectVersions(
+		project: MarketProject,
+		loader: string,
+		gameVersion: string,
+		signal: AbortSignal,
+	) {
+		const projectId =
+			project.modrinthProjectId ??
+			project.curseforgeProjectId ??
+			project.id;
+		return project.source === "curseforge"
+			? (
+					await getCurseForgeProjectFiles(
+						Number(projectId),
+						loader,
+						gameVersion,
+						signal,
+					)
+				)
+					.filter((file) => file.isAvailable !== false)
+					.map((file) =>
+						curseforgeVersionToMarket(
+							file,
+							project.installed?.version_id ?? undefined,
+							project.installed?.sha1,
+						),
+					)
+			: (
+					await getModrinthProjectVersions(
+						projectId,
+						isModContent ? loader : "",
+						gameVersion,
+						signal,
+					)
+				).map((version) =>
+					modrinthVersionToMarket(
+						version,
+						project.installed?.version_id ?? undefined,
+						project.installed?.sha1,
+					),
+				);
+	}
+
+	function installKey(project: MarketProject) {
+		return `${project.source}:${project.modrinthProjectId ?? project.curseforgeProjectId ?? project.id}`;
+	}
+
+	function installQuick(project: MarketProject): Promise<void> {
+		if (disposed) return Promise.resolve();
+		const key = installKey(project);
+		if (quickInstallPromise) {
+			return quickInstallState?.key === key
+				? quickInstallPromise
+				: Promise.reject(new Error(t("market.modVersions.busy")));
+		}
+		const controller = new AbortController();
+		quickInstallController = controller;
+		quickInstallState = { key, status: "preparing", error: null };
+		const id = instance.uuid;
+		const instanceVersion = instance.version;
+		const loader = filters.loader;
+		const gameVersion = filters.gameVersion;
+		const abandoned = () =>
+			disposed || controller.signal.aborted || id !== instance.uuid;
+		const assertAvailable = () => {
+			if (isInstanceBusy()) throw new Error(t("errors.INST_BUSY"));
+			if (localOperationBusy)
+				throw new Error(t("market.modVersions.busy"));
+			if (instance.version !== instanceVersion)
+				throw new Error(t("market.quickInstall.instanceChanged"));
+		};
+		quickInstallPromise = (async () => {
+			try {
+				assertAvailable();
+				const projectId =
+					project.modrinthProjectId ??
+					project.curseforgeProjectId ??
+					project.id;
+				if (
+					project.source !== "modrinth" &&
+					project.source !== "curseforge"
+				)
+					throw new Error(t("market.modVersions.unidentified"));
+				const local = await localLoader(id);
+				if (abandoned()) return;
+				if (
+					local.some(
+						(mod) =>
+							mod.source === project.source &&
+							mod.project_id === projectId,
+					)
+				) {
+					await scanLocalItems(true);
+					return;
+				}
+				const versions = await projectVersions(
+					project,
+					loader,
+					gameVersion,
+					controller.signal,
+				);
+				if (abandoned()) return;
+				const version = versions
+					.filter(
+						(version) =>
+							version.gameVersions.includes(gameVersion) &&
+							(!isModContent ||
+								version.loaders.some(
+									(value) =>
+										value.toLowerCase() ===
+										loader.toLowerCase(),
+								)),
+					)
+					.sort(
+						(a, b) =>
+							(Date.parse(b.datePublished) || 0) -
+							(Date.parse(a.datePublished) || 0),
+					)[0];
+				if (!version)
+					throw new Error(
+						t("market.quickInstall.noCompatibleVersion"),
+					);
+				assertAvailable();
+				let queue: ModDownloadInfo[];
+				if (isModContent) {
+					const resolution = await prepareInstall(
+						project,
+						version,
+						true,
+					);
+					if (abandoned()) return;
+					queue = requiredDownloadQueue(
+						resolution,
+						resolution.installedMods,
+						{
+							source: project.source,
+							project_id: projectId,
+							version_id: version.id,
+							kind: "required",
+						},
+					);
+				} else {
+					if (!version.primaryFileUrl || !version.primaryFileName)
+						throw new Error(
+							t("market.quickInstall.noDownload", {
+								name: project.title,
+							}),
+						);
+					queue = [
+						{
+							source: project.source,
+							project_id: projectId,
+							version_id: version.id,
+							url: version.primaryFileUrl,
+							filename: version.primaryFileName,
+						},
+					];
+				}
+				// Revalidate after asynchronous dependency resolution. Newly installed
+				// files must not be overwritten by this one-click operation.
+				const latest = await localLoader(id);
+				if (abandoned()) return;
+				assertAvailable();
+				if (
+					latest.some(
+						(mod) =>
+							mod.source === project.source &&
+							mod.project_id === projectId,
+					)
+				) {
+					await scanLocalItems(true);
+					return;
+				}
+				for (const entry of queue) {
+					if (
+						targetsProtectedMod(
+							latest,
+							entry.filename,
+							entry.project_id,
+						)
+					)
+						throw new Error(t("modpack.protected"));
+					if (
+						latest.some(
+							(mod) =>
+								mod.filename
+									.replace(/\.disabled$/i, "")
+									.toLowerCase() ===
+									entry.filename.toLowerCase() ||
+								(mod.source === entry.source &&
+									mod.project_id === entry.project_id),
+						)
+					) {
+						throw new Error(
+							t("market.quickInstall.fileExists", {
+								name: entry.filename,
+							}),
+						);
+					}
+				}
+				quickInstallState = { key, status: "installing", error: null };
+				if (queue.length) await downloadFn(id, queue);
+				if (!abandoned()) await scanLocalItems(true);
+			} catch (cause) {
+				if (abandoned()) return;
+				quickInstallState = {
+					key,
+					status: "error",
+					error:
+						cause instanceof Error ? cause.message : String(cause),
+				};
+				throw cause;
+			} finally {
+				if (
+					!disposed &&
+					quickInstallState?.key === key &&
+					quickInstallState.status !== "error"
+				)
+					quickInstallState = null;
+				if (quickInstallController === controller)
+					quickInstallController = undefined;
+			}
+		})().finally(() => {
+			quickInstallPromise = undefined;
+		});
+		return quickInstallPromise;
+	}
+
+	async function updateOwnMods(filenames?: string[]) {
+		if (disposed || !isModContent || localOperationBusy || quickInstallBusy)
+			return;
+		if (isInstanceBusy()) {
+			showWarning(t("errors.title"), t("errors.INST_BUSY"));
+			return;
+		}
+		localOperationBusy = true;
+		modUpdateBusy = true;
+		cancelUpdates = false;
+		localOperationReport = null;
+		modUpdateReport = {
+			total: 0,
+			completed: 0,
+			updated: 0,
+			current: 0,
+			skipped: 0,
+			cancelled: false,
+			currentFile: null,
+			phase: "checking",
+			failures: [],
+		};
+		const controller = new AbortController();
+		modUpdateController = controller;
+		const id = instance.uuid;
+		const instanceVersion = instance.version;
+		const loader = filters.loader;
+		const gameVersion = filters.gameVersion;
+		const available = () => {
+			if (isInstanceBusy()) throw new Error(t("errors.INST_BUSY"));
+			if (instance.version !== instanceVersion || instance.uuid !== id)
+				throw new Error(t("market.quickInstall.instanceChanged"));
+		};
+		try {
+			const mods = await getInstanceMods(id, false);
+			if (disposed) return;
+			const requested = filenames
+				? mods.filter((mod) => filenames.includes(mod.filename))
+				: mods;
+			const targets = requested.filter(canUpdateOwnMod);
+			modUpdateReport.total = targets.length;
+			modUpdateReport.skipped = requested.length - targets.length;
+			for (const target of targets) {
+				if (disposed || cancelUpdates) break;
+				modUpdateReport.currentFile = target.filename;
+				modUpdateReport.phase = "checking";
+				try {
+					available();
+					// Earlier replacements can update dependencies and rename files.
+					// Always find the current file by provider/project, not stale filename.
+					const fresh = await getInstanceMods(id, false);
+					if (disposed || cancelUpdates) break;
+					const matches = fresh.filter(
+						(mod) =>
+							mod.source === target.source &&
+							mod.project_id === target.project_id,
+					);
+					if (matches.length > 1)
+						throw new Error(
+							t("market.modVersions.duplicateProject"),
+						);
+					const mod = matches[0];
+					if (!canUpdateOwnMod(mod)) {
+						modUpdateReport.skipped++;
+						modUpdateReport.completed++;
+						continue;
+					}
+					modUpdateReport.currentFile = mod.filename;
+					const versions = await projectVersions(
+						localModToMarket(mod),
+						loader,
+						gameVersion,
+						controller.signal,
+					);
+					if (disposed || cancelUpdates) break;
+					available();
+					const candidate = latestModUpdate(
+						versions,
+						loader,
+						gameVersion,
+					);
+					if (!candidate.version) {
+						if (candidate.status === "current")
+							modUpdateReport.current++;
+						else modUpdateReport.skipped++;
+						modUpdateReport.completed++;
+						continue;
+					}
+					const version: ModVersionRef = {
+						source: mod.source,
+						project_id: mod.project_id,
+						version_id: candidate.version.id,
+					};
+					const resolution = await resolveModDependencies(
+						[{ ...version, kind: "required" }],
+						loader,
+						gameVersion,
+					);
+					if (disposed || cancelUpdates) break;
+					const downloads = requiredUpdateVersions(
+						resolution,
+						version,
+						fresh,
+					);
+					available();
+					modUpdateReport.phase = "updating";
+					const filename = await replaceInstanceMod(id, {
+						filename: mod.filename,
+						expected_sha1: mod.sha1,
+						target: version,
+						downloads,
+					});
+					if (disposed) return;
+					modUpdateReport.updated++;
+					checkedFiles.delete(mod.filename);
+					if (
+						filters.source === "local" &&
+						selectedId === `local-${mod.filename}`
+					) {
+						pendingLocalRename = {
+							from: selectedId,
+							to: `local-${filename}`,
+						};
+					}
+					await scanLocalItems(true);
+					if (disposed) return;
+				} catch (cause) {
+					if (disposed) return;
+					if (
+						cancelUpdates &&
+						controller.signal.aborted &&
+						modUpdateReport.phase !== "updating"
+					)
+						break;
+					modUpdateReport.failures.push({
+						filename:
+							modUpdateReport.currentFile ?? target.filename,
+						error:
+							cause instanceof Error
+								? cause.message
+								: String(cause),
+					});
+				}
+				modUpdateReport.completed++;
+			}
+			if (!disposed && cancelUpdates) {
+				modUpdateReport.cancelled = true;
+				modUpdateReport.skipped +=
+					modUpdateReport.total - modUpdateReport.completed;
+			}
+		} catch (cause) {
+			if (!disposed)
+				modUpdateReport.failures.push({
+					filename: instance.name,
+					error:
+						cause instanceof Error ? cause.message : String(cause),
+				});
+		} finally {
+			if (!disposed) {
+				modUpdateReport.currentFile = null;
+				modUpdateReport.phase = null;
+				modUpdateBusy = false;
+				localOperationBusy = false;
+			}
+			if (modUpdateController === controller)
+				modUpdateController = undefined;
+		}
+	}
+
+	function cancelModUpdates() {
+		if (!modUpdateBusy) return;
+		cancelUpdates = true;
+		modUpdateController?.abort();
 	}
 
 	async function confirmInstall(
@@ -969,7 +1417,8 @@ export function createMarketState(
 			throw new Error(t("errors.INST_BUSY"));
 		}
 		if (queue.length === 0) return;
-		if (localOperationBusy) throw new Error(t("market.modVersions.busy"));
+		if (localOperationBusy || quickInstallBusy)
+			throw new Error(t("market.modVersions.busy"));
 		if (isModContent) {
 			const mods = await getInstanceMods(instance.uuid, false);
 			if (disposed) return;
@@ -1059,7 +1508,7 @@ export function createMarketState(
 	}
 
 	async function uninstall(project: MarketProject) {
-		if (disposed || localOperationBusy) return;
+		if (disposed || localOperationBusy || quickInstallBusy) return;
 		if (isInstanceBusy()) {
 			showWarning(t("errors.title"), t("errors.INST_BUSY"));
 			return;
@@ -1085,7 +1534,7 @@ export function createMarketState(
 	}
 
 	async function toggleEnabled(project: MarketProject) {
-		if (disposed || localOperationBusy) return;
+		if (disposed || localOperationBusy || quickInstallBusy) return;
 		if (isInstanceBusy()) {
 			showWarning(t("errors.title"), t("errors.INST_BUSY"));
 			return;
@@ -1150,7 +1599,13 @@ export function createMarketState(
 		filenames: string[],
 		operation: (filename: string) => Promise<void>,
 	) {
-		if (disposed || localOperationBusy || filenames.length === 0) return;
+		if (
+			disposed ||
+			localOperationBusy ||
+			quickInstallBusy ||
+			filenames.length === 0
+		)
+			return;
 		if (isInstanceBusy()) {
 			showWarning(t("errors.title"), t("errors.INST_BUSY"));
 			return;
@@ -1427,6 +1882,14 @@ export function createMarketState(
 	function destroy() {
 		if (disposed) return;
 		disposed = true;
+		modUpdateController?.abort();
+		modUpdateController = undefined;
+		modUpdateReport = null;
+		modUpdateBusy = false;
+		localOperationBusy = false;
+		quickInstallController?.abort();
+		quickInstallController = undefined;
+		quickInstallState = null;
 		detailController?.abort();
 		detailController = undefined;
 		scanAgain = false;
@@ -1458,6 +1921,35 @@ export function createMarketState(
 	}
 
 	return {
+		updateOwnMods,
+		cancelModUpdates,
+		canUpdateMod: (project: MarketProject) =>
+			isModContent && canUpdateOwnMod(project.installed),
+		get updatableModCount() {
+			return isModContent
+				? rawLocalItems.filter((item) =>
+						canUpdateOwnMod(item.installed),
+					).length
+				: 0;
+		},
+		get modUpdateBusy() {
+			return modUpdateBusy;
+		},
+		get modUpdateReport() {
+			return modUpdateReport;
+		},
+		installQuick,
+		get quickInstallBusy() {
+			return quickInstallBusy;
+		},
+		quickInstallStatus: (project: MarketProject) =>
+			quickInstallState?.key === installKey(project)
+				? quickInstallState.status
+				: null,
+		quickInstallError: (project: MarketProject) =>
+			quickInstallState?.key === installKey(project)
+				? quickInstallState.error
+				: null,
 		getLocalIcon: localIcons.get,
 		checkedFiles,
 		toggleChecked,

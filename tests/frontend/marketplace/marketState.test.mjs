@@ -224,12 +224,22 @@ function snapshot(value) {
 }
 
 beforeEach(() => {
+	instance.status = InstState.Off;
+	instance.version = "1.21.1";
 	unregisterRefresh.mockClear();
 	getInstanceModpack.mockReset().mockResolvedValue(null);
 	replaceInstanceMod.mockReset().mockResolvedValue("updated.jar");
 	disk = [file("a.jar"), file("b.jar")];
 	for (const fn of new Set(Object.values(api))) fn.mockClear();
 	scan.mockReset().mockImplementation(async () => structuredClone(disk));
+	getModrinthProjectVersions.mockReset().mockResolvedValue([]);
+	getCurseForgeProjectFiles.mockReset().mockResolvedValue([]);
+	api.resolveModDependencies
+		.mockReset()
+		.mockResolvedValue({ tree: [], conflicts: [] });
+	api.downloadMods.mockReset().mockResolvedValue(undefined);
+	api.downloadResourcePacks.mockReset().mockResolvedValue(undefined);
+	api.downloadShaderPacks.mockReset().mockResolvedValue(undefined);
 	searchModrinth
 		.mockReset()
 		.mockImplementation(async () => result("modrinth"));
@@ -1528,6 +1538,612 @@ test("finishing a replacement after destroy does not refresh the previous instan
 	await operation;
 	expect(scan.mock.calls.length).toBe(scans);
 	expect(state.items).toHaveLength(0);
+});
+
+function dependency(id, overrides = {}) {
+	return {
+		source: "modrinth",
+		project_id: id,
+		version_id: "v2",
+		title: id,
+		icon_url: null,
+		filename: `${id}.jar`,
+		download_url: `https://example.test/${id}.jar`,
+		kind: "required",
+		depth: 0,
+		children: [],
+		...overrides,
+	};
+}
+
+async function quickFixture(content = "mods") {
+	disk = [];
+	searchModrinth.mockResolvedValue(result("modrinth", "quick"));
+	getModrinthProjectVersions.mockResolvedValue([
+		modVersion("v2", "b".repeat(40)),
+	]);
+	api.resolveModDependencies.mockResolvedValue({
+		tree: [dependency("quick")],
+		conflicts: [],
+	});
+	await start(content);
+	return state.items[0];
+}
+
+test("quick install downloads the newest compatible version and required dependencies without selecting details", async () => {
+	const project = await quickFixture();
+	disk = [
+		file("provided.jar", {
+			project_id: "provided",
+			pack_name: "Pack",
+			pack_locked: true,
+		}),
+	];
+	getModrinthProjectVersions.mockResolvedValue([
+		modVersion("v3", "c".repeat(40), {
+			date_published: "2026-03-01T00:00:00Z",
+			loaders: ["forge"],
+		}),
+		modVersion("v1", "a".repeat(40)),
+		modVersion("v2", "b".repeat(40)),
+	]);
+	api.resolveModDependencies.mockResolvedValue({
+		conflicts: [],
+		tree: [
+			dependency("quick", {
+				children: [
+					dependency("library"),
+					dependency("provided", {
+						children: [dependency("nested")],
+					}),
+					dependency("optional", {
+						kind: "optional",
+						children: [dependency("optional-child")],
+					}),
+					dependency("embedded", { kind: "embedded" }),
+					dependency("absent", { kind: "incompatible" }),
+				],
+			}),
+		],
+	});
+	api.downloadMods.mockImplementation(async (_id, queue) => {
+		disk.push(
+			...queue.map((entry) =>
+				file(entry.filename, {
+					source: entry.source,
+					project_id: entry.project_id,
+					version_id: entry.version_id,
+				}),
+			),
+		);
+	});
+	const filters = snapshot(state.filters);
+	const revision = state.resultsRevision;
+	const searches = searchModrinth.mock.calls.length;
+	await state.installQuick(project);
+	expect(api.resolveModDependencies.mock.calls[0][0]).toEqual([
+		{
+			source: "modrinth",
+			project_id: "quick",
+			version_id: "v2",
+			kind: "required",
+		},
+	]);
+	expect(
+		api.downloadMods.mock.calls[0][1].map((entry) => entry.project_id),
+	).toEqual(["quick", "library", "nested"]);
+	expect(state.selectedId).toBeNull();
+	expect(getModrinthProject).not.toHaveBeenCalled();
+	expect(snapshot(state.filters)).toEqual(filters);
+	expect(state.resultsRevision).toBe(revision);
+	expect(searchModrinth.mock.calls.length).toBe(searches);
+	expect(state.items[0].installed.project_id).toBe("quick");
+	expect(state.quickInstallBusy).toBe(false);
+});
+
+test("quick install reports missing compatible versions on the card and remains retryable", async () => {
+	const project = await quickFixture();
+	getModrinthProjectVersions.mockResolvedValueOnce([
+		modVersion("v2", "b", { game_versions: ["1.20.1"] }),
+	]);
+	await expect(state.installQuick(project)).rejects.toThrow(
+		"market.quickInstall.noCompatibleVersion",
+	);
+	expect(state.quickInstallError(project)).toBe(
+		"market.quickInstall.noCompatibleVersion",
+	);
+	expect(state.error).toBeNull();
+	expect(state.selectedId).toBeNull();
+	expect(api.downloadMods).not.toHaveBeenCalled();
+	await state.installQuick(project);
+	expect(api.downloadMods).toHaveBeenCalledTimes(1);
+	expect(state.quickInstallError(project)).toBeNull();
+});
+
+test("quick install coalesces double clicks and blocks competing mutations while preparing", async () => {
+	const project = await quickFixture();
+	const versions = deferred();
+	getModrinthProjectVersions.mockImplementationOnce(() => versions.promise);
+	const first = state.installQuick(project);
+	const second = state.installQuick(project);
+	expect(first).toBe(second);
+	await settle();
+	expect(state.quickInstallBusy).toBe(true);
+	expect(state.quickInstallStatus(project)).toBe("preparing");
+	await expect(
+		state.installQuick({
+			...project,
+			id: "another",
+			modrinthProjectId: "another",
+		}),
+	).rejects.toThrow("market.modVersions.busy");
+	await expect(state.prepareInstall(project, { id: "v2" })).rejects.toThrow(
+		"market.modVersions.busy",
+	);
+	versions.resolve([modVersion("v2", "b")]);
+	await first;
+	expect(getModrinthProjectVersions).toHaveBeenCalledTimes(1);
+	expect(api.downloadMods).toHaveBeenCalledTimes(1);
+});
+
+test("quick install errors restore the button without marking the mod as installed", async () => {
+	const project = await quickFixture();
+	api.downloadMods.mockRejectedValueOnce(Error("Download failed"));
+	await expect(state.installQuick(project)).rejects.toThrow(
+		"Download failed",
+	);
+	expect(state.quickInstallError(project)).toBe("Download failed");
+	expect(state.items[0].installed).toBeUndefined();
+	expect(state.quickInstallBusy).toBe(false);
+	await state.installQuick(project);
+	expect(api.downloadMods).toHaveBeenCalledTimes(2);
+});
+
+test("quick install survives catalog navigation without changing the selected provider", async () => {
+	const project = await quickFixture();
+	const resolution = deferred();
+	api.resolveModDependencies.mockImplementationOnce(() => resolution.promise);
+	const installing = state.installQuick(project);
+	await settle();
+	state.setSource("curseforge");
+	await settle();
+	resolution.resolve({ tree: [dependency("quick")], conflicts: [] });
+	await installing;
+	expect(state.filters.source).toBe("curseforge");
+	expect(state.selectedId).toBeNull();
+	expect(api.downloadMods.mock.calls[0][1][0].source).toBe("modrinth");
+});
+
+test("destroying the market cancels quick-install version lookup before downloading", async () => {
+	const project = await quickFixture();
+	const versions = deferred();
+	getModrinthProjectVersions.mockImplementationOnce(() => versions.promise);
+	const installing = state.installQuick(project);
+	await settle();
+	const signal = getModrinthProjectVersions.mock.calls[0][3];
+	state.destroy();
+	expect(signal.aborted).toBe(true);
+	versions.resolve([modVersion("v2", "b")]);
+	await installing;
+	expect(api.resolveModDependencies).not.toHaveBeenCalled();
+	expect(api.downloadMods).not.toHaveBeenCalled();
+	expect(state.items).toHaveLength(0);
+});
+
+test("destroying during a confirmed quick download does not reactivate the old catalog", async () => {
+	const project = await quickFixture();
+	const downloaded = deferred();
+	api.downloadMods.mockImplementationOnce(() => downloaded.promise);
+	const installing = state.installQuick(project);
+	await settle();
+	expect(state.quickInstallStatus(project)).toBe("installing");
+	const scans = scan.mock.calls.length;
+	state.destroy();
+	downloaded.resolve();
+	await installing;
+	expect(scan.mock.calls.length).toBe(scans);
+	expect(state.items).toHaveLength(0);
+});
+
+test("quick install refuses conflicts, disabled dependencies and filename collisions", async () => {
+	const project = await quickFixture();
+	disk = [
+		file("library.jar.disabled", { project_id: "library", enabled: false }),
+	];
+	api.resolveModDependencies.mockResolvedValue({
+		tree: [dependency("quick", { children: [dependency("library")] })],
+		conflicts: [],
+	});
+	await expect(state.installQuick(project)).rejects.toThrow(
+		"market.quickInstall.disabledDependency",
+	);
+	disk = [file("quick.jar", { source: "local", project_id: null })];
+	api.resolveModDependencies.mockResolvedValue({
+		tree: [dependency("quick")],
+		conflicts: [],
+	});
+	await expect(state.installQuick(project)).rejects.toThrow(
+		"market.quickInstall.fileExists",
+	);
+	disk = [];
+	api.resolveModDependencies.mockResolvedValue({
+		tree: [dependency("quick")],
+		conflicts: [
+			{ source: "modrinth", project_id: "quick", requested_versions: [] },
+		],
+	});
+	await expect(state.installQuick(project)).rejects.toThrow(
+		"market.quickInstall.dependencyConflict",
+	);
+	expect(api.downloadMods).not.toHaveBeenCalled();
+});
+
+test("quick install checks running status again after asynchronous resolution", async () => {
+	const project = await quickFixture();
+	const resolution = deferred();
+	api.resolveModDependencies.mockImplementationOnce(() => resolution.promise);
+	const installing = state.installQuick(project);
+	await settle();
+	instance.status = InstState.Started;
+	resolution.resolve({ tree: [dependency("quick")], conflicts: [] });
+	await expect(installing).rejects.toThrow("errors.INST_BUSY");
+	expect(api.downloadMods).not.toHaveBeenCalled();
+});
+
+test("quick CurseForge installs use compatible available files and provider-qualified dependencies", async () => {
+	await quickFixture();
+	await source("curseforge");
+	const project = state.items[0];
+	disk = [
+		file("modrinth-library.jar", { source: "modrinth", project_id: "99" }),
+	];
+	getCurseForgeProjectFiles.mockResolvedValue([
+		{
+			id: 2,
+			fileName: "root.jar",
+			fileDate: "2026-01-01",
+			gameVersions: ["1.21.1", "Fabric"],
+			isAvailable: true,
+			releaseType: 1,
+			dependencies: [],
+		},
+		{
+			id: 3,
+			fileName: "unavailable.jar",
+			fileDate: "2026-02-01",
+			gameVersions: ["1.21.1", "Fabric"],
+			isAvailable: false,
+			releaseType: 1,
+			dependencies: [],
+		},
+	]);
+	api.resolveModDependencies.mockResolvedValue({
+		tree: [
+			dependency("42", {
+				source: "curseforge",
+				version_id: "2",
+				children: [dependency("99", { source: "curseforge" })],
+			}),
+		],
+		conflicts: [],
+	});
+	await state.installQuick(project);
+	expect(api.resolveModDependencies.mock.calls[0][0][0]).toEqual({
+		source: "curseforge",
+		project_id: "42",
+		version_id: "2",
+		kind: "required",
+	});
+	expect(
+		api.downloadMods.mock.calls[0][1].map((entry) => entry.project_id),
+	).toEqual(["42", "99"]);
+	expect(getCurseForgeProject).not.toHaveBeenCalled();
+	expect(getCurseForgeProjectDescription).not.toHaveBeenCalled();
+});
+
+test("resource packs install directly without resolving mod dependencies", async () => {
+	const project = await quickFixture("resourcepacks");
+	getModrinthProjectVersions.mockResolvedValue([
+		modVersion("v2", "b", {
+			loaders: [],
+			files: [
+				{
+					primary: true,
+					filename: "pack.zip",
+					url: "https://example.test/pack.zip",
+				},
+			],
+		}),
+	]);
+	await state.installQuick(project);
+	expect(api.downloadResourcePacks.mock.calls[0][1][0].filename).toBe(
+		"pack.zip",
+	);
+	expect(api.resolveModDependencies).not.toHaveBeenCalled();
+	expect(state.selectedId).toBeNull();
+});
+
+async function installedUpdateFixture(mods) {
+	disk = mods;
+	getModrinthProjectVersions.mockResolvedValue([
+		modVersion("v2", "b".repeat(40)),
+		modVersion("v1", "a".repeat(40)),
+	]);
+	api.resolveModDependencies.mockImplementation(async ([request]) => ({
+		tree: [
+			dependency(request.project_id, {
+				source: request.source,
+				version_id: request.version_id,
+			}),
+		],
+		conflicts: [],
+	}));
+	replaceInstanceMod.mockImplementation(async (_id, request) => {
+		const index = disk.findIndex(
+			(mod) => mod.filename === request.filename,
+		);
+		const old = disk[index];
+		const filename = `${request.target.project_id}-v2.jar${old.enabled ? "" : ".disabled"}`;
+		disk[index] = {
+			...old,
+			filename,
+			sha1: "b".repeat(40),
+			version_id: request.target.version_id,
+			version: "2.0",
+		};
+		return filename;
+	});
+	await start();
+	await source("local");
+}
+
+function ownMod(id, overrides = {}) {
+	return file(`${id}-v1.jar`, {
+		project_id: id,
+		sha1: "a".repeat(40),
+		version_id: "v1",
+		...overrides,
+	});
+}
+
+test("update all includes filtered-out own mods and excludes pack and unidentified files", async () => {
+	await installedUpdateFixture([
+		ownMod("first"),
+		ownMod("second", {
+			enabled: false,
+			filename: "second-v1.jar.disabled",
+		}),
+		ownMod("current", { sha1: "b".repeat(40), version_id: "v2" }),
+		ownMod("pack", { pack_name: "Pack", pack_locked: false }),
+		file("unknown.jar", { source: "local", project_id: null }),
+	]);
+	state.setQuery("no results");
+	expect(state.items).toHaveLength(0);
+	expect(state.updatableModCount).toBe(3);
+	const filters = snapshot(state.filters);
+	await state.updateOwnMods();
+	expect(
+		replaceInstanceMod.mock.calls.map(
+			([, request]) => request.target.project_id,
+		),
+	).toEqual(["first", "second"]);
+	expect(disk.find((mod) => mod.project_id === "second").filename).toBe(
+		"second-v2.jar.disabled",
+	);
+	expect(disk.find((mod) => mod.project_id === "pack").version_id).toBe("v1");
+	expect(snapshot(state.modUpdateReport)).toMatchObject({
+		total: 3,
+		completed: 3,
+		updated: 2,
+		current: 1,
+		skipped: 2,
+		failures: [],
+	});
+	expect(state.modUpdateBusy).toBe(false);
+	expect(state.localOperationBusy).toBe(false);
+	expect(snapshot(state.filters)).toEqual(filters);
+	expect(state.selectedId).toBeNull();
+});
+
+test("an individual local update only changes the requested mod and preserves disabled state", async () => {
+	await installedUpdateFixture([
+		ownMod("first"),
+		ownMod("second", {
+			enabled: false,
+			filename: "second-v1.jar.disabled",
+		}),
+	]);
+	await state.updateOwnMods(["second-v1.jar.disabled"]);
+	expect(replaceInstanceMod).toHaveBeenCalledTimes(1);
+	expect(replaceInstanceMod.mock.calls[0][1].filename).toBe(
+		"second-v1.jar.disabled",
+	);
+	expect(replaceInstanceMod.mock.calls[0][1].expected_sha1).toBe(
+		"a".repeat(40),
+	);
+	expect(disk[0].version_id).toBe("v1");
+	expect(disk[1].enabled).toBe(false);
+	expect(snapshot(state.modUpdateReport)).toMatchObject({
+		total: 1,
+		completed: 1,
+		updated: 1,
+		failures: [],
+	});
+	expect(state.selectedId).toBeNull();
+});
+
+test("bulk updates continue after a failed mod and preserve its original file", async () => {
+	await installedUpdateFixture([ownMod("first"), ownMod("second")]);
+	replaceInstanceMod.mockRejectedValueOnce(Error("Checksum mismatch"));
+	await state.updateOwnMods();
+	expect(disk[0].filename).toBe("first-v1.jar");
+	expect(disk[1].filename).toBe("second-v2.jar");
+	expect(snapshot(state.modUpdateReport)).toMatchObject({
+		total: 2,
+		completed: 2,
+		updated: 1,
+		failures: [{ filename: "first-v1.jar", error: "Checksum mismatch" }],
+	});
+});
+
+test("a mod updated as a dependency is rediscovered by project and is not updated twice", async () => {
+	await installedUpdateFixture([ownMod("first"), ownMod("library")]);
+	api.resolveModDependencies.mockResolvedValueOnce({
+		tree: [dependency("first", { children: [dependency("library")] })],
+		conflicts: [],
+	});
+	replaceInstanceMod.mockImplementationOnce(async (_id, request) => {
+		expect(request.downloads.map((ref) => ref.project_id)).toEqual([
+			"first",
+			"library",
+		]);
+		disk = disk.map((mod) => ({
+			...mod,
+			filename: `${mod.project_id}-v2.jar`,
+			sha1: "b".repeat(40),
+			version_id: "v2",
+		}));
+		return "first-v2.jar";
+	});
+	await state.updateOwnMods();
+	expect(replaceInstanceMod).toHaveBeenCalledTimes(1);
+	expect(snapshot(state.modUpdateReport)).toMatchObject({
+		updated: 1,
+		current: 1,
+		completed: 2,
+		failures: [],
+	});
+});
+
+test("cancel remaining lets an admitted replacement finish without starting another mod", async () => {
+	await installedUpdateFixture([ownMod("first"), ownMod("second")]);
+	const pending = deferred();
+	replaceInstanceMod.mockImplementationOnce(() => pending.promise);
+	const updating = state.updateOwnMods();
+	await settle();
+	expect(state.modUpdateReport.phase).toBe("updating");
+	state.cancelModUpdates();
+	pending.resolve("first-v2.jar");
+	await updating;
+	expect(replaceInstanceMod).toHaveBeenCalledTimes(1);
+	expect(snapshot(state.modUpdateReport)).toMatchObject({
+		updated: 1,
+		completed: 1,
+		skipped: 1,
+		cancelled: true,
+		failures: [],
+	});
+	expect(state.localOperationBusy).toBe(false);
+});
+
+test("a duplicate bulk click does not start concurrent replacements", async () => {
+	await installedUpdateFixture([ownMod("first"), ownMod("second")]);
+	const pending = deferred();
+	getModrinthProjectVersions.mockImplementationOnce(() => pending.promise);
+	const updating = state.updateOwnMods();
+	await settle();
+	await state.updateOwnMods();
+	expect(getModrinthProjectVersions).toHaveBeenCalledTimes(1);
+	pending.resolve([
+		modVersion("v2", "b".repeat(40)),
+		modVersion("v1", "a".repeat(40)),
+	]);
+	await updating;
+	expect(replaceInstanceMod).toHaveBeenCalledTimes(2);
+});
+
+test("bulk updates retain a prerelease newer than the stable channel and skip incompatible releases", async () => {
+	await installedUpdateFixture([ownMod("beta"), ownMod("incompatible")]);
+	getModrinthProjectVersions.mockImplementation(async (id) =>
+		id === "beta"
+			? [
+					modVersion("old-stable", "x", {
+						date_published: "2024-01-01",
+						version_type: "release",
+					}),
+					modVersion("current-beta", "a".repeat(40), {
+						date_published: "2026-01-01",
+						version_type: "beta",
+					}),
+					modVersion("new-alpha", "z", {
+						date_published: "2026-02-01",
+						version_type: "alpha",
+					}),
+				]
+			: [modVersion("v2", "b", { game_versions: ["1.20.1"] })],
+	);
+	await state.updateOwnMods();
+	expect(replaceInstanceMod).not.toHaveBeenCalled();
+	expect(snapshot(state.modUpdateReport)).toMatchObject({
+		current: 1,
+		skipped: 1,
+		completed: 2,
+		failures: [],
+	});
+});
+
+test("CurseForge mods participate in bulk updates with their exact provider and file IDs", async () => {
+	await installedUpdateFixture([
+		ownMod("42", { source: "curseforge", version_id: "1" }),
+	]);
+	getCurseForgeProjectFiles.mockResolvedValue([
+		{
+			id: 1,
+			fileName: "old.jar",
+			fileDate: "2025-01-01",
+			gameVersions: ["1.21.1", "Fabric"],
+			isAvailable: true,
+			releaseType: 1,
+			dependencies: [],
+			hashes: [{ algo: 1, value: "a".repeat(40) }],
+		},
+		{
+			id: 2,
+			fileName: "new.jar",
+			fileDate: "2026-01-01",
+			gameVersions: ["1.21.1", "Fabric"],
+			isAvailable: true,
+			releaseType: 1,
+			dependencies: [],
+			hashes: [{ algo: 1, value: "b".repeat(40) }],
+		},
+	]);
+	await state.updateOwnMods();
+	expect(replaceInstanceMod.mock.calls[0][1].target).toEqual({
+		source: "curseforge",
+		project_id: "42",
+		version_id: "2",
+	});
+	expect(state.modUpdateReport.updated).toBe(1);
+});
+
+test("destroy cancels metadata checks and prevents pending bulk work from reaching another instance", async () => {
+	await installedUpdateFixture([ownMod("first"), ownMod("second")]);
+	const pending = deferred();
+	getModrinthProjectVersions.mockImplementationOnce(() => pending.promise);
+	const updating = state.updateOwnMods();
+	await settle();
+	const signal = getModrinthProjectVersions.mock.calls[0][3];
+	state.destroy();
+	expect(signal.aborted).toBe(true);
+	pending.resolve([modVersion("v2", "b")]);
+	await updating;
+	expect(replaceInstanceMod).not.toHaveBeenCalled();
+	expect(state.modUpdateReport).toBeNull();
+});
+
+test("bulk updates stop admitting replacements if the instance starts during a lookup", async () => {
+	await installedUpdateFixture([ownMod("first")]);
+	const pending = deferred();
+	getModrinthProjectVersions.mockImplementationOnce(() => pending.promise);
+	const updating = state.updateOwnMods();
+	await settle();
+	instance.status = InstState.Started;
+	pending.resolve([modVersion("v2", "b".repeat(40))]);
+	await updating;
+	expect(replaceInstanceMod).not.toHaveBeenCalled();
+	expect(state.modUpdateReport.failures[0].error).toBe("errors.INST_BUSY");
+	expect(state.localOperationBusy).toBe(false);
 });
 
 test("a burst of enrichment events shares one scan and one final refresh", async () => {

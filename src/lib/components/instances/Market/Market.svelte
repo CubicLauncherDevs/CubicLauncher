@@ -29,7 +29,10 @@
 	let confirmingDelete = $state(false);
 	let disposed = false;
 	const localBusy = $derived(
-		market.localOperationBusy || market.instanceBusy || confirmingDelete,
+		market.localOperationBusy ||
+			market.quickInstallBusy ||
+			market.instanceBusy ||
+			confirmingDelete,
 	);
 
 	async function requestDelete(filenames: string[]) {
@@ -178,6 +181,11 @@
 					compact={installedView === "list"}
 					busy={localBusy}
 					canToggle={contentType === "mods"}
+					onUpdate={market.canUpdateMod(project)
+						? () => market.updateOwnMods([filename])
+						: undefined}
+					updating={market.modUpdateBusy &&
+						market.modUpdateReport?.currentFile === filename}
 					onCheck={() => market.toggleChecked(filename)}
 					onOpen={() => market.selectProject(project.id)}
 					onToggle={() =>
@@ -190,10 +198,18 @@
 			{:else}
 				<MarketItem
 					{project}
+					installing={market.quickInstallStatus(project) ===
+						"preparing" ||
+						market.quickInstallStatus(project) === "installing"}
+					installError={market.quickInstallError(project)}
+					installDisabled={localBusy}
 					selected={project.id === market.selectedId}
 					onSelect={() => market.selectProject(project.id)}
 					onInstall={market.filters.source !== "local"
-						? () => market.selectProject(project.id)
+						? () =>
+								market.installQuick(project).catch(() => {
+									/* The card retains the error and offers retry. */
+								})
 						: undefined}
 				/>
 			{/if}

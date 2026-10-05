@@ -29,9 +29,13 @@
 	let choosingFiles = $state(false);
 	let disposed = false;
 	const busy = $derived(
-		market.localOperationBusy || market.instanceBusy || choosingFiles,
+		market.localOperationBusy ||
+			market.quickInstallBusy ||
+			market.instanceBusy ||
+			choosingFiles,
 	);
 	const report = $derived(market.localOperationReport);
+	const updateReport = $derived(market.modUpdateReport);
 	const statusOptions = $derived<
 		{ value: LocalStatusFilter; label: string }[]
 	>([
@@ -121,6 +125,18 @@
 				"market.manage.openFolder",
 			)}</button
 		>
+		{#if contentType === "mods"}
+			<button
+				type="button"
+				disabled={busy || market.loading || !market.updatableModCount}
+				title={t("market.modVersions.updateAllHint")}
+				onclick={() => market.updateOwnMods()}
+			>
+				<Icon name="ui:download" size={15} />{t(
+					"market.modVersions.updateAll",
+				)}
+			</button>
+		{/if}
 		<button
 			type="button"
 			disabled={market.localOperationBusy || market.loading}
@@ -258,6 +274,89 @@
 		<p class="hint">
 			<Icon name="instance:box" size={15} />{t("market.manage.packHint")}
 		</p>
+	{/if}
+	{#if updateReport}
+		<div
+			class="operation-status"
+			class:has-errors={!market.modUpdateBusy &&
+				updateReport.failures.length > 0}
+			role="status"
+			aria-live="polite"
+		>
+			{#if market.modUpdateBusy}
+				<progress
+					value={updateReport.completed}
+					max={Math.max(1, updateReport.total)}
+					aria-label={t("market.manage.progress", {
+						completed: updateReport.completed,
+						total: updateReport.total,
+					})}
+				></progress>
+				<span
+					>{t("market.manage.progress", {
+						completed: updateReport.completed,
+						total: updateReport.total,
+					})}</span
+				>
+				{#if updateReport.currentFile}
+					<span
+						>{t(
+							updateReport.phase === "updating"
+								? "market.modVersions.updatingFile"
+								: "market.modVersions.checkingFile",
+							{ name: updateReport.currentFile },
+						)}</span
+					>
+				{/if}
+				<button type="button" onclick={market.cancelModUpdates}
+					>{t("market.modVersions.cancelPending")}</button
+				>
+			{:else}
+				<Icon
+					name={updateReport.failures.length
+						? "ui:error"
+						: "ui:check-circle"}
+					size={16}
+				/>
+				<span
+					>{t("market.modVersions.batchResult", {
+						updated: updateReport.updated,
+						current: updateReport.current,
+						skipped: updateReport.skipped,
+						failed: updateReport.failures.length,
+					})}</span
+				>
+				{#if updateReport.cancelled}<span
+						>{t("market.modVersions.cancelled")}</span
+					>{/if}
+			{/if}
+		</div>
+		{#if !market.modUpdateBusy && updateReport.skipped > 0}<p class="hint">
+				{t("market.modVersions.skippedHint")}
+			</p>{/if}
+		{#if !market.modUpdateBusy && updateReport.failures.length}
+			<details class="failure-report">
+				<summary
+					><Icon name="ui:chevron-right" size={15} />{t(
+						"market.manage.showFailures",
+						{ count: updateReport.failures.length },
+					)}</summary
+				>
+				<ul>
+					{#each updateReport.failures.slice(0, 50) as failure (failure.filename)}<li
+						>
+							<strong>{failure.filename}</strong><span
+								>{failure.error}</span
+							>
+						</li>{/each}
+				</ul>
+				{#if updateReport.failures.length > 50}<p>
+						{t("market.manage.moreFailures", {
+							count: updateReport.failures.length - 50,
+						})}
+					</p>{/if}
+			</details>
+		{/if}
 	{/if}
 	{#if report}
 		<div

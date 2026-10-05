@@ -1107,7 +1107,29 @@
 		"loaderSearchPlaceholder": "Search loader version..."
 	},
 	"market": {
+		"quickInstall": {
+			"installing": "Installing…",
+			"retry": "Retry",
+			"noCompatibleVersion": "No version supports this instance's Minecraft version and loader.",
+			"noDownload": "Could not resolve the download for {name}.",
+			"fileExists": "{name} already exists. Refresh the list or review the installed versions.",
+			"disabledDependency": "The dependency {name} is disabled. Enable it before installing.",
+			"conflict": "This mod is incompatible with {name}, which is already installed.",
+			"dependencyConflict": "Dependencies request conflicting versions. Review the mod's details.",
+			"instanceChanged": "The instance version changed. Try installing again."
+		},
 		"modVersions": {
+			"update": "Update",
+			"updating": "Updating…",
+			"updateAll": "Update all",
+			"updateAllHint": "Check compatible updates for all your mods, including those hidden by filters.",
+			"checkingFile": "Checking versions for {name}",
+			"updatingFile": "Updating {name}",
+			"batchResult": "Updated: {updated} · Up to date: {current} · Skipped: {skipped} · Failed: {failed}",
+			"skippedHint": "Pack mods, files without an identified provider, versions without compatible updates, and cancelled tasks are skipped.",
+			"cancelPending": "Cancel remaining",
+			"cancelled": "Remaining updates were cancelled.",
+			"duplicateProject": "Multiple versions of this mod are installed. Choose which one to keep before updating.",
 			"current": "Installed",
 			"compatible": "Compatible",
 			"check": "Check for updates",

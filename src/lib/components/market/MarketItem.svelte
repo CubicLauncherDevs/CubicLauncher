@@ -9,19 +9,26 @@
 		project: MarketProject;
 		selected?: boolean;
 		incompatible?: boolean;
+		installing?: boolean;
+		installDisabled?: boolean;
+		installError?: string | null;
 		onSelect: () => void;
-		onInstall?: () => void;
+		onInstall?: () => void | Promise<void>;
 	}
 
 	let {
 		project,
 		selected = false,
 		incompatible = false,
+		installing = false,
+		installDisabled = false,
+		installError = null,
 		onSelect,
 		onInstall,
 	}: Props = $props();
 
-	let installing = $state(false);
+	let pending = $state(false);
+	const busy = $derived(installing || pending);
 	let iconError = $state(false);
 
 	function formatNumber(num: number): string {
@@ -32,12 +39,12 @@
 
 	async function handleInstall(e: Event) {
 		e.stopPropagation();
-		if (!onInstall || installing) return;
-		installing = true;
+		if (!onInstall || busy || installDisabled) return;
+		pending = true;
 		try {
 			await onInstall();
 		} finally {
-			installing = false;
+			pending = false;
 		}
 	}
 
@@ -112,8 +119,15 @@
 				{project.author || t("market.item.unknownAuthor")}
 			</span>
 		</span>
-		<span class="market-item-description" title={project.description}>
-			{project.description || t("market.item.noDescription")}
+		<span
+			class="market-item-description"
+			class:install-error={!!installError}
+			role={installError ? "alert" : undefined}
+			title={installError ?? project.description}
+		>
+			{installError ||
+				project.description ||
+				t("market.item.noDescription")}
 		</span>
 	</button>
 
@@ -144,15 +158,20 @@
 			<button
 				type="button"
 				class="market-item-install-btn"
-				disabled={installing}
-				aria-label={`${t("market.item.install")} ${project.title}`}
-				aria-busy={installing}
+				disabled={busy || installDisabled}
+				aria-label={`${t(busy ? "market.quickInstall.installing" : installError ? "market.quickInstall.retry" : "market.item.install")} ${project.title}`}
+				aria-busy={busy}
 				onclick={handleInstall}
 			>
-				{#if installing}
+				{#if busy}
 					<Loading class="item-install-spinner" />
+					{t("market.quickInstall.installing")}
 				{:else}
-					{t("market.item.install")}
+					{t(
+						installError
+							? "market.quickInstall.retry"
+							: "market.item.install",
+					)}
 				{/if}
 			</button>
 		{/if}
@@ -338,6 +357,9 @@
 		flex-shrink: 0;
 		padding-top: 10px;
 		border-top: var(--border-width) solid var(--border);
+	}
+	.market-item-description.install-error {
+		color: var(--color-error);
 	}
 
 	.market-item-meta {

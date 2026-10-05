@@ -3,6 +3,7 @@
 	import type { MarketProject } from "$lib/types/market";
 	import CubicLogo from "./CubicLogo.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
+	import Loading from "$lib/icons/Loading.svelte";
 	import { isPackProtected } from "$lib/utils/modpackMods";
 
 	let {
@@ -16,6 +17,8 @@
 		onOpen,
 		onToggle,
 		onDelete,
+		onUpdate,
+		updating = false,
 	}: {
 		project: MarketProject;
 		icon?: string | null;
@@ -27,6 +30,8 @@
 		onOpen: () => void;
 		onToggle: () => void;
 		onDelete: () => void;
+		onUpdate?: () => void | Promise<void>;
+		updating?: boolean;
 	} = $props();
 	let iconError = $state(false);
 	$effect(() => {
@@ -106,6 +111,28 @@
 		</span>
 	</button>
 	<div class="item-actions">
+		{#if onUpdate}
+			<button
+				type="button"
+				class="update"
+				disabled={busy || updating}
+				onclick={onUpdate}
+				title={t("market.modVersions.update")}
+				aria-label={`${t("market.modVersions.update")} ${project.title}`}
+				aria-busy={updating}
+			>
+				{#if updating}<Loading
+						class="item-update-spinner"
+					/>{:else}<Icon name="ui:download" size={14} />{/if}
+				<span class="update-label"
+					>{t(
+						updating
+							? "market.modVersions.updating"
+							: "market.modVersions.update",
+					)}</span
+				>
+			</button>
+		{/if}
 		{#if canToggle}
 			<button
 				type="button"
@@ -350,6 +377,9 @@
 		}
 	}
 	@container market (max-width: 550px) {
+		.compact .update-label {
+			display: none;
+		}
 		.compact .item-icon {
 			display: none;
 		}
@@ -363,5 +393,9 @@
 		.compact .item-actions button {
 			padding: 6px;
 		}
+	}
+	:global(.item-update-spinner) {
+		width: 14px;
+		height: 14px;
 	}
 </style>
