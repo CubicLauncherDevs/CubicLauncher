@@ -1,8 +1,9 @@
 use super::*;
 
-#[test]
-fn exported_minecraft_jar_inputs_round_trip_without_external_paths_or_cache() {
+#[tokio::test]
+async fn exported_minecraft_jar_and_modpack_round_trip_without_external_paths_or_cache() {
     use crate::services::minecraft_jar::{self, JarMod, MinecraftJarConfig};
+    use crate::services::modpack::PackFile;
     let source = tempfile::tempdir().unwrap();
     let restored = tempfile::tempdir().unwrap();
     let jar = source.path().join("custom.jar");
@@ -27,6 +28,58 @@ fn exported_minecraft_jar_inputs_round_trip_without_external_paths_or_cache() {
         b"stale",
     )
     .unwrap();
+    let pack = PackState {
+        schema_version: 1,
+        source: "modrinth".into(),
+        project_id: Some("pack-project".into()),
+        version_id: Some("pack-release".into()),
+        name: "Original pack".into(),
+        author: Some("Pack author".into()),
+        version: "v1".into(),
+        game_version: "1.12.2".into(),
+        locked: false,
+        needs_inventory: false,
+        files: [
+            "mods/owned.jar",
+            "config/pack.json",
+            "pack.txt",
+            "extras/nested/pack.txt",
+            "deleted.txt",
+        ]
+        .into_iter()
+        .map(|path| {
+            (
+                path.into(),
+                PackFile {
+                    sha1: "0123456789abcdef0123456789abcdef01234567".into(),
+                    size: 123,
+                    downloads: vec!["https://example.org/original".into()],
+                },
+            )
+        })
+        .collect(),
+        identities: [("mods/owned.jar".into(), ["original_mod".into()].into())].into(),
+    };
+    for relative in pack.files.keys().filter(|path| *path != "deleted.txt") {
+        let path = source.path().join(relative);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, b"locally customized").unwrap();
+    }
+    // Metadata internos incluso dentro de carpetas de juego no pertenecen al backup.
+    for relative in [
+        "config/instance.cub",
+        "config/modpack.cub.json",
+        "config/cache.crep",
+        "unowned.txt",
+    ] {
+        std::fs::write(source.path().join(relative), b"internal").unwrap();
+    }
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(&jar, source.path().join("mods/linked.jar")).unwrap();
+        std::os::unix::fs::symlink(source.path(), source.path().join("config/loop")).unwrap();
+    }
+    modpack::save(source.path(), &pack).unwrap();
     let input = ExportInput {
         uuid: "uuid".into(),
         name: "Custom".into(),
@@ -41,22 +94,51 @@ fn exported_minecraft_jar_inputs_round_trip_without_external_paths_or_cache() {
         overrides: None,
         icon_src: None,
         minecraft_jar: config.clone(),
+        modpack: modpack::read_state(source.path()).await.unwrap(),
     };
     let output = source.path().join("export.zip");
     export_to_zip(&input, &output).unwrap();
     let mut archive = zip::ZipArchive::new(std::fs::File::open(output).unwrap()).unwrap();
     assert!(!archive.file_names().any(|n| n.contains("cubic-jar-cache")));
+    let names: Vec<_> = archive.file_names().map(str::to_owned).collect();
+    assert_eq!(
+        names.len(),
+        names.iter().collect::<std::collections::HashSet<_>>().len()
+    );
+    for relative in [
+        "modpack.cub.json",
+        "config/instance.cub",
+        "config/modpack.cub.json",
+        "config/cache.crep",
+        "unowned.txt",
+        "mods/linked.jar",
+        "config/loop",
+        "deleted.txt",
+    ] {
+        assert!(
+            !names.contains(&format!(".minecraft/{relative}")),
+            "{relative}"
+        );
+    }
     let metadata: serde_json::Value =
         serde_json::from_reader(archive.by_name("cubic-manifest.json").unwrap()).unwrap();
     let imported: MinecraftJarConfig =
         serde_json::from_value(metadata["minecraft_jar"].clone()).unwrap();
     assert_eq!(imported, config);
+    let imported_pack: PackState = serde_json::from_value(metadata["modpack"].clone()).unwrap();
+    assert_eq!(imported_pack, pack);
     assert!(
         !metadata
             .to_string()
             .contains(source.path().to_str().unwrap())
     );
     archive.extract(restored.path()).unwrap();
+    for relative in pack.files.keys().filter(|path| *path != "deleted.txt") {
+        assert_eq!(
+            std::fs::read(restored.path().join(".minecraft").join(relative)).unwrap(),
+            b"locally customized"
+        );
+    }
     let target = restored.path().join("target");
     minecraft_jar::copy_inputs(&restored.path().join(".minecraft"), &target, &imported).unwrap();
     let client = minecraft_jar::prepare(&target, Path::new("missing-original.jar"), &imported)
@@ -93,6 +175,7 @@ fn test_build_mmc_pack_json() {
         max_memory: 2048,
         overrides: None,
         minecraft_jar: Default::default(),
+        modpack: None,
         icon_src: None,
     };
     let json = build_mmc_pack(&input);
@@ -116,6 +199,7 @@ fn test_build_instance_cfg() {
         max_memory: 4096,
         overrides: None,
         minecraft_jar: Default::default(),
+        modpack: None,
         icon_src: None,
     };
     let cfg = build_instance_cfg(&input);
@@ -146,6 +230,7 @@ fn test_build_instance_cfg_exports_per_instance_jvm_args() {
             jvm_args: Some(vec!["-XX:+UseG1GC".into(), "-Dfoo=bar".into()]),
         }),
         minecraft_jar: Default::default(),
+        modpack: None,
         icon_src: None,
     };
     let cfg = build_instance_cfg(&input);

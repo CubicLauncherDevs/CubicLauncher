@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy, untrack } from "svelte";
 	import {
 		parseMrpack,
 		installMrpack,
@@ -18,24 +19,35 @@
 		initialPath = null,
 		name = $bindable(""),
 		onImported,
+		loading = $bindable(false),
 	}: {
 		initialPath?: string | null;
 		name?: string;
 		onImported?: () => void;
+		loading?: boolean;
 	} = $props();
 
 	let packInfo = $state<MrpackInfo | null>(null);
 	let parsing = $state(false);
-	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let mrpackPath = $state<string | null>(null);
+	let disposed = false;
+	let parseGeneration = 0;
+	onDestroy(() => {
+		disposed = true;
+		parseGeneration++;
+	});
 
 	async function loadPackInfo(path: string) {
-		if (!path) return;
+		if (!path || loading || disposed) return;
+		const generation = ++parseGeneration;
 		parsing = true;
 		error = null;
+		packInfo = null;
+		mrpackPath = null;
 		try {
 			const info = await parseMrpack(path);
+			if (disposed || generation !== parseGeneration) return;
 			if (info) {
 				packInfo = info;
 				mrpackPath = path;
@@ -45,36 +57,49 @@
 						: sanitizeInstanceName(info.name);
 				}
 			} else {
-				error = "No se pudo leer el archivo .mrpack";
+				error = t("modpack.readError");
 			}
+		} catch (e) {
+			if (!disposed && generation === parseGeneration) error = String(e);
 		} finally {
-			parsing = false;
+			if (!disposed && generation === parseGeneration) parsing = false;
 		}
 	}
 
 	async function selectMrpackFile() {
+		if (loading || parsing) return;
 		try {
 			const selected = await openDialog({
 				multiple: false,
 				filters: [{ name: "Modpacks", extensions: ["mrpack"] }],
 			});
-			if (selected) {
+			if (!disposed && selected) {
 				await loadPackInfo(selected);
 			}
 		} catch (e) {
-			console.error("Error selecting file:", e);
+			if (!disposed) error = String(e);
 		}
 	}
 
 	async function handleImport() {
-		if (!mrpackPath || !name.trim()) return;
+		if (
+			disposed ||
+			loading ||
+			parsing ||
+			!packInfo ||
+			!mrpackPath ||
+			!name.trim()
+		)
+			return;
+		const importPath = mrpackPath;
+		const importName = name.trim();
 		loading = true;
 		error = null;
 		try {
 			let iconUrl: string | undefined;
 			try {
 				const searchResult = await searchModrinth(
-					name.trim(),
+					importName,
 					"",
 					undefined,
 					null,
@@ -90,21 +115,26 @@
 				/* ignore search errors */
 			}
 
+			if (disposed) return;
 			const result = await installMrpack(
-				mrpackPath,
-				name.trim(),
+				importPath,
+				importName,
 				iconUrl,
 				() => {
+					if (disposed) return;
 					reset();
 					onImported?.();
 				},
 				(err: unknown) => {
-					error = `Error al importar: ${err}`;
+					if (!disposed) error = String(err);
 				},
 			);
-			if (!result) error = "Error al importar el modpack";
+			if (!disposed && !result && !error)
+				error = t("createInstance.createErr");
+		} catch (e) {
+			if (!disposed) error = String(e);
 		} finally {
-			loading = false;
+			if (!disposed) loading = false;
 		}
 	}
 
@@ -117,10 +147,8 @@
 	}
 
 	$effect(() => {
-		if (initialPath && initialPath !== mrpackPath) {
-			mrpackPath = initialPath;
-			void loadPackInfo(initialPath);
-		}
+		const path = initialPath;
+		if (path) untrack(() => void loadPackInfo(path));
 	});
 </script>
 
@@ -161,7 +189,7 @@
 				type="button"
 				class="btn-primary"
 				onclick={handleImport}
-				disabled={loading || !mrpackPath || !name.trim()}
+				disabled={loading || parsing || !mrpackPath || !name.trim()}
 			>
 				{loading
 					? t("createInstance.importingBtn")

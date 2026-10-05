@@ -27,7 +27,27 @@ pub struct ModDto {
     pub file_size: u64,
     pub source: String,
     pub project_id: Option<String>,
+    pub version_id: Option<String>,
     pub slug: Option<String>,
+    pub pack_name: Option<String>,
+    pub pack_locked: bool,
+    pub pack_modified: bool,
+}
+
+async fn annotate_pack_inventory(
+    instance_dir: &Path,
+    subdir: &str,
+    mut mods: Vec<ModDto>,
+) -> Result<Vec<ModDto>, String> {
+    crate::services::modpack::annotate_mods(instance_dir, subdir, &mut mods)
+        .await
+        .inspect_err(|e| {
+            error!(
+                "Failed to annotate pack inventory in {:?}/{}: {}",
+                instance_dir, subdir, e
+            );
+        })?;
+    Ok(mods)
 }
 
 /// Per-file entry in ablage, keyed by filename
@@ -72,19 +92,24 @@ fn preserve_pack_source(entry: &mut PackFullCacheEntry, repo: &ablage::Repo, fil
 }
 
 #[tauri::command]
-pub async fn get_instance_mods(id: String, include_icons: Option<bool>) -> Vec<ModDto> {
+pub async fn get_instance_mods(
+    id: String,
+    include_icons: Option<bool>,
+) -> Result<Vec<ModDto>, String> {
     if let Err(e) = validate_uuid(&id) {
         warn!("{}", e);
-        return Vec::new();
+        return Err(e);
     }
     let manager = InstanceManager::get();
     let Some(handle) = manager.get_handle(&id).await else {
         warn!("Instancia {} no encontrada para listar mods", id);
-        return Vec::new();
+        return Err(InstanceError::NotFound.to_string());
     };
 
-    let mods_dir = handle.get_instance_dir().await.join("mods");
-    super::mod_catalog::list(id, mods_dir, include_icons.unwrap_or(true), handle).await
+    let instance_dir = handle.get_instance_dir().await;
+    let mods_dir = instance_dir.join("mods");
+    let mods = super::mod_catalog::list(id, mods_dir, include_icons.unwrap_or(true), handle).await;
+    annotate_pack_inventory(&instance_dir, "mods", mods).await
 }
 
 pub(super) async fn resolve_modrinth_hashes(
@@ -102,7 +127,7 @@ pub(super) async fn resolve_modrinth_hashes(
     });
 
     let resp = client
-        .post(format!("{}/version_files/update", MODRINTH_API))
+        .post(format!("{}/version_files", MODRINTH_API))
         .json(&body)
         .send()
         .await
@@ -141,7 +166,20 @@ pub async fn toggle_instance_mod(id: String, filename: String, enable: bool) -> 
 
     validate_filename(&filename)?;
 
-    let mods_dir = handle.get_instance_dir().await.join("mods");
+    let instance_dir = handle.get_instance_dir().await;
+    let mods_dir = instance_dir.join("mods");
+    let counterpart = filename
+        .strip_suffix(".disabled")
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("{}.disabled", filename));
+    crate::services::modpack::ensure_paths_mutable(
+        &instance_dir,
+        &[
+            format!("mods/{}", filename),
+            format!("mods/{}", counterpart),
+        ],
+    )
+    .await?;
     let file_path = mods_dir.join(&filename);
 
     if !file_path.exists() {
@@ -173,18 +211,19 @@ pub async fn toggle_instance_mod(id: String, filename: String, enable: bool) -> 
 }
 
 #[tauri::command]
-pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
+pub async fn get_instance_resourcepacks(id: String) -> Result<Vec<ModDto>, String> {
     if let Err(e) = validate_uuid(&id) {
         warn!("{}", e);
-        return Vec::new();
+        return Err(e);
     }
     let manager = InstanceManager::get();
     let Some(handle) = manager.get_handle(&id).await else {
         warn!("Instancia {} no encontrada para listar resourcepacks", id);
-        return Vec::new();
+        return Err(InstanceError::NotFound.to_string());
     };
 
-    let resourcepacks_dir = handle.get_instance_dir().await.join("resourcepacks");
+    let instance_dir = handle.get_instance_dir().await;
+    let resourcepacks_dir = instance_dir.join("resourcepacks");
 
     struct FileEntry {
         path: PathBuf,
@@ -228,7 +267,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
     .unwrap_or_default();
 
     if entries.is_empty() {
-        return Vec::new();
+        return annotate_pack_inventory(&instance_dir, "resourcepacks", Vec::new()).await;
     }
 
     let dir_clone = entries[0].path.parent().unwrap().to_path_buf();
@@ -250,6 +289,9 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
                             .map(|m| (m.name.clone(), m.description.clone()))
                             .unwrap_or_else(|| (e.filename.clone(), None));
                         ModDto {
+                            pack_name: None,
+                            pack_locked: false,
+                            pack_modified: false,
                             icon_revision: None,
                             name: md_name,
                             filename: e.filename,
@@ -262,10 +304,14 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
                             file_size: e.size,
                             source: entry.source.source_str().to_string(),
                             project_id: entry.source.project_id().map(|s| s.to_string()),
+                            version_id: entry.source.version_id().map(str::to_owned),
                             slug: entry.source.slug().map(|s| s.to_string()),
                         }
                     }
                     None => ModDto {
+                        pack_name: None,
+                        pack_locked: false,
+                        pack_modified: false,
                         icon_revision: None,
                         name: e.filename.clone(),
                         filename: e.filename,
@@ -278,6 +324,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
                         file_size: e.size,
                         source: "local".to_string(),
                         project_id: None,
+                        version_id: None,
                         slug: None,
                     },
                 }
@@ -289,13 +336,16 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
             resourcepacks.len(),
             id
         );
-        return resourcepacks;
+        return annotate_pack_inventory(&instance_dir, "resourcepacks", resourcepacks).await;
     }
 
     // Cache miss: return minimal, enrich in background
     let minimal: Vec<ModDto> = entries
         .iter()
         .map(|e| ModDto {
+            pack_name: None,
+            pack_locked: false,
+            pack_modified: false,
             icon_revision: None,
             name: e.filename.clone(),
             filename: e.filename.clone(),
@@ -308,6 +358,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
             file_size: e.size,
             source: "local".to_string(),
             project_id: None,
+            version_id: None,
             slug: None,
         })
         .collect();
@@ -381,22 +432,23 @@ pub async fn get_instance_resourcepacks(id: String) -> Vec<ModDto> {
         event_bus::emit(event_bus::AppEvent::ResourcepacksEnriched { id: id2.into() });
     });
 
-    minimal
+    annotate_pack_inventory(&instance_dir, "resourcepacks", minimal).await
 }
 
 #[tauri::command]
-pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
+pub async fn get_instance_shaderpacks(id: String) -> Result<Vec<ModDto>, String> {
     if let Err(e) = validate_uuid(&id) {
         warn!("{}", e);
-        return Vec::new();
+        return Err(e);
     }
     let manager = InstanceManager::get();
     let Some(handle) = manager.get_handle(&id).await else {
         warn!("Instancia {} no encontrada para listar shaderpacks", id);
-        return Vec::new();
+        return Err(InstanceError::NotFound.to_string());
     };
 
-    let shaderpacks_dir = handle.get_instance_dir().await.join("shaderpacks");
+    let instance_dir = handle.get_instance_dir().await;
+    let shaderpacks_dir = instance_dir.join("shaderpacks");
 
     struct FileEntry {
         path: PathBuf,
@@ -446,7 +498,7 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
     .unwrap_or_default();
 
     if entries.is_empty() {
-        return Vec::new();
+        return annotate_pack_inventory(&instance_dir, "shaderpacks", Vec::new()).await;
     }
 
     let dir_clone = entries[0].path.parent().unwrap().to_path_buf();
@@ -468,6 +520,9 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
                             .map(|m| (m.name.clone(), m.description.clone()))
                             .unwrap_or_else(|| (e.filename.clone(), None));
                         ModDto {
+                            pack_name: None,
+                            pack_locked: false,
+                            pack_modified: false,
                             icon_revision: None,
                             name: md_name,
                             filename: e.filename,
@@ -480,10 +535,14 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
                             file_size: e.size,
                             source: entry.source.source_str().to_string(),
                             project_id: entry.source.project_id().map(|s| s.to_string()),
+                            version_id: entry.source.version_id().map(str::to_owned),
                             slug: entry.source.slug().map(|s| s.to_string()),
                         }
                     }
                     None => ModDto {
+                        pack_name: None,
+                        pack_locked: false,
+                        pack_modified: false,
                         icon_revision: None,
                         name: e.filename.clone(),
                         filename: e.filename,
@@ -496,6 +555,7 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
                         file_size: e.size,
                         source: "local".to_string(),
                         project_id: None,
+                        version_id: None,
                         slug: None,
                     },
                 }
@@ -507,13 +567,16 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
             shaderpacks.len(),
             id
         );
-        return shaderpacks;
+        return annotate_pack_inventory(&instance_dir, "shaderpacks", shaderpacks).await;
     }
 
     // Cache miss: return minimal, enrich in background
     let minimal: Vec<ModDto> = entries
         .iter()
         .map(|e| ModDto {
+            pack_name: None,
+            pack_locked: false,
+            pack_modified: false,
             icon_revision: None,
             name: e.filename.clone(),
             filename: e.filename.clone(),
@@ -526,6 +589,7 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
             file_size: e.size,
             source: "local".to_string(),
             project_id: None,
+            version_id: None,
             slug: None,
         })
         .collect();
@@ -599,5 +663,5 @@ pub async fn get_instance_shaderpacks(id: String) -> Vec<ModDto> {
         event_bus::emit(event_bus::AppEvent::ShaderpacksEnriched { id: id2.into() });
     });
 
-    minimal
+    annotate_pack_inventory(&instance_dir, "shaderpacks", minimal).await
 }

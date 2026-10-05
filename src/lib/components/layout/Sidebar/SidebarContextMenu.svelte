@@ -12,6 +12,7 @@
 	import type { ContextMenuItem } from "$lib/components/layout/ContextMenu.svelte";
 	import type ContextMenuComponent from "$lib/components/layout/ContextMenu.svelte";
 	import { save } from "@tauri-apps/plugin-dialog";
+	import MrpackExportModal from "./MrpackExportModal.svelte";
 
 	type ContextMenuConstructor = typeof ContextMenuComponent;
 
@@ -29,6 +30,8 @@
 	let ctxItems = $state<ContextMenuItem[]>([]);
 	let MenuComponent = $state<ContextMenuConstructor | null>(null);
 	let loadPromise: Promise<void> | null = null;
+	let mrpackOpen = $state(false);
+	let mrpackInstanceId = $state("");
 
 	async function loadMenuComponent() {
 		if (MenuComponent) return;
@@ -103,6 +106,14 @@
 				iconName: "ui:download",
 				action: () => void handleExport(instance),
 			},
+			{
+				label: t("mrpackExport.title"),
+				iconName: "ui:download",
+				action: () => {
+					mrpackInstanceId = instance.uuid;
+					mrpackOpen = true;
+				},
+			},
 			{ separator: true, label: "" },
 			{
 				label: t("sidebar.delete"),
@@ -137,4 +148,10 @@
 
 {#if MenuComponent}
 	<MenuComponent bind:open={ctxOpen} x={ctxX} y={ctxY} items={ctxItems} />
+{/if}
+
+{#if mrpackOpen}
+	{#key mrpackInstanceId}
+		<MrpackExportModal bind:open={mrpackOpen} id={mrpackInstanceId} />
+	{/key}
 {/if}

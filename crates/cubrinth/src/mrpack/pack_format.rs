@@ -6,11 +6,12 @@ use zellkern::{GameVersion, Loader};
 #[serde(rename_all = "camelCase")]
 pub struct PackFormat {
     pub game: String,
-    #[allow(dead_code)]
     pub format_version: i32,
     pub version_id: String,
     pub name: String,
     pub summary: Option<String>,
+    #[serde(default)]
+    pub author: Option<String>,
     pub files: Vec<PackFile>,
     pub dependencies: HashMap<String, String>,
 }
@@ -24,7 +25,7 @@ pub struct PackFile {
     pub env: Option<HashMap<String, String>>,
     pub downloads: Vec<String>,
     #[allow(dead_code)]
-    pub file_size: u32,
+    pub file_size: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -32,11 +33,25 @@ pub struct MrpackMetadata {
     pub name: String,
     pub version_id: String,
     pub summary: Option<String>,
+    pub author: Option<String>,
     pub game_version: Option<GameVersion>,
     pub file_count: usize,
 }
 
 impl PackFormat {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.format_version != 1 {
+            return Err(format!(
+                "Unsupported mrpack format version: {}",
+                self.format_version
+            ));
+        }
+        if self.game != "minecraft" {
+            return Err(format!("Pack is for '{}', not 'minecraft'", self.game));
+        }
+        Ok(())
+    }
+
     pub fn extract_metadata(&self) -> MrpackMetadata {
         let mc_version = self.dependencies.get("minecraft").cloned();
 
@@ -72,6 +87,12 @@ impl PackFormat {
             name: self.name.clone(),
             version_id: self.version_id.clone(),
             summary: self.summary.clone(),
+            author: self
+                .author
+                .as_deref()
+                .map(str::trim)
+                .filter(|author| !author.is_empty())
+                .map(str::to_owned),
             game_version,
             file_count: self.files.len(),
         }

@@ -8,6 +8,7 @@ use super::multimc::migrate::{migrate_game_data, resolve_game_dir};
 use crate::core::{AppEvent, emit};
 use crate::services::instance_import::sanitize_instance_name;
 use crate::services::instance_manager::data::RamOverrides;
+use crate::services::modpack::{self, PackState};
 use crate::services::{DownloadQueue, InstOverrides, InstanceDto, InstanceManager};
 use serde::Deserialize;
 use std::future::Future;
@@ -33,6 +34,8 @@ pub struct CubicManifest {
     pub overrides: Option<InstOverrides>,
     #[serde(default)]
     pub minecraft_jar: crate::services::minecraft_jar::MinecraftJarConfig,
+    #[serde(default)]
+    pub modpack: Option<PackState>,
 }
 
 /// Provider para ZIPs exportados por CubicLauncher.
@@ -90,6 +93,17 @@ fn read_manifest(preview_dir: &Path) -> Result<CubicManifest, ImportError> {
         .validate()
         .map_err(ImportError::InvalidArchive)?;
 
+    if let Some(state) = &manifest.modpack {
+        if state.schema_version != 1 {
+            return Err(ImportError::InvalidArchive(
+                "Versión de registro de modpack no compatible".into(),
+            ));
+        }
+        for relative in state.files.keys() {
+            modpack::valid_path(relative).map_err(ImportError::InvalidArchive)?;
+        }
+    }
+
     if manifest.format_version != 1 {
         warn!(
             "cubic-manifest.json con format_version {} (esperado 1)",
@@ -98,6 +112,22 @@ fn read_manifest(preview_dir: &Path) -> Result<CubicManifest, ImportError> {
     }
 
     Ok(manifest)
+}
+
+fn restore_modpack(source: &Path, target: &Path, state: &PackState) -> Result<(), String> {
+    for relative in state.files.keys() {
+        let src = modpack::checked_path(source, relative)?;
+        if !src.is_file() {
+            continue;
+        }
+        let dst = modpack::checked_path(target, relative)?;
+        if let Some(parent) = dst.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        std::fs::copy(&src, &dst).map_err(|e| e.to_string())?;
+    }
+    // Los hashes describen el pack original; el backup puede estar personalizado.
+    modpack::save(target, state)
 }
 
 async fn import_cubic_instance(
@@ -144,9 +174,16 @@ async fn import_cubic_instance(
 
     let jar_config = manifest.minecraft_jar.clone();
     let jar_target = instance_dir.clone();
+    let modpack = manifest.modpack;
     let (files_guard, copied) = tokio::task::spawn_blocking(move || {
         let result =
-            crate::services::minecraft_jar::copy_inputs(&source_game_dir, &jar_target, &jar_config);
+            crate::services::minecraft_jar::copy_inputs(&source_game_dir, &jar_target, &jar_config)
+                .and_then(|()| {
+                    if let Some(state) = &modpack {
+                        restore_modpack(&source_game_dir, &jar_target, state)?;
+                    }
+                    Ok(())
+                });
         (files_guard, result)
     })
     .await

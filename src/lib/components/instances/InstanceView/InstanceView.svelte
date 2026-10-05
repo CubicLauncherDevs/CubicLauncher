@@ -10,6 +10,7 @@
 		getOverallPct,
 	} from "$lib/state/downloadQueueState.svelte";
 	import InstanceHeader from "./InstanceHeader.svelte";
+	import InstanceModpack from "./InstanceModpack.svelte";
 	import GridIcon from "$lib/icons/GridIcon.svelte";
 	import ResourcesIcon from "$lib/icons/ResourcesIcon.svelte";
 	import ImageIcon from "$lib/icons/ImageIcon.svelte";
@@ -34,13 +35,13 @@
 		if (selectedInstance.status === InstState.Starting) return "Starting";
 		return "Idle";
 	});
-    const loaderLower = $derived(selectedInstance.loader.toLowerCase());
-    // Disable Market (mods browser) for Vanilla and OptiFine; allow for others.
-    const supportsMods = $derived(
-        loaderLower !== "vanilla" && loaderLower !== "optifine",
-    );
-    // Shaders/resources are allowed for all non-Vanilla loaders, including OptiFine.
-    const supportsShaders = $derived(loaderLower !== "vanilla");
+	const loaderLower = $derived(selectedInstance.loader.toLowerCase());
+	// Disable Market (mods browser) for Vanilla and OptiFine; allow for others.
+	const supportsMods = $derived(
+		loaderLower !== "vanilla" && loaderLower !== "optifine",
+	);
+	// Shaders/resources are allowed for all non-Vanilla loaders, including OptiFine.
+	const supportsShaders = $derived(loaderLower !== "vanilla");
 	const modpackDownloadId = $derived(`modpack-${selectedInstance.uuid}`);
 	const downloadKind = $derived(
 		isVersionDownloading(modpackDownloadId)
@@ -58,14 +59,14 @@
 		return item ? Math.min(100, Math.max(0, getOverallPct(item))) : 0;
 	});
 
-    $effect(() => {
-        if (activeSection === "market" && !supportsMods) {
-            activeSection = "detalles";
-        }
-        if (activeSection === "shaderpacks" && !supportsShaders) {
-            activeSection = "detalles";
-        }
-    });
+	$effect(() => {
+		if (activeSection === "market" && !supportsMods) {
+			activeSection = "detalles";
+		}
+		if (activeSection === "shaderpacks" && !supportsShaders) {
+			activeSection = "detalles";
+		}
+	});
 
 	import type MarketType from "../Market/Market.svelte";
 	import type ScreenshotsTabType from "../ScreenshotsTab.svelte";
@@ -116,6 +117,14 @@
 		bind:activeSection
 		onPlay={handlePlay}
 	/>
+	{#key selectedInstance.uuid}
+		<InstanceModpack
+			id={selectedInstance.uuid}
+			busy={bannerState === "Started" ||
+				bannerState === "Starting" ||
+				!!downloadKind}
+		/>
+	{/key}
 
 	<div
 		class="tab-content"

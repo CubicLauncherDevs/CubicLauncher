@@ -21,6 +21,11 @@ import {
 	type ModDownloadInfo,
 } from "$lib/api/cubicApi";
 import { registerModsRefreshCallback } from "$lib/api/launcherService";
+import { getInstanceModpack } from "$lib/api/modpackApi";
+import {
+	replaceInstanceMod,
+	type ModVersionRef,
+} from "$lib/api/modVersionsApi";
 import {
 	modrinthProjectToMarket,
 	modrinthVersionToMarket,
@@ -45,6 +50,12 @@ import type {
 import { showWarning } from "$lib/state/state.svelte";
 import { t } from "$lib/i18n";
 import { createLocalModIcons } from "$lib/state/localModIcons";
+import {
+	isPackProtected,
+	matchesModOwnership,
+	targetsProtectedMod,
+	type ModOwnership,
+} from "$lib/utils/modpackMods";
 import {
 	reconcileLocalProjects,
 	sameProjectList,
@@ -91,6 +102,7 @@ export interface MarketFilters {
 	localSort: LocalSort;
 	localSource: LocalSourceFilter;
 	localStatus: LocalStatusFilter;
+	localOwnership: ModOwnership;
 }
 
 export interface MarketDetailState {
@@ -140,6 +152,7 @@ export function createMarketState(
 		localSort: "name-asc",
 		localSource: "all",
 		localStatus: "all",
+		localOwnership: "own",
 	});
 
 	// API metadata is immutable. Replacing the list avoids a deep proxy/source
@@ -147,6 +160,7 @@ export function createMarketState(
 	let items = $state.raw<MarketProject[]>([]);
 	let total = $state(0);
 	let loadingLocal = $state(false);
+	let hasModpack = $state(false);
 	let loadingRemote = $state(false);
 	let loadingMore = $state(false);
 	let error = $state<string | null>(null);
@@ -225,6 +239,7 @@ export function createMarketState(
 	}
 
 	function resetState() {
+		hasModpack = false;
 		invalidateSearch();
 		detailGen++;
 		const fresh = parseInstanceVersion(instance);
@@ -237,6 +252,7 @@ export function createMarketState(
 		filters.localSort = "name-asc";
 		filters.localSource = "all";
 		filters.localStatus = "all";
+		filters.localOwnership = "own";
 		checkedFiles.clear();
 		localOperationReport = null;
 		resetPagination();
@@ -427,6 +443,11 @@ export function createMarketState(
 	function applyLocalFilters(merge = false) {
 		if (filters.source !== "local") return;
 		let filtered = filterLocalItems(sortedLocalItems);
+		if (isModContent && hasModpack) {
+			filtered = filtered.filter((item) =>
+				matchesModOwnership(item.installed, filters.localOwnership),
+			);
+		}
 		if (filters.localSource !== "all") {
 			filtered = filtered.filter((m) => m.source === filters.localSource);
 		}
@@ -469,16 +490,24 @@ export function createMarketState(
 		error = null;
 
 		try {
-			const localItems = await localLoader(instance.uuid);
+			const [localItems, pack] = await Promise.all([
+				localLoader(instance.uuid),
+				isModContent ? getInstanceModpack(instance.uuid) : null,
+			]);
 			if (gen !== localSearchGen) return;
 
 			const mapped = reconcileLocalProjects(rawLocalItems, localItems);
 			if (gen !== localSearchGen) return;
 
+			hasModpack = pack != null;
 			rawLocalItems = mapped;
 			localIcons.sync(mapped);
 			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Temporary scan lookup, never rendered.
-			const filenames = new Set(localItems.map((item) => item.filename));
+			const filenames = new Set(
+				localItems
+					.filter((item) => !isPackProtected(item))
+					.map((item) => item.filename),
+			);
 			for (const filename of checkedFiles) {
 				if (!filenames.has(filename)) checkedFiles.delete(filename);
 			}
@@ -729,7 +758,13 @@ export function createMarketState(
 
 				const installedFileId = project.curseforgeVersionId;
 				detail.versions = files.map((f) =>
-					curseforgeVersionToMarket(f, installedFileId),
+					curseforgeVersionToMarket(
+						f,
+						installedFileId ??
+							project.installed?.version_id ??
+							undefined,
+						project.installed?.sha1,
+					),
 				);
 			} catch (e) {
 				if (gen !== detailGen) return;
@@ -774,7 +809,13 @@ export function createMarketState(
 
 			const installedVersionId = project.modrinthVersionId;
 			detail.versions = versions.map((v) =>
-				modrinthVersionToMarket(v, installedVersionId),
+				modrinthVersionToMarket(
+					v,
+					installedVersionId ??
+						project.installed?.version_id ??
+						undefined,
+					project.installed?.sha1,
+				),
 			);
 		} catch (e) {
 			if (gen !== detailGen) return;
@@ -838,9 +879,31 @@ export function createMarketState(
 			showWarning(t("errors.title"), t("errors.INST_BUSY"));
 			throw new Error(t("errors.INST_BUSY"));
 		}
+		if (localOperationBusy) throw new Error(t("market.modVersions.busy"));
+		if (project.installed && isModContent) {
+			if (
+				project.installed.pack_name != null ||
+				isPackProtected(project.installed)
+			)
+				throw new Error(t("modpack.protected"));
+			if (!isVersionCompatible(version))
+				throw new Error(t("market.modVersions.incompatible"));
+		}
 
 		const mods = await getInstanceMods(instance.uuid, false);
 		if (disposed) throw new DOMException("Market closed", "AbortError");
+		if (
+			isModContent &&
+			(isPackProtected(project.installed) ||
+				targetsProtectedMod(
+					mods,
+					project.installed?.filename ?? "",
+					project.modrinthProjectId ??
+						project.curseforgeProjectId ??
+						project.id,
+				))
+		)
+			throw new Error(t("modpack.protected"));
 		const installedProjectIds = new SvelteSet(
 			mods.map((m) => m.project_id).filter((id): id is string => !!id),
 		);
@@ -870,6 +933,29 @@ export function createMarketState(
 		);
 		if (disposed) throw new DOMException("Market closed", "AbortError");
 
+		if (project.installed) {
+			// An installed project only satisfies this preview when it has the
+			// exact requested version. Always include the root replacement.
+			installedProjectIds.clear();
+			const visit = (nodes: DependencyResolutionResult["tree"]) => {
+				for (const node of nodes) {
+					if (
+						node.project_id !== projectId &&
+						mods.some(
+							(mod) =>
+								mod.source === node.source &&
+								mod.project_id === node.project_id &&
+								mod.version_id === node.version_id &&
+								mod.enabled,
+						)
+					) {
+						installedProjectIds.add(node.project_id);
+					}
+					visit(node.children);
+				}
+			};
+			visit(result.tree);
+		}
 		return { ...result, installedProjectIds };
 	}
 
@@ -880,9 +966,80 @@ export function createMarketState(
 		if (disposed) return;
 		if (isInstanceBusy()) {
 			showWarning(t("errors.title"), t("errors.INST_BUSY"));
-			return;
+			throw new Error(t("errors.INST_BUSY"));
 		}
 		if (queue.length === 0) return;
+		if (localOperationBusy) throw new Error(t("market.modVersions.busy"));
+		if (isModContent) {
+			const mods = await getInstanceMods(instance.uuid, false);
+			if (disposed) return;
+			if (
+				isPackProtected(project.installed) ||
+				queue.some((entry) =>
+					targetsProtectedMod(mods, entry.filename, entry.project_id),
+				)
+			) {
+				throw new Error(t("modpack.protected"));
+			}
+		}
+
+		if (isModContent && project.installed) {
+			const installed = project.installed;
+			if (installed.pack_name != null || isPackProtected(installed))
+				throw new Error(t("modpack.protected"));
+			const source = project.source;
+			if (source !== "modrinth" && source !== "curseforge")
+				throw new Error(t("market.modVersions.unidentified"));
+			const projectId = installed.project_id;
+			const root = queue.find(
+				(entry) =>
+					entry.project_id === projectId &&
+					(entry.source ?? source) === source,
+			);
+			if (!projectId || !root?.version_id)
+				throw new Error(t("market.modVersions.missingTarget"));
+			const targetVersion = detail.versions.find(
+				(version) => version.id === root.version_id,
+			);
+			if (!targetVersion || !isVersionCompatible(targetVersion))
+				throw new Error(t("market.modVersions.incompatible"));
+			const downloads = queue.map((entry): ModVersionRef => {
+				if (!entry.project_id || !entry.version_id)
+					throw new Error(t("market.modVersions.missingTarget"));
+				return {
+					source: entry.source ?? source,
+					project_id: entry.project_id,
+					version_id: entry.version_id,
+				};
+			});
+			localOperationBusy = true;
+			try {
+				const filename = await replaceInstanceMod(instance.uuid, {
+					filename: installed.filename,
+					expected_sha1: installed.sha1,
+					target: {
+						source,
+						project_id: projectId,
+						version_id: root.version_id,
+					},
+					downloads,
+				});
+				if (disposed) return;
+				checkedFiles.delete(installed.filename);
+				if (filters.source === "local" && selectedId === project.id) {
+					pendingLocalRename = {
+						from: project.id,
+						to: `local-${filename}`,
+					};
+				}
+				await scanLocalItems(true);
+				if (!disposed && selectedProject)
+					await loadDetail(selectedProject);
+			} finally {
+				localOperationBusy = false;
+			}
+			return;
+		}
 
 		try {
 			await downloadFn(instance.uuid, queue);
@@ -907,7 +1064,7 @@ export function createMarketState(
 			showWarning(t("errors.title"), t("errors.INST_BUSY"));
 			return;
 		}
-		if (!project.installed) return;
+		if (!project.installed || isPackProtected(project.installed)) return;
 		const filename = project.installed.filename;
 		try {
 			await deleteInstanceFile(instance.uuid, subDir, filename);
@@ -933,7 +1090,12 @@ export function createMarketState(
 			showWarning(t("errors.title"), t("errors.INST_BUSY"));
 			return;
 		}
-		if (!project.installed || !isModContent) return;
+		if (
+			!project.installed ||
+			!isModContent ||
+			isPackProtected(project.installed)
+		)
+			return;
 		const newEnabled = !project.installed.enabled;
 		const filename = project.installed.filename;
 		try {
@@ -961,7 +1123,13 @@ export function createMarketState(
 	function toggleChecked(filename: string) {
 		if (disposed || localOperationBusy) return;
 		if (checkedFiles.has(filename)) checkedFiles.delete(filename);
-		else if (items.some((item) => item.installed?.filename === filename))
+		else if (
+			items.some(
+				(item) =>
+					item.installed?.filename === filename &&
+					!isPackProtected(item.installed),
+			)
+		)
 			checkedFiles.add(filename);
 	}
 
@@ -969,7 +1137,8 @@ export function createMarketState(
 		if (disposed || localOperationBusy || filters.source !== "local")
 			return;
 		for (const item of items) {
-			if (item.installed) checkedFiles.add(item.installed.filename);
+			if (item.installed && !isPackProtected(item.installed))
+				checkedFiles.add(item.installed.filename);
 		}
 	}
 
@@ -1048,6 +1217,8 @@ export function createMarketState(
 			byFilename.has(filename),
 		);
 		await runLocalBatch(targets, async (filename) => {
+			if (isPackProtected(byFilename.get(filename)?.installed))
+				throw new Error(t("modpack.protected"));
 			if (action === "delete") {
 				await deleteInstanceFile(instance.uuid, subDir, filename, true);
 				return;
@@ -1077,6 +1248,15 @@ export function createMarketState(
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Deduplicate the snapshot without reactive allocations.
 		await runLocalBatch([...new Set(paths)], async (path) => {
 			const filename = path.split(/[\\/]/).pop() ?? "";
+			if (
+				targetsProtectedMod(
+					rawLocalItems.flatMap((item) =>
+						item.installed ? [item.installed] : [],
+					),
+					filename,
+				)
+			)
+				throw new Error(t("modpack.protected"));
 			const extension = isModContent
 				? /\.jar(?:\.disabled)?$/i
 				: /\.zip$/i;
@@ -1187,6 +1367,16 @@ export function createMarketState(
 		applyLocalFilters();
 	}
 
+	function setLocalOwnership(ownership: ModOwnership) {
+		if (disposed || !isModContent || !hasModpack || localOperationBusy)
+			return;
+		filters.localOwnership = ownership;
+		checkedFiles.clear();
+		resultsRevision++;
+		selectProject(null);
+		applyLocalFilters();
+	}
+
 	function clearFilters() {
 		if (disposed) return;
 		filters.category = null;
@@ -1194,6 +1384,7 @@ export function createMarketState(
 		filters.localSort = "name-asc";
 		filters.localSource = "all";
 		filters.localStatus = "all";
+		filters.localOwnership = "own";
 		checkedFiles.clear();
 		if (filters.source === "local") {
 			resultsRevision++;
@@ -1275,6 +1466,7 @@ export function createMarketState(
 		manageLocal,
 		importLocal,
 		setLocalStatus,
+		setLocalOwnership,
 		get localOperationBusy() {
 			return localOperationBusy;
 		},
@@ -1283,6 +1475,9 @@ export function createMarketState(
 		},
 		get localCount() {
 			return rawLocalItems.length;
+		},
+		get hasModpack() {
+			return hasModpack;
 		},
 		get instanceBusy() {
 			return isInstanceBusy();

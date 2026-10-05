@@ -12,6 +12,7 @@
 	let {
 		open = $bindable(false),
 		projectTitle,
+		replacing = false,
 		tree = [],
 		conflicts = [],
 		installedProjectIds = new Set<string>(),
@@ -24,6 +25,7 @@
 	}: {
 		open?: boolean;
 		projectTitle: string;
+		replacing?: boolean;
 		tree?: ResolvedDependency[];
 		conflicts?: DependencyConflict[];
 		installedProjectIds?: Set<string>;
@@ -87,7 +89,11 @@
 		function walk(items: ResolvedDependency[]) {
 			for (const dep of items) {
 				if (dep.kind === "incompatible") continue;
-				if (isInstalled(dep)) continue;
+				if (dep.kind === "embedded") continue;
+				if (isInstalled(dep)) {
+					walk(dep.children);
+					continue;
+				}
 				if (
 					dep.kind === "optional" &&
 					!selectedOptionalIds.has(dep.project_id)
@@ -102,6 +108,7 @@
 
 				seen.add(key);
 				result.push({
+					source: dep.source,
 					url: dep.download_url,
 					filename: dep.filename,
 					projectTitle: dep.title,
@@ -128,6 +135,7 @@
 	}
 
 	function installButtonLabel(count: number): string {
+		if (replacing) return t("market.modVersions.confirm", { count });
 		if (count === 1) {
 			return t("market.detail.dependencies.installSingle");
 		}
@@ -139,8 +147,14 @@
 
 <ModalBase
 	bind:open
-	title={t("market.detail.dependencies.title", { title: projectTitle })}
+	title={t(
+		replacing
+			? "market.modVersions.previewTitle"
+			: "market.detail.dependencies.title",
+		{ title: projectTitle },
+	)}
 	width="650px"
+	closeDisabled={downloading}
 	onclose={() => {
 		onclose?.();
 	}}
@@ -193,7 +207,7 @@
 				type="button"
 				class="market-detail-btn secondary"
 				onclick={handleCancel}
-				disabled={resolving}
+				disabled={resolving || downloading}
 			>
 				{t("market.detail.dependencies.cancel")}
 			</button>

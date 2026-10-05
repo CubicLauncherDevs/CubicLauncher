@@ -73,6 +73,17 @@ impl InstanceHandle {
     }
 
     pub async fn load(name: &str) -> Option<Self> {
+        let root = crate::core::PathManager::get()
+            .get_instance_dir()
+            .join(name);
+        if let Err(error) =
+            tokio::task::spawn_blocking(move || crate::services::modpack_update::recover(&root))
+                .await
+                .ok()?
+        {
+            tracing::error!(%error, name, "Cannot restore interrupted modpack update");
+            return None;
+        }
         let mut data = InstanceData::load(name).await?;
 
         // Migrate legacy absolute custom icon paths to instance-relative paths.
@@ -116,6 +127,17 @@ impl InstanceHandle {
                 "Hay una operación de archivos en curso en esta instancia".to_string()
             })?;
         self.ensure_alive().map_err(|e| e.to_string())?;
+        let data = self
+            .data
+            .try_read()
+            .map_err(|_| "La instancia está siendo modificada".to_string())?;
+        if data
+            .get_instance_dir()
+            .join(crate::services::modpack_update::JOURNAL_DIR)
+            .exists()
+        {
+            return Err("Hay una actualización pendiente de recuperación. Reiniciá el launcher para restaurarla".into());
+        }
         Ok(InstanceFilesGuard {
             handle: self.clone(),
             _lock: lock,
@@ -274,6 +296,28 @@ impl InstanceHandle {
         let mut data = self.data.write().await;
         data.version = version.into();
         data.dirty = true;
+    }
+
+    /// Caller owns the instance files guard for the complete pack transaction.
+    pub(crate) async fn save_pack_version(&self) -> Result<(), String> {
+        self.ensure_alive().map_err(|e| e.to_string())?;
+        let mut data = self.data.write().await;
+        let destination = data.get_instance_dir().join("instance.cub");
+        let bytes = serde_json::to_vec(&*data).map_err(|e| e.to_string())?;
+        tokio::task::spawn_blocking(move || -> Result<(), String> {
+            use std::io::Write;
+            let mut temp =
+                tempfile::NamedTempFile::new_in(destination.parent().ok_or("Ruta inválida")?)
+                    .map_err(|e| e.to_string())?;
+            temp.write_all(&bytes).map_err(|e| e.to_string())?;
+            temp.as_file().sync_all().map_err(|e| e.to_string())?;
+            temp.persist(destination).map_err(|e| e.to_string())?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| e.to_string())??;
+        data.dirty = false;
+        Ok(())
     }
 
     pub async fn set_icon(&self, icon: Option<String>) {

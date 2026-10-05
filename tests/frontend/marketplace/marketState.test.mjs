@@ -119,6 +119,8 @@ let disk;
 let refreshLocal;
 const unregisterRefresh = mock();
 const scan = mock(async (_uuid) => structuredClone(disk));
+const getInstanceModpack = mock(async (_uuid) => null);
+const replaceInstanceMod = mock(async (_uuid, _request) => "updated.jar");
 const searchModrinth = mock(async (..._args) => result("modrinth"));
 const searchCurseForge = mock(async (..._args) => result("curseforge", "42"));
 const getModrinthProject = mock(async (_id) => null);
@@ -165,6 +167,8 @@ const api = {
 	resolveModDependencies: mock(async () => ({ tree: [], conflicts: [] })),
 };
 mock.module(`${lib}/api/cubicApi`, () => api);
+mock.module(`${lib}/api/modpackApi`, () => ({ getInstanceModpack }));
+mock.module(`${lib}/api/modVersionsApi`, () => ({ replaceInstanceMod }));
 mock.module(`${lib}/api/launcherService`, () => ({
 	registerModsRefreshCallback: (_uuid, callback) => {
 		refreshLocal = callback;
@@ -221,6 +225,8 @@ function snapshot(value) {
 
 beforeEach(() => {
 	unregisterRefresh.mockClear();
+	getInstanceModpack.mockReset().mockResolvedValue(null);
+	replaceInstanceMod.mockReset().mockResolvedValue("updated.jar");
 	disk = [file("a.jar"), file("b.jar")];
 	for (const fn of new Set(Object.values(api))) fn.mockClear();
 	scan.mockReset().mockImplementation(async () => structuredClone(disk));
@@ -238,6 +244,210 @@ afterEach(() => {
 		dispose = undefined;
 	}
 	flushSync();
+});
+
+test("local mods default to own; ownership composes with status, provider and search", async () => {
+	getInstanceModpack.mockResolvedValue({ name: "Adventure" });
+	disk = [
+		file("own.jar", { pack_name: null }),
+		file("pack.jar", { pack_name: "Adventure", pack_locked: true }),
+		file("extra.jar.disabled", {
+			pack_name: "Adventure",
+			pack_locked: false,
+			enabled: false,
+			source: "local",
+		}),
+	];
+	await start();
+	await source("local");
+	expect(localIds()).toEqual(["local-own.jar"]);
+	state.setLocalOwnership("pack");
+	expect(localIds()).toEqual(["local-extra.jar.disabled", "local-pack.jar"]);
+	state.setLocalStatus("disabled");
+	expect(localIds()).toEqual(["local-extra.jar.disabled"]);
+	state.setLocalSource("modrinth");
+	expect(localIds()).toEqual([]);
+	state.setLocalSource("local");
+	state.setQuery("extra");
+	expect(localIds()).toEqual(["local-extra.jar.disabled"]);
+	state.setQuery("missing");
+	expect(localIds()).toEqual([]);
+});
+
+test("normal instances keep mods with absent or null pack ownership in the default list", async () => {
+	disk = [
+		file("unknown.jar"),
+		file("own.jar", { pack_name: null, pack_locked: false }),
+	];
+	await start();
+	await source("local");
+	expect(state.hasModpack).toBe(false);
+	state.setLocalOwnership("pack");
+	expect(localIds()).toEqual(["local-own.jar", "local-unknown.jar"]);
+	state.selectAllLocal();
+	expect([...state.checkedFiles].sort()).toEqual(["own.jar", "unknown.jar"]);
+});
+
+test("pack ownership controls remain available for a pack with no installed mods", async () => {
+	disk = [];
+	getInstanceModpack.mockResolvedValue({ name: "Empty pack", files: {} });
+	await start();
+	await source("local");
+	expect(state.hasModpack).toBe(true);
+	state.setLocalOwnership("pack");
+	expect(state.filters.localOwnership).toBe("pack");
+	expect(state.items).toHaveLength(0);
+});
+
+test("refreshing a normal instance drops the effect of a previous pack filter", async () => {
+	getInstanceModpack.mockResolvedValue({ name: "Pack" });
+	await start();
+	await source("local");
+	state.setLocalOwnership("pack");
+	expect(state.items).toHaveLength(0);
+	getInstanceModpack.mockResolvedValue(null);
+	await state.refresh();
+	expect(state.hasModpack).toBe(false);
+	expect(localIds()).toEqual(["local-a.jar", "local-b.jar"]);
+});
+
+test("corrupt mod metadata surfaces scan errors and blocks install preparation", async () => {
+	scan.mockRejectedValue(Error("Corrupt pack metadata"));
+	await start();
+	await source("local");
+	expect(state.error).toContain("Corrupt pack metadata");
+	expect(state.items).toHaveLength(0);
+	await expect(
+		state.prepareInstall(
+			{ id: "project", source: "modrinth" },
+			{ id: "v2" },
+		),
+	).rejects.toThrow("Corrupt pack metadata");
+	expect(api.resolveModDependencies).not.toHaveBeenCalled();
+	expect(api.downloadMods).not.toHaveBeenCalled();
+});
+
+test("legacy protected mods with unknown ownership are not inferred as own or pack", async () => {
+	getInstanceModpack.mockResolvedValue({
+		name: "Pack",
+		needs_inventory: true,
+	});
+	disk = [
+		file("unknown.jar", { pack_locked: true }),
+		file("unidentified.jar", { pack_name: null, pack_locked: true }),
+		file("own.jar", { pack_name: null, pack_locked: false }),
+		file("pack.jar", { pack_name: "Pack", pack_locked: true }),
+	];
+	await start();
+	await source("local");
+	expect(localIds()).toEqual(["local-own.jar"]);
+	state.setLocalOwnership("pack");
+	expect(localIds()).toEqual(["local-pack.jar"]);
+	state.setLocalOwnership("all");
+	expect(localIds()).toEqual([
+		"local-own.jar",
+		"local-pack.jar",
+		"local-unidentified.jar",
+		"local-unknown.jar",
+	]);
+	state.selectAllLocal();
+	expect([...state.checkedFiles]).toEqual(["own.jar"]);
+	// Recovery identifies one file as pack-owned and the other as a user mod.
+	disk[0].pack_name = "Pack";
+	disk[1].pack_locked = false;
+	refreshLocal();
+	await settle();
+	state.setLocalOwnership("pack");
+	expect(localIds()).toEqual(["local-pack.jar", "local-unknown.jar"]);
+	state.setLocalOwnership("own");
+	expect(localIds()).toEqual(["local-own.jar", "local-unidentified.jar"]);
+});
+
+test("selection excludes protected files, clears across ownership filters, and refresh reconciles locks", async () => {
+	getInstanceModpack.mockResolvedValue({ name: "Pack" });
+	disk = [
+		file("own.jar"),
+		file("pack.jar", { pack_name: "Pack", pack_locked: true }),
+	];
+	await start();
+	await source("local");
+	state.selectAllLocal();
+	expect([...state.checkedFiles]).toEqual(["own.jar"]);
+	state.setLocalOwnership("all");
+	expect(state.checkedFiles.size).toBe(0);
+	state.toggleChecked("pack.jar");
+	state.selectAllLocal();
+	expect([...state.checkedFiles]).toEqual(["own.jar"]);
+	state.selectProject("local-pack.jar");
+	disk[1].pack_locked = false;
+	refreshLocal();
+	await settle();
+	expect(state.selectedProject.installed.pack_locked).toBe(false);
+	state.selectAllLocal();
+	expect([...state.checkedFiles].sort()).toEqual(["own.jar", "pack.jar"]);
+	disk[1].pack_locked = true;
+	refreshLocal();
+	await settle();
+	expect([...state.checkedFiles]).toEqual(["own.jar"]);
+	expect(state.selectedProject.installed.pack_locked).toBe(true);
+});
+
+test("explicit batch targets and disabled-suffix imports cannot modify protected pack mods", async () => {
+	getInstanceModpack.mockResolvedValue({ name: "Pack" });
+	disk = [
+		file("own.jar"),
+		file("pack.jar", { pack_name: "Pack", pack_locked: true }),
+	];
+	await start();
+	await source("local");
+	state.setLocalOwnership("all");
+	await state.manageLocal("delete", ["own.jar", "pack.jar"]);
+	expect(deleteInstanceFile).toHaveBeenCalledTimes(1);
+	expect(disk.map((mod) => mod.filename)).toEqual(["pack.jar"]);
+	expect(state.localOperationReport.failures[0].error).toContain(
+		"modpack.protected",
+	);
+	await state.manageLocal("disable", ["pack.jar"]);
+	expect(toggleInstanceMod).not.toHaveBeenCalled();
+	await state.importLocal(["/fixture/pack.jar.disabled"]);
+	expect(api.addInstanceFile).not.toHaveBeenCalled();
+	expect(state.localOperationReport.failures[0].error).toContain(
+		"modpack.protected",
+	);
+});
+
+test("install confirmation checks fresh pack metadata including dependency targets", async () => {
+	await start();
+	const project = state.items[0];
+	disk = [
+		file("protected.jar", {
+			project_id: "dependency",
+			pack_name: "Pack",
+			pack_locked: true,
+		}),
+	];
+	const log = spyOn(console, "error").mockImplementation(() => {});
+	try {
+		await expect(
+			state.confirmInstall(project, [
+				{
+					url: "https://example.test/mod.jar",
+					filename: "new-name.jar",
+					project_id: "dependency",
+				},
+			]),
+		).rejects.toThrow("modpack.protected");
+		expect(api.downloadMods).not.toHaveBeenCalled();
+	} finally {
+		log.mockRestore();
+	}
+});
+
+test("resource and shader pack lists are not filtered by mod ownership", async () => {
+	disk = [file("pack.zip", { pack_name: "Pack" })];
+	await start("resourcepacks");
+	await source("local");
+	expect(localIds()).toEqual(["local-pack.zip"]);
 });
 
 test("same-project shader files have distinct selectable IDs and details use the provider ID", async () => {
@@ -1082,7 +1292,10 @@ for (const operation of ["confirmInstall", "uninstall", "toggleEnabled"]) {
 	test(`${operation}: completing after destroy cannot rescan or repopulate the market`, async () => {
 		await start();
 		await source("local");
-		const project = state.items[0];
+		const project =
+			operation === "confirmInstall"
+				? { ...state.items[0], installed: undefined }
+				: state.items[0];
 		const pending = deferred();
 		const fn =
 			operation === "confirmInstall"
@@ -1121,6 +1334,201 @@ for (const operation of ["confirmInstall", "uninstall", "toggleEnabled"]) {
 		expect(state.loading).toBe(false);
 	});
 }
+
+function modVersion(id, hash, overrides = {}) {
+	return {
+		id,
+		name: id,
+		version_number: id,
+		game_versions: ["1.21.1"],
+		loaders: ["fabric"],
+		date_published:
+			id === "v1" ? "2025-01-01T00:00:00Z" : "2025-02-01T00:00:00Z",
+		version_type: "release",
+		dependencies: [],
+		files: [
+			{
+				primary: true,
+				filename: `${id}.jar`,
+				url: `https://example.test/${id}.jar`,
+				hashes: { sha1: hash },
+			},
+		],
+		...overrides,
+	};
+}
+
+async function selectOwnMod() {
+	disk = [
+		file("old.jar.disabled", {
+			sha1: "a".repeat(40),
+			enabled: false,
+			version_id: "v1",
+		}),
+		file("other.jar", { project_id: "other" }),
+	];
+	getModrinthProjectVersions.mockResolvedValueOnce([
+		modVersion("v2", "b".repeat(40)),
+		modVersion("v1", "a".repeat(40)),
+	]);
+	await start();
+	await source("local");
+	state.selectProject("local-old.jar.disabled");
+	await settle();
+	return state.selectedProject;
+}
+
+test("installed version is identified by hash rather than a stale cached version ID", async () => {
+	disk = [file("old.jar", { sha1: "a".repeat(40), version_id: "v2" })];
+	getModrinthProjectVersions.mockResolvedValueOnce([
+		modVersion("v2", "b".repeat(40)),
+		modVersion("v1", "a".repeat(40)),
+	]);
+	await start();
+	await source("local");
+	state.selectProject("local-old.jar");
+	await settle();
+	expect(state.selectedVersion.id).toBe("v1");
+	expect(
+		state.detail.versions.filter((v) => v.isInstalled).map((v) => v.id),
+	).toEqual(["v1"]);
+});
+
+test("changing a disabled own mod delegates atomic replacement and follows its new filename", async () => {
+	const project = await selectOwnMod();
+	replaceInstanceMod.mockImplementationOnce(async (_id, request) => {
+		expect(request.filename).toBe("old.jar.disabled");
+		expect(request.expected_sha1).toBe("a".repeat(40));
+		expect(request.target).toEqual({
+			source: "modrinth",
+			project_id: "shared",
+			version_id: "v2",
+		});
+		disk[0] = file("v2.jar.disabled", {
+			enabled: false,
+			sha1: "b".repeat(40),
+			version_id: "v2",
+		});
+		return "v2.jar.disabled";
+	});
+	await state.confirmInstall(project, [
+		{
+			source: "modrinth",
+			project_id: "shared",
+			version_id: "v2",
+			filename: "v2.jar",
+			url: "https://example.test/v2.jar",
+		},
+	]);
+	expect(api.downloadMods).not.toHaveBeenCalled();
+	expect(deleteInstanceFile).not.toHaveBeenCalled();
+	expect(state.selectedProject.installed.filename).toBe("v2.jar.disabled");
+	expect(state.selectedProject.installed.enabled).toBe(false);
+	expect(localIds()).toEqual(["local-other.jar", "local-v2.jar.disabled"]);
+	expect(state.localOperationBusy).toBe(false);
+});
+
+test("a failed version replacement preserves the installed list and surfaces the error", async () => {
+	const project = await selectOwnMod();
+	replaceInstanceMod.mockRejectedValueOnce(
+		Error("Download checksum mismatch"),
+	);
+	await expect(
+		state.confirmInstall(project, [
+			{
+				project_id: "shared",
+				version_id: "v2",
+				filename: "v2.jar",
+				url: "https://example.test/v2.jar",
+			},
+		]),
+	).rejects.toThrow("checksum mismatch");
+	expect(localIds()).toEqual(["local-old.jar.disabled", "local-other.jar"]);
+	expect(deleteInstanceFile).not.toHaveBeenCalled();
+	expect(state.localOperationBusy).toBe(false);
+});
+
+test("version changes reject incompatible targets and pack-owned mods even after unlocking", async () => {
+	const project = await selectOwnMod();
+	await expect(
+		state.confirmInstall(project, [
+			{
+				project_id: "shared",
+				version_id: "unknown",
+				filename: "wrong.jar",
+				url: "https://example.test/wrong.jar",
+			},
+		]),
+	).rejects.toThrow("market.modVersions.incompatible");
+	project.installed.pack_name = "Pack";
+	project.installed.pack_locked = false;
+	await expect(
+		state.confirmInstall(project, [
+			{
+				project_id: "shared",
+				version_id: "v2",
+				filename: "v2.jar",
+				url: "https://example.test/v2.jar",
+			},
+		]),
+	).rejects.toThrow("modpack.protected");
+	expect(replaceInstanceMod).not.toHaveBeenCalled();
+});
+
+test("replacement preview includes the root and dependencies whose installed version differs", async () => {
+	const project = await selectOwnMod();
+	disk.push(
+		file("library.jar", { project_id: "library", version_id: "lib-old" }),
+	);
+	api.resolveModDependencies.mockResolvedValueOnce({
+		conflicts: [],
+		tree: [
+			{
+				source: "modrinth",
+				project_id: "shared",
+				version_id: "v2",
+				kind: "required",
+				children: [
+					{
+						source: "modrinth",
+						project_id: "library",
+						version_id: "lib-new",
+						kind: "required",
+						children: [],
+					},
+				],
+			},
+		],
+	});
+	const result = await state.prepareInstall(
+		project,
+		state.detail.versions.find((v) => v.id === "v2"),
+	);
+	expect(result.installedProjectIds.has("shared")).toBe(false);
+	expect(result.installedProjectIds.has("library")).toBe(false);
+});
+
+test("finishing a replacement after destroy does not refresh the previous instance", async () => {
+	const project = await selectOwnMod();
+	const pending = deferred();
+	replaceInstanceMod.mockImplementationOnce(() => pending.promise);
+	const operation = state.confirmInstall(project, [
+		{
+			project_id: "shared",
+			version_id: "v2",
+			filename: "v2.jar",
+			url: "https://example.test/v2.jar",
+		},
+	]);
+	await settle();
+	expect(replaceInstanceMod).toHaveBeenCalledTimes(1);
+	const scans = scan.mock.calls.length;
+	state.destroy();
+	pending.resolve("v2.jar.disabled");
+	await operation;
+	expect(scan.mock.calls.length).toBe(scans);
+	expect(state.items).toHaveLength(0);
+});
 
 test("a burst of enrichment events shares one scan and one final refresh", async () => {
 	await start();

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onDestroy } from "svelte";
+	import { isPackProtected } from "$lib/utils/modpackMods";
+	import { onDestroy, tick } from "svelte";
 	import { t } from "$lib/i18n";
 	import {
 		openUrl,
@@ -36,6 +37,7 @@
 		selectedVersion: MarketVersion | null;
 		isVersionCompatible: (version: MarketVersion) => boolean;
 		onVersionSelect: (version: MarketVersion) => void;
+		onRefreshVersions?: () => void;
 		onPrepareInstall: () => Promise<{
 			tree: ResolvedDependency[];
 			conflicts: DependencyConflict[];
@@ -58,6 +60,7 @@
 		selectedVersion,
 		isVersionCompatible,
 		onVersionSelect,
+		onRefreshVersions,
 		onPrepareInstall,
 		onInstallQueue,
 		onUninstall,
@@ -84,6 +87,56 @@
 	let disposed = false;
 	let downloading = false;
 	let installGeneration = 0;
+	const ownInstalledMod = $derived(
+		contentType === "mods" &&
+			!!project.installed &&
+			project.installed.pack_name == null &&
+			!isPackProtected(project.installed),
+	);
+	const canManageVersions = $derived(
+		ownInstalledMod &&
+			!!project.installed?.project_id &&
+			(project.source === "modrinth" || project.source === "curseforge"),
+	);
+	const currentVersion = $derived(
+		detail.versions.find((version) => version.isInstalled),
+	);
+	const latestVersion = $derived.by(() => {
+		const candidates = detail.versions.filter(
+			(version) =>
+				isVersionCompatible(version) &&
+				(!version.versionType ||
+					version.versionType === "release" ||
+					version.versionType === currentVersion?.versionType),
+		);
+		return (
+			candidates.sort(
+				(a, b) =>
+					Date.parse(b.datePublished) - Date.parse(a.datePublished),
+			)[0] ?? null
+		);
+	});
+	const hasUpdate = $derived(
+		!!latestVersion &&
+			!latestVersion.isInstalled &&
+			(!currentVersion ||
+				Date.parse(latestVersion.datePublished) >
+					Date.parse(currentVersion.datePublished)),
+	);
+	const versionActionsDisabled = $derived(
+		localActionsDisabled ||
+			installing ||
+			resolvingDeps ||
+			detail.loading ||
+			!project.installed?.sha1,
+	);
+
+	async function updateLatest() {
+		if (!latestVersion || !hasUpdate || versionActionsDisabled) return;
+		onVersionSelect(latestVersion);
+		await tick();
+		await handleInstall();
+	}
 
 	function releaseDependencies() {
 		depTree = [];
@@ -123,13 +176,15 @@
 			isVersionCompatible(v),
 		);
 		const versionsToShow =
-			compatible.length > 0 ? compatible : detail.versions;
+			canManageVersions || compatible.length > 0
+				? compatible
+				: detail.versions;
 		return versionsToShow.map((v) => ({
 			value: v.id,
-			label: `${v.versionNumber} — ${v.name}`,
+			label: `${v.versionNumber}${v.isInstalled ? ` · ${t("market.modVersions.current")}` : ""} — ${v.name}`,
 			subtitle:
 				compatible.length > 0
-					? "✓ Compatible"
+					? t("market.modVersions.compatible")
 					: v.gameVersions.slice(0, 2).join(", "),
 		}));
 	});
@@ -162,6 +217,7 @@
 		if (!url) return null;
 
 		return {
+			source: project.source === "curseforge" ? "curseforge" : "modrinth",
 			url,
 			filename: version.primaryFileName,
 			project_id: projectId,
@@ -170,7 +226,16 @@
 	}
 
 	async function handleInstall() {
-		if (disposed || !selectedVersion) return;
+		if (disposed || !selectedVersion || isPackProtected(project.installed))
+			return;
+		if (
+			project.installed &&
+			(!canManageVersions ||
+				versionActionsDisabled ||
+				selectedVersion.isInstalled ||
+				!isVersionCompatible(selectedVersion))
+		)
+			return;
 		const generation = ++installGeneration;
 
 		installing = true;
@@ -285,6 +350,19 @@
 
 				<div class="market-detail-identity">
 					<h2 class="market-detail-title">{project.title}</h2>
+					{#if project.installed?.pack_name != null}
+						<p>
+							{t("modpack.providedBy", {
+								pack: project.installed.pack_name,
+							})}
+						</p>
+						{#if project.installed.pack_modified}<p>
+								{t("modpack.modified")}
+							</p>{/if}
+						{#if isPackProtected(project.installed)}<p>
+								{t("modpack.protected")}
+							</p>{/if}
+					{/if}
 					<p class="market-detail-author">
 						{t("market.detail.by")}
 						{project.author || t("market.detail.unknownAuthor")}
@@ -309,8 +387,13 @@
 					</div>
 				{/if}
 
-				{#if source !== "local"}
+				{#if source !== "local" || canManageVersions}
 					<div class="market-detail-version">
+						{#if detail.error}
+							<p class="market-detail-action-error" role="alert">
+								{detail.error}
+							</p>
+						{/if}
 						{#if detail.loading || detail.versions.length === 0}
 							<span class="market-detail-version-loading">
 								{#if detail.loading}
@@ -340,7 +423,63 @@
 								/>
 							</div>
 						{/if}
+						{#if canManageVersions}
+							<div class="version-management">
+								<button
+									type="button"
+									class="market-detail-btn secondary"
+									disabled={localActionsDisabled ||
+										installing ||
+										resolvingDeps ||
+										detail.loading}
+									onclick={onRefreshVersions}
+								>
+									<Icon name="ui:refresh" size={14} />{t(
+										"market.modVersions.check",
+									)}
+								</button>
+								{#if hasUpdate}
+									<button
+										type="button"
+										class="market-detail-btn primary"
+										disabled={versionActionsDisabled}
+										onclick={updateLatest}
+									>
+										<Icon name="ui:download" size={14} />{t(
+											"market.modVersions.updateTo",
+											{
+												version:
+													latestVersion!
+														.versionNumber,
+											},
+										)}
+									</button>
+								{:else if latestVersion?.isInstalled && !detail.loading}
+									<p class="version-hint">
+										{t("market.modVersions.upToDate")}
+									</p>
+								{/if}
+								{#if selectedVersion && !selectedVersion.isInstalled && isVersionCompatible(selectedVersion)}
+									<button
+										type="button"
+										class="market-detail-btn secondary"
+										disabled={versionActionsDisabled}
+										onclick={handleInstall}
+									>
+										{t("market.modVersions.change")}
+									</button>
+								{/if}
+								<p class="version-hint">
+									{t("market.modVersions.replaceHint")}
+								</p>
+							</div>
+						{/if}
 					</div>
+				{/if}
+				{#if ownInstalledMod && !canManageVersions}
+					<p class="version-hint">
+						{t("market.modVersions.unidentified")}
+					</p>
 				{/if}
 
 				<div class="market-detail-actions">
@@ -355,7 +494,8 @@
 								<button
 									type="button"
 									class="market-detail-btn secondary"
-									disabled={localActionsDisabled}
+									disabled={localActionsDisabled ||
+										isPackProtected(project.installed)}
 									onclick={onToggleEnabled}
 								>
 									{project.disabled
@@ -370,7 +510,8 @@
 							<button
 								type="button"
 								class="market-detail-btn danger"
-								disabled={localActionsDisabled}
+								disabled={localActionsDisabled ||
+									isPackProtected(project.installed)}
 								onclick={onUninstall}
 							>
 								{t("market.detail.uninstall")}
@@ -440,6 +581,7 @@
 <MarketDependenciesModal
 	bind:open={modalOpen}
 	projectTitle={project.title}
+	replacing={canManageVersions}
 	tree={depTree}
 	conflicts={depConflicts}
 	{installedProjectIds}
@@ -452,6 +594,18 @@
 />
 
 <style>
+	.version-management {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-top: 10px;
+	}
+	.version-hint {
+		margin: 4px 0;
+		font-size: 0.75rem;
+		line-height: 1.5;
+		color: var(--text-secondary);
+	}
 	.market-detail {
 		position: relative;
 		height: 100%;

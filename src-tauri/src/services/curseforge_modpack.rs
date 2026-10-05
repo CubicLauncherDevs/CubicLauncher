@@ -135,7 +135,13 @@ fn infer_game_version(minecraft: &CurseForgeModpackMinecraft) -> Option<zellkern
         .mod_loaders
         .iter()
         .find(|l| l.primary)
-        .or_else(|| minecraft.mod_loaders.first())?;
+        .or_else(|| minecraft.mod_loaders.first());
+    let Some(loader) = loader else {
+        return Some(zellkern::GameVersion {
+            mc_version: minecraft.version.clone(),
+            loader: zellkern::Loader::Vanilla,
+        });
+    };
 
     let loader_id = loader.id.to_lowercase();
 

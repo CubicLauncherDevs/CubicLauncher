@@ -110,6 +110,68 @@ async fn toggling_reuses_metadata_without_hashing_the_pack_again() {
 }
 
 #[tokio::test]
+async fn inventory_annotation_preserves_enriched_catalog_and_leaves_user_mods_unlocked() {
+    let root = tempfile::tempdir().unwrap();
+    let mods_dir = root.path().join("mods");
+    std::fs::create_dir(&mods_dir).unwrap();
+    fixture(&mods_dir, 2);
+
+    let archive = root.path().join("fixture.mrpack");
+    let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    zip.start_file("modrinth.index.json", options).unwrap();
+    write!(
+        zip,
+        "{}",
+        serde_json::json!({
+            "game": "minecraft", "formatVersion": 1, "versionId": "1",
+            "name": "Catalog fixture", "files": [], "dependencies": {"minecraft": "1.21"}
+        })
+    )
+    .unwrap();
+    zip.start_file("overrides/mods/mod-000.jar", options)
+        .unwrap();
+    zip.write_all(&std::fs::read(mods_dir.join("mod-000.jar")).unwrap())
+        .unwrap();
+    zip.finish().unwrap();
+    crate::services::modpack::record_install(root.path(), &archive, "local", None, None)
+        .await
+        .unwrap();
+
+    let cold = snapshot(&mods_dir, false);
+    enrich_local(mods_dir.clone(), cold.missing).await;
+    let mut warm = snapshot(&mods_dir, false).items;
+    let before: Vec<_> = warm
+        .iter()
+        .map(|item| {
+            (
+                item.name.clone(),
+                item.version.clone(),
+                item.sha1.clone(),
+                item.icon_revision.clone(),
+            )
+        })
+        .collect();
+    crate::services::modpack::annotate_mods(root.path(), "mods", &mut warm)
+        .await
+        .unwrap();
+    for (item, (name, version, sha1, revision)) in warm.iter().zip(before) {
+        assert_eq!(item.name, name);
+        assert_eq!(item.version, version);
+        assert_eq!(item.sha1, sha1);
+        assert_eq!(item.icon_revision, revision);
+        assert!(!item.pack_modified);
+        if item.filename == "mod-000.jar" {
+            assert_eq!(item.pack_name.as_deref(), Some("Catalog fixture"));
+            assert!(item.pack_locked);
+        } else {
+            assert!(item.pack_name.is_none());
+            assert!(!item.pack_locked);
+        }
+    }
+}
+
+#[tokio::test]
 async fn deleted_or_replaced_files_cannot_receive_stale_metadata_or_icons() {
     let dir = tempfile::tempdir().unwrap();
     fixture(dir.path(), 2);

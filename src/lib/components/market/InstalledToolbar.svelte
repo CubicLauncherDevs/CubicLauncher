@@ -10,6 +10,8 @@
 	import type { ContentType } from "$lib/types/market";
 	import { t } from "$lib/i18n";
 	import Icon from "$lib/icons/Icon.svelte";
+	import type { ModOwnership } from "$lib/utils/modpackMods";
+	const ownershipOptions: ModOwnership[] = ["own", "pack", "all"];
 
 	let {
 		market,
@@ -152,6 +154,24 @@
 	</div>
 	<div class="selection-tools">
 		{#if contentType === "mods"}
+			{#if market.hasModpack}
+				<div
+					class="segmented-control"
+					role="group"
+					aria-label={t("modpack.ownership")}
+				>
+					{#each ownershipOptions as ownership (ownership)}
+						<button
+							type="button"
+							disabled={market.localOperationBusy}
+							aria-pressed={market.filters.localOwnership ===
+								ownership}
+							onclick={() => market.setLocalOwnership(ownership)}
+							>{t(`modpack.${ownership}`)}</button
+						>
+					{/each}
+				</div>
+			{/if}
 			<div
 				class="status-filter segmented-control"
 				role="group"

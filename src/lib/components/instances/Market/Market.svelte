@@ -71,7 +71,10 @@
 			market.filters.query.trim() ||
 			(market.filters.source === "local"
 				? market.filters.localSource !== "all" ||
-					market.filters.localStatus !== "all"
+					market.filters.localStatus !== "all" ||
+					(contentType === "mods" &&
+						market.hasModpack &&
+						market.filters.localOwnership !== "all")
 				: market.filters.category !== null)
 		) {
 			return {
@@ -145,6 +148,13 @@
 				subtitle={emptyState.subtitle}
 			/>
 			<div class="empty-actions">
+				{#if market.filters.source === "local" && contentType === "mods" && market.hasModpack && market.filters.localOwnership !== "all"}
+					<button
+						type="button"
+						onclick={() => market.setLocalOwnership("all")}
+						>{t("modpack.showAll")}</button
+					>
+				{/if}
 				{#if market.filters.query}
 					<button type="button" onclick={() => market.setQuery("")}
 						>{t("market.filter.clearSearch")}</button
@@ -201,6 +211,7 @@
 					selectedVersion={market.selectedVersion}
 					isVersionCompatible={market.isVersionCompatible}
 					onVersionSelect={market.setSelectedVersion}
+					onRefreshVersions={() => market.selectProject(project.id)}
 					onPrepareInstall={() => {
 						const version = market.selectedVersion;
 						if (!version) throw new Error("No version selected");

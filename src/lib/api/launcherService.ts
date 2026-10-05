@@ -7,6 +7,10 @@ import {
 export type RefreshLocalCallback = () => void;
 const _refreshCallbacks = new Map<string, Set<RefreshLocalCallback>>();
 
+export function refreshInstanceMods(instanceId: string): void {
+	for (const callback of _refreshCallbacks.get(instanceId) ?? []) callback();
+}
+
 export function registerModsRefreshCallback(
 	instanceId: string,
 	cb: RefreshLocalCallback,
@@ -176,6 +180,7 @@ export function initEventListeners(mode: "main" | "logs" = "main"): void {
 				} else {
 					_debouncedGetVersions();
 				}
+				refreshInstanceMods(payload.data.id);
 				break;
 			}
 			case "InstanceDeleted":

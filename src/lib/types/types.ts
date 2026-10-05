@@ -35,6 +35,10 @@ export enum InstState {
 }
 
 export interface ModDto {
+	version_id?: string | null;
+	pack_name?: string | null;
+	pack_locked?: boolean;
+	pack_modified?: boolean;
 	icon_revision?: string;
 	name: string;
 	filename: string;
@@ -370,6 +374,7 @@ export interface ThemeEntry {
 }
 
 export interface ModrinthFile {
+	hashes?: Record<string, string>;
 	url: string;
 	filename: string;
 	primary: boolean;
@@ -382,6 +387,7 @@ export interface ModrinthDependency {
 }
 
 export interface ModrinthVersion {
+	version_type?: "release" | "beta" | "alpha";
 	id: string;
 	name: string;
 	version_number: string;
@@ -548,6 +554,7 @@ export interface CurseForgeFileDependency {
 }
 
 export interface CurseForgeFile {
+	hashes?: { value: string; algo: number }[];
 	id: number;
 	modId?: number;
 	fileName: string;
@@ -578,6 +585,7 @@ export interface CurseForgeModLoader {
 }
 
 export interface MrpackInfo {
+	author?: string | null;
 	name: string;
 	version_id: string;
 	summary: string | null;

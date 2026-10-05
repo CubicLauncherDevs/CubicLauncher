@@ -31,6 +31,7 @@
 
 	onDestroy(() => {
 		clearTimeout(debounceTimer);
+		pendingInstanceId = null;
 	});
 
 	let { instance } = $props<{ instance: InstanceDto }>();
@@ -65,6 +66,7 @@
 
 	let installedModNames = $state<Set<string>>(new Set());
 	let installedMods = $state<ModDto[]>([]);
+	let modsError = $state("");
 	let dependenciesModalOpen = $state(false);
 	let dependencyPreviewRequest = $state<DependencyRequest | null>(null);
 	let dependencyPreviewTitle = $state<string>("");
@@ -237,6 +239,8 @@
 		loadingVersions = false;
 		versionSelection.clear();
 		installedModNames = new Set();
+		installedMods = [];
+		modsError = "";
 	}
 
 	let pendingInstanceId: string | null = null;
@@ -248,11 +252,17 @@
 		prevInstanceId = id;
 		pendingInstanceId = id;
 		resetState();
-		getInstanceMods(id).then((mods) => {
-			if (pendingInstanceId !== id) return;
-			installedMods = mods;
-			installedModNames = new Set(mods.map((m) => m.name.toLowerCase()));
-		});
+		getInstanceMods(id)
+			.then((mods) => {
+				if (pendingInstanceId !== id) return;
+				installedMods = mods;
+				installedModNames = new Set(
+					mods.map((m) => m.name.toLowerCase()),
+				);
+			})
+			.catch((e) => {
+				if (pendingInstanceId === id) modsError = String(e);
+			});
 		performSearch();
 	});
 
@@ -330,13 +340,16 @@
 	}
 
 	async function startReview() {
+		const id = instance.uuid;
+		modsError = "";
 		reviewing = true;
 		resolvingDeps = true;
 		downloadQueue = [];
 		dependencyResult = null;
 
 		try {
-			const mods = await getInstanceMods(instance.uuid);
+			const mods = await getInstanceMods(id);
+			if (pendingInstanceId !== id) return;
 			installedMods = mods;
 			const installedProjectIds = new Set(
 				mods
@@ -358,6 +371,7 @@
 				instance.loader,
 				gameVersion,
 			);
+			if (pendingInstanceId !== id) return;
 			dependencyResult = result;
 
 			if (result.conflicts.length > 0) {
@@ -375,8 +389,10 @@
 				installedFilenames,
 				queuedFilenames,
 			);
+		} catch (e) {
+			if (pendingInstanceId === id) modsError = String(e);
 		} finally {
-			resolvingDeps = false;
+			if (pendingInstanceId === id) resolvingDeps = false;
 		}
 	}
 
@@ -535,6 +551,8 @@
 		}
 	});
 </script>
+
+{#if modsError}<p role="alert">{modsError}</p>{/if}
 
 <div class="dm-root">
 	{#if reviewing}

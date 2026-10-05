@@ -12,6 +12,10 @@ pub(crate) mod java_manager;
 pub(crate) mod launch_window;
 pub(crate) mod launcher;
 pub(crate) mod minecraft_jar;
+pub mod mod_versions;
+pub mod modpack;
+pub mod modpack_update;
+pub mod mrpack_export;
 pub(crate) mod notification_preferences;
 pub mod server_manager;
 #[cfg(test)]

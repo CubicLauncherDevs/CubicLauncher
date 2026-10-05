@@ -10,6 +10,7 @@
 
 use crate::services::InstOverrides;
 use crate::services::instance_manager::InstanceHandle;
+use crate::services::modpack::{self, PackState};
 use serde::Serialize;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -47,6 +48,7 @@ pub struct ExportInput {
     pub max_memory: u32,
     pub overrides: Option<InstOverrides>,
     pub minecraft_jar: super::minecraft_jar::MinecraftJarConfig,
+    pub modpack: Option<PackState>,
     pub icon_src: Option<PathBuf>,
 }
 
@@ -55,6 +57,7 @@ pub async fn prepare_export(handle: &InstanceHandle) -> Result<ExportInput, Stri
     let name = handle.get_name().await.to_string();
     let version_id = handle.get_version().await.to_string();
     let instance_dir = handle.get_instance_dir().await;
+    let modpack = modpack::read_state(&instance_dir).await?;
     let min_memory = handle.get_min_memory().await;
     let max_memory = handle.get_max_memory().await;
     let overrides = handle.get_overrides().await;
@@ -84,6 +87,7 @@ pub async fn prepare_export(handle: &InstanceHandle) -> Result<ExportInput, Stri
         max_memory,
         overrides,
         minecraft_jar: handle.get_minecraft_jar().await,
+        modpack,
         icon_src,
     })
 }
@@ -91,6 +95,14 @@ pub async fn prepare_export(handle: &InstanceHandle) -> Result<ExportInput, Stri
 /// Genera el ZIP en la ruta indicada.
 pub fn export_to_zip(input: &ExportInput, dest: &Path) -> Result<PathBuf, String> {
     input.minecraft_jar.validate()?;
+    if let Some(state) = &input.modpack {
+        if state.schema_version != 1 {
+            return Err("Versión de registro de modpack no compatible".into());
+        }
+        for relative in state.files.keys() {
+            modpack::valid_path(relative)?;
+        }
+    }
     info!(
         "Exportando instancia '{}' a '{}'",
         input.name,
@@ -138,8 +150,33 @@ pub fn export_to_zip(input: &ExportInput, dest: &Path) -> Result<PathBuf, String
             continue;
         }
         let zip_path = PathBuf::from(".minecraft").join(entry);
-        add_path_to_zip(&mut zip, &src, &zip_path, options)
+        add_path_to_zip(&mut zip, &src, &zip_path, options, true)
             .map_err(|e| format!("Error comprimiendo {:?}: {e}", src))?;
+    }
+
+    if let Some(state) = &input.modpack {
+        for relative in state.files.keys() {
+            // Las carpetas habituales ya se incluyen completas, sin duplicar entradas.
+            if GAME_DATA_ENTRIES
+                .iter()
+                .any(|entry| Path::new(relative).starts_with(entry))
+            {
+                continue;
+            }
+            let source = modpack::checked_path(&input.instance_dir, relative)?;
+            // Un archivo eliminado localmente conserva su procedencia, no se recrea.
+            if !source.is_file() {
+                continue;
+            }
+            add_path_to_zip(
+                &mut zip,
+                &source,
+                &PathBuf::from(".minecraft").join(relative),
+                options,
+                true,
+            )
+            .map_err(|e| format!("Error comprimiendo {:?}: {e}", source))?;
+        }
     }
 
     for file in input.minecraft_jar.files() {
@@ -154,6 +191,7 @@ pub fn export_to_zip(input: &ExportInput, dest: &Path) -> Result<PathBuf, String
             &source,
             &PathBuf::from(".minecraft").join(relative),
             options,
+            false,
         )
         .map_err(|e| e.to_string())?;
     }
@@ -183,8 +221,24 @@ fn add_path_to_zip(
     src: &Path,
     zip_path: &Path,
     options: zip::write::SimpleFileOptions,
+    game_data: bool,
 ) -> Result<(), std::io::Error> {
-    if src.is_dir() {
+    let metadata = std::fs::symlink_metadata(src)?;
+    if metadata.file_type().is_symlink() || !(metadata.is_dir() || metadata.is_file()) {
+        return Ok(());
+    }
+    if game_data {
+        let relative = zip_path.strip_prefix(".minecraft").expect("ruta de juego");
+        let relative = relative
+            .components()
+            .map(|part| part.as_os_str().to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/");
+        if modpack::valid_path(&relative).is_err() {
+            return Ok(());
+        }
+    }
+    if metadata.is_dir() {
         zip.add_directory(zip_path.to_string_lossy(), options)?;
         for entry in std::fs::read_dir(src)? {
             let entry = entry?;
@@ -193,6 +247,7 @@ fn add_path_to_zip(
                 &entry.path(),
                 &zip_path.join(entry.file_name()),
                 options,
+                game_data,
             )?;
         }
     } else {
@@ -275,6 +330,7 @@ struct CubicManifest {
     max_memory: u32,
     overrides: Option<InstOverrides>,
     minecraft_jar: super::minecraft_jar::MinecraftJarConfig,
+    modpack: Option<PackState>,
 }
 
 fn build_cubic_manifest(input: &ExportInput) -> String {
@@ -291,6 +347,7 @@ fn build_cubic_manifest(input: &ExportInput) -> String {
         max_memory: input.max_memory,
         overrides: input.overrides.clone(),
         minecraft_jar: input.minecraft_jar.clone(),
+        modpack: input.modpack.clone(),
     };
 
     serde_json::to_string_pretty(&manifest).expect("manifest serializable")

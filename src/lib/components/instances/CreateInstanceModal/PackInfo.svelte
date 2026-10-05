@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { MrpackInfo } from "$lib/types/types";
+	import { t } from "$lib/i18n";
 
 	let {
 		packInfo,
@@ -46,6 +47,12 @@
 				<span class="info-label">Versión</span>
 				<span class="info-value">{getPackVersion(packInfo)}</span>
 			</div>
+			{#if packInfo.author}
+				<div class="info-row">
+					<span class="info-label">{t("mrpackExport.author")}</span>
+					<span class="info-value">{packInfo.author}</span>
+				</div>
+			{/if}
 			{#if getPackSummary(packInfo)}
 				<div class="info-row">
 					<span class="info-label">Descripción</span>
@@ -137,6 +144,8 @@
 	}
 
 	.info-value {
+		min-width: 0;
+		overflow-wrap: anywhere;
 		font-size: 0.85rem;
 		color: var(--text-primary);
 	}

@@ -3,11 +3,13 @@ import type { ModUpdateInfo, ModFileSource } from "$lib/types/types";
 
 export interface ModUpdateState {
 	checking: boolean;
+	error: string | null;
 	updates: ModUpdateInfo[];
 }
 
 const state = $state<ModUpdateState>({
 	checking: false,
+	error: null,
 	updates: [],
 });
 
@@ -15,6 +17,7 @@ export function useModUpdates() {
 	async function checkUpdates(instanceId: string): Promise<ModUpdateInfo[]> {
 		state.checking = true;
 		state.updates = [];
+		state.error = null;
 		try {
 			const mods = await getInstanceMods(instanceId);
 			if (!mods || mods.length === 0) return [];
@@ -68,6 +71,9 @@ export function useModUpdates() {
 
 			state.updates = updates;
 			return updates;
+		} catch (error) {
+			state.error = String(error);
+			return [];
 		} finally {
 			state.checking = false;
 		}

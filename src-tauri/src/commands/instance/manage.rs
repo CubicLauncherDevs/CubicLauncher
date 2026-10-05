@@ -233,6 +233,15 @@ pub async fn delete_instance_file(
     let sub_path = sanitize_sub_path(&instance_dir, Path::new(&sub_dir))?;
     validate_filename(&filename)?;
     let file_path = sub_path.join(&filename);
+    crate::services::modpack::ensure_paths_mutable(
+        &instance_dir,
+        &[file_path
+            .strip_prefix(&instance_dir)
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .replace('\\', "/")],
+    )
+    .await?;
     info!("Eliminando archivo {:?} de instancia {}", file_path, id);
     if file_path.exists() {
         tokio::fs::remove_file(&file_path).await.map_err(|e| {
@@ -287,6 +296,22 @@ pub async fn add_instance_file(
         "Agregando archivo '{}' a instancia {} en sub_dir '{}'",
         source_path, id, sub_dir
     );
+    let src = PathBuf::from(&source_path);
+    let filename = src
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| InstanceError::InvalidSourcePath.to_string())?;
+    validate_filename(filename)?;
+    let dest_path = dest_dir.join(filename);
+    crate::services::modpack::ensure_paths_mutable(
+        &instance_dir,
+        &[dest_path
+            .strip_prefix(&instance_dir)
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .replace('\\', "/")],
+    )
+    .await?;
     if !dest_dir.exists() {
         tokio::fs::create_dir_all(&dest_dir).await.map_err(|e| {
             FsError::CreateDir {
@@ -296,12 +321,6 @@ pub async fn add_instance_file(
             .to_string()
         })?;
     }
-
-    let src = PathBuf::from(&source_path);
-    let filename = src
-        .file_name()
-        .ok_or_else(|| InstanceError::InvalidSourcePath.to_string())?;
-    let dest_path = dest_dir.join(filename);
 
     copy_instance_file(&src, &dest_path, overwrite.unwrap_or(true))
         .await

@@ -126,6 +126,9 @@ fn snapshot(dir: &Path, include_icons: bool) -> Snapshot {
             .map(|entry| &entry.source)
             .unwrap_or(&ModSource::Local);
         result.items.push(ModDto {
+            pack_name: None,
+            pack_locked: false,
+            pack_modified: false,
             icon_revision: Some(file.fingerprint.to_string()),
             name: meta
                 .map(|meta| meta.name.clone())
@@ -144,6 +147,7 @@ fn snapshot(dir: &Path, include_icons: bool) -> Snapshot {
             file_size: file.size,
             source: source.source_str().to_string(),
             project_id: source.project_id().map(str::to_string),
+            version_id: source.version_id().map(str::to_owned),
             slug: source.slug().map(str::to_string),
         });
         if exact.is_none() {

@@ -521,12 +521,7 @@ export async function getInstanceMods(
 	id: string,
 	includeIcons = true,
 ): Promise<ModDto[]> {
-	return (
-		(await invokeWithFallback<ModDto[]>("get_instance_mods", {
-			id,
-			includeIcons,
-		})) ?? []
-	);
+	return invoke<ModDto[]>("get_instance_mods", { id, includeIcons });
 }
 
 export interface ModIconRequest {
@@ -598,6 +593,7 @@ export async function addInstanceFile(
 }
 
 export interface ModDownloadInfo {
+	source?: "modrinth" | "curseforge";
 	url: string;
 	filename: string;
 	projectTitle?: string;

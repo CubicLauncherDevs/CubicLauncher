@@ -11,6 +11,7 @@ pub struct MrpackInfo {
     pub name: String,
     pub version_id: String,
     pub summary: Option<String>,
+    pub author: Option<String>,
     pub minecraft_version: Option<String>,
     pub loader: Option<String>,
     pub loader_version: Option<String>,
@@ -39,12 +40,15 @@ pub async fn parse_mrpack(path: String) -> Result<MrpackInfo, String> {
     let metadata = cubrinth::mrpack::parse_mrpack(std::path::Path::new(&path))
         .map_err(|e| format!("Failed to parse mrpack: {}", e))?;
 
+    crate::services::modpack::validate_archive_paths(std::path::Path::new(&path)).await?;
+
     let version_id_for_instance = metadata.game_version.as_ref().map(|gv| gv.to_version_id());
 
     Ok(MrpackInfo {
         name: metadata.name,
         version_id: metadata.version_id,
         summary: metadata.summary,
+        author: metadata.author,
         minecraft_version: metadata
             .game_version
             .as_ref()
@@ -99,6 +103,8 @@ async fn install_mrpack_inner(
 
     let metadata = cubrinth::mrpack::parse_mrpack(std::path::Path::new(&path))
         .map_err(|e| format!("Failed to parse mrpack: {}", e))?;
+
+    crate::services::modpack::validate_archive_paths(std::path::Path::new(&path)).await?;
 
     let game_version = metadata
         .game_version
@@ -212,6 +218,24 @@ async fn install_mrpack_inner(
         None
     };
 
+    let source = if project_id.is_some() && modrinth_version_id.is_some() {
+        "modrinth"
+    } else {
+        "local"
+    };
+    if let Err(e) = crate::services::modpack::record_install(
+        &instance_dir,
+        std::path::Path::new(&path),
+        source,
+        project_id,
+        modrinth_version_id,
+    )
+    .await
+    {
+        DownloadQueue::get().finish_work(&download_label).await;
+        return Err(format!("Failed to record mrpack inventory: {}", e));
+    }
+
     match &game_version.loader {
         zellkern::Loader::Fabric(_)
         | zellkern::Loader::OptiFine(_)
@@ -236,6 +260,7 @@ async fn install_mrpack_inner(
         name: metadata.name,
         version_id: metadata.version_id,
         summary: metadata.summary,
+        author: metadata.author,
         minecraft_version: Some(game_version.mc_version),
         loader: if game_version.loader.is_vanilla() {
             None
@@ -294,6 +319,8 @@ pub async fn parse_curseforge_modpack(path: String) -> Result<CurseForgeModpackI
     let metadata =
         crate::services::curseforge_modpack::parse_curseforge_modpack(std::path::Path::new(&path))
             .map_err(|e| format!("Failed to parse CurseForge modpack: {}", e))?;
+
+    crate::services::modpack::validate_archive_paths(std::path::Path::new(&path)).await?;
 
     let version_id_for_instance = metadata.game_version.as_ref().map(|gv| gv.to_version_id());
 
@@ -356,6 +383,8 @@ async fn install_curseforge_modpack_inner(
     let metadata =
         crate::services::curseforge_modpack::parse_curseforge_modpack(std::path::Path::new(&path))
             .map_err(|e| format!("Failed to parse CurseForge modpack: {}", e))?;
+
+    crate::services::modpack::validate_archive_paths(std::path::Path::new(&path)).await?;
 
     let game_version = metadata
         .game_version
@@ -474,6 +503,27 @@ async fn install_curseforge_modpack_inner(
     } else {
         None
     };
+
+    let source = if project_id.is_some() && file_id.is_some() {
+        "curseforge"
+    } else {
+        "local"
+    };
+    if let Err(e) = crate::services::modpack::record_install(
+        &instance_dir,
+        std::path::Path::new(&path),
+        source,
+        project_id.map(|id| id.to_string()),
+        file_id.map(|id| id.to_string()),
+    )
+    .await
+    {
+        DownloadQueue::get().finish_work(&download_label).await;
+        return Err(format!(
+            "Failed to record CurseForge modpack inventory: {}",
+            e
+        ));
+    }
 
     match &game_version.loader {
         zellkern::Loader::Fabric(_)

@@ -23,10 +23,11 @@
 	import { getIconPath } from "$lib/icons/registry";
 	import IconPicker from "./IconPicker.svelte";
 	import VersionSelectorStep from "./VersionSelectorStep.svelte";
-	import StepIndicator from "./StepIndicator.svelte";
 	import ModrinthModpackBrowser from "./ModrinthModpackBrowser.svelte";
 	import CurseForgeModpackBrowser from "./CurseForgeModpackBrowser.svelte";
-	import LocalImportStep from "./LocalImportStep.svelte";
+	import ModpackImportStep from "./ModpackImportStep.svelte";
+	import InstanceImportStep from "./InstanceImportStep.svelte";
+	import LauncherMigrationStep from "./LauncherMigrationStep.svelte";
 	import {
 		MAX_INSTANCE_NAME_LEN,
 		isValidInstanceName,
@@ -50,18 +51,15 @@
 
 	type Tab = "manual" | "modrinth" | "curseforge" | "local";
 	let tab = $state<Tab>("manual");
-	let manualStep = $state(0);
+	type CreationMode = "choose" | "manual" | "pack" | "instance" | "migration";
+	let mode = $state<CreationMode>("choose");
+	let versionLoading = $state(false);
 	const reducedMotion = new MediaQuery("(prefers-reduced-motion: reduce)");
 	const contentDuration = $derived(
 		reducedMotion.current ? 0 : animDuration(180),
 	);
 
-	const TABS: { id: Tab; label: string; iconName: string }[] = [
-		{
-			id: "manual",
-			label: t("createInstance.manualTab"),
-			iconName: "nav:create",
-		},
+	const TABS = $derived<{ id: Tab; label: string; iconName: string }[]>([
 		{
 			id: "modrinth",
 			label: "Modrinth",
@@ -77,7 +75,7 @@
 			label: t("createInstance.localTab"),
 			iconName: "instance:folder",
 		},
-	];
+	]);
 
 	// ── Instance fields ─────────────────────────────────────────────────────────
 	let name = $state("");
@@ -147,8 +145,10 @@
 			nameMsg = null;
 			if (mrpackPath || instanceZipPath) {
 				tab = "local";
+				mode = instanceZipPath ? "instance" : "pack";
 			} else {
 				tab = "manual";
+				mode = "choose";
 			}
 		}
 	});
@@ -182,18 +182,13 @@
 		}
 	}
 
-	// ── Step navigation ─────────────────────────────────────────────────────────
-	function handleNext() {
-		if (!validateName()) return;
-		manualStep = 1;
-	}
-
 	function handleIconUpload(filePath: string) {
 		customIconPath = filePath;
 		selectedIcon = filePath;
 	}
 
 	async function handleManualCreate() {
+		if (loading || versionLoading) return;
 		if (!validateName()) return;
 		if (!finalVersionId) {
 			error = t("createInstance.noVersionsErr");
@@ -202,24 +197,24 @@
 		loading = true;
 		error = null;
 		try {
-			await createInstance(
-				name,
-				finalVersionId,
-				customIconPath ? null : selectedIcon,
-				async (uuid: string) => {
-					if (customIconPath) {
-						await uploadCustomIcon(uuid, customIconPath);
-					}
-					await enqueueSelectedVersion();
-					open = false;
-					resetState();
-					oncreated?.();
-				},
-				(err: unknown) => {
-					error = t("createInstance.createErr");
-					console.error(err);
-				},
-			);
+			// createInstance does not await async callbacks. Keep setup in this
+			// operation so the modal stays busy and setup errors remain visible.
+			const uuid = await new Promise<string>((resolve, reject) => {
+				void createInstance(
+					name,
+					finalVersionId,
+					customIconPath ? null : selectedIcon,
+					resolve,
+					reject,
+				).catch(reject);
+			});
+			if (customIconPath) await uploadCustomIcon(uuid, customIconPath);
+			await enqueueSelectedVersion();
+			open = false;
+			resetState();
+			oncreated?.();
+		} catch (err) {
+			error = `${t("createInstance.createErr")}: ${String(err)}`;
 		} finally {
 			loading = false;
 		}
@@ -259,7 +254,7 @@
 		mrpackPath = null;
 		instanceZipPath = null;
 		tab = "manual";
-		manualStep = 0;
+		mode = "choose";
 	}
 
 	function reset() {
@@ -281,158 +276,404 @@
 	});
 </script>
 
+{#snippet manualFooter()}
+	<div class="footer-actions">
+		<button
+			type="button"
+			class="btn-secondary"
+			onclick={reset}
+			disabled={loading}
+		>
+			{t("createInstance.cancel")}
+		</button>
+		<button
+			type="button"
+			class="btn-primary"
+			onclick={handleManualCreate}
+			disabled={loading ||
+				versionLoading ||
+				!name.trim() ||
+				!finalVersionId}
+		>
+			<Icon name={loading ? "ui:spinner" : "nav:create"} size={16} />
+			{loading
+				? t("createInstance.creatingBtn")
+				: t("createInstance.createBtn")}
+		</button>
+	</div>
+{/snippet}
+
 <ModalBase
 	bind:open
-	animateResize
+	animateResize={mode !== "manual"}
+	scrollBody={mode === "manual"}
 	title={t("createInstance.title")}
-	width={tab === "modrinth" ? "800px" : "700px"}
+	width={mode === "pack" ? "800px" : "700px"}
+	closeDisabled={loading}
 	onclose={reset}
+	footer={mode === "manual" ? manualFooter : undefined}
 >
+	{#snippet headerActions()}
+		{#if mode !== "choose"}
+			<button
+				type="button"
+				class="change-method"
+				disabled={loading}
+				onclick={() => {
+					mode = "choose";
+					error = null;
+				}}
+			>
+				<Icon name="ui:chevron-left" size={14} />
+				{t("modpack.changeMethod")}
+			</button>
+		{/if}
+	{/snippet}
+
 	{#if error}
 		<div class="step-error">{error}</div>
 	{/if}
 
-	<div class="tab-bar" role="tablist">
-		{#each TABS as tabItem (tabItem.id)}
+	{#if mode === "choose"}
+		<div class="creation-choices">
 			<button
 				type="button"
-				class="tab-btn"
-				role="tab"
-				aria-selected={tab === tabItem.id}
-				class:active={tab === tabItem.id}
-				onclick={() => (tab = tabItem.id)}
+				class="choice"
+				onclick={() => {
+					mode = "manual";
+					tab = "manual";
+				}}
 			>
-				<Icon name={tabItem.iconName} size={18} />
-				<span>{tabItem.label}</span>
+				<span class="choice-heading">
+					<span class="choice-icon"
+						><Icon name="nav:create" size={24} /></span
+					>
+					<span class="choice-arrow"
+						><Icon name="ui:chevron-right" size={18} /></span
+					>
+				</span>
+				<span class="choice-copy">
+					<strong>{t("modpack.fromScratch")}</strong>
+					<span class="choice-description"
+						>{t("modpack.fromScratchHint")}</span
+					>
+				</span>
 			</button>
-		{/each}
-	</div>
+			<button
+				type="button"
+				class="choice"
+				onclick={() => {
+					mode = "pack";
+					tab = "modrinth";
+				}}
+			>
+				<span class="choice-heading">
+					<span class="choice-icon"
+						><Icon name="instance:puzzle" size={24} /></span
+					>
+					<span class="choice-arrow"
+						><Icon name="ui:chevron-right" size={18} /></span
+					>
+				</span>
+				<span class="choice-copy">
+					<strong>{t("modpack.basedOnPack")}</strong>
+					<span class="choice-description"
+						>{t("modpack.basedOnPackHint")}</span
+					>
+				</span>
+			</button>
+		</div>
+		<div class="secondary-imports">
+			<button
+				type="button"
+				class="import-choice"
+				onclick={() => (mode = "instance")}
+			>
+				<span class="import-icon"
+					><Icon name="instance:folder" size={20} /></span
+				>
+				<span class="choice-copy">
+					<strong>{t("createInstance.importInstanceTab")}</strong>
+					<span class="choice-description"
+						>{t("modpack.importInstanceHint")}</span
+					>
+				</span>
+				<span class="choice-arrow"
+					><Icon name="ui:chevron-right" size={16} /></span
+				>
+			</button>
+			<button
+				type="button"
+				class="import-choice"
+				onclick={() => (mode = "migration")}
+			>
+				<span class="import-icon"
+					><Icon name="ui:copy" size={20} /></span
+				>
+				<span class="choice-copy">
+					<strong>{t("migration.title")}</strong>
+					<span class="choice-description"
+						>{t("modpack.migrateInstanceHint")}</span
+					>
+				</span>
+				<span class="choice-arrow"
+					><Icon name="ui:chevron-right" size={16} /></span
+				>
+			</button>
+		</div>
+	{:else}
+		{#if mode === "pack"}
+			<div class="tab-bar" role="tablist">
+				{#each TABS as tabItem (tabItem.id)}
+					<button
+						type="button"
+						class="tab-btn"
+						role="tab"
+						aria-selected={tab === tabItem.id}
+						class:active={tab === tabItem.id}
+						disabled={loading}
+						onclick={() => (tab = tabItem.id)}
+					>
+						<Icon name={tabItem.iconName} size={18} />
+						<span>{tabItem.label}</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
 
-	{#key tab === "manual" ? `${tab}:${manualStep}` : tab}
-		<div class="step-content" in:fade={{ duration: contentDuration }}>
-			{#if tab === "modrinth"}
-				<ModrinthModpackBrowser
-					onInstallStarted={handleModpackInstallStarted}
-					onInstallFailed={oninstallfailed}
-				/>
-			{:else if tab === "curseforge"}
-				<CurseForgeModpackBrowser
-					onInstallStarted={handleModpackInstallStarted}
-					onInstallFailed={oninstallfailed}
-				/>
-			{:else if tab === "local"}
-				<LocalImportStep
-					bind:name
-					onImported={reset}
-					initialMrpackPath={mrpackPath}
-					initialInstanceZipPath={instanceZipPath}
-				/>
-			{:else}
-				<div class="create-layout">
-					<StepIndicator
-						currentStep={manualStep}
-						totalSteps={2}
-						labels={[
-							t("createInstance.stepInfo"),
-							t("createInstance.stepVersion"),
-						]}
+		{#key `${mode}:${tab}`}
+			<div
+				class="step-content"
+				class:manual-content={mode === "manual"}
+				in:fade={{ duration: contentDuration }}
+			>
+				{#if mode === "instance"}
+					<InstanceImportStep
+						onImported={reset}
+						initialPath={instanceZipPath}
 					/>
-
-					{#if manualStep === 0}
-						<div class="create-header">
+				{:else if mode === "migration"}
+					<LauncherMigrationStep onImported={reset} />
+				{:else if tab === "modrinth"}
+					<ModrinthModpackBrowser
+						onInstallStarted={handleModpackInstallStarted}
+						onInstallFailed={oninstallfailed}
+					/>
+				{:else if tab === "curseforge"}
+					<CurseForgeModpackBrowser
+						onInstallStarted={handleModpackInstallStarted}
+						onInstallFailed={oninstallfailed}
+					/>
+				{:else if tab === "local"}
+					<ModpackImportStep
+						bind:loading
+						bind:name
+						onImported={reset}
+						initialPath={mrpackPath}
+					/>
+				{:else}
+					<div class="create-layout" inert={loading}>
+						<div class="identity-row">
 							<IconPicker
 								bind:selectedIcon
 								disabled={loading}
 								onupload={handleIconUpload}
+								onselect={() => (customIconPath = null)}
 							/>
-							<div class="fields-column">
-								<div class="input-group">
-									<span class="input-label">
-										{t("createInstance.nameLabel")}
-									</span>
-									<input
-										type="text"
-										class="text-input"
-										class:error={nameMsg}
-										maxlength={MAX_INSTANCE_NAME_LEN}
-										bind:value={name}
-										disabled={loading}
-										oninput={() => (nameMsg = null)}
-										onkeydown={(e) =>
-											e.key === "Enter" && handleNext()}
-									/>
-									{#if nameMsg}
-										<span class="input-error"
-											>{t(nameMsg)}</span
-										>
-									{/if}
-								</div>
+							<div class="input-group">
+								<label class="input-label" for="instance-name">
+									{t("createInstance.nameLabel")}
+								</label>
+								<input
+									id="instance-name"
+									type="text"
+									class="text-input"
+									class:error={nameMsg}
+									maxlength={MAX_INSTANCE_NAME_LEN}
+									placeholder={t(
+										"createInstance.customNamePlaceholder",
+									)}
+									bind:value={name}
+									disabled={loading}
+									oninput={() => (nameMsg = null)}
+									onkeydown={(e) =>
+										e.key === "Enter" &&
+										handleManualCreate()}
+								/>
+								{#if nameMsg}
+									<span class="input-error">{t(nameMsg)}</span
+									>
+								{/if}
 							</div>
 						</div>
-					{:else}
 						<VersionSelectorStep
+							includeAvailable
+							bind:loading={versionLoading}
 							bind:selectedLoader
 							bind:selectedMcVersion
 							bind:selectedLoaderVersion
 						/>
-					{/if}
-				</div>
-			{/if}
-		</div>
-	{/key}
-
-	{#snippet footer()}
-		<div class="footer-actions">
-			<div class="footer-left">
-				{#if tab === "manual" && manualStep === 1}
-					<button
-						type="button"
-						class="btn-secondary"
-						onclick={() => (manualStep = 0)}
-						disabled={loading}
-					>
-						{t("createInstance.backBtn")}
-					</button>
+					</div>
 				{/if}
 			</div>
-			<div class="footer-right">
-				{#if tab === "manual" && manualStep === 0}
-					<button
-						type="button"
-						class="btn-secondary"
-						onclick={reset}
-						disabled={loading}
-					>
-						{t("createInstance.cancel")}
-					</button>
-					<button
-						type="button"
-						class="btn-primary"
-						onclick={handleNext}
-						disabled={loading || !name.trim()}
-					>
-						{t("createInstance.nextBtn")}
-					</button>
-				{:else if tab === "manual" && manualStep === 1}
-					<button
-						type="button"
-						class="btn-primary"
-						onclick={handleManualCreate}
-						disabled={loading || !finalVersionId}
-					>
-						{loading
-							? t("createInstance.creatingBtn")
-							: t("createInstance.createBtn")}
-					</button>
-				{:else if tab === "local"}
-					<!-- LocalImportStep gestiona su propio contenido -->
-				{/if}
-			</div>
-		</div>
-	{/snippet}
+		{/key}
+	{/if}
 </ModalBase>
 
 <style>
+	.change-method {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 6px 8px;
+		border: 1px solid transparent;
+		border-radius: var(--border-radius-sm);
+		background: transparent;
+		color: var(--text-secondary);
+		font: inherit;
+		font-size: 0.75rem;
+		cursor: pointer;
+	}
+	.change-method:hover:not(:disabled),
+	.change-method:focus-visible {
+		background: var(--bg-item-active);
+		color: var(--text-primary);
+		border-color: var(--border);
+	}
+	.creation-choices {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 16px;
+	}
+	.choice {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		text-align: left;
+		padding: 20px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-lg, 8px);
+		background: var(--bg-card);
+		color: var(--text-primary);
+		cursor: pointer;
+		font: inherit;
+		min-width: 0;
+		transition:
+			border-color 0.15s,
+			background-color 0.15s;
+	}
+	.choice:hover,
+	.choice:focus-visible,
+	.import-choice:hover,
+	.import-choice:focus-visible {
+		border-color: var(--accent);
+		background-color: var(--bg-item-active);
+	}
+	.choice:focus-visible,
+	.import-choice:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+	.choice-heading {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.choice-icon {
+		display: grid;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		border: 1px solid rgba(var(--accent-rgb), 0.15);
+		border-radius: var(--border-radius-lg, 8px);
+		background: rgba(var(--accent-rgb), 0.07);
+		color: var(--accent);
+	}
+	.choice-arrow {
+		display: flex;
+		flex-shrink: 0;
+		color: var(--text-muted);
+	}
+	.choice-copy {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.choice-copy strong {
+		font-size: 0.9rem;
+		font-weight: 600;
+	}
+	.choice-description {
+		color: var(--text-secondary);
+		font-size: 0.78rem;
+		line-height: 1.5;
+	}
+	.secondary-imports {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 10px;
+		padding-top: 16px;
+		border-top: 1px solid var(--border);
+	}
+	.import-choice {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 12px;
+		min-width: 0;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-lg, 8px);
+		background: transparent;
+		color: var(--text-primary);
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+		transition:
+			border-color 0.15s,
+			background-color 0.15s;
+	}
+	.import-icon {
+		display: grid;
+		place-items: center;
+		flex-shrink: 0;
+		width: 32px;
+		height: 32px;
+		color: var(--text-secondary);
+	}
+	.import-choice .choice-copy {
+		flex: 1;
+		gap: 3px;
+	}
+	.import-choice strong {
+		font-size: 0.78rem;
+	}
+	.import-choice .choice-description {
+		font-size: 0.7rem;
+	}
+	@media (max-width: 500px) {
+		.creation-choices,
+		.secondary-imports {
+			grid-template-columns: 1fr;
+		}
+		.choice {
+			flex-direction: row;
+			align-items: center;
+			gap: 12px;
+			padding: 14px;
+		}
+		.choice-heading .choice-arrow {
+			display: none;
+		}
+		.choice-icon {
+			width: 36px;
+			height: 36px;
+		}
+		.choice-copy {
+			gap: 4px;
+		}
+	}
 	.step-error {
 		color: var(--color-error);
 		font-size: 0.8rem;
@@ -446,18 +687,21 @@
 
 	.tab-bar {
 		display: flex;
-		gap: 6px;
-		margin-bottom: 8px;
-		border-bottom: 1px solid var(--border);
-		padding-bottom: 8px;
+		gap: 4px;
+		padding: 4px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-lg, 8px);
+		background: var(--bg-input);
 	}
 
 	.tab-btn {
+		flex: 1;
+		min-width: 0;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		gap: 6px;
-		padding: 7px 14px;
+		padding: 8px;
 		border: 1px solid transparent;
 		border-radius: var(--border-radius-sm);
 		background: transparent;
@@ -492,26 +736,30 @@
 	.create-layout {
 		display: flex;
 		flex-direction: column;
-		gap: 24px;
-		height: 100%;
+		gap: 20px;
 	}
 
-	.create-header {
-		display: flex;
-		gap: 24px;
-		align-items: flex-start;
+	.manual-content {
+		min-height: 0;
 	}
 
-	.fields-column {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		gap: 14px;
-		padding-top: 24px;
+	.identity-row {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		align-items: center;
+		gap: 16px;
 	}
 
 	.input-group {
-		margin-top: 4px;
+		min-width: 0;
+	}
+
+	.input-group .text-input {
+		box-sizing: border-box;
+		width: 100%;
+		min-width: 0;
+		min-height: 36px;
+		padding: 8px 12px;
 	}
 
 	.input-group :global(.text-input.error) {
@@ -539,12 +787,15 @@
 	.footer-actions {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		justify-content: flex-end;
 		width: 100%;
+		gap: 10px;
 	}
 
-	.footer-right {
-		display: flex;
-		gap: 10px;
+	.footer-actions button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
 	}
 </style>

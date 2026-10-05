@@ -120,6 +120,14 @@ impl ModSource {
         }
     }
 
+    pub fn version_id(&self) -> Option<&str> {
+        match self {
+            ModSource::Local => None,
+            ModSource::Modrinth { version_id, .. } => Some(version_id),
+            ModSource::CurseForge { file_id, .. } => Some(file_id),
+        }
+    }
+
     pub fn slug(&self) -> Option<&str> {
         match self {
             ModSource::Modrinth { slug, .. } => slug.as_deref(),

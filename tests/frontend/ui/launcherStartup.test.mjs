@@ -77,7 +77,7 @@ export const invoke=(...args)=>hooks.invoke(...args);
 								path === "startup-stub"
 									? stub
 									: `
-export {initEventListeners,destroyEventListeners,getVersions,deleteInst} from ${JSON.stringify(service)};
+export {initEventListeners,destroyEventListeners,getVersions,deleteInst,registerModsRefreshCallback} from ${JSON.stringify(service)};
 export {loadInstalledVersions,versionsState} from '$lib/state/versionsState.svelte';
 export * from 'startup-stub';`,
 						}),
@@ -110,6 +110,30 @@ export * from 'startup-stub';`,
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
+
+test("InstanceEdited refreshes only subscribers of that instance and honors unsubscribe", async () => {
+	const f = await fixture();
+	const refreshed = [];
+	const stopA = f.registerModsRefreshCallback("A", () => refreshed.push("A"));
+	const stopB = f.registerModsRefreshCallback("B", () => refreshed.push("B"));
+	f.initEventListeners();
+	try {
+		const event = (id) => ({
+			type: "InstanceEdited",
+			data: { id, dto: { uuid: id, name: id } },
+		});
+		f.emit(event("A"));
+		expect(refreshed).toEqual(["A"]);
+		stopA();
+		f.emit(event("A"));
+		f.emit(event("B"));
+		expect(refreshed).toEqual(["A", "B"]);
+	} finally {
+		stopA();
+		stopB();
+		f.destroyEventListeners();
+	}
+});
 
 test("a snapshot collected before deletion cannot resurrect the instance", async () => {
 	const f = await fixture();

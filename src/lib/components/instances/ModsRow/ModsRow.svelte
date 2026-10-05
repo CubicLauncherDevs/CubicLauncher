@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onDestroy } from "svelte";
+	import { isPackProtected } from "$lib/utils/modpackMods";
 	import {
 		getInstanceMods,
 		toggleInstanceMod,
@@ -16,8 +18,14 @@
 	let mods = $state<ModDto[]>([]);
 	let selected = new SvelteSet<string>();
 	let searchQuery = $state("");
-	let prevInstanceId = $state<string>("");
 	let loading = $state(true);
+	let error = $state("");
+	let generation = 0;
+	let disposed = false;
+	onDestroy(() => {
+		disposed = true;
+		generation++;
+	});
 	let bulkDeleteModal = $state(false);
 
 	const normalizedSearchQuery = $derived(searchQuery.trim().toLowerCase());
@@ -39,20 +47,33 @@
 	});
 
 	$effect(() => {
-		if (instanceId && instanceId !== prevInstanceId) {
-			prevInstanceId = instanceId;
-			loading = true;
-			getInstanceMods(instanceId)
-				.then((data) => {
-					mods = data;
-				})
-				.finally(() => {
-					loading = false;
-				});
-		}
+		const id = instanceId;
+		mods = [];
+		selected.clear();
+		bulkDeleteModal = false;
+		void loadMods(id);
+		return () => {
+			generation++;
+		};
 	});
 
+	async function loadMods(id: string) {
+		const request = ++generation;
+		loading = true;
+		error = "";
+		try {
+			const result = await getInstanceMods(id);
+			if (!disposed && request === generation) mods = result;
+		} catch (e) {
+			if (!disposed && request === generation) error = String(e);
+		} finally {
+			if (!disposed && request === generation) loading = false;
+		}
+	}
+
 	function toggleSelect(filename: string) {
+		if (isPackProtected(mods.find((mod) => mod.filename === filename)))
+			return;
 		if (selected.has(filename)) {
 			selected.delete(filename);
 		} else {
@@ -61,27 +82,45 @@
 	}
 
 	async function handleToggle(mod: ModDto) {
-		const newEnabled = !mod.enabled;
-		mod.enabled = newEnabled;
-
-		await toggleInstanceMod(instanceId, mod.filename, newEnabled);
-
-		mods = await getInstanceMods(instanceId);
+		if (isPackProtected(mod)) return;
+		const id = instanceId;
+		const request = generation;
+		try {
+			await toggleInstanceMod(id, mod.filename, !mod.enabled);
+			if (!disposed && request === generation) await loadMods(id);
+		} catch (e) {
+			if (!disposed && request === generation) error = String(e);
+		}
 	}
 
 	async function handleBulkDelete() {
 		const count = selected.size;
 		if (count === 0) return;
-		for (const filename of selected) {
-			await deleteInstanceFile(instanceId, "mods", filename);
+		const id = instanceId;
+		const request = generation;
+		try {
+			for (const filename of [...selected]) {
+				if (disposed || request !== generation) return;
+				if (
+					isPackProtected(
+						mods.find((mod) => mod.filename === filename),
+					)
+				)
+					continue;
+				await deleteInstanceFile(id, "mods", filename);
+			}
+			if (disposed || request !== generation) return;
+			selected.clear();
+			bulkDeleteModal = false;
+			await loadMods(id);
+		} catch (e) {
+			if (!disposed && request === generation) error = String(e);
 		}
-		selected.clear();
-		bulkDeleteModal = false;
-		mods = await getInstanceMods(instanceId);
 	}
 </script>
 
 <div class="mods-section">
+	{#if error}<p role="alert">{error}</p>{/if}
 	<div class="section-header">
 		<span class="section-title"
 			>{t("instanceView.mods.title")} ({mods.length})</span

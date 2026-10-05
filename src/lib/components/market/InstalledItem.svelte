@@ -3,6 +3,7 @@
 	import type { MarketProject } from "$lib/types/market";
 	import CubicLogo from "./CubicLogo.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
+	import { isPackProtected } from "$lib/utils/modpackMods";
 
 	let {
 		project,
@@ -45,7 +46,7 @@
 	<input
 		type="checkbox"
 		{checked}
-		disabled={busy}
+		disabled={busy || isPackProtected(project.installed)}
 		onchange={onCheck}
 		aria-label={t("market.manage.selectItem", { name: project.title })}
 	/>
@@ -70,7 +71,19 @@
 		</span>
 		<span class="item-info">
 			<strong>{project.title}</strong>
-			<span class="filename">{project.installed?.filename}</span>
+			{#if project.installed?.pack_name != null}
+				<span
+					class="filename"
+					title={t("modpack.providedBy", {
+						pack: project.installed.pack_name,
+					})}
+					>{t("modpack.providedBy", {
+						pack: project.installed.pack_name,
+					})}</span
+				>
+			{:else}
+				<span class="filename">{project.installed?.filename}</span>
+			{/if}
 			<span class="metadata">
 				<span
 					>{project.installed?.version ||
@@ -97,7 +110,7 @@
 			<button
 				type="button"
 				class="toggle"
-				disabled={busy}
+				disabled={busy || isPackProtected(project.installed)}
 				onclick={onToggle}
 				aria-label={`${t(project.disabled ? "market.detail.enable" : "market.detail.disable")} ${project.title}`}
 			>
@@ -115,7 +128,7 @@
 		<button
 			type="button"
 			class="delete"
-			disabled={busy}
+			disabled={busy || isPackProtected(project.installed)}
 			onclick={onDelete}
 			title={t("market.detail.uninstall")}
 			aria-label={`${t("market.detail.uninstall")} ${project.title}`}

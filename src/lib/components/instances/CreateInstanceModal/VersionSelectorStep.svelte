@@ -355,6 +355,7 @@
 	.loader-btn {
 		--btn-bg: rgba(var(--accent-rgb, 255, 255, 255), 0.03);
 		flex: 1;
+		min-width: 0;
 		display: flex;
 		align-items: center;
 		justify-content: center;

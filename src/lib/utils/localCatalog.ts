@@ -8,6 +8,7 @@ function sameMod(a: ModDto, b: ModDto): boolean {
 		a.filename === b.filename &&
 		a.name === b.name &&
 		a.version === b.version &&
+		a.version_id === b.version_id &&
 		a.description === b.description &&
 		a.icon === b.icon &&
 		a.enabled === b.enabled &&
@@ -17,6 +18,9 @@ function sameMod(a: ModDto, b: ModDto): boolean {
 		a.project_id === b.project_id &&
 		a.slug === b.slug &&
 		a.icon_revision === b.icon_revision &&
+		a.pack_name === b.pack_name &&
+		a.pack_locked === b.pack_locked &&
+		a.pack_modified === b.pack_modified &&
 		(a.authors === b.authors ||
 			(!!a.authors &&
 				!!b.authors &&

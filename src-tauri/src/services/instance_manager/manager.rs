@@ -294,6 +294,18 @@ impl InstanceManager {
             );
         }
 
+        if let Some(version) = &new_version
+            && handle.get_version().await.as_ref() != version
+            && let Some(pack) =
+                crate::services::modpack::read_state(&handle.get_instance_dir().await).await?
+            && pack.locked
+        {
+            return Err(format!(
+                "Minecraft y el loader son gestionados por {}. Desbloqueá el modpack para cambiarlos.",
+                pack.name
+            ));
+        }
+
         if let Some(name) = new_name {
             validate_instance_name(&name)?;
             let instances = self.instances.write().await;

@@ -10,6 +10,8 @@
 		title,
 		width,
 		animateResize = false,
+		closeDisabled = false,
+		scrollBody = false,
 		onclose,
 		children,
 		footer,
@@ -19,6 +21,8 @@
 		title?: string;
 		width?: string;
 		animateResize?: boolean;
+		closeDisabled?: boolean;
+		scrollBody?: boolean;
 		onclose?: () => void;
 		children?: Snippet;
 		footer?: Snippet;
@@ -26,6 +30,7 @@
 	}>();
 
 	function close() {
+		if (closeDisabled) return;
 		open = false;
 		onclose?.();
 	}
@@ -46,6 +51,7 @@
 		<div
 			class="modal"
 			class:animate-resize={animateResize}
+			class:scroll-body={scrollBody}
 			use:animateHeight={resizeDuration}
 			style:--resize-duration={`${resizeDuration}ms`}
 			onclick={(e) => e.stopPropagation()}
@@ -67,6 +73,7 @@
 							type="button"
 							class="action-btn"
 							onclick={close}
+							disabled={closeDisabled}
 							aria-label="Close"
 						>
 							<CloseIcon size={20} />
@@ -122,6 +129,30 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--modal-gap, 20px);
+	}
+
+	.modal.scroll-body {
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+	.scroll-body .modal-content {
+		min-height: 0;
+		max-height: inherit;
+		box-sizing: border-box;
+	}
+	.scroll-body .modal-header,
+	.scroll-body .modal-footer {
+		flex-shrink: 0;
+	}
+	.scroll-body .modal-header {
+		gap: 8px;
+		flex-wrap: wrap;
+	}
+	.scroll-body .modal-body {
+		min-height: 0;
+		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

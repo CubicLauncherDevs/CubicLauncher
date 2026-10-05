@@ -1,5 +1,5 @@
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::pack_format::{MrpackMetadata, PackFormat};
 use crate::utils::path::safe_join;
@@ -36,12 +36,7 @@ pub fn parse_mrpack(path: &Path) -> Result<MrpackMetadata, MrpackError> {
 
     let pack: PackFormat = serde_json::from_str(&content)?;
 
-    if pack.game != "minecraft" {
-        return Err(MrpackError::Invalid(format!(
-            "Pack is for '{}', not 'minecraft'",
-            pack.game
-        )));
-    }
+    pack.validate().map_err(MrpackError::Invalid)?;
 
     Ok(pack.extract_metadata())
 }
@@ -69,36 +64,13 @@ pub async fn install_mrpack(
 
     let pack: PackFormat = serde_json::from_str(&content)?;
 
-    if pack.game != "minecraft" {
-        return Err(MrpackError::Invalid(format!(
-            "Pack is for '{}', not 'minecraft'",
-            pack.game
-        )));
-    }
+    pack.validate().map_err(MrpackError::Invalid)?;
 
     let metadata = pack.extract_metadata();
 
-    // Build DownloadItemSpecs for files that need downloading
-    let items: Vec<aqua::DownloadItemSpec> = pack
-        .files
-        .iter()
-        .filter(|f| {
-            f.env
-                .as_ref()
-                .and_then(|env| env.get("client"))
-                .is_none_or(|v| v != "unsupported")
-        })
-        .filter_map(|f| {
-            let url = f.downloads.first()?;
-            let dest = safe_join(instance_dir, &f.path).ok()?;
-            let hash = f.hashes.get("sha1").map(|s| s.as_str()).unwrap_or("");
-            Some(
-                aqua::DownloadItemSpec::new(url.clone(), dest, &f.path)
-                    .with_hash(hash)
-                    .with_size(f.file_size as u64),
-            )
-        })
-        .collect();
+    // Preflight every destination before starting downloads or extracting files.
+    let items = download_items(&pack, instance_dir)?;
+    let overrides = override_entries(&mut archive, instance_dir)?;
 
     if !items.is_empty() {
         let batch = aqua::GenericBatch::new(format!("mrpack-{}", metadata.version_id), items);
@@ -115,59 +87,89 @@ pub async fn install_mrpack(
             .map_err(|e| MrpackError::Download(e.to_string()))?;
     }
 
-    extract_overrides(&mut archive, instance_dir).await?;
+    extract_overrides(&mut archive, overrides).await?;
     extract_icon(&mut archive, instance_dir).await?;
 
     Ok(metadata)
 }
 
-async fn extract_overrides(
+fn install_path(instance_dir: &Path, relative: &str) -> Result<PathBuf, MrpackError> {
+    // Reject Windows separators/prefixes on every platform as well as traversal.
+    if relative.is_empty()
+        || relative.contains(['\\', ':', '\0'])
+        || !Path::new(relative)
+            .components()
+            .any(|c| matches!(c, std::path::Component::Normal(_)))
+    {
+        return Err(MrpackError::Invalid(format!(
+            "Invalid pack path: '{}'",
+            relative
+        )));
+    }
+    safe_join(instance_dir, relative).map_err(MrpackError::Invalid)
+}
+
+fn download_items(
+    pack: &PackFormat,
+    instance_dir: &Path,
+) -> Result<Vec<aqua::DownloadItemSpec>, MrpackError> {
+    pack.files
+        .iter()
+        .filter(|f| {
+            f.env
+                .as_ref()
+                .and_then(|env| env.get("client"))
+                .is_none_or(|v| v != "unsupported")
+        })
+        .map(|f| {
+            let dest = install_path(instance_dir, &f.path)?;
+            let url = f
+                .downloads
+                .first()
+                .filter(|url| !url.trim().is_empty())
+                .ok_or_else(|| MrpackError::Invalid(format!("No download URL for '{}'", f.path)))?;
+            let hash = f.hashes.get("sha1").map(|s| s.as_str()).unwrap_or("");
+            Ok(aqua::DownloadItemSpec::new(url.clone(), dest, &f.path)
+                .with_hash(hash)
+                .with_size(f.file_size))
+        })
+        .collect()
+}
+
+fn override_entries(
     archive: &mut zip::ZipArchive<std::fs::File>,
     instance_dir: &Path,
-) -> Result<(), MrpackError> {
+) -> Result<Vec<(usize, PathBuf)>, MrpackError> {
+    let mut common = Vec::new();
+    let mut client = Vec::new();
     for i in 0..archive.len() {
         let entry = archive.by_index(i)?;
-        let entry_name = entry.name().to_string();
-        let is_dir = entry.is_dir();
-
-        // Reject paths that escape the archive root (e.g. `../` or absolute paths).
-        let Some(enclosed) = entry.enclosed_name().and_then(|p| {
-            if p.is_absolute() {
-                None
-            } else {
-                Some(p.to_path_buf())
-            }
-        }) else {
-            tracing::warn!("Mrpack override with unsafe path ignored: {}", entry_name);
-            drop(entry);
-            continue;
-        };
-        drop(entry);
-
-        if is_dir {
+        install_path(instance_dir, entry.name())?;
+        if entry.is_dir() {
             continue;
         }
-
-        let relative_path = if let Ok(stripped) = enclosed.strip_prefix("overrides/") {
-            stripped
-        } else if let Ok(stripped) = enclosed.strip_prefix("client-overrides/") {
-            stripped
-        } else {
-            continue;
-        };
-
-        if relative_path.as_os_str().is_empty() {
-            continue;
+        let name = Path::new(entry.name());
+        if let Ok(relative) = name.strip_prefix("overrides") {
+            common.push((i, install_path(instance_dir, &relative.to_string_lossy())?));
+        } else if let Ok(relative) = name.strip_prefix("client-overrides") {
+            client.push((i, install_path(instance_dir, &relative.to_string_lossy())?));
         }
+    }
+    // Client overrides always win, regardless of ZIP entry order.
+    common.extend(client);
+    Ok(common)
+}
 
-        let dest = safe_join(instance_dir, relative_path.to_string_lossy().as_ref())
-            .map_err(MrpackError::Invalid)?;
-
+async fn extract_overrides(
+    archive: &mut zip::ZipArchive<std::fs::File>,
+    entries: Vec<(usize, PathBuf)>,
+) -> Result<(), MrpackError> {
+    for (i, dest) in entries {
         if let Some(parent) = dest.parent() {
             tokio::fs::create_dir_all(parent).await?;
         }
 
-        tracing::info!("Extracting override {} -> {:?}", entry_name, dest);
+        tracing::info!("Extracting override #{} -> {:?}", i, dest);
 
         let mut buffer = Vec::new();
         archive.by_index(i)?.read_to_end(&mut buffer)?;
@@ -198,3 +200,7 @@ async fn extract_icon(
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../tests/mrpack/installer.rs"]
+mod tests;
