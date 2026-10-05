@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from "svelte";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
+	import Select from "$lib/components/layout/Select.svelte";
 	import {
 		listModpackVersions,
 		previewModpackUpdate,
@@ -31,6 +32,12 @@
 	} = $props();
 	let source = $state<"remote" | "local">("local");
 	let versions = $state.raw<PackVersion[]>([]);
+	const versionOptions = $derived(
+		versions.map((version) => ({
+			value: version.id,
+			label: `${version.name} (${version.version})`,
+		})),
+	);
 	let versionId = $state("");
 	let path = $state("");
 	let loadingVersions = $state(false);
@@ -67,6 +74,11 @@
 					resolutions[file] === "keep" ||
 					resolutions[file] === "replace",
 			),
+	);
+	const canPrepare = $derived(
+		!working &&
+			!busy &&
+			(source === "remote" ? !!versionId && !loadingVersions : !!path),
 	);
 	onDestroy(() => {
 		disposed = true;
@@ -124,8 +136,7 @@
 		}
 	}
 	async function prepare() {
-		if (working || busy || (source === "remote" ? !versionId : !path))
-			return;
+		if (!canPrepare) return;
 		clearPreview();
 		const generation = request;
 		working = true;
@@ -153,7 +164,10 @@
 			applied = true;
 			await onupdated();
 		} catch (e) {
-			if (!disposed) error = String(e);
+			if (!disposed) {
+				if (!applied) clearPreview();
+				error = String(e);
+			}
 		} finally {
 			if (!disposed) working = false;
 		}
@@ -190,19 +204,16 @@
 				/>{t("modpack.localFile")}</label
 			>
 			{#if source === "remote"}
-				<label
-					>{t("modpack.publishedVersion")}
-					<select
-						bind:value={versionId}
-						onchange={clearPreview}
-						disabled={loadingVersions || !versions.length}
-					>
-						{#each versions as version (version.id)}<option
-								value={version.id}
-								>{version.name} ({version.version})</option
-							>{/each}
-					</select>
-				</label>
+				<Select
+					bind:value={versionId}
+					options={versionOptions}
+					label={t("modpack.publishedVersion")}
+					placeholder={t("modpack.noVersions")}
+					loading={loadingVersions}
+					loadingPlaceholder={t("createInstance.loading")}
+					disabled={working || busy || !versions.length}
+					onchange={clearPreview}
+				/>
 				{#if loadingVersions}<p role="status">
 						{t("createInstance.loading")}
 					</p>
@@ -219,14 +230,6 @@
 				>
 				{#if path}<p class="path">{path}</p>{/if}
 			{/if}
-			<button
-				type="button"
-				class="btn-primary"
-				disabled={source === "remote"
-					? !versionId || loadingVersions
-					: !path}
-				onclick={prepare}>{t("modpack.preview")}</button
-			>
 		</fieldset>
 		{#if preview}
 			<h3>
@@ -287,8 +290,11 @@
 		{#if !applied}<button
 				type="button"
 				class="btn-primary"
-				disabled={!canApply || working || busy}
-				onclick={apply}>{t("modpack.apply")}</button
+				disabled={working ||
+					busy ||
+					(preview ? !canApply : !canPrepare)}
+				onclick={preview ? apply : prepare}
+				>{t(preview ? "modpack.apply" : "modpack.process")}</button
 			>{/if}
 	{/snippet}
 </ModalBase>
