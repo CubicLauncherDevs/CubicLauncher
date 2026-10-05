@@ -27,7 +27,7 @@
 		importThemeZip,
 		import_theme_cbth,
 	} from "$lib/api/themeManager";
-	import { autoUpdate } from "$lib/api/updaterServices";
+	import { startAutoUpdates } from "$lib/api/updaterServices";
 	import { saveSettings } from "$lib/api/launcherService";
 	import { showSuccess, showError } from "$lib/state/state.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal/CreateInstanceModal.svelte";
@@ -147,9 +147,20 @@
 	});
 
 	let unlistenDragDrop: (() => void) | undefined;
-	let checkUpdatesTimer: ReturnType<typeof setTimeout> | undefined;
+	let settingsReady = $state(false);
 	let editingTimer: ReturnType<typeof setTimeout> | undefined;
 	let destroyed = false;
+
+	$effect(() => {
+		if (
+			!logParams &&
+			settingsReady &&
+			launcherStore.settings.auto_updates &&
+			!showTutorial
+		) {
+			return startAutoUpdates();
+		}
+	});
 
 	onMount(async () => {
 		initEventListeners(logParams ? "logs" : "main");
@@ -158,24 +169,32 @@
 			return;
 		}
 
-		const stored = localStorage.getItem("sidebarMode");
-		if (stored === "compact") {
-			sidebarMode = "compact";
+		try {
+			if (localStorage.getItem("sidebarMode") === "compact")
+				sidebarMode = "compact";
+		} catch {
+			/* Storage may be unavailable; startup must still continue. */
 		}
 
-		await Promise.all([
-			syncSettings(),
+		// Updates depend on settings, not on a successful instance/version scan.
+		const settings = syncSettings()
+			.then(() => {
+				if (destroyed) return;
+				showTutorial =
+					launcherStore.settings.show_tutorial ||
+					!launcherStore.settings.license_accepted;
+				settingsReady = true;
+			})
+			.catch((error) => {
+				console.warn("Could not load startup settings", error);
+				if (!destroyed) settingsReady = true;
+			});
+		await Promise.allSettled([
+			settings,
 			getVersions(),
 			loadInstalledVersions(),
 		]);
 		if (destroyed) return;
-
-		if (
-			launcherStore.settings.show_tutorial ||
-			!launcherStore.settings.license_accepted
-		) {
-			showTutorial = true;
-		}
 
 		if (!logParams && !selectedInstance) {
 			const storedInstanceId = localStorage.getItem(
@@ -193,10 +212,6 @@
 			initDiscordPresence();
 		}
 
-		if (launcherStore.settings.auto_updates) {
-			checkUpdatesTimer = setTimeout(() => autoUpdate(), 2000);
-		}
-
 		setupDragDrop();
 	});
 
@@ -204,7 +219,6 @@
 		destroyed = true;
 		destroyEventListeners();
 		unlistenDragDrop?.();
-		clearTimeout(checkUpdatesTimer);
 		clearTimeout(editingTimer);
 	});
 

@@ -20,15 +20,16 @@ const browserPath = [
 const common = `
 export const calls={};
 export const count=key=>{calls[key]=(calls[key]??0)+1};
-export const hooks={settings:null};
+export const hooks={settings:null,instances:null};
 export const launcherStore=$state({loadedInstances:[],settings:{language:'en-US',theme:'test',show_tutorial:false,license_accepted:true,discord_presence:true,auto_updates:true,interface_preferences:{scale:100,density:'theme'}}});
 export const syncSettings=async()=>{count('settings');await hooks.settings};
-export const getVersions=async()=>count('instances');
+export const getVersions=async()=>{count('instances');await hooks.instances};
 export const loadInstalledVersions=async()=>count('installed');
 export const initEventListeners=mode=>count(mode);
 export const destroyEventListeners=()=>count('destroy');
 export const initDiscordPresence=()=>count('discord');
 export const autoUpdate=()=>count('updates');
+export const startAutoUpdates=()=>{count('updaterStart');const timer=setTimeout(autoUpdate,2000);return ()=>{clearTimeout(timer);count('updaterStop')}};
 export const getCurrentWebview=()=>({onDragDropEvent:async()=>{count('drag');return ()=>count('unlistenDrag')}});
 export const applyTheme=()=>count('theme');
 export const applyInterfaceScale=async()=>count('scale');
@@ -95,7 +96,8 @@ async function run(){
  await settle();
  assert(document.querySelector('#selected-instance')?.textContent==='latest','earlier failure cancelled the latest install');
  await unmount(app);
- assert(calls.unlistenDrag===1,'drag listener not released');
+  assert(calls.unlistenDrag===1,'drag listener not released');
+  assert(calls.updaterStart===1&&calls.updaterStop===1,'automatic updater lifecycle missing');
  document.documentElement.style.setProperty('--border-radius-sm','6px');
  const instance={uuid:'pack',name:'My pack',loader:'Fabric',version:'1.21',status:'off',last_played:0,path:'/pack'};
  hooks.animate=true;
@@ -157,7 +159,26 @@ async function run(){
  await unmount(app);
  release();
  await settle();
- assert(!calls.discord && !calls.drag,'destroyed page continued startup');
+ assert(!calls.discord && !calls.drag && !calls.updaterStart,'destroyed page continued startup');
+ reset();
+ hooks.settings=null;
+ let releaseInstances;
+ hooks.instances=new Promise(r=>releaseInstances=r);
+ app=mount(Page,{target:document.querySelector('main')});
+ await settle();
+ assert(calls.updaterStart===1,'pending instance scan blocked updater startup');
+ launcherStore.settings.auto_updates=false;
+ await settle();
+ assert(calls.updaterStop===1,'disabling automatic checks did not stop scheduler');
+ launcherStore.settings.auto_updates=true;
+ await settle();
+ assert(calls.updaterStart===2,'enabling automatic checks required a restart');
+ await unmount(app);
+ assert(calls.updaterStop===2,'scheduler leaked after unmount');
+ releaseInstances();
+ await settle();
+ hooks.instances=null;
+ assert(!calls.discord && !calls.drag,'late instance scan continued destroyed startup');
 }
 run().then(()=>fetch('/result',{method:'POST',body:JSON.stringify({ok:true})})).catch(error=>fetch('/result',{method:'POST',body:JSON.stringify({error:String(error),stack:error.stack})}));
 `;

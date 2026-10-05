@@ -438,6 +438,8 @@
 		}
 	},
 	"updater": {
+		"lastChecked": "Last successful check: {date}",
+		"checkAgain": "Check again",
 		"title": "Update Cubic Launcher",
 		"check": "Check for updates",
 		"view": "View update",

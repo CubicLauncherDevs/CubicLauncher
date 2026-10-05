@@ -59,6 +59,17 @@ Si faltan dependencias en la caché local, ejecutá el primer comando sin
 `--offline`. Incluí el `Cargo.lock` actualizado en el mismo commit del cambio
 de versión, antes de etiquetarlo.
 
+Las tres versiones deben coincidir **incluido el sufijo de prerelease**. Por
+ejemplo, una beta `36.0.0-beta.1` también debe figurar así en `tauri.conf.json`:
+si allí dice `36.0.0`, el updater la interpreta como una versión final y rechaza
+las betas posteriores del mismo major. CI y las builds de release verifican esta
+coincidencia; las builds por tag también comprueban que el tag sea `v` seguido de
+la versión empaquetada.
+
+```bash
+bun test --conditions=browser ./tests/frontend/ui/versionMetadata.test.mjs
+```
+
 CI, prerelease y release usan `--locked`: incluso un cambio de versión del
 launcher requiere sincronizar el lockfile. La caché Rust acelera las descargas
 y la compilación, pero no corrige un lockfile desactualizado; borrarla no

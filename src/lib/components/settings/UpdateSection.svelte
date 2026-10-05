@@ -8,6 +8,17 @@
 	import { relaunch } from "@tauri-apps/plugin-process";
 
 	const status = $derived(t(`updater.status.${updaterState.status}`));
+	const checkingBlocked = $derived(
+		[
+			"checking",
+			"downloading",
+			"ready",
+			"installing",
+			"restarting",
+		].includes(updaterState.status) ||
+			(updaterState.status === "error" &&
+				updaterState.failedOperation !== "check"),
+	);
 
 	async function handleChannelChange() {
 		await saveSettings();
@@ -19,7 +30,11 @@
 	<div class="channel-row">
 		<span class="channel-label">{t("updater.channel.label")}</span>
 		<div class="channel-options">
-			<label class="channel-option" class:active={launcherStore.settings.update_channel === "stable"}>
+			<label
+				class="channel-option"
+				class:active={launcherStore.settings.update_channel ===
+					"stable"}
+			>
 				<input
 					type="radio"
 					name="update-channel"
@@ -29,7 +44,11 @@
 				/>
 				<span>{t("updater.channel.stable")}</span>
 			</label>
-			<label class="channel-option" class:active={launcherStore.settings.update_channel === "prerelease"}>
+			<label
+				class="channel-option"
+				class:active={launcherStore.settings.update_channel ===
+					"prerelease"}
+			>
 				<input
 					type="radio"
 					name="update-channel"
@@ -60,6 +79,16 @@
 				· {updaterState.progress}%{/if}</span
 		>
 	</div>
+	{#if updaterState.lastChecked !== null}
+		<p class="last-checked">
+			{t("updater.lastChecked", {
+				date: new Date(updaterState.lastChecked).toLocaleString(),
+			})}
+		</p>
+	{/if}
+	{#if updaterState.status === "error" && updaterState.failedOperation === "check"}
+		<p class="check-error">{t("updater.errors.check")}</p>
+	{/if}
 	<button type="button" onclick={updater.open}>
 		<Icon
 			name={updaterState.update ? "ui:download" : "ui:refresh"}
@@ -71,9 +100,34 @@
 			? t("updater.view")
 			: t("updater.check")}
 	</button>
+	{#if updaterState.update || updaterState.status === "error"}
+		<button
+			type="button"
+			disabled={checkingBlocked}
+			onclick={() => {
+				updater.open();
+				void updater.checkForUpdates();
+			}}
+		>
+			<Icon name="ui:refresh" size={16} />{t("updater.checkAgain")}
+		</button>
+	{/if}
 </div>
 
 <style>
+	.last-checked,
+	.check-error {
+		margin: 0;
+		font-size: 0.72rem;
+		color: var(--text-secondary);
+	}
+	.check-error {
+		color: var(--color-error);
+	}
+	button:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
 	.update-card {
 		display: flex;
 		flex-direction: column;

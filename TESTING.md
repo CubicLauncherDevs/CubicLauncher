@@ -569,6 +569,39 @@ Los avisos de temas son orientativos, no mediciones de CPU/GPU. La estimacion de
 
 ### Ajustes generales
 
+#### Actualización del launcher
+
+```bash
+bun test --conditions=browser ./tests/frontend/ui/updater.test.mjs ./tests/frontend/ui/autoUpdateScheduler.test.mjs ./tests/frontend/ui/versionMetadata.test.mjs ./tests/frontend/ui/startupPage.test.mjs
+cargo test -p cubiclauncher --lib core::updater
+```
+
+- La ventana principal comprueba actualizaciones dos segundos después de cargar
+  ajustes y cerrar el tutorial, sin depender del escaneo de instancias. Repite
+  cada seis horas, al volver a la ventana tras cinco minutos y al recuperar la
+  conexión. Los fallos reintentan a los 1, 5, 15 y 60 minutos, con un máximo de
+  una comprobación simultánea. Las consolas no inician el programador.
+- [ ] Arrancar sin red, recuperarla y verificar que se descubre una versión sin
+  reiniciar. Una respuesta tardía con la ventana oculta se anuncia al volver.
+- [ ] Desactivar y reactivar las comprobaciones automáticas: el cambio debe
+  surtir efecto inmediatamente y sin timers/listeners duplicados.
+- [ ] Posponer una versión y publicar otra: debe aparecer la nueva; la misma
+  versión no debe insistir en cada cambio de foco. Descargar y preparar una
+  actualización bloquea nuevas comprobaciones hasta resolver esa operación.
+- [ ] En Windows, seleccionar Beta, reiniciar desde el menú Inicio y verificar
+  que se usa el canal guardado aunque no exista la variable de entorno `HOME`.
+- [ ] Simular un fallo del endpoint principal y comprobar el respaldo de GitHub.
+  `CUBIC_UPDATE_URL` sustituye los endpoints para pruebas locales y no utiliza
+  el respaldo de producción.
+- [ ] En Ajustes, comprobar fecha de la última consulta correcta, fallo de red,
+  reintento manual y progreso de descarga. Verificar instalación y reinicio con
+  artefactos firmados de cada plataforma.
+
+Las pruebas de versión impiden empaquetar una beta como si fuera una versión
+final. La publicación debe incluir `latest.json` y artefactos firmados; los
+clientes ya distribuidos sólo reciben los cambios del actualizador al instalar
+una build que los incluya.
+
 #### Idiomas bajo demanda
 
 ```bash

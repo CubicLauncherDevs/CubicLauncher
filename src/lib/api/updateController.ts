@@ -27,6 +27,7 @@ export interface UpdaterState {
 	totalBytes: number | null;
 	progress: number | null;
 	lastChecked: number | null;
+	lastAttempt: number | null;
 }
 
 export function createUpdaterState(): UpdaterState {
@@ -40,6 +41,7 @@ export function createUpdaterState(): UpdaterState {
 		totalBytes: null,
 		progress: null,
 		lastChecked: null,
+		lastAttempt: null,
 	};
 }
 
@@ -48,11 +50,16 @@ export function createUpdateController(
 	dependencies: {
 		check: () => Promise<UpdateHandle | null>;
 		relaunch: () => Promise<void>;
+		canAutoPrompt?: () => boolean;
+		now?: () => number;
 	},
 ) {
 	let update: UpdateHandle | null = null;
 	let dismissals = 0;
 	const announcedVersions = new Set<string>();
+	const now = () => dependencies.now?.() ?? Date.now();
+	let checkInFlight: Promise<void> | null = null;
+	let autoRequested = false;
 
 	function fail(operation: UpdateOperation, error: unknown) {
 		state.status = "error";
@@ -67,36 +74,79 @@ export function createUpdateController(
 	}
 
 	function announce() {
-		if (!update || announcedVersions.has(update.version)) return;
+		if (
+			!update ||
+			announcedVersions.has(update.version) ||
+			dependencies.canAutoPrompt?.() === false
+		)
+			return;
 		announcedVersions.add(update.version);
 		state.open = true;
 	}
 
 	async function checkForUpdates(automatic = false) {
+		if (checkInFlight) {
+			autoRequested ||= automatic;
+			return checkInFlight;
+		}
 		// Never replace a handle that owns an in-flight or prepared download.
 		if (
 			state.status !== "idle" &&
+			state.status !== "available" &&
 			state.status !== "updated" &&
 			!(state.status === "error" && state.failedOperation === "check")
 		) {
-			if (automatic && state.status === "available") announce();
+			if (automatic && state.status === "ready") announce();
+			return;
+		}
+		// Focus/online events can arrive in bursts. Explicit checks always bypass
+		// this cooldown; failures can be retried sooner than successful checks.
+		const cooldown = state.status === "error" ? 30_000 : 5 * 60_000;
+		if (
+			automatic &&
+			state.lastAttempt !== null &&
+			now() - state.lastAttempt < cooldown
+		) {
+			notifyAvailable();
 			return;
 		}
 		const dismissedAtStart = dismissals;
+		autoRequested = automatic;
+		state.lastAttempt = now();
 		begin("checking");
-		try {
-			update = await dependencies.check();
-			state.lastChecked = Date.now();
-			state.update = update
-				? { version: update.version, body: update.body }
-				: null;
-			state.status = update ? "available" : "updated";
-			if (update && dismissedAtStart !== dismissals)
-				announcedVersions.add(update.version);
-			if (automatic && dismissedAtStart === dismissals) announce();
-		} catch (error) {
-			fail("check", error);
-		}
+		checkInFlight = (async () => {
+			try {
+				const candidate = await dependencies.check();
+				const previous = update;
+				update = candidate;
+				state.lastChecked = now();
+				state.update = update
+					? { version: update.version, body: update.body }
+					: null;
+				state.status = update ? "available" : "updated";
+				if (update && dismissedAtStart !== dismissals)
+					announcedVersions.add(update.version);
+				if (autoRequested && dismissedAtStart === dismissals)
+					announce();
+				if (previous && previous !== candidate) {
+					try {
+						await previous.close();
+					} catch {
+						/* Already released natively. */
+					}
+				}
+			} catch (error) {
+				fail("check", error);
+			}
+		})().finally(() => {
+			checkInFlight = null;
+		});
+		return checkInFlight;
+	}
+
+	function notifyAvailable() {
+		if (state.status === "available" || state.status === "ready")
+			announce();
 	}
 
 	function open() {
@@ -201,5 +251,13 @@ export function createUpdateController(
 		}
 	}
 
-	return { open, close, checkForUpdates, download, install, retry };
+	return {
+		open,
+		close,
+		checkForUpdates,
+		notifyAvailable,
+		download,
+		install,
+		retry,
+	};
 }

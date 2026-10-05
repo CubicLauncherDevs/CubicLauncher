@@ -4,29 +4,9 @@ mod services;
 pub(crate) mod theme_watcher;
 
 pub use services::InstanceManager;
-fn read_update_channel() -> Option<String> {
-    let home = std::env::var_os("HOME").map(std::path::PathBuf::from)?;
-    let settings_path = home.join(".cubic").join("settings").join("settings.cub");
-    let content = std::fs::read_to_string(&settings_path).ok()?;
-    let json: serde_json::Value = serde_json::from_str(&content).ok()?;
-    json.get("update_channel")
-        .and_then(|v| v.as_str())
-        .map(str::to_string)
-}
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut context = tauri::generate_context!();
-
-    // CUBIC_UPDATE_URL env var overrides the base URL (for local testing).
-    let base_url = std::env::var("CUBIC_UPDATE_URL")
-        .unwrap_or_else(|_| "https://updates.cubiclauncher.org".to_string());
-
-    let channel = read_update_channel().unwrap_or_default();
-    let endpoint_url = if channel == "prerelease" {
-        format!("{base_url}?channel=prerelease")
-    } else {
-        base_url
-    };
 
     {
         let plugins = &mut context.config_mut().plugins.0;
@@ -34,8 +14,16 @@ pub fn run() {
             .entry("updater".to_string())
             .or_insert_with(|| serde_json::json!({}));
 
-        if let Some(obj) = updater_cfg.as_object_mut() {
-            obj.insert("endpoints".to_string(), serde_json::json!([endpoint_url]));
+        // Use the same cross-platform settings path as SettingsManager. HOME is
+        // not normally defined for Windows users launching from the Start menu.
+        let settings = core::PathManager::get()
+            .get_settings_dir()
+            .join("settings.cub");
+        let override_url = std::env::var("CUBIC_UPDATE_URL").ok();
+        if let Err(error) =
+            core::updater::configure(updater_cfg, &settings, override_url.as_deref())
+        {
+            tracing::warn!(%error, "Using the configured updater endpoints");
         }
     }
 

@@ -438,6 +438,8 @@
 		}
 	},
 	"updater": {
+		"lastChecked": "Última comprobación correcta: {date}",
+		"checkAgain": "Volver a comprobar",
 		"title": "Actualizar Cubic Launcher",
 		"check": "Buscar actualizaciones",
 		"view": "Ver actualización",

@@ -205,7 +205,7 @@
 						class="action-btn"
 						onclick={() => openDir("resourcepacks")}
 					>
-						<Icon name="instance:database" size={15} />
+						<Icon name="instance:resources" size={15} />
 						<span class="action-label"
 							>{t("instanceView.tabs.resources")}</span
 						>

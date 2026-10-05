@@ -18,6 +18,7 @@
 		class: className = "",
 		src,
 		name,
+		fallbackName,
 		size = 16,
 		width,
 		height,
@@ -28,6 +29,7 @@
 		class?: string;
 		src?: string;
 		name?: string;
+		fallbackName?: string;
 		size?: number;
 		width?: string | number;
 		height?: string | number;
@@ -39,7 +41,10 @@
 
 	const customIcon = $derived.by(() => {
 		if (!name) return null;
-		return getThemeIcon(name);
+		return (
+			getThemeIcon(name) ??
+			(fallbackName ? getThemeIcon(fallbackName) : null)
+		);
 	});
 
 	const resolvedSrc = $derived.by(() => {

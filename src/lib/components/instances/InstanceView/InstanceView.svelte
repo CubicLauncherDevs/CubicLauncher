@@ -11,7 +11,6 @@
 	} from "$lib/state/downloadQueueState.svelte";
 	import InstanceHeader from "./InstanceHeader.svelte";
 	import InstanceModpack from "./InstanceModpack.svelte";
-	import GridIcon from "$lib/icons/GridIcon.svelte";
 	import ResourcesIcon from "$lib/icons/ResourcesIcon.svelte";
 	import ImageIcon from "$lib/icons/ImageIcon.svelte";
 	import ShadersIcon from "$lib/icons/ShadersIcon.svelte";
@@ -147,7 +146,11 @@
 								onclick={() => (activeSection = "market")}
 							>
 								<span class="nav-icon"
-									><GridIcon size={18} /></span
+									><Icon
+										name="instance:market"
+										fallbackName="instance:grid"
+										size={18}
+									/></span
 								>
 								<span class="nav-label"
 									>{t("instanceView.tabs.market")}</span
@@ -209,7 +212,8 @@
 						>
 							<span class="nav-icon"
 								><Icon
-									name="instance:servers"
+									name="instance:multiplayer"
+									fallbackName="instance:servers"
 									size={18}
 								/></span
 							>

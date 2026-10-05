@@ -68,6 +68,8 @@ jobs:
                   save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
             - name: Install frontend dependencies
               run: bun install
+            - name: Verify bundled version
+              run: bun test --conditions=browser ./tests/frontend/ui/versionMetadata.test.mjs
             - name: Warm release cache without publishing
               if: inputs.cache_only
               run: bun run tauri build --no-bundle ${{ matrix.platform == 'macos-latest' && format('--target {0}', matrix.rust_target) || '' }} -- --locked

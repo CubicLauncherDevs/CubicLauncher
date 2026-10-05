@@ -63,6 +63,9 @@ jobs:
             - name: Install frontend dependencies
               run: bun install --frozen-lockfile
 
+            - name: Verify bundled version and release tag
+              run: bun test --conditions=browser ./tests/frontend/ui/versionMetadata.test.mjs
+
             - name: Build and upload to draft
               uses: tauri-apps/tauri-action@v1
               env:

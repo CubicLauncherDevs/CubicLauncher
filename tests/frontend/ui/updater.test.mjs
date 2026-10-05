@@ -219,3 +219,80 @@ test("failed installation retries with a new download before allowing another in
 	expect(calls.install).toBe(1);
 	expect(state.status).toBe("ready");
 });
+
+test("a dismissed available update can be replaced by a newer release later in the same session", async () => {
+	const { state, updater, dependencies, handle, calls } = fixture();
+	let now = 1000;
+	dependencies.now = () => now;
+	await updater.checkForUpdates(true);
+	updater.close();
+	const next = { ...handle, version: "36.0.0-beta.2" };
+	dependencies.check = async () => {
+		calls.check++;
+		return next;
+	};
+	await updater.checkForUpdates(true);
+	expect(calls.check).toBe(1);
+	now += 6 * 60 * 60_000;
+	await updater.checkForUpdates(true);
+	expect(calls.check).toBe(2);
+	expect(calls.close).toBe(1);
+	expect(state.update.version).toBe("36.0.0-beta.2");
+	expect(state.open).toBe(true);
+});
+
+test("automatic check failures recover without a restart", async () => {
+	const { state, updater, dependencies, handle } = fixture();
+	let now = 1000;
+	dependencies.now = () => now;
+	dependencies.check = async () => {
+		throw Error("Offline");
+	};
+	await updater.checkForUpdates(true);
+	expect(state.open).toBe(false);
+	dependencies.check = async () => handle;
+	now += 60_000;
+	await updater.checkForUpdates(true);
+	expect(state.status).toBe("available");
+	expect(state.open).toBe(true);
+});
+
+test("updates discovered while hidden or disabled can be announced when the main window is ready", async () => {
+	const { state, updater, dependencies } = fixture();
+	let allowed = false;
+	dependencies.canAutoPrompt = () => allowed;
+	await updater.checkForUpdates(true);
+	expect(state.status).toBe("available");
+	expect(state.open).toBe(false);
+	allowed = true;
+	updater.notifyAvailable();
+	expect(state.open).toBe(true);
+	updater.close();
+	updater.notifyAvailable();
+	expect(state.open).toBe(false);
+});
+
+test("an automatic request joins a manual check and opens the discovered update", async () => {
+	const { state, updater, dependencies, handle, calls } = fixture();
+	const result = deferred();
+	dependencies.check = async () => {
+		calls.check++;
+		return result.promise;
+	};
+	const manual = updater.checkForUpdates();
+	const automatic = updater.checkForUpdates(true);
+	expect(calls.check).toBe(1);
+	result.resolve(handle);
+	await Promise.all([manual, automatic]);
+	expect(state.open).toBe(true);
+});
+
+test("a manual recheck releases an obsolete handle when no update remains", async () => {
+	const { state, updater, dependencies, calls } = fixture();
+	await updater.checkForUpdates(true);
+	dependencies.check = async () => null;
+	await updater.checkForUpdates();
+	expect(calls.close).toBe(1);
+	expect(state.update).toBeNull();
+	expect(state.status).toBe("updated");
+});

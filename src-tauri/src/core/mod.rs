@@ -5,6 +5,7 @@ pub(crate) mod http_client;
 pub(crate) mod json_cache;
 pub(crate) mod path_manager;
 pub(crate) mod path_security;
+pub(crate) mod updater;
 pub(crate) mod webview;
 
 pub use errors::*;

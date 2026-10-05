@@ -198,7 +198,10 @@ test.skipIf(!browserPath)(
 						build.onResolve({ filter: /.*/ }, ({ path }) => {
 							if (path.endsWith("InstanceHeader.svelte"))
 								return { path: "header", namespace: "fixture" };
-							if (path.startsWith("$lib/icons/"))
+							if (
+								path.startsWith("$lib/icons/") &&
+								path.endsWith(".svelte")
+							)
 								return { path: "icon", namespace: "fixture" };
 							if (
 								[

@@ -290,7 +290,11 @@
 <section class="servers" aria-label={t("servers.title")}>
 	<div class="toolbar">
 		<h2>
-			<Icon name="instance:servers" size={22} />{t("servers.title")}
+			<Icon
+				name="instance:multiplayer"
+				fallbackName="instance:servers"
+				size={22}
+			/>{t("servers.title")}
 			<span>{list.servers.length}</span>
 		</h2>
 		<div class="actions">
