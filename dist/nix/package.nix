@@ -20,7 +20,7 @@
 
 rustPlatform.buildRustPackage rec {
   pname = "cubiclauncher";
-  version = "35.0.0";
+  version = "36.0.0-beta.1";
 
   src = lib.cleanSource ./../..;
 

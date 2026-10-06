@@ -4,9 +4,9 @@
 	"version": "36.0.0-beta.1",
 	"identifier": "com.cubiclauncher.launcher",
 	"build": {
-		"beforeDevCommand": "deno task dev",
+		"beforeDevCommand": "bun run dev",
 		"devUrl": "http://localhost:1420",
-		"beforeBuildCommand": "deno task build",
+		"beforeBuildCommand": "bun run build",
 		"frontendDist": "../build"
 	},
 	"app": {
