@@ -8,11 +8,11 @@
 
 	font-weight: var(--font-weight-bold);
 	cursor: pointer;
-	transition: opacity var(--transition-normal) ease;
+	transition: background var(--transition-normal) ease;
 }
 
-.btn-primary:hover {
-	opacity: 0.9;
+.btn-primary:hover:not(:disabled) {
+	background: var(--accent-hover);
 }
 
 .btn-secondary {
@@ -321,6 +321,13 @@
 
 .text-input:focus {
 	border-color: var(--border-focus);
+	box-shadow: var(--control-focus-shadow, 0 0 0 2px var(--surface-subtle));
+}
+
+.text-input:focus-visible,
+.select-trigger:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 3px;
 }
 
 .icon-svg {
