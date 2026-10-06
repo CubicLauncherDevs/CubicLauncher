@@ -6,14 +6,15 @@ import { tmpdir } from "node:os";
 
 const root = resolve(import.meta.dir, "../../..");
 const lib = join(root, "src/lib");
-const browserPath = [
-	"google-chrome",
-	"google-chrome-stable",
-	"chromium",
-	"firefox",
-]
-	.map((name) => Bun.which(name))
-	.find(Boolean);
+const configuredBrowser = process.env.CHROME_BIN;
+const browserPath = configuredBrowser
+	? Bun.which(configuredBrowser)
+	: ["google-chrome", "google-chrome-stable", "chromium", "firefox"]
+			.map((name) => Bun.which(name))
+			.find(Boolean);
+if (configuredBrowser && !browserPath) {
+	throw new Error(`CHROME_BIN is not executable: ${configuredBrowser}`);
+}
 
 // Mount the real notification controls inside the real Drawer. Only backend
 // state, translations and icon artwork are replaced by browser-local fixtures.
@@ -67,12 +68,15 @@ async function pointer(target,type,point,extra={}){
 }
 const atRest=drawer=>drawer.style.transform.replaceAll(' ','').match(/^translate3d\\(0(?:%|px)?,0(?:%|px)?,0(?:%|px)?\\)$/);
 let cases=0;
+const progress=(direction,phase)=>fetch('/progress',{method:'POST',body:JSON.stringify({direction,phase,cases})});
 try {
  for(const direction of ['right','left','bottom','top']){
+  await progress(direction,'mounting');
   let closes=0;const saves=[];
   const component=mount(Wrapper,{target:document.querySelector('main'),props:{direction,
    onsave:async()=>saves.push({...launcherStore.settings.notification_preferences}),onclose:()=>closes++}});
-  await render();await frame();await render();
+  await render();await progress(direction,'waiting for opening frames');await frame();await render();
+  await progress(direction,'checking controls and cancellation');
   const drawer=document.querySelector('.drawer');
   const blank=document.querySelector('#free-space');
   const start={x:100,y:100};const end={...start};
@@ -124,7 +128,8 @@ try {
   await pointer(blank,'pointerdown',start);await pointer(drawer,'pointermove',end);
   component.setOpen(false);await render();
   assert(!drawer.hasPointerCapture(1),'external close leaked capture');
-  component.setOpen(true);await render();await frame();await render();
+  component.setOpen(true);await render();await progress(direction,'waiting for reopening frames');await frame();await render();
+  await progress(direction,'checking reopened gestures');
   await pointer(drawer,'pointermove',end);
   assert(atRest(drawer),'stale drag after reopening');cases++;
 
@@ -133,7 +138,7 @@ try {
   assert(component.isOpen() && atRest(drawer),'short gesture should restore');cases++;
   await pointer(blank,'pointerdown',start);await pointer(drawer,'pointermove',end);await pointer(drawer,'pointerup',end);
   assert(!component.isOpen() && closes===1 && !drawer.hasPointerCapture(1),'free-space close failed');cases++;
-  await unmount(component);
+  await progress(direction,'unmounting');await unmount(component);
  }
  await fetch('/result',{method:'POST',body:JSON.stringify({cases})});
 }catch(error){await fetch('/result',{method:'POST',body:JSON.stringify({error:String(error),stack:error.stack,cases})});}
@@ -246,17 +251,30 @@ test.skipIf(!browserPath)(
 		const profile = await mkdtemp(join(tmpdir(), "drawer-gestures-"));
 		let server, browser, watchdog;
 		try {
-			let report;
-			const result = new Promise((resolve) => {
+			let report, rejectResult;
+			const result = new Promise((resolve, reject) => {
 				report = resolve;
+				rejectResult = reject;
 			});
+			let phase = "starting before loading the test page";
 			server = Bun.serve({
 				hostname: "127.0.0.1",
 				port: 0,
 				async fetch(request) {
 					const path = new URL(request.url).pathname;
-					if (path === "/result") {
-						report(await request.json());
+					if (
+						(path === "/result" || path === "/progress") &&
+						request.method === "POST"
+					) {
+						try {
+							const payload = await request.json();
+							if (path === "/result") report(payload);
+							else
+								phase = `${payload.direction}: ${payload.phase} (${payload.cases}/80 cases)`;
+						} catch (error) {
+							rejectResult(error);
+							return new Response(null, { status: 400 });
+						}
 						return new Response(null, { status: 204 });
 					}
 					if (path === "/script.js")
@@ -265,8 +283,16 @@ test.skipIf(!browserPath)(
 								"Content-Type": "application/javascript",
 							},
 						});
+					if (path !== "/")
+						return new Response(null, { status: 404 });
+					phase = "loading the test module";
 					return new Response(
-						'<!doctype html><style>html{font-size:14px}body{margin:0;height:100vh;overflow:hidden}.drawer{--bg-sidebar:#222;--bg-input:#333;--text-secondary:#ddd;--border-color:#555;--accent:#a9f}</style><main></main><script type="module" src="/script.js"></script>',
+						`<!doctype html><link rel="icon" href="data:,"><style>html{font-size:14px}body{margin:0;height:100vh;overflow:hidden}.drawer{--bg-sidebar:#222;--bg-input:#333;--text-secondary:#ddd;--border-color:#555;--accent:#a9f}</style><main></main><script>
+const reportError=error=>fetch('/result',{method:'POST',body:JSON.stringify({error:String(error),stack:error?.stack})});
+window.addEventListener('error',event=>reportError(event.error ?? event.message));
+window.addEventListener('unhandledrejection',event=>reportError(event.reason));
+import('/script.js').catch(reportError);
+</script>`,
 						{ headers: { "Content-Type": "text/html" } },
 					);
 				},
@@ -290,29 +316,53 @@ test.skipIf(!browserPath)(
 							"--disable-gpu",
 							"--disable-dev-shm-usage",
 							"--no-first-run",
+							"--no-default-browser-check",
+							"--password-store=basic",
+							"--disable-background-networking",
+							"--disable-component-update",
+							"--disable-sync",
+							"--disable-extensions",
+							// Keep requestAnimationFrame running on busy headless CI runners.
+							"--disable-background-timer-throttling",
+							"--disable-renderer-backgrounding",
+							"--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
+							"--run-all-compositor-stages-before-draw",
+							"--remote-debugging-port=0",
 							`--user-data-dir=${profile}`,
 							url,
 						],
 				{ stdout: "ignore", stderr: "pipe" },
 			);
 			const stderr = new Response(browser.stderr).text();
-			watchdog = setTimeout(() => browser.kill("SIGKILL"), 20000);
+			let timedOut = false;
+			watchdog = setTimeout(() => {
+				timedOut = true;
+				browser.kill("SIGKILL");
+			}, 20000);
 			const payload = await Promise.race([
 				result,
 				browser.exited.then(async (code) => {
-					throw Error(`Browser exited (${code}): ${await stderr}`);
+					throw Error(
+						`${timedOut ? "Browser timed out" : `Browser exited (${code})`}; executable: ${browserPath}; phase: ${phase}\n${await stderr}`,
+					);
 				}),
 			]);
+			clearTimeout(watchdog);
 			expect(payload.error, payload.stack).toBeUndefined();
 			expect(payload.cases).toBe(80);
 		} finally {
 			clearTimeout(watchdog);
 			if (browser) {
-				browser.kill();
+				if (browser.exitCode === null) browser.kill("SIGKILL");
 				await browser.exited;
 			}
-			server?.stop(true);
-			await rm(profile, { recursive: true, force: true });
+			await server?.stop(true);
+			await rm(profile, {
+				recursive: true,
+				force: true,
+				maxRetries: 5,
+				retryDelay: 100,
+			});
 		}
 	},
 	30000,

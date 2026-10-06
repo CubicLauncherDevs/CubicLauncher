@@ -24,7 +24,7 @@ rustPlatform.buildRustPackage rec {
 
   src = lib.cleanSource ./../..;
 
-  cargoHash = "sha256-rGpZzFI20RqPk8XQuY9APzW08yYN97toibFEWkZS1Zc=";
+  cargoHash = "sha256-+fxdDOufduR41HpG8gfRDZCDMm8znqEUcs//Zy072bc=";
 
   nodeModules = stdenv.mkDerivation {
     pname = "${pname}-node_modules";
@@ -61,9 +61,9 @@ rustPlatform.buildRustPackage rec {
     outputHashAlgo = "sha256";
     outputHash =
     {
-      x86_64-linux = "sha256-ls6BV3qHMB0LVbWk2j2oSR4IXZ17IaAWyMi4JH2JZiY=";
-      aarch64-linux = "sha256-tmeeXF9mtcrKEKRM5JTgZBf0+Rzs8Nv73dH7B5Fwtv8=";
-      aarch64-darwin = "sha256-UPe0OJPWc026U8H1/PrH8K+S3KuogWD5xXz5hrhPAm8=";
+      x86_64-linux = "sha256-iznqcE94oIL7yM8FqX9fO6OHdmR1j8splPOi4fQ3sNI=";
+      aarch64-linux = "sha256-GrQ4QZ0bcrDL4kvapQdfxmMMTCjJvuvC31o7tPBwk/8=";
+      aarch64-darwin = "sha256-NYewXMyVnQOnvF9537DjXESd83J6uURZMYAIFsq7C/Q=";
     }.${stdenv.hostPlatform.system} or (throw "Unsupported system ${stdenv.hostPlatform.system}");
   };
 
