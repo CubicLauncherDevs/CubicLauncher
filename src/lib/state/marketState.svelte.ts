@@ -207,6 +207,7 @@ export function createMarketState(
 	);
 	let quickInstallPromise: Promise<void> | undefined;
 	let quickInstallController: AbortController | undefined;
+	let installPreviewController: AbortController | undefined;
 	let localOperationReport = $state<LocalOperationReport | null>(null);
 	let selectedId = $state<string | null>(null);
 	const detail = $state<MarketDetailState>({
@@ -274,6 +275,8 @@ export function createMarketState(
 	function resetState() {
 		quickInstallController?.abort();
 		quickInstallState = null;
+		installPreviewController?.abort();
+		installPreviewController = undefined;
 		hasModpack = false;
 		invalidateSearch();
 		detailGen++;
@@ -1049,6 +1052,56 @@ export function createMarketState(
 
 	function installKey(project: MarketProject) {
 		return `${project.source}:${project.modrinthProjectId ?? project.curseforgeProjectId ?? project.id}`;
+	}
+
+	/**
+	 * Resolves what an install of `project` would download so the catalog can
+	 * preview it in the install menu without opening the project's detail pane.
+	 */
+	async function resolveInstallPreview(project: MarketProject) {
+		if (disposed) throw new DOMException("Market closed", "AbortError");
+		const id = instance.uuid;
+		const loader = filters.loader;
+		const gameVersion = filters.gameVersion;
+		installPreviewController?.abort();
+		const controller = new AbortController();
+		installPreviewController = controller;
+		const abandoned = () =>
+			disposed || controller.signal.aborted || id !== instance.uuid;
+		if (project.source !== "modrinth" && project.source !== "curseforge")
+			throw new Error(t("market.modVersions.unidentified"));
+		const versions = await projectVersions(
+			project,
+			loader,
+			gameVersion,
+			controller.signal,
+		);
+		if (abandoned()) throw new DOMException("Market closed", "AbortError");
+		const version = versions
+			.filter(
+				(candidate) =>
+					candidate.gameVersions.includes(gameVersion) &&
+					(!isModContent ||
+						candidate.loaders.some(
+							(value) =>
+								value.toLowerCase() === loader.toLowerCase(),
+						)),
+			)
+			.sort(
+				(a, b) =>
+					(Date.parse(b.datePublished) || 0) -
+					(Date.parse(a.datePublished) || 0),
+			)[0];
+		if (!version)
+			throw new Error(t("market.quickInstall.noCompatibleVersion"));
+		const resolution = await prepareInstall(project, version);
+		if (abandoned()) throw new DOMException("Market closed", "AbortError");
+		return {
+			version,
+			tree: resolution.tree,
+			conflicts: resolution.conflicts,
+			installedProjectIds: resolution.installedProjectIds,
+		};
 	}
 
 	function installQuick(project: MarketProject): Promise<void> {
@@ -1890,6 +1943,8 @@ export function createMarketState(
 		quickInstallController?.abort();
 		quickInstallController = undefined;
 		quickInstallState = null;
+		installPreviewController?.abort();
+		installPreviewController = undefined;
 		detailController?.abort();
 		detailController = undefined;
 		scanAgain = false;
@@ -1939,6 +1994,7 @@ export function createMarketState(
 			return modUpdateReport;
 		},
 		installQuick,
+		resolveInstallPreview,
 		get quickInstallBusy() {
 			return quickInstallBusy;
 		},

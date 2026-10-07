@@ -1641,6 +1641,48 @@ test("quick install downloads the newest compatible version and required depende
 	expect(state.quickInstallBusy).toBe(false);
 });
 
+test("install preview resolves the newest compatible version without downloading or navigating", async () => {
+	const project = await quickFixture();
+	getModrinthProjectVersions.mockResolvedValue([
+		modVersion("v3", "c".repeat(40), {
+			date_published: "2026-03-01T00:00:00Z",
+			loaders: ["forge"],
+		}),
+		modVersion("v1", "a".repeat(40), {
+			date_published: "2025-01-01T00:00:00Z",
+		}),
+		modVersion("v2", "b".repeat(40), {
+			date_published: "2025-02-01T00:00:00Z",
+		}),
+	]);
+	api.resolveModDependencies.mockResolvedValue({
+		conflicts: [],
+		tree: [dependency("quick", { children: [dependency("library")] })],
+	});
+	const filters = snapshot(state.filters);
+	const searches = searchModrinth.mock.calls.length;
+	const preview = await state.resolveInstallPreview(project);
+	expect(preview.version.id).toBe("v2");
+	expect(preview.tree.map((node) => node.project_id)).toEqual(["quick"]);
+	expect(preview.conflicts).toEqual([]);
+	expect(state.selectedId).toBeNull();
+	expect(api.downloadMods).not.toHaveBeenCalled();
+	expect(getModrinthProject).not.toHaveBeenCalled();
+	expect(snapshot(state.filters)).toEqual(filters);
+	expect(searchModrinth.mock.calls.length).toBe(searches);
+});
+
+test("install preview reports when no version is compatible", async () => {
+	const project = await quickFixture();
+	getModrinthProjectVersions.mockResolvedValue([
+		modVersion("v1", "a".repeat(40), { loaders: ["forge"] }),
+	]);
+	await expect(state.resolveInstallPreview(project)).rejects.toThrow(
+		"market.quickInstall.noCompatibleVersion",
+	);
+	expect(state.selectedId).toBeNull();
+});
+
 test("quick install reports missing compatible versions on the card and remains retryable", async () => {
 	const project = await quickFixture();
 	getModrinthProjectVersions.mockResolvedValueOnce([
