@@ -97,23 +97,51 @@ fn console_batches_and_preview_have_independent_lifetimes() {
 
 #[test]
 fn only_unsolicited_nonzero_exits_are_crashes() {
-    for (exit_code, kill_requested, expected) in [
-        (None, false, false),
-        (None, true, false),
-        (Some(0), false, false),
-        (Some(0), true, false),
-        (Some(1), false, true),
-        (Some(1), true, false),
-        (Some(-1), false, true),
-        (Some(-1), true, false),
-        (Some(-1073741819), false, true),
-        (Some(-1073741819), true, false),
+    for (exit_code, kill_requested, clean_shutdown, expected) in [
+        (None, false, false, false),
+        (None, true, false, false),
+        (None, false, true, false),
+        (Some(0), false, false, false),
+        (Some(0), true, false, false),
+        (Some(0), false, true, false),
+        (Some(1), false, false, true),
+        (Some(1), true, false, false),
+        // Cierre normal con watchdog de apagado: código distinto de cero sin crash.
+        (Some(1), false, true, false),
+        (Some(1), true, true, false),
+        (Some(-1), false, false, true),
+        (Some(-1), true, false, false),
+        (Some(-1), false, true, false),
+        (Some(-1073741819), false, false, true),
+        (Some(-1073741819), true, false, false),
+        (Some(-1073741819), false, true, false),
     ] {
         assert_eq!(
-            is_unexpected_exit(exit_code, kill_requested),
+            is_unexpected_exit(exit_code, kill_requested, clean_shutdown),
             expected,
-            "exit_code={exit_code:?}, kill_requested={kill_requested}"
+            "exit_code={exit_code:?}, kill_requested={kill_requested}, clean_shutdown={clean_shutdown}"
         );
+    }
+}
+
+#[test]
+fn the_client_shutdown_marker_flags_a_clean_exit() {
+    for line in [
+        "[21:36:41] [Render thread/INFO]: Stopping!",
+        "[18sept2026 11:53:49.957] [Render thread/INFO] [net.minecraft.client.Minecraft/]: Stopping!",
+        "[01:17:24] [Client thread/INFO]: Stopping!",
+        "[21:36:41] [Render thread/INFO]: Stopping!   ",
+    ] {
+        assert!(is_clean_shutdown(line), "{line}");
+    }
+    for line in [
+        "[21:15:39] [Render thread/INFO]: Stopping worker threads",
+        "[21:36:57] [Thread-3/INFO]: Saving",
+        "[Render thread/INFO]: Stopping server",
+        "Stopping!",
+        "Player Stopping!",
+    ] {
+        assert!(!is_clean_shutdown(line), "{line}");
     }
 }
 
@@ -128,7 +156,8 @@ fn an_exit_observed_before_receiving_kill_is_still_intentional() {
     // Simulate wait() completing without the kill branch consuming its signal.
     assert!(!is_unexpected_exit(
         Some(1),
-        requested.load(Ordering::Acquire)
+        requested.load(Ordering::Acquire),
+        false
     ));
 }
 
@@ -259,7 +288,14 @@ async fn background_logs_detect_early_readiness_and_drain_both_streams() {
         .send("\x1b[32m[INFO]: Setting user: Player\x1b[0m".into())
         .unwrap();
     stdout_tx.send("access_token=secret-value".into()).unwrap();
-    let task = spawn_io_forwarding(None, id.clone(), stdout_rx, stderr_rx, Some(ready_tx));
+    let task = spawn_io_forwarding(
+        None,
+        id.clone(),
+        stdout_rx,
+        stderr_rx,
+        Some(ready_tx),
+        Arc::new(AtomicBool::new(false)),
+    );
     tokio::time::timeout(
         std::time::Duration::from_secs(2),
         wait_for_game_readiness(ready_rx, None),
@@ -295,6 +331,34 @@ async fn background_logs_detect_early_readiness_and_drain_both_streams() {
 }
 
 #[tokio::test]
+async fn forwarding_flags_a_client_initiated_shutdown() {
+    let id: Arc<str> = Arc::from(uuid::Uuid::new_v4().to_string());
+    let (stdout_tx, stdout_rx) = broadcast::channel(16);
+    let (stderr_tx, stderr_rx) = broadcast::channel(16);
+    let clean_shutdown = Arc::new(AtomicBool::new(false));
+    let task = spawn_io_forwarding(
+        None,
+        id.clone(),
+        stdout_rx,
+        stderr_rx,
+        None,
+        clean_shutdown.clone(),
+    );
+    assert!(!clean_shutdown.load(Ordering::Acquire));
+    stdout_tx
+        .send("[21:36:41] [Render thread/INFO]: Stopping!".into())
+        .unwrap();
+    drop(stdout_tx);
+    drop(stderr_tx);
+    tokio::time::timeout(std::time::Duration::from_secs(2), task)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(clean_shutdown.load(Ordering::Acquire));
+    remove_log_ring(&id);
+}
+
+#[tokio::test]
 async fn background_history_stays_bounded_without_a_webview() {
     let id: Arc<str> = Arc::from(uuid::Uuid::new_v4().to_string());
     let count = LOG_RING_CAPACITY + 100;
@@ -305,7 +369,14 @@ async fn background_history_stays_bounded_without_a_webview() {
     }
     drop(stdout_tx);
     drop(stderr_tx);
-    let task = spawn_io_forwarding(None, id.clone(), stdout_rx, stderr_rx, None);
+    let task = spawn_io_forwarding(
+        None,
+        id.clone(),
+        stdout_rx,
+        stderr_rx,
+        None,
+        Arc::new(AtomicBool::new(false)),
+    );
     tokio::time::timeout(std::time::Duration::from_secs(5), task)
         .await
         .unwrap()

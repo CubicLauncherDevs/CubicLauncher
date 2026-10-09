@@ -23,7 +23,7 @@ use launchwerk::{LaunchConfig, Launchwerk};
 use parking_lot::RwLock;
 use regex::Regex;
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use tauri::{Emitter, EventTarget, Manager};
 use tokio::fs;
@@ -840,6 +840,10 @@ impl Launcher {
             .clone();
         let session = LaunchSession::new(app_handle.clone(), hide_on_launch);
         let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
+        // Se activa cuando el cliente registra su cierre normal (`Stopping!`).
+        // Un apagado lento puede disparar el watchdog de Minecraft y terminar el
+        // proceso con un código distinto de cero: eso no es un crash.
+        let clean_shutdown = Arc::new(AtomicBool::new(false));
         // Subscribe before spawning Java: the first messages can arrive immediately.
         let io_task = spawn_io_forwarding(
             app_handle.clone(),
@@ -847,6 +851,7 @@ impl Launcher {
             lw_handle.subscribe_stdout(),
             lw_handle.subscribe_stderr(),
             hide_on_launch.then_some(ready_tx),
+            clean_shutdown.clone(),
         );
 
         match lw_handle.launch().await {
@@ -918,8 +923,11 @@ impl Launcher {
                     finish_io_forwarding(io_task).await;
                     push_launcher_message(&uuid, format!("El proceso terminó: {:?}", result)).await;
 
-                    let crashed =
-                        is_unexpected_exit(result, kill_requested.load(Ordering::Acquire));
+                    let crashed = is_unexpected_exit(
+                        result,
+                        kill_requested.load(Ordering::Acquire),
+                        clean_shutdown.load(Ordering::Acquire),
+                    );
                     if crashed {
                         let code = result.unwrap_or(-1);
                         push_launcher_message(&uuid, format!("Crash detectado (código {})", code))
@@ -1093,8 +1101,20 @@ async fn refresh_yggdrasil_token(mut user: MinecraftUser) -> Result<MinecraftUse
     }
 }
 
-fn is_unexpected_exit(exit_code: Option<i32>, kill_requested: bool) -> bool {
-    !kill_requested && matches!(exit_code, Some(code) if code != 0)
+fn is_unexpected_exit(exit_code: Option<i32>, kill_requested: bool, clean_shutdown: bool) -> bool {
+    !kill_requested && !clean_shutdown && matches!(exit_code, Some(code) if code != 0)
+}
+
+/// Minecraft registra `Stopping!` cuando el usuario cierra el cliente por su
+/// cuenta (o al salir del mundo). A partir de ahí el apagado es intencional:
+/// aunque el watchdog de apagado del cliente termine el proceso con un código
+/// distinto de cero, no es un crash. Formatos soportados:
+/// `[Render thread/INFO]: Stopping!` y
+/// `[Render thread/INFO] [net.minecraft.client.Minecraft/]: Stopping!`.
+fn is_clean_shutdown(line: &str) -> bool {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"(?i)\]:\s*stopping!\s*$").unwrap())
+        .is_match(line)
 }
 
 fn spawn_open_log_window(
@@ -1254,6 +1274,7 @@ fn spawn_io_forwarding(
     mut stdout: broadcast::Receiver<String>,
     mut stderr: broadcast::Receiver<String>,
     mut ready: Option<tokio::sync::oneshot::Sender<()>>,
+    clean_shutdown: Arc<AtomicBool>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let ring = get_log_ring(&id);
@@ -1300,6 +1321,9 @@ fn spawn_io_forwarding(
             let cleaned = sanitize_with_user(&stripped);
             if cleaned.is_empty() {
                 continue;
+            }
+            if is_clean_shutdown(&cleaned) {
+                clean_shutdown.store(true, Ordering::Release);
             }
             let level = LogLevel::from_line(&cleaned, is_stderr);
             let text: Arc<str> = Arc::from(cleaned);

@@ -410,6 +410,7 @@ del stream cuando falla la lectura inicial.
 - [ ] Probar un fallo anterior a la creacion del proceso (por ejemplo, ejecutable Java invalido): debe conservarse el error de la instancia sin abrir logs ni emitir un crash.
 - [ ] Forzar el cierre desde el launcher: no debe abrirse una consola ni generarse un evento o snapshot de crash. Una consola ya abierta puede permanecer visible.
 - [ ] Provocar un crash real de un proceso iniciado: debe abrirse la consola y conservarse el snapshot. La salida normal no debe abrirla.
+- [ ] Cerrar el juego desde su propio menú en una instancia con mods que retrasan el apagado (p. ej. Meteor/Baritone): el cliente registra `Stopping!` y el watchdog de apagado puede terminar el proceso con un código distinto de cero. No debe abrirse la consola ni emitirse un crash.
 - [ ] Volver a lanzar una instancia que se cerro por la fuerza y provocar un crash: debe detectarse como un nuevo crash.
 - [ ] Verificar que la apertura manual y la preferencia "abrir consola al iniciar" siguen funcionando.
 
