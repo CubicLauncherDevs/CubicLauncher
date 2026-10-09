@@ -1244,7 +1244,8 @@
 			"installed": "Instalado",
 			"updateAvailable": "Actualizar",
 			"incompatible": "Incompatible",
-			"local": "Local"
+			"local": "Local",
+			"doubleClickInstall": "Doble clic en la tarjeta para instalar"
 		},
 		"detail": {
 			"projectInfo": "Información del proyecto",

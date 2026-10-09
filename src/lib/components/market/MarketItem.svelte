@@ -37,15 +37,32 @@
 		return num.toString();
 	}
 
-	async function handleInstall(e: Event) {
-		e.stopPropagation();
-		if (!onInstall || busy || installDisabled) return;
+	const canInstall = $derived(!project.installed && !!onInstall);
+
+	async function runInstall() {
+		if (project.installed || !onInstall || busy || installDisabled) return;
 		pending = true;
 		try {
 			await onInstall();
 		} finally {
 			pending = false;
 		}
+	}
+
+	async function handleInstall(e: Event) {
+		e.stopPropagation();
+		await runInstall();
+	}
+
+	function handleOpen(e: MouseEvent) {
+		// A double click installs; skip the second click so the detail panel
+		// only opens once.
+		if (e.detail > 1) return;
+		onSelect();
+	}
+
+	function handleCardDoubleClick() {
+		void runInstall();
 	}
 
 	const statusLabel = $derived.by(() => {
@@ -76,7 +93,9 @@
 	<button
 		type="button"
 		class="market-item-open"
-		onclick={onSelect}
+		onclick={handleOpen}
+		ondblclick={handleCardDoubleClick}
+		title={canInstall ? t("market.item.doubleClickInstall") : undefined}
 		aria-label={project.title}
 	>
 		<span class="market-item-icon">
@@ -350,6 +369,7 @@
 
 	.market-item-actions {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
 		min-height: 28px;
@@ -390,6 +410,7 @@
 		align-items: center;
 		justify-content: center;
 		gap: 6px;
+		flex: 1 1 100%;
 		padding: var(--market-button-padding);
 		background: var(--surface-input);
 		color: var(--text-primary);
