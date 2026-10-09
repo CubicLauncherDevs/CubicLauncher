@@ -24,10 +24,12 @@
 		notification,
 		customized = false,
 		durationSeconds = DEFAULT_NOTIFICATION_PREFERENCES.duration_seconds,
+		preview = false,
 	}: {
 		notification: Notification;
 		customized?: boolean;
 		durationSeconds?: number;
+		preview?: boolean;
 	} = $props();
 
 	let removing = $state(false);
@@ -45,13 +47,15 @@
 		notificationTimeout(notification.timeout, durationSeconds, customized),
 	);
 	const dismissalDelay = $derived(
-		hasProgress
-			? isDone
-				? customized
-					? durationSeconds * 1000
-					: 1400
-				: undefined
-			: timeout,
+		preview
+			? undefined
+			: hasProgress
+				? isDone
+					? customized
+						? durationSeconds * 1000
+						: 1400
+					: undefined
+				: timeout,
 	);
 
 	const entryDuration = $derived(animDuration(300, 50));
@@ -68,7 +72,7 @@
 	}
 
 	function dismiss() {
-		if (removing) return;
+		if (preview || removing) return;
 		removing = true;
 		dismissTimer = setTimeout(
 			() => removeNotification(notification.id),
@@ -117,24 +121,29 @@
 	});
 </script>
 
+<!-- Interactive toasts are buttons; the decorative preview variant is not. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
 	class="notification-toast"
 	class:removing
 	class:customized
+	class:preview
 	style="--notification-in-duration: {entryDuration}ms; --notification-out-duration: {exitDuration}ms; --notification-timeout: {timeout ??
 		0}ms;"
-	role="button"
-	tabindex="0"
-	onclick={dismiss}
-	onkeydown={(e) => {
-		if (
-			e.target === e.currentTarget &&
-			(e.key === "Enter" || e.key === " ")
-		) {
-			e.preventDefault();
-			dismiss();
-		}
-	}}
+	role={preview ? undefined : "button"}
+	tabindex={preview ? -1 : 0}
+	onclick={preview ? undefined : dismiss}
+	onkeydown={preview
+		? undefined
+		: (e) => {
+				if (
+					e.target === e.currentTarget &&
+					(e.key === "Enter" || e.key === " ")
+				) {
+					e.preventDefault();
+					dismiss();
+				}
+			}}
 >
 	<div class="notification-gloss" aria-hidden="true"></div>
 
@@ -146,17 +155,21 @@
 		>
 			<!-- Inline priority preserves real elapsed time even when performance
 			     styles use !important inside a cascade layer. -->
-			{#key timeout}
-				<div
-					class="progress-ring preserve-motion"
-					class:countdown={!hasProgress && !!timeout && timeout > 0}
-					style:animation-duration|important={`${timeout ?? 0}ms`}
-					style:--notification-progress-angle={hasProgress
-						? progressAngle
-						: "0deg"}
-					aria-hidden="true"
-				></div>
-			{/key}
+			{#if !preview}
+				{#key timeout}
+					<div
+						class="progress-ring preserve-motion"
+						class:countdown={!hasProgress &&
+							!!timeout &&
+							timeout > 0}
+						style:animation-duration|important={`${timeout ?? 0}ms`}
+						style:--notification-progress-angle={hasProgress
+							? progressAngle
+							: "0deg"}
+						aria-hidden="true"
+					></div>
+				{/key}
+			{/if}
 
 			{#key isDone ? "done" : notification.type}
 				{#if isDone}
@@ -304,6 +317,15 @@
 	}
 	.notification-toast:active {
 		transform: scale(0.985);
+	}
+
+	.notification-toast.preview {
+		cursor: default;
+		pointer-events: none;
+	}
+
+	.notification-toast.preview:active {
+		transform: none;
 	}
 
 	.notification-toast:focus-visible,

@@ -242,12 +242,13 @@
 		"interface": {
 			"title": "Interface",
 			"scale": "Interface scale",
-			"scaleHint": "Adjust the size of the entire window without modifying the theme. 100% preserves its original scale.",
+			"scaleHint": "Changes the size of the whole window. 100% is the original size.",
 			"density": "Density",
-			"densityHint": "Adjust spacing between cards, content lists and settings while preserving their sizes and the theme's typography.",
+			"densityHint": "Spacing between cards, lists and options, without altering their size or the typography.",
 			"scaleError": "Could not apply the interface change",
+			"reset": "Reset interface",
 			"densities": {
-				"theme": "Theme default",
+				"theme": "Theme",
 				"compact": "Compact",
 				"comfortable": "Comfortable"
 			}
@@ -258,16 +259,18 @@
 			"textTitle": "Text",
 			"behaviorTitle": "Behavior",
 			"enabled": "Customize notifications",
-			"enabledHint": "Enable these options to change notices. Turn them off to restore classic notifications while keeping your preferences.",
+			"enabledHint": "When off, classic notifications return and your settings are kept.",
 			"position": "Position",
 			"size": "Card size",
 			"title_size": "Title size",
 			"message_size": "Message size",
 			"duration_seconds": "Duration",
-			"durationHint": "Applies to timed notices. Downloads stay visible until they finish.",
+			"durationHint": "Applies to timed notices; downloads stay visible until they finish.",
 			"uppercase_title": "Uppercase title",
 			"bold_title": "Bold title",
-			"reset": "Restore defaults",
+			"resetNotifications": "Reset notifications",
+			"previewTitle": "Preview",
+			"previewDuration": "Hides after {seconds}s",
 			"positions": {
 				"top-left": "Top left",
 				"top-center": "Top center",

@@ -97,7 +97,7 @@ try {
    cases++;
   }
   for(const selector of ['#button span','#label span','#textarea','#native-select','#link span',
-    '#editable span','#slider-role span','#no-drag span','#notification-position .selected-value',
+    '#editable span','#slider-role span','#no-drag span','.position-picker .pos-cell',
     '#notification-customization']){
    const target=document.querySelector(selector);const before=captureCalls;
    await pointer(target,'pointerdown',start);await pointer(target,'pointermove',end);await pointer(target,'pointerup',end);

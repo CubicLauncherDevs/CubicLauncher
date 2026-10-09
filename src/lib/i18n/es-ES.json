@@ -242,12 +242,13 @@
 		"interface": {
 			"title": "Interfaz",
 			"scale": "Escala de interfaz",
-			"scaleHint": "Ajusta el tamaño de toda la ventana sin modificar el tema. 100 % conserva su escala original.",
+			"scaleHint": "Cambia el tamaño de toda la ventana. 100 % es el tamaño original.",
 			"density": "Densidad",
-			"densityHint": "Ajusta la separación entre tarjetas, listas de contenido y opciones de ajustes, conservando sus tamaños y la tipografía del tema.",
+			"densityHint": "Separación entre tarjetas, listas y opciones, sin alterar su tamaño ni la tipografía.",
 			"scaleError": "No se pudo aplicar el cambio de interfaz",
+			"reset": "Restablecer interfaz",
 			"densities": {
-				"theme": "Predeterminada del tema",
+				"theme": "Del tema",
 				"compact": "Compacta",
 				"comfortable": "Cómoda"
 			}
@@ -258,16 +259,18 @@
 			"textTitle": "Texto",
 			"behaviorTitle": "Comportamiento",
 			"enabled": "Personalizar notificaciones",
-			"enabledHint": "Activa estas opciones para cambiar los avisos. Al desactivarlas, vuelven las notificaciones clásicas y se conservan tus ajustes.",
+			"enabledHint": "Al desactivarlo, vuelven las notificaciones clásicas y se conservan tus ajustes.",
 			"position": "Posición",
 			"size": "Tamaño del cuadro",
 			"title_size": "Tamaño del título",
 			"message_size": "Tamaño del mensaje",
 			"duration_seconds": "Duración",
-			"durationHint": "Se aplica a los avisos temporales. Las descargas permanecen visibles hasta terminar.",
+			"durationHint": "Aplica a los avisos temporales; las descargas siguen visibles hasta terminar.",
 			"uppercase_title": "Título en mayúsculas",
 			"bold_title": "Título en negrita",
-			"reset": "Restablecer valores",
+			"resetNotifications": "Restablecer notificaciones",
+			"previewTitle": "Vista previa",
+			"previewDuration": "Se oculta a los {seconds} s",
 			"positions": {
 				"top-left": "Arriba a la izquierda",
 				"top-center": "Arriba en el centro",

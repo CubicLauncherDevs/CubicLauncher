@@ -1,9 +1,9 @@
 <script lang="ts">
-	import Select from "$lib/components/layout/Select.svelte";
 	import { launcherStore, showError } from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
 	import { applyInterfaceScale } from "$lib/api/interfaceAppearance";
 	import { patchPreferences } from "$lib/utils/preferencePatch";
+	import SegmentedControl from "./SegmentedControl.svelte";
 	import {
 		DEFAULT_INTERFACE_PREFERENCES,
 		INTERFACE_SCALES,
@@ -67,10 +67,11 @@
 
 <div class="interface-settings settings-controls" aria-busy={changing}>
 	<div class="interface-field">
-		<Select
+		<span class="interface-label">{t("settings.interface.scale")}</span>
+		<SegmentedControl
 			id="interface-scale"
 			label={t("settings.interface.scale")}
-			bind:value={selectedScale}
+			value={selectedScale}
 			options={scales}
 			disabled={changing}
 			onchange={(value) =>
@@ -81,14 +82,17 @@
 		<p class="qm-ram-hint">{t("settings.interface.scaleHint")}</p>
 	</div>
 	<div class="interface-field">
-		<Select
+		<span class="interface-label">{t("settings.interface.density")}</span>
+		<SegmentedControl
 			id="interface-density"
 			label={t("settings.interface.density")}
-			bind:value={selectedDensity}
+			value={selectedDensity}
 			options={densities}
 			disabled={changing}
 			onchange={(value) =>
-				update({ density: value as InterfacePreferences["density"] })}
+				update({
+					density: value as InterfacePreferences["density"],
+				})}
 		/>
 		<p class="qm-ram-hint">{t("settings.interface.densityHint")}</p>
 	</div>
@@ -99,7 +103,7 @@
 			disabled={changing}
 			onclick={() => update(DEFAULT_INTERFACE_PREFERENCES)}
 		>
-			{t("settings.personalize.reset")}
+			{t("settings.interface.reset")}
 		</button>
 	</div>
 </div>
@@ -113,6 +117,12 @@
 	}
 	.interface-field {
 		min-width: 0;
+	}
+	.interface-label {
+		display: block;
+		font-size: 0.8rem;
+		color: var(--text-secondary);
+		margin-bottom: 8px;
 	}
 	.interface-settings :global(.qm-ram-hint) {
 		margin: 6px 0 0;

@@ -36,22 +36,15 @@ const assertBounds = (element, name) => {
 	);
 };
 async function choose(id, label) {
-	const trigger = document.querySelector(`#${id} button`);
-	trigger.scrollIntoView({ block: "nearest" });
-	await settle();
-	trigger.click();
-	await settle();
-	const menu = document.querySelector('[role="listbox"]');
-	assert(menu, `${id}: menu did not open for ${label}`);
-	assertBounds(menu, id + " menu");
-	const a = trigger.getBoundingClientRect(),
-		b = menu.getBoundingClientRect();
-	assert(near(a.left, b.left), id + " menu not aligned with trigger");
-	const option = [...menu.querySelectorAll('[role="option"]')].find(
+	const control = document.querySelector(`#${id}`);
+	assert(control, `${id}: control not found`);
+	const button = [...control.querySelectorAll("button")].find(
 		(node) => node.textContent.trim() === label,
 	);
-	assert(option, `Missing option ${label}`);
-	option.click();
+	assert(button, `${id}: missing option ${label}`);
+	button.scrollIntoView({ block: "nearest" });
+	await settle();
+	button.click();
 	await settle();
 }
 
@@ -166,7 +159,7 @@ try {
 					{
 						compact: "Compact",
 						comfortable: "Comfortable",
-						theme: "Theme default",
+						theme: "Theme",
 					}[density],
 				);
 				assert(
@@ -286,7 +279,7 @@ try {
 	);
 	assert(
 		document
-			.querySelector("#interface-scale .selected-value")
+			.querySelector('#interface-scale button[aria-pressed="true"]')
 			.textContent.trim() === "100 %",
 		"failed zoom left stale control value",
 	);
@@ -310,7 +303,7 @@ try {
 	const noOpZoom = zoomCalls.length;
 	const interfaceReference = launcherStore.settings.interface_preferences;
 	await choose("interface-scale", "100 %");
-	await choose("interface-density", "Theme default");
+	await choose("interface-density", "Theme");
 	reset.click();
 	await settle();
 	const notificationReset = document.querySelector(
