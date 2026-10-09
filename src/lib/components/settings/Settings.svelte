@@ -526,17 +526,6 @@
 							</button>
 							{t("settings.about.creditSuffix")}
 						</p>
-						<p class="about-theme-credit">
-							{t("settings.about.themeCreditStart")}
-							<button
-								type="button"
-								class="about-link"
-								onclick={() =>
-									openUrl("https://github.com/rose-pine")}
-							>
-								{t("settings.about.themeCreditName")}
-							</button>
-						</p>
 					</div>
 				</CollapsibleSection>
 			</div>
@@ -1167,13 +1156,6 @@
 	}
 
 	.about-credit {
-		font-size: 0.7rem;
-		color: var(--text-muted);
-		margin: 0;
-		opacity: 0.7;
-	}
-
-	.about-theme-credit {
 		font-size: 0.7rem;
 		color: var(--text-muted);
 		margin: 0;

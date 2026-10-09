@@ -32,28 +32,12 @@ const builtinThemes: ThemeEntry[] = [
 		preview: { bg: "#f5f5f5", accent: "#2563eb", text: "#1a1a1a" },
 	},
 	{
-		id: "rose-pine",
-		name: "Rosé Pine",
-		author: "CubicLauncher",
-		version: "1.1",
-		type: "builtin",
-		preview: { bg: "#191724", accent: "#ebbcba", text: "#e0def4" },
-	},
-	{
-		id: "rose-pine-dawn",
-		name: "Rosé Pine Dawn",
-		author: "CubicLauncher",
-		version: "1.1",
-		type: "builtin",
-		preview: { bg: "#faf4ed", accent: "#a34c46", text: "#575279" },
-	},
-	{
 		id: "halloween-2026",
-		name: "Halloween 2026",
+		name: "Halloween 2026 (u/Ercerus)",
 		author: "CubicLauncher",
 		version: "1.0",
 		type: "builtin",
-		preview: { bg: "#0a0a0c", accent: "#ff7a18", text: "#f5efe6" },
+		preview: { bg: "#0a0d1a", accent: "#ff8a2b", text: "#f2ece0" },
 	},
 ];
 

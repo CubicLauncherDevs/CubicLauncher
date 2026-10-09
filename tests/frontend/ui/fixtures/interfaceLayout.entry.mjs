@@ -113,14 +113,7 @@ try {
 		},
 	});
 	await settle();
-	for (const theme of [
-		"dark",
-		"light",
-		"lima",
-		"rose-pine",
-		"rose-pine-dawn",
-		"user:custom-layout",
-	]) {
+	for (const theme of ["dark", "light", "lima", "user:custom-layout"]) {
 		await applyTheme(theme);
 		await settle();
 		// Theme assets finish after applyTheme resolves. Take the baseline only

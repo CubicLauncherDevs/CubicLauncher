@@ -386,9 +386,7 @@
 			"reportIssue": "Reportar problema",
 			"creditMadeBy": "hecho por",
 			"creditAnd": "y",
-			"creditSuffix": "(mitkomm)",
-			"themeCreditStart": "Temas Rosé Pine de",
-			"themeCreditName": "Rosé Pine"
+			"creditSuffix": "(mitkomm)"
 		},
 		"java": {
 			"configTitle": "Configuración de Java",

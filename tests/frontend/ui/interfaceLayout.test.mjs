@@ -192,7 +192,7 @@ test.skipIf(!browserPath)(
 				}),
 			]);
 			expect(payload.error, payload.stack).toBeUndefined();
-			expect(payload.cases).toBe(72);
+			expect(payload.cases).toBe(48);
 		} finally {
 			clearTimeout(watchdog);
 			if (browser) {
