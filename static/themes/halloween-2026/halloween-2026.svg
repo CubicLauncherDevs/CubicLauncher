@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Noche de Halloween con luna, murciélagos y calabazas iluminadas">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#150b22"/>
+      <stop offset="0.45" stop-color="#1d1028"/>
+      <stop offset="1" stop-color="#0a0610"/>
+    </linearGradient>
+    <radialGradient id="moonGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe9b8" stop-opacity="0.85"/>
+      <stop offset="0.4" stop-color="#ffcf7a" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#ffcf7a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hillFar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a1d36"/>
+      <stop offset="1" stop-color="#150d1f"/>
+    </linearGradient>
+    <linearGradient id="hillNear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#180f22"/>
+      <stop offset="1" stop-color="#080510"/>
+    </linearGradient>
+    <linearGradient id="pumpkin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff9f43"/>
+      <stop offset="0.55" stop-color="#f27a15"/>
+      <stop offset="1" stop-color="#c25a08"/>
+    </linearGradient>
+    <radialGradient id="faceGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffd98a" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#ffab1f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fog" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a3562" stop-opacity="0"/>
+      <stop offset="1" stop-color="#4a3562" stop-opacity="0.32"/>
+    </linearGradient>
+    <g id="bat">
+      <path d="M0 6 C-10 0 -22 -4 -34 -2 C-26 -12 -30 -24 -42 -32 C-22 -30 -8 -20 -2 -8 C-2 -14 -1 -18 0 -20 C1 -18 2 -14 2 -8 C8 -20 22 -30 42 -32 C30 -24 26 -12 34 -2 C22 -4 10 0 0 6 Z"/>
+    </g>
+    <g id="jack">
+      <ellipse cx="0" cy="0" rx="72" ry="56" fill="url(#pumpkin)"/>
+      <path d="M-26 -52 Q-36 0 -26 52" fill="none" stroke="#9c4705" stroke-width="3" opacity="0.45"/>
+      <path d="M26 -52 Q36 0 26 52" fill="none" stroke="#9c4705" stroke-width="3" opacity="0.45"/>
+      <path d="M0 -54 L0 54" fill="none" stroke="#9c4705" stroke-width="2.5" opacity="0.3"/>
+      <ellipse cx="0" cy="2" rx="72" ry="56" fill="none" stroke="#8f4205" stroke-width="3" opacity="0.5"/>
+      <path d="M-9 -58 q7 -24 21 -20 q-7 9 -5 22 Z" fill="#4f7a2e"/>
+      <path d="M-11 -58 q10 -6 22 -2" fill="none" stroke="#3c6023" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="0" cy="6" rx="54" ry="42" fill="url(#faceGlow)"/>
+      <path d="M-34 -16 L-14 -16 L-24 6 Z" fill="#ffe08a"/>
+      <path d="M14 -16 L34 -16 L24 6 Z" fill="#ffe08a"/>
+      <path d="M-32 18 L-22 30 L-12 18 L0 30 L12 18 L22 30 L32 18 Q0 42 -32 18 Z" fill="#ffe08a"/>
+    </g>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#sky)"/>
+
+  <g fill="#e9d9ff">
+    <circle cx="120" cy="90" r="2.2" opacity="0.9"/>
+    <circle cx="260" cy="150" r="1.6" opacity="0.6"/>
+    <circle cx="380" cy="70" r="1.8" opacity="0.75"/>
+    <circle cx="540" cy="120" r="2" opacity="0.55"/>
+    <circle cx="640" cy="60" r="1.5" opacity="0.8"/>
+    <circle cx="720" cy="190" r="1.7" opacity="0.5"/>
+    <circle cx="860" cy="90" r="2.1" opacity="0.7"/>
+    <circle cx="1150" cy="70" r="1.8" opacity="0.65"/>
+    <circle cx="1230" cy="200" r="2" opacity="0.5"/>
+    <circle cx="80" cy="260" r="1.6" opacity="0.45"/>
+    <circle cx="470" cy="230" r="1.5" opacity="0.5"/>
+    <circle cx="1090" cy="270" r="1.7" opacity="0.45"/>
+  </g>
+
+  <circle cx="1000" cy="160" r="190" fill="url(#moonGlow)"/>
+  <circle cx="1000" cy="160" r="80" fill="#f4e4bd"/>
+  <g fill="#d8c599" opacity="0.5">
+    <circle cx="978" cy="138" r="15"/>
+    <circle cx="1026" cy="176" r="11"/>
+    <circle cx="1002" cy="196" r="7"/>
+    <circle cx="964" cy="178" r="6"/>
+    <circle cx="1030" cy="140" r="5"/>
+  </g>
+
+  <g fill="#0d0814">
+    <use href="#bat" transform="translate(300, 170) scale(1.25)"/>
+    <use href="#bat" transform="translate(455, 118) scale(0.8)"/>
+    <use href="#bat" transform="translate(760, 235) scale(1.05)"/>
+    <use href="#bat" transform="translate(1155, 330) scale(0.7)"/>
+    <use href="#bat" transform="translate(620, 300) scale(0.6)"/>
+  </g>
+
+  <path d="M0 520 Q 220 430 450 495 T 900 495 T 1280 455 L1280 720 L0 720 Z" fill="url(#hillFar)"/>
+  <path d="M0 600 Q 300 520 620 580 T 1280 560 L1280 720 L0 720 Z" fill="url(#hillNear)"/>
+
+  <g>
+    <use href="#jack" transform="translate(985, 612) scale(1.15)"/>
+    <use href="#jack" transform="translate(178, 640) scale(0.82)"/>
+    <use href="#jack" transform="translate(560, 668) scale(0.58)"/>
+  </g>
+
+  <rect x="0" y="596" width="1280" height="124" fill="url(#fog)"/>
+</svg>
