@@ -200,7 +200,37 @@ async fn download_archive(state: &PackState, version: &str, destination: &Path) 
     Ok(())
 }
 
-async fn stage_archive(archive: &Path, destination: &Path) -> Result<PackState> {
+/// Hardlink (or copy, when staging and instance live on different filesystems)
+/// the files already installed so the downloader skips them. The downloader
+/// still hashes every destination, so a modified or stale file is re-downloaded.
+/// Best-effort: any failure simply falls back to downloading the file.
+fn seed_staging(destination: &Path, source_root: &Path, paths: &[String]) {
+    for relative in paths {
+        let (Ok(source), Ok(target)) = (
+            checked_path(source_root, relative),
+            checked_path(destination, relative),
+        ) else {
+            continue;
+        };
+        if !source.is_file() {
+            continue;
+        }
+        if let Some(parent) = target.parent()
+            && fs::create_dir_all(parent).is_err()
+        {
+            continue;
+        }
+        if fs::hard_link(&source, &target).is_err() && fs::copy(&source, &target).is_err() {
+            tracing::warn!(%relative, "No se pudo reutilizar el archivo del pack; se descargará");
+        }
+    }
+}
+
+async fn stage_archive(
+    archive: &Path,
+    destination: &Path,
+    reuse: Option<&Path>,
+) -> Result<PackState> {
     // Validate all paths, including overrides, before the installer writes anything.
     let mut state = modpack::inspect_archive(archive).await?;
     let archive_path = archive.to_path_buf();
@@ -213,13 +243,30 @@ async fn stage_archive(archive: &Path, destination: &Path) -> Result<PackState> 
     .map_err(|e| e.to_string())??;
     let shared = crate::core::PathManager::get().get_shared_dir();
     if mrpack {
+        // install_mrpack downloads straight into `destination`, so seeding it lets
+        // the downloader skip files that are already installed.
+        if let Some(source_root) = reuse {
+            let source_root = source_root.to_path_buf();
+            let destination_path = destination.to_path_buf();
+            let paths: Vec<String> = state.files.keys().cloned().collect();
+            let _ = tokio::task::spawn_blocking(move || {
+                seed_staging(&destination_path, &source_root, &paths)
+            })
+            .await;
+        }
         cubrinth::mrpack::install_mrpack(archive, destination, &shared, None)
             .await
             .map_err(|e| e.to_string())?;
     } else {
-        super::curseforge_modpack::install_curseforge_modpack(archive, destination, &shared, None)
-            .await
-            .map_err(|e| e.to_string())?;
+        super::curseforge_modpack::install_curseforge_modpack(
+            archive,
+            destination,
+            &shared,
+            None,
+            reuse,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
     }
     let root = destination.to_path_buf();
     tokio::task::spawn_blocking(move || {
@@ -250,7 +297,7 @@ pub async fn restore_legacy(root: &Path, state: PackState) -> Result<PackState> 
     tokio::fs::create_dir(&files)
         .await
         .map_err(|e| e.to_string())?;
-    let mut restored = stage_archive(&archive, &files).await?;
+    let mut restored = stage_archive(&archive, &files, None).await?;
     restored.source = state.source;
     restored.project_id = state.project_id;
     restored.version_id = state.version_id;
@@ -275,9 +322,12 @@ pub async fn prepare(
         .await?
         .ok_or("La instancia no está basada en un modpack")?;
     let old = restore_legacy(&root, old).await?;
+    // Keep staging on the instance's filesystem so unchanged files can be
+    // hardlinked instead of re-downloaded. It lives inside the instance dir so
+    // it is never mistaken for a sibling instance.
     let stage = tempfile::Builder::new()
         .prefix(".modpack-preview-")
-        .tempdir()
+        .tempdir_in(&root)
         .map_err(|e| e.to_string())?;
     let archive = stage.path().join("pack.zip");
     let remote = match (version_id.as_deref(), local_path) {
@@ -297,7 +347,7 @@ pub async fn prepare(
     tokio::fs::create_dir(&files_dir)
         .await
         .map_err(|e| e.to_string())?;
-    let mut next = stage_archive(&archive, &files_dir).await?;
+    let mut next = stage_archive(&archive, &files_dir, Some(&root)).await?;
     if remote {
         next.source = old.source.clone();
         next.project_id = old.project_id.clone();

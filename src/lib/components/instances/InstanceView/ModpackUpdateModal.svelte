@@ -3,6 +3,8 @@
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
+	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
+	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
 	import {
 		listModpackVersions,
 		previewModpackUpdate,
@@ -241,7 +243,12 @@
 				{@const files =
 					preview[kind as "added" | "removed" | "changed"]}
 				<details>
-					<summary>{t(`modpack.${kind}`)} ({files.length})</summary>
+					<summary
+						><span class="summary-chevron" aria-hidden="true"
+							><ChevronRightIcon size={12} /></span
+						><span>{t(`modpack.${kind}`)} ({files.length})</span
+						></summary
+					>
 					<ul>
 						{#each files as file (file)}<li>{file}</li>{/each}
 					</ul>
@@ -254,30 +261,42 @@
 			<div class="conflicts">
 				{#each preview.conflicts as file (file)}
 					<label class="conflict"
-						><span>{file}</span><select
-							disabled={working || busy}
-							value={resolutions[file] ?? ""}
-							onchange={(event) => {
-								resolutions = {
-									...resolutions,
-									[file]: event.currentTarget.value as
-										"keep" | "replace",
-								};
-							}}
-						>
-							<option value="" disabled
-								>{t("modpack.resolve")}</option
-							><option value="keep">{t("modpack.keep")}</option
-							><option value="replace"
-								>{t("modpack.replace")}</option
+						><span class="conflict-file">{file}</span>
+						<span class="select-wrap"
+							><select
+								disabled={working || busy}
+								value={resolutions[file] ?? ""}
+								onchange={(event) => {
+									resolutions = {
+										...resolutions,
+										[file]: event.currentTarget.value as
+											"keep" | "replace",
+									};
+								}}
 							>
-						</select></label
+								<option value="" disabled
+									>{t("modpack.resolve")}</option
+								><option value="keep"
+									>{t("modpack.keep")}</option
+								><option value="replace"
+									>{t("modpack.replace")}</option
+								>
+							</select>
+							<span class="select-chevron" aria-hidden="true"
+								><ChevronDownIcon size={12} /></span
+							></span
+						></label
 					>
 				{/each}
 			</div>
 		{/if}
 	{/if}
-	{#if working}<p role="status">{t("modpack.working")}</p>{/if}
+	{#if working && !applied}
+		<div class="processing" role="status" aria-live="polite">
+			<span class="spinner" aria-hidden="true"></span>
+			<span>{t("modpack.working")}</span>
+		</div>
+	{/if}
 	{#if error}<p role="alert" class="error">{error}</p>{/if}
 	{#snippet footer()}
 		<button
@@ -294,8 +313,11 @@
 					busy ||
 					(preview ? !canApply : !canPrepare)}
 				onclick={preview ? apply : prepare}
-				>{t(preview ? "modpack.apply" : "modpack.process")}</button
-			>{/if}
+			>
+				{#if working}<span class="spinner" aria-hidden="true"
+					></span>{/if}
+				<span>{t(preview ? "modpack.apply" : "modpack.process")}</span>
+			</button>{/if}
 	{/snippet}
 </ModalBase>
 
@@ -304,26 +326,110 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
-		border: 1px solid var(--border);
+		border: var(--border-width) solid var(--border);
 		border-radius: var(--border-radius-sm);
 		padding: 16px;
+		margin: 0;
+	}
+	legend {
+		padding: 0 6px;
+		font-size: var(--font-size-label);
+		font-weight: var(--font-weight-medium);
+		text-transform: uppercase;
+		letter-spacing: 1px;
+		color: var(--text-secondary);
 	}
 	label {
 		display: flex;
 		align-items: center;
 		gap: 10px;
+		cursor: pointer;
+		color: var(--text-secondary);
+		font-size: var(--font-size-control);
+	}
+	input[type="radio"] {
+		appearance: none;
+		-webkit-appearance: none;
+		width: 16px;
+		height: 16px;
+		margin: 0;
+		flex-shrink: 0;
+		position: relative;
+		background: var(--surface-input);
+		border: var(--border-width) solid var(--border);
+		border-radius: 50%;
+		cursor: pointer;
+		transition:
+			background var(--transition-fast) ease,
+			border-color var(--transition-fast) ease;
+	}
+	input[type="radio"]:hover:not(:disabled) {
+		border-color: var(--border-hover);
+	}
+	input[type="radio"]:checked {
+		background: var(--accent);
+		border-color: var(--accent);
+	}
+	input[type="radio"]:checked::after {
+		content: "";
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: var(--accent-text);
+		transform: translate(-50%, -50%);
+	}
+	input[type="radio"]:disabled {
+		opacity: var(--disabled-opacity, 0.5);
+		cursor: not-allowed;
+	}
+	.select-wrap {
+		position: relative;
+		display: inline-flex;
+		flex-shrink: 0;
 	}
 	select {
-		background: var(--bg-input);
+		appearance: none;
+		-webkit-appearance: none;
+		background: var(--surface-input);
 		color: var(--text-primary);
-		border: 1px solid var(--border);
+		border: var(--border-width) solid var(--border);
 		border-radius: var(--border-radius-sm);
-		padding: 8px;
+		padding: 8px 30px 8px 10px;
+		font: inherit;
+		font-size: var(--font-size-control);
 		max-width: 100%;
+		cursor: pointer;
+		transition:
+			background var(--transition-fast) ease,
+			border-color var(--transition-fast) ease;
+	}
+	select:hover:not(:disabled) {
+		background: var(--surface-hover);
+		border-color: var(--border-hover);
+	}
+	select:disabled {
+		opacity: var(--disabled-opacity, 0.5);
+		cursor: not-allowed;
+	}
+	option {
+		background: var(--bg-card);
+		color: var(--text-primary);
+	}
+	.select-chevron {
+		position: absolute;
+		right: 8px;
+		top: 50%;
+		transform: translateY(-50%);
+		display: flex;
+		color: var(--text-secondary);
+		pointer-events: none;
 	}
 	.path,
 	li,
-	.conflict span {
+	.conflict-file {
 		overflow-wrap: anywhere;
 	}
 	ul,
@@ -331,20 +437,108 @@
 		max-height: 240px;
 		overflow-y: auto;
 	}
+	ul {
+		margin: 0 0 10px;
+		padding-left: 18px;
+		color: var(--text-secondary);
+		font-size: var(--font-size-sm);
+	}
+	li::marker {
+		color: var(--text-muted);
+	}
+	details {
+		border: var(--border-width) solid var(--border);
+		border-radius: var(--border-radius-sm);
+		padding: 0 12px;
+	}
+	summary {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 10px 0;
+		list-style: none;
+		cursor: pointer;
+		color: var(--text-primary);
+		font-size: var(--font-size-control);
+		font-weight: var(--font-weight-medium);
+	}
+	summary::-webkit-details-marker {
+		display: none;
+	}
+	summary:hover {
+		color: var(--accent);
+	}
+	.summary-chevron {
+		display: flex;
+		color: var(--text-secondary);
+		transition: transform var(--transition-fast) ease;
+	}
+	details[open] .summary-chevron {
+		transform: rotate(90deg);
+	}
 	.conflict {
 		justify-content: space-between;
 		padding: 8px 0;
 	}
-	.conflict span {
+	.conflict-file {
 		min-width: 0;
 	}
-	.conflict select {
+	h3,
+	h4 {
+		color: var(--text-primary);
+		font-weight: var(--font-weight-medium);
+	}
+	h3 {
+		font-size: var(--font-size-lg);
+	}
+	h4 {
+		font-size: var(--font-size-control);
+	}
+	.processing {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 12px 14px;
+		border: var(--border-width) solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--surface-card);
+		color: var(--text-secondary);
+		font-size: var(--font-size-control);
+	}
+	.processing .spinner {
+		color: var(--accent);
+	}
+	.btn-primary {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+	}
+	.btn-primary:disabled,
+	.btn-secondary:disabled {
+		opacity: var(--disabled-opacity, 0.5);
+		cursor: not-allowed;
+	}
+	.spinner {
+		width: 14px;
+		height: 14px;
 		flex-shrink: 0;
+		border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+		border-top-color: currentColor;
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.spinner {
+			animation: none;
+		}
 	}
 	.error {
 		color: var(--color-error);
-	}
-	summary {
-		cursor: pointer;
 	}
 </style>

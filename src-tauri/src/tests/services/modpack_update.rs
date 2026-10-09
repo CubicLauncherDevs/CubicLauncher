@@ -1138,3 +1138,41 @@ fn snapshot_and_recovery_reject_symlink_destinations_without_touching_target() {
     assert_eq!(fs::read(prepared.root.join("config/a")).unwrap(), b"old");
     assert_eq!(fs::read(&outside).unwrap(), b"outside");
 }
+
+#[test]
+fn seed_staging_reuses_present_files_and_skips_missing_ones() {
+    let temp = fixture();
+    let source = temp.path().join("source");
+    let destination = temp.path().join("destination");
+    fs::create_dir_all(&destination).unwrap();
+    put(&source, "mods/a.jar", b"a");
+    put(&source, "config/b.json", b"b");
+    seed_staging(
+        &destination,
+        &source,
+        &[
+            "mods/a.jar".into(),
+            "config/b.json".into(),
+            "mods/missing.jar".into(),
+        ],
+    );
+    assert_eq!(fs::read(destination.join("mods/a.jar")).unwrap(), b"a");
+    assert_eq!(fs::read(destination.join("config/b.json")).unwrap(), b"b");
+    assert!(!destination.join("mods/missing.jar").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn seed_staging_hardlinks_files_on_the_same_filesystem() {
+    use std::os::unix::fs::MetadataExt;
+    let temp = fixture();
+    let source = temp.path().join("source");
+    let destination = temp.path().join("destination");
+    fs::create_dir_all(&destination).unwrap();
+    put(&source, "mods/a.jar", b"a");
+    seed_staging(&destination, &source, &["mods/a.jar".into()]);
+    let source_meta = fs::metadata(source.join("mods/a.jar")).unwrap();
+    let destination_meta = fs::metadata(destination.join("mods/a.jar")).unwrap();
+    assert_eq!(source_meta.ino(), destination_meta.ino());
+    assert_eq!(source_meta.nlink(), 2);
+}

@@ -180,6 +180,7 @@ pub async fn install_curseforge_modpack(
     instance_dir: &Path,
     shared_dir: &Path,
     progress: Option<aqua::progress::ProgressSender>,
+    reuse_dir: Option<&Path>,
 ) -> Result<CurseForgeModpackMetadata, CurseForgeModpackError> {
     let file = std::fs::File::open(path)?;
     let mut archive = zip::ZipArchive::new(file)?;
@@ -203,13 +204,15 @@ pub async fn install_curseforge_modpack(
     override_entries(&mut archive, &manifest.overrides)?;
     let metadata = metadata_from_manifest(&manifest);
 
-    // Downloads and extraction never operate on the live instance. On any
-    // failure TempDir removes only this exclusively-created private staging.
+    // Downloads and extraction write to a private staging subdir, never to the
+    // target's own files. It lives on the target's filesystem so files that are
+    // already installed can be hardlinked instead of re-downloaded, and TempDir
+    // removes it on any failure.
     let target_dir = instance_dir;
     let destination = ConfinedDir::open(target_dir)?;
     let staging = tempfile::Builder::new()
         .prefix("cubic-curseforge-")
-        .tempdir()?;
+        .tempdir_in(target_dir)?;
     let instance_dir = staging.path();
 
     let client = CurseForgeClient::from_settings_or_default();
@@ -302,6 +305,31 @@ pub async fn install_curseforge_modpack(
         .buffer_unordered(12)
         .try_collect::<Vec<_>>()
         .await?;
+
+    // Reuse files already present in the target so the downloader skips them.
+    // Best-effort: any failure simply falls back to downloading the file.
+    if let Some(reuse) = reuse_dir {
+        for item in &items {
+            let Ok(relative) = item.destination.strip_prefix(instance_dir) else {
+                continue;
+            };
+            let source = reuse.join(relative);
+            if !source.is_file() {
+                continue;
+            }
+            if let Some(parent) = item.destination.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if std::fs::hard_link(&source, &item.destination).is_err()
+                && std::fs::copy(&source, &item.destination).is_err()
+            {
+                tracing::warn!(
+                    "No se pudo reutilizar {}; se descargará",
+                    item.destination.display()
+                );
+            }
+        }
+    }
 
     if !items.is_empty() {
         let batch_name = format!(

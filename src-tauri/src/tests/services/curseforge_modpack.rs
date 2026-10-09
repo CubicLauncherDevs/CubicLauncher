@@ -80,9 +80,15 @@ async fn malicious_overrides_versions_and_zip_names_fail_without_touching_instan
         let archive = pack(temp.path(), m, &[(entry, b"malicious")]);
         assert!(parse_curseforge_modpack(&archive).is_err(), "{entry}");
         assert!(
-            install_curseforge_modpack(&archive, &instance, &temp.path().join("shared"), None)
-                .await
-                .is_err()
+            install_curseforge_modpack(
+                &archive,
+                &instance,
+                &temp.path().join("shared"),
+                None,
+                None
+            )
+            .await
+            .is_err()
         );
         assert_eq!(
             std::fs::read(instance.join("instance.cub")).unwrap(),
@@ -108,7 +114,7 @@ async fn failed_extraction_does_not_publish_partial_overrides() {
         ],
     );
     assert!(
-        install_curseforge_modpack(&archive, &instance, &temp.path().join("shared"), None)
+        install_curseforge_modpack(&archive, &instance, &temp.path().join("shared"), None, None)
             .await
             .is_err()
     );
@@ -129,7 +135,7 @@ async fn valid_pack_installs_portable_paths_and_icon_without_replacing_metadata(
             ("icon.png", b"icon"),
         ],
     );
-    install_curseforge_modpack(&archive, &instance, &temp.path().join("shared"), None)
+    install_curseforge_modpack(&archive, &instance, &temp.path().join("shared"), None, None)
         .await
         .unwrap();
     assert_eq!(
@@ -159,7 +165,7 @@ async fn installation_cannot_follow_a_destination_symlink() {
         &[("overrides/config/file.txt", b"bad")],
     );
     assert!(
-        install_curseforge_modpack(&archive, &instance, &temp.path().join("shared"), None)
+        install_curseforge_modpack(&archive, &instance, &temp.path().join("shared"), None, None)
             .await
             .is_err()
     );

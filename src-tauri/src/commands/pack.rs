@@ -457,6 +457,7 @@ async fn install_curseforge_modpack_inner(
         &instance_dir,
         &shared_dir,
         Some(progress_tx),
+        None,
     )
     .await;
 
