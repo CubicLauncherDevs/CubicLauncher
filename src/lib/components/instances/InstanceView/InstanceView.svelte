@@ -115,15 +115,18 @@
 		{downloadProgress}
 		bind:activeSection
 		onPlay={handlePlay}
-	/>
-	{#key selectedInstance.uuid}
-		<InstanceModpack
-			id={selectedInstance.uuid}
-			busy={bannerState === "Started" ||
-				bannerState === "Starting" ||
-				!!downloadKind}
-		/>
-	{/key}
+	>
+		{#snippet modpack()}
+			{#key selectedInstance.uuid}
+				<InstanceModpack
+					id={selectedInstance.uuid}
+					busy={bannerState === "Started" ||
+						bannerState === "Starting" ||
+						!!downloadKind}
+				/>
+			{/key}
+		{/snippet}
+	</InstanceHeader>
 
 	<div
 		class="tab-content"

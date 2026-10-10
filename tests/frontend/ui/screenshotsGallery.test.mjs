@@ -78,9 +78,9 @@ async function run(){
  let legacy={...packFor('A'),needs_inventory:true};
  hooks.pack=id=>id==='A'?legacy:packFor(id);
  refreshInstanceMods('A');await settle();
- const packButton=key=>[...document.querySelectorAll('.pack-summary button')].find(button=>button.textContent.trim()===key);
+ const packButton=key=>[...document.querySelectorAll('.pack-summary button')].find(button=>button.getAttribute('aria-label')===key);
  const inventoryButton=()=>packButton('modpack.restoreInventory');
- assert(document.querySelector('.inventory-notice')?.textContent.includes('modpack.needsInventory'),'legacy inventory hint missing');
+ assert(inventoryButton()?.title.includes('modpack.needsInventory'),'legacy inventory hint missing');
  assert(inventoryButton()&&!inventoryButton().disabled,'legacy inventory recovery unavailable');
  assert(!packButton('modpack.unlock').disabled&&!packButton('modpack.update').disabled,'legacy state blocks unlocking or update');
  hooks.restore=async()=>{throw Error('Inventory offline')};
@@ -95,7 +95,7 @@ async function run(){
  const refreshes=calls.refreshes.length;
  legacy={...legacy,needs_inventory:false,name:'Recovered A'};
  finishInventory(legacy);await settle();
- assert(!document.querySelector('.inventory-notice'),'successful inventory recovery retained legacy hint');
+ assert(!inventoryButton(),'successful inventory recovery retained legacy hint');
  assert(document.querySelector('.pack-summary strong')?.textContent==='Recovered A','inventory recovery lost returned metadata');
  assert(calls.refreshes.length>refreshes&&calls.refreshes.at(-1)==='A','inventory recovery did not refresh mods');
  assert(calls.restores.length===2&&calls.restores.every(args=>args.id==='A'),'inventory command targeted wrong instance');
@@ -105,11 +105,11 @@ async function run(){
  change('B');await settle();
  finishInventory({...legacy,needs_inventory:false,name:'Late recovery'});await settle();
  assert(document.querySelector('.pack-summary strong')?.textContent==='Pack B','late inventory recovery replaced current instance');
- assert(!document.querySelector('.inventory-notice')&&!document.querySelector('.pack-summary [role="alert"]'),'old inventory state leaked into new instance');
+ assert(!inventoryButton()&&!document.querySelector('.pack-summary [role="alert"]'),'old inventory state leaked into new instance');
  hooks.pack=null;
  hooks.restore=null;
  change('A');await settle();
- assert(!document.querySelector('.inventory-notice'),'optional needs_inventory missing from mock treated as legacy');
+ assert(!inventoryButton(),'optional needs_inventory missing from mock treated as legacy');
  document.querySelector('#screenshots').click();
  await wait(()=>cards().length>0,'gallery did not mount');
  const grid=document.querySelector('.screenshots-grid');
@@ -251,7 +251,7 @@ test.skipIf(!browserPath)(
 												}).js.code
 											: compile(
 													path === "header"
-														? '<script>let {activeSection=$bindable()}=$props()</script><button id="screenshots" onclick={()=>activeSection="screenshots"}>Screenshots</button>'
+														? '<script>let {activeSection=$bindable(),modpack}=$props()</script>{#if modpack}{@render modpack()}{/if}<button id="screenshots" onclick={()=>activeSection="screenshots"}>Screenshots</button>'
 														: "",
 													{
 														filename:

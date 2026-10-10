@@ -11,6 +11,7 @@
 		registerModsRefreshCallback,
 	} from "$lib/api/launcherService";
 	import { t } from "$lib/i18n";
+	import Icon from "$lib/icons/Icon.svelte";
 	import ModpackUpdateModal from "./ModpackUpdateModal.svelte";
 
 	let { id, busy = false }: { id: string; busy?: boolean } = $props();
@@ -39,6 +40,15 @@
 			game_version: state.game_version,
 			locked: state.locked,
 			needs_inventory: state.needs_inventory,
+		};
+	}
+
+	function portal(el: HTMLElement) {
+		document.body.appendChild(el);
+		return {
+			destroy() {
+				el.remove();
+			},
 		};
 	}
 
@@ -106,105 +116,183 @@
 			if (!disposed && request === generation) changing = false;
 		}
 	}
+
+	const chipTitle = $derived(
+		pack
+			? `${pack.name} · ${pack.version} · ${t("modpack.installationVersion")}: ${pack.game_version} · ${pack.source}`
+			: "",
+	);
+	const lockLabel = $derived(
+		pack ? t(pack.locked ? "modpack.unlock" : "modpack.lock") : "",
+	);
 </script>
 
 {#if loading || error || pack}
-	<section
+	<div
 		class="pack-summary"
 		aria-label={t("modpack.title")}
 		aria-busy={loading || changing}
 	>
 		{#if loading}
-			<span role="status">{t("createInstance.loading")}</span>
+			<span class="pack-spinner" aria-hidden="true"></span>
 		{/if}
 		{#if error}
-			<p role="alert">{error}</p>
+			<span class="pack-error" role="alert" title={error}>{error}</span>
 			<button
 				type="button"
-				class="btn-secondary"
+				class="chip-btn warn"
+				title={t("modpack.retry")}
+				aria-label={t("modpack.retry")}
 				disabled={loading || changing}
-				onclick={() => load(id)}>{t("modpack.retry")}</button
+				onclick={() => load(id)}
 			>
+				<Icon name="ui:refresh" size={14} />
+			</button>
 		{/if}
 		{#if pack}
-			<div class="identity">
-				<strong>{pack.name}</strong>
-				<span
-					>{pack.version} · {t("modpack.installationVersion")}: {pack.game_version}
-					· {pack.source}</span
-				>
-			</div>
-			<span>{t(pack.locked ? "modpack.locked" : "modpack.unlocked")}</span
-			>
+			<span class="pack-chip" title={chipTitle}>
+				<Icon name="instance:puzzle" size={13} />
+				<strong class="pack-name">{pack.name}</strong>
+				<span class="lock-dot" class:locked={pack.locked}></span>
+			</span>
 			<button
 				type="button"
-				class="btn-secondary"
+				class="chip-btn"
+				title={lockLabel}
+				aria-label={lockLabel}
 				disabled={busy || changing || loading}
 				onclick={toggleLock}
-				>{t(pack.locked ? "modpack.unlock" : "modpack.lock")}</button
 			>
+				<Icon name={pack.locked ? "ui:unlock" : "ui:lock"} size={14} />
+			</button>
 			<button
 				type="button"
-				class="btn-primary"
+				class="chip-btn"
+				title={t("modpack.update")}
+				aria-label={t("modpack.update")}
 				disabled={busy || changing || loading}
 				onclick={() => (updateOpen = true)}
-				>{t("modpack.update")}</button
 			>
+				<Icon name="ui:refresh" size={14} />
+			</button>
 			{#if pack.needs_inventory}
-				<div class="inventory-notice">
-					<span role="status">{t("modpack.needsInventory")}</span>
-					<button
-						type="button"
-						class="btn-secondary"
-						disabled={busy || changing || loading}
-						onclick={restoreInventory}
-						>{t("modpack.restoreInventory")}</button
-					>
-				</div>
+				<button
+					type="button"
+					class="chip-btn warn"
+					title={t("modpack.needsInventory")}
+					aria-label={t("modpack.restoreInventory")}
+					disabled={busy || changing || loading}
+					onclick={restoreInventory}
+				>
+					<Icon name="ui:download" size={14} />
+				</button>
 			{/if}
 		{/if}
-	</section>
+	</div>
 {/if}
 {#if updateOpen && pack}
-	<ModpackUpdateModal
-		bind:open={updateOpen}
-		{id}
-		{pack}
-		{busy}
-		onupdated={() => load(id)}
-	/>
+	<div use:portal>
+		<ModpackUpdateModal
+			bind:open={updateOpen}
+			{id}
+			{pack}
+			{busy}
+			onupdated={() => load(id)}
+		/>
+	</div>
 {/if}
 
 <style>
 	.pack-summary {
 		display: flex;
 		align-items: center;
-		flex-wrap: wrap;
-		gap: 12px;
-		padding: 12px 24px;
-		border-bottom: 1px solid var(--border);
-		color: var(--text-secondary);
-		font-size: 0.8rem;
+		gap: 6px;
+		min-width: 0;
 	}
-	.identity {
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		flex: 1;
-		min-width: 160px;
-		overflow-wrap: anywhere;
-	}
-	.inventory-notice {
-		display: flex;
+	.pack-chip {
+		display: inline-flex;
 		align-items: center;
-		flex-wrap: wrap;
-		gap: 12px;
-		flex-basis: 100%;
+		gap: 6px;
+		min-width: 0;
+		max-width: 180px;
+		padding: 3px 8px;
+		border: 1px solid var(--border);
+		border-radius: 5px;
+		background: var(--bg-card);
+		color: var(--text-secondary);
+		font-size: 0.7rem;
+		font-weight: 600;
 	}
-	strong {
+	.pack-name {
+		min-width: 0;
 		color: var(--text-primary);
+		font-weight: 600;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
-	p {
+	.lock-dot {
+		width: 6px;
+		height: 6px;
+		flex-shrink: 0;
+		border-radius: 50%;
+		background: var(--text-tertiary);
+	}
+	.lock-dot.locked {
+		background: var(--accent);
+	}
+	.pack-error {
+		min-width: 0;
+		max-width: 220px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 		color: var(--color-error);
+		font-size: 0.7rem;
+	}
+	.chip-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 26px;
+		height: 26px;
+		flex-shrink: 0;
+		padding: 0;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		background: transparent;
+		color: var(--text-tertiary);
+		cursor: pointer;
+		transition:
+			background 0.15s,
+			color 0.15s,
+			border-color 0.15s;
+	}
+	.chip-btn:hover:not(:disabled) {
+		background: var(--bg-card);
+		color: var(--text-primary);
+		border-color: var(--text-tertiary);
+	}
+	.chip-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	.chip-btn.warn {
+		color: var(--color-error);
+		border-color: rgba(var(--color-error-rgb), 0.35);
+	}
+	.pack-spinner {
+		width: 14px;
+		height: 14px;
+		flex-shrink: 0;
+		border-radius: 50%;
+		border: 2px solid var(--border);
+		border-top-color: var(--accent);
+		animation: pack-spin 0.8s linear infinite;
+	}
+	@keyframes pack-spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>

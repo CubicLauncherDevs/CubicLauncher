@@ -181,6 +181,7 @@
 	title={t("modpack.update")}
 	width="700px"
 	closeDisabled={working}
+	scrollBody
 >
 	{#if applied}
 		<p role="status">{t("modpack.updated")}</p>
@@ -234,60 +235,84 @@
 			{/if}
 		</fieldset>
 		{#if preview}
-			<h3>
-				{preview.name} · {preview.version} · {t(
-					"modpack.installationVersion",
-				)}: {preview.game_version}
-			</h3>
-			{#each ["added", "removed", "changed"] as kind (kind)}
-				{@const files =
-					preview[kind as "added" | "removed" | "changed"]}
-				<details>
-					<summary
-						><span class="summary-chevron" aria-hidden="true"
-							><ChevronRightIcon size={12} /></span
-						><span>{t(`modpack.${kind}`)} ({files.length})</span
-						></summary
+			<div class="preview">
+				<div class="preview-head">
+					<span class="preview-name">{preview.name}</span>
+					<span class="preview-meta"
+						>{preview.version} · {t("modpack.installationVersion")}: {preview.game_version}</span
 					>
-					<ul>
-						{#each files as file (file)}<li>{file}</li>{/each}
-					</ul>
-				</details>
-			{/each}
-			<h4>{t("modpack.conflicts")} ({preview.conflicts.length})</h4>
-			{#if preview.conflicts.length}<p>
-					{t("modpack.conflictsHint")}
-				</p>{/if}
-			<div class="conflicts">
-				{#each preview.conflicts as file (file)}
-					<label class="conflict"
-						><span class="conflict-file">{file}</span>
-						<span class="select-wrap"
-							><select
-								disabled={working || busy}
-								value={resolutions[file] ?? ""}
-								onchange={(event) => {
-									resolutions = {
-										...resolutions,
-										[file]: event.currentTarget.value as
-											"keep" | "replace",
-									};
-								}}
-							>
-								<option value="" disabled
-									>{t("modpack.resolve")}</option
-								><option value="keep"
-									>{t("modpack.keep")}</option
-								><option value="replace"
-									>{t("modpack.replace")}</option
+				</div>
+				<div class="file-groups">
+					{#each ["added", "removed", "changed"] as kind (kind)}
+						{@const files =
+							preview[kind as "added" | "removed" | "changed"]}
+						<details
+							class="file-group"
+							class:empty={files.length === 0}
+						>
+							<summary>
+								<span class="summary-chevron" aria-hidden="true"
+									><ChevronRightIcon size={12} /></span
 								>
-							</select>
-							<span class="select-chevron" aria-hidden="true"
-								><ChevronDownIcon size={12} /></span
-							></span
-						></label
-					>
-				{/each}
+								<span class="group-label"
+									>{t(`modpack.${kind}`)}</span
+								>
+								<span class="count">{files.length}</span>
+							</summary>
+							<ul>
+								{#each files as file (file)}<li>
+										{file}
+									</li>{/each}
+							</ul>
+						</details>
+					{/each}
+				</div>
+				<div class="conflicts-block">
+					<div class="conflicts-head">
+						<span class="group-label">{t("modpack.conflicts")}</span
+						>
+						<span class="count">{preview.conflicts.length}</span>
+					</div>
+					{#if preview.conflicts.length}
+						<p class="hint">{t("modpack.conflictsHint")}</p>
+						<div class="conflicts">
+							{#each preview.conflicts as file (file)}
+								<label class="conflict">
+									<span class="conflict-file">{file}</span>
+									<span class="select-wrap">
+										<select
+											disabled={working || busy}
+											value={resolutions[file] ?? ""}
+											onchange={(event) => {
+												resolutions = {
+													...resolutions,
+													[file]: event.currentTarget
+														.value as
+														"keep" | "replace",
+												};
+											}}
+										>
+											<option value="" disabled
+												>{t("modpack.resolve")}</option
+											>
+											<option value="keep"
+												>{t("modpack.keep")}</option
+											>
+											<option value="replace"
+												>{t("modpack.replace")}</option
+											>
+										</select>
+										<span
+											class="select-chevron"
+											aria-hidden="true"
+											><ChevronDownIcon size={12} /></span
+										>
+									</span>
+								</label>
+							{/each}
+						</div>
+					{/if}
+				</div>
 			</div>
 		{/if}
 	{/if}
@@ -432,24 +457,40 @@
 	.conflict-file {
 		overflow-wrap: anywhere;
 	}
-	ul,
-	.conflicts {
-		max-height: 240px;
-		overflow-y: auto;
+
+	.preview {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
 	}
-	ul {
-		margin: 0 0 10px;
-		padding-left: 18px;
+	.preview-head {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.preview-name {
+		color: var(--text-primary);
+		font-size: var(--font-size-lg);
+		font-weight: var(--font-weight-medium);
+	}
+	.preview-meta {
 		color: var(--text-secondary);
 		font-size: var(--font-size-sm);
 	}
-	li::marker {
-		color: var(--text-muted);
+
+	.file-groups {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
 	}
-	details {
+	details.file-group {
 		border: var(--border-width) solid var(--border);
 		border-radius: var(--border-radius-sm);
+		background: var(--bg-card);
 		padding: 0 12px;
+	}
+	details.file-group.empty {
+		opacity: 0.6;
 	}
 	summary {
 		display: flex;
@@ -476,23 +517,70 @@
 	details[open] .summary-chevron {
 		transform: rotate(90deg);
 	}
+	.group-label {
+		min-width: 0;
+	}
+	.count {
+		margin-left: auto;
+		padding: 1px 8px;
+		border-radius: 999px;
+		background: var(--surface-hover);
+		color: var(--text-secondary);
+		font-size: 0.72rem;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+	}
+	.file-group ul {
+		max-height: 200px;
+		overflow-y: auto;
+		margin: 0 0 10px;
+		padding: 0;
+		list-style: none;
+	}
+	.file-group li {
+		padding: 5px 0;
+		border-top: 1px solid var(--border);
+		color: var(--text-secondary);
+		font-size: var(--font-size-sm);
+	}
+
+	.conflicts-block {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+	.conflicts-head {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		color: var(--text-primary);
+		font-size: var(--font-size-control);
+		font-weight: var(--font-weight-medium);
+	}
+	.hint {
+		margin: 0;
+		color: var(--text-secondary);
+		font-size: var(--font-size-sm);
+	}
+	.conflicts {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		max-height: 260px;
+		overflow-y: auto;
+	}
 	.conflict {
 		justify-content: space-between;
-		padding: 8px 0;
+		gap: 12px;
+		padding: 10px 12px;
+		border: var(--border-width) solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--bg-card);
 	}
 	.conflict-file {
 		min-width: 0;
-	}
-	h3,
-	h4 {
-		color: var(--text-primary);
-		font-weight: var(--font-weight-medium);
-	}
-	h3 {
-		font-size: var(--font-size-lg);
-	}
-	h4 {
-		font-size: var(--font-size-control);
+		color: var(--text-secondary);
+		font-size: var(--font-size-sm);
 	}
 	.processing {
 		display: flex;

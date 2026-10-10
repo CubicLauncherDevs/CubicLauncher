@@ -4,6 +4,8 @@ export const ICON_REGISTRY: Record<string, string> = {
 	"ui:check": "/images/icons/ui/check.svg",
 	"ui:check-circle": "/images/icons/ui/check-circle.svg",
 	"ui:chevron-down": "/images/icons/ui/chevron-down.svg",
+	"ui:lock": "/images/icons/ui/lock.svg",
+	"ui:unlock": "/images/icons/ui/unlock.svg",
 	"ui:chevron-left": "/images/icons/ui/chevron-left.svg",
 	"ui:chevron-right": "/images/icons/ui/chevron-right.svg",
 	"ui:close": "/images/icons/ui/close.svg",

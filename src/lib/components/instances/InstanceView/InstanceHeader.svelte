@@ -2,6 +2,7 @@
 	import { t } from "$lib/i18n";
 	import { invoke } from "@tauri-apps/api/core";
 	import { onMount } from "svelte";
+	import type { Snippet } from "svelte";
 	import { subscribeLogPreview } from "$lib/api/logStream";
 	import type { InstanceDto } from "$lib/types/types";
 	import { getLoaderLogo, getDisplayIconSrc } from "$lib/icons/logos";
@@ -17,6 +18,7 @@
 		downloadProgress = 0,
 		activeSection = $bindable("detalles"),
 		onPlay = () => {},
+		modpack = undefined,
 	}: {
 		instance: InstanceDto;
 		bannerState: string;
@@ -24,6 +26,7 @@
 		downloadProgress?: number;
 		activeSection: string;
 		onPlay: () => void;
+		modpack?: Snippet;
 	} = $props();
 
 	const loaderIcon = $derived(getLoaderLogo(instance.loader));
@@ -274,6 +277,7 @@
 			</div>
 
 			<div class="details-row">
+				{#if modpack}{@render modpack()}{/if}
 				<div class="path-row">
 					<Icon name="instance:folder" size={12} />
 					<span class="path-text" title={instance.path}
@@ -615,9 +619,10 @@
 
 	.details-row {
 		display: flex;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
 		align-items: center;
 		gap: 12px;
+		min-width: 0;
 	}
 
 	.path-row {
