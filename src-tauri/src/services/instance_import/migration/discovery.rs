@@ -215,7 +215,10 @@ fn xmcl(root: &Path) -> Result<Vec<Candidate>, String> {
             dirs.push(path);
         }
     }
-    for registry in [root.join("instances.json"), game_root.join("instances.json")] {
+    for registry in [
+        root.join("instances.json"),
+        game_root.join("instances.json"),
+    ] {
         let Ok(bytes) = fs::read(&registry) else {
             continue;
         };
@@ -339,7 +342,9 @@ fn xmcl_version(runtime: &Value) -> Result<GameVersion, String> {
         loaders.push(Loader::Quilt(version.to_string()));
     }
     if let Some(version) = field("forge") {
-        let version = version.strip_prefix(&format!("{mc_version}-")).unwrap_or(version);
+        let version = version
+            .strip_prefix(&format!("{mc_version}-"))
+            .unwrap_or(version);
         if !safe_component(version) {
             return Err("Invalid Forge version".into());
         }

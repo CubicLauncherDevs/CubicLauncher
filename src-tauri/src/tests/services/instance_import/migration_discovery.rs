@@ -438,4 +438,3 @@ fn xmcl_only_applies_explicit_memory_overrides() {
         assert_eq!(candidate.memory, expected);
     }
 }
-
