@@ -327,3 +327,115 @@ fn official_loader_version_conflicts_and_unknown_parent_are_not_guessed() {
     );
     assert!(resolve_official(root.path(), "neo", &[], &mut HashSet::new()).is_err());
 }
+
+#[test]
+fn xmcl_resolves_managed_and_external_instances_with_loaders() {
+    let root = tempfile::tempdir().unwrap();
+    let managed = root.path().join("instances/Vanilla");
+    fs::create_dir_all(&managed).unwrap();
+    write_json(
+        &managed.join("instance.json"),
+        json!({ "name": "Vanilla 1.20.1", "runtime": { "minecraft": "1.20.1" } }),
+    );
+    let external = tempfile::tempdir().unwrap();
+    write_json(
+        &external.path().join("instance.json"),
+        json!({
+            "name": "Fabric", "runtime": { "minecraft": "1.21.1", "fabricLoader": "0.16.10" },
+            "assignMemory": true, "minMemory": 1024, "maxMemory": 4096
+        }),
+    );
+    write_json(
+        &root.path().join("instances.json"),
+        json!({
+            "selectedInstance": "Vanilla",
+            "instances": ["Vanilla", external.path().to_str().unwrap()]
+        }),
+    );
+    let candidates = xmcl(root.path()).unwrap();
+    assert_eq!(candidates.len(), 2);
+    let vanilla = candidates
+        .iter()
+        .find(|c| c.name == "Vanilla 1.20.1")
+        .unwrap();
+    assert!(vanilla.error.is_none(), "{:?}", vanilla.error);
+    assert_eq!(vanilla.source, fs::canonicalize(&managed).unwrap());
+    assert_eq!(vanilla.version.as_ref().unwrap().to_version_id(), "1.20.1");
+    assert!(!vanilla.reinstalls_components);
+    assert_eq!(vanilla.memory, None);
+    let fabric = candidates.iter().find(|c| c.name == "Fabric").unwrap();
+    assert!(fabric.error.is_none(), "{:?}", fabric.error);
+    assert_eq!(
+        fabric.version.as_ref().unwrap().to_version_id(),
+        "fabric-loader-0.16.10-1.21.1"
+    );
+    assert!(fabric.reinstalls_components);
+    assert_eq!(fabric.memory, Some((1024, 4096)));
+}
+
+#[test]
+fn xmcl_handles_bedrock_unsupported_components_and_forge_versions() {
+    let root = tempfile::tempdir().unwrap();
+    let bedrock = root.path().join("instances/Bedrock");
+    fs::create_dir_all(&bedrock).unwrap();
+    write_json(
+        &bedrock.join("instance.json"),
+        json!({ "name": "Bedrock", "edition": "bedrock", "runtime": { "minecraft": "1.20.1" } }),
+    );
+    let optifine = root.path().join("instances/OptiFine");
+    fs::create_dir_all(&optifine).unwrap();
+    write_json(
+        &optifine.join("instance.json"),
+        json!({ "name": "OptiFine", "runtime": { "minecraft": "1.20.1", "optifine": "HD_U_I6" } }),
+    );
+    let forge = root.path().join("instances/Forge");
+    fs::create_dir_all(&forge).unwrap();
+    write_json(
+        &forge.join("instance.json"),
+        json!({ "name": "Forge", "runtime": { "minecraft": "1.20.1", "forge": "1.20.1-47.3.0" } }),
+    );
+    let candidates = xmcl(root.path()).unwrap();
+    assert_eq!(candidates.len(), 3);
+    for name in ["Bedrock", "OptiFine"] {
+        assert!(
+            candidates
+                .iter()
+                .find(|c| c.name == name)
+                .unwrap()
+                .error
+                .is_some()
+        );
+    }
+    let forge = candidates.iter().find(|c| c.name == "Forge").unwrap();
+    assert!(forge.error.is_none(), "{:?}", forge.error);
+    assert_eq!(
+        forge.version.as_ref().unwrap().to_version_id(),
+        "1.20.1-forge-47.3.0"
+    );
+    // Selecting the `instances` folder itself is also supported.
+    assert_eq!(xmcl(&root.path().join("instances")).unwrap().len(), 3);
+}
+
+#[test]
+fn xmcl_only_applies_explicit_memory_overrides() {
+    let root = tempfile::tempdir().unwrap();
+    for (name, assign, min, max, expected) in [
+        ("Auto", json!("auto"), 2048, 8192, Some((2048, 8192))),
+        ("Unassigned", json!(false), 1024, 4096, None),
+        ("ZeroMin", json!(true), 0, 4096, None),
+    ] {
+        let dir = root.path().join("instances").join(name);
+        fs::create_dir_all(&dir).unwrap();
+        write_json(
+            &dir.join("instance.json"),
+            json!({
+                "name": name, "runtime": { "minecraft": "1.20.1" },
+                "assignMemory": assign, "minMemory": min, "maxMemory": max
+            }),
+        );
+        let candidates = xmcl(root.path()).unwrap();
+        let candidate = candidates.iter().find(|c| c.name == name).unwrap();
+        assert_eq!(candidate.memory, expected);
+    }
+}
+

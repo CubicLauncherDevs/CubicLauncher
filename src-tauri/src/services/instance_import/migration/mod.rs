@@ -22,6 +22,7 @@ use zellkern::GameVersion;
 pub enum Provider {
     Official,
     Multimc,
+    Xmcl,
 }
 
 #[derive(Clone, Serialize)]

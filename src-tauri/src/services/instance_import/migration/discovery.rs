@@ -49,6 +49,20 @@ pub fn default_roots(provider: Provider) -> Vec<PathBuf> {
             }
             paths
         }
+        Provider::Xmcl => vec![
+            // Data directory (holds instances.json). Linux ~/.config/xmcl,
+            // macOS ~/Library/Application Support/xmcl, Windows %APPDATA%\xmcl.
+            base.data_dir().join("xmcl"),
+            // Legacy data directory used by older releases.
+            home.join(".xmcl"),
+            // Windows AppX / WinGet installs store data inside the package sandbox.
+            base.cache_dir()
+                .join("Packages")
+                .join("XMCL_68mcaawk44tpj")
+                .join("LocalCache")
+                .join("Roaming")
+                .join("xmcl"),
+        ],
     };
     let mut seen = HashSet::new();
     roots.retain(|p| p.is_dir() && seen.insert(fs::canonicalize(p).unwrap_or_else(|_| p.clone())));
@@ -64,6 +78,7 @@ pub fn scan_root(
     match provider {
         Provider::Official => official(&root, latest),
         Provider::Multimc => multimc(&root),
+        Provider::Xmcl => xmcl(&root),
     }
 }
 
@@ -162,6 +177,197 @@ fn multimc(root: &Path) -> Result<Vec<Candidate>, String> {
         result.push(c);
     }
     Ok(result)
+}
+
+/// Scan an XMCL data directory for instances.
+///
+/// XMCL keeps a registry (`instances.json`) in its data directory and instance
+/// folders under `<game data>/instances`. Managed instances are listed relative
+/// to that `instances` folder while external ones are absolute; a `root` pointer
+/// file in the data directory relocates the game data folder.
+fn xmcl(root: &Path) -> Result<Vec<Candidate>, String> {
+    let game_root = fs::read_to_string(root.join("root"))
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .filter(|path| path.is_dir())
+        .unwrap_or_else(|| root.to_path_buf());
+    // Accept either the data directory (contains `instances/`) or the
+    // `instances` folder itself.
+    let instances = if game_root.join("instances").is_dir() {
+        game_root.join("instances")
+    } else {
+        game_root.clone()
+    };
+
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    if instances.is_dir() {
+        for entry in fs::read_dir(&instances).map_err(|e| e.to_string())? {
+            let path = entry.map_err(|e| e.to_string())?.path();
+            if path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with('.'))
+            {
+                continue;
+            }
+            dirs.push(path);
+        }
+    }
+    for registry in [root.join("instances.json"), game_root.join("instances.json")] {
+        let Ok(bytes) = fs::read(&registry) else {
+            continue;
+        };
+        let Ok(json) = serde_json::from_slice::<Value>(&bytes) else {
+            continue;
+        };
+        for listed in json
+            .get("instances")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+        {
+            let path = PathBuf::from(listed);
+            dirs.push(if path.is_absolute() {
+                path
+            } else {
+                instances.join(path)
+            });
+        }
+    }
+
+    let mut seen = HashSet::new();
+    dirs.retain(|path| path.join("instance.json").is_file() && seen.insert(path.clone()));
+    dirs.sort();
+
+    let mut result = Vec::new();
+    for dir in dirs {
+        let fallback = dir
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        let json = match fs::read(dir.join("instance.json"))
+            .map_err(|e| e.to_string())
+            .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).map_err(|e| e.to_string()))
+        {
+            Ok(json) => json,
+            Err(e) => {
+                result.push(candidate(&fallback, dir, root, Err(e)));
+                continue;
+            }
+        };
+        let name = json
+            .get("name")
+            .and_then(Value::as_str)
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or(&fallback);
+        if json.get("edition").and_then(Value::as_str) == Some("bedrock") {
+            result.push(candidate(
+                name,
+                dir,
+                root,
+                Err("Bedrock Edition is not supported".into()),
+            ));
+            continue;
+        }
+        let version = xmcl_version(json.get("runtime").unwrap_or(&Value::Null));
+        let mut c = candidate(name, dir.clone(), root, version);
+        c.reinstalls_components = c
+            .version
+            .as_ref()
+            .is_some_and(|version| !matches!(version.loader, Loader::Vanilla));
+        if xmcl_assigns_memory(&json) {
+            let min = json.get("minMemory").and_then(Value::as_u64).unwrap_or(0);
+            let max = json.get("maxMemory").and_then(Value::as_u64).unwrap_or(0);
+            // Only explicit, launchable overrides; avoids an invalid `-Xms0M`.
+            if min > 0 && max >= min && max <= u32::MAX as u64 {
+                c.memory = Some((min as u32, max as u32));
+            }
+        }
+        let mut icons = vec![dir.join("icon.png")];
+        if let Some(icon) = json.get("icon").and_then(Value::as_str) {
+            let icon = Path::new(icon);
+            if icon.is_absolute() {
+                icons.push(icon.to_path_buf());
+            } else if safe_component(icon.to_string_lossy().as_ref()) {
+                icons.push(dir.join(icon));
+            }
+        }
+        c.icon = icons.into_iter().find(|path| path.is_file());
+        if c.source.is_dir() {
+            c.source = fs::canonicalize(&c.source).map_err(|e| e.to_string())?;
+        }
+        result.push(c);
+    }
+    Ok(result)
+}
+
+/// Build a `GameVersion` from an XMCL instance `runtime` object.
+fn xmcl_version(runtime: &Value) -> Result<GameVersion, String> {
+    let field = |key: &str| {
+        runtime
+            .get(key)
+            .and_then(Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+    };
+    let mc_version = field("minecraft").ok_or("Minecraft version not found")?;
+    if !safe_component(mc_version) {
+        return Err("Invalid Minecraft version".into());
+    }
+    // Cubic cannot reinstall these client components; refuse instead of silently
+    // dropping them, matching the official launcher scanner.
+    if field("optifine").is_some() {
+        return Err("Unsupported component: OptiFine".into());
+    }
+    if field("labyMod").is_some() {
+        return Err("Unsupported component: LabyMod".into());
+    }
+    let mut loaders = Vec::new();
+    if let Some(version) = field("fabricLoader") {
+        if !safe_component(version) {
+            return Err("Invalid Fabric version".into());
+        }
+        loaders.push(Loader::Fabric(version.to_string()));
+    }
+    if let Some(version) = field("quiltLoader") {
+        if !safe_component(version) {
+            return Err("Invalid Quilt version".into());
+        }
+        loaders.push(Loader::Quilt(version.to_string()));
+    }
+    if let Some(version) = field("forge") {
+        let version = version.strip_prefix(&format!("{mc_version}-")).unwrap_or(version);
+        if !safe_component(version) {
+            return Err("Invalid Forge version".into());
+        }
+        loaders.push(Loader::Forge(version.to_string()));
+    }
+    if let Some(version) = field("neoForged") {
+        if !safe_component(version) {
+            return Err("Invalid NeoForge version".into());
+        }
+        loaders.push(Loader::NeoForge(version.to_string()));
+    }
+    let loader = match loaders.len() {
+        0 => Loader::Vanilla,
+        1 => loaders.pop().unwrap(),
+        _ => return Err("Multiple loaders are not supported".into()),
+    };
+    Ok(GameVersion {
+        mc_version: mc_version.to_string(),
+        loader,
+    })
+}
+
+fn xmcl_assigns_memory(json: &Value) -> bool {
+    match json.get("assignMemory") {
+        Some(Value::Bool(true)) => true,
+        Some(Value::String(value)) => value == "auto",
+        _ => false,
+    }
 }
 
 fn resolve_multimc_components(dir: &Path) -> Result<(GameVersion, bool), String> {

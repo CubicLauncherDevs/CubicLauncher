@@ -55,6 +55,29 @@
 				)
 			: 0,
 	);
+	const providers = $derived([
+		{
+			id: "official" as MigrationProvider,
+			icon: "brand:vanilla",
+			label: t("migration.official"),
+			hint: t("migration.officialHint"),
+			folder: t("migration.officialFolder"),
+		},
+		{
+			id: "multimc" as MigrationProvider,
+			icon: "instance:folder",
+			label: "MultiMC (Forks)",
+			hint: "MultiMC · PolyMC · Prism Launcher",
+			folder: t("migration.multimcFolder"),
+		},
+		{
+			id: "xmcl" as MigrationProvider,
+			icon: "instance:folder",
+			label: t("migration.xmcl"),
+			hint: t("migration.xmclHint"),
+			folder: t("migration.xmclFolder"),
+		},
+	]);
 
 	function releasePreview() {
 		if (token) void cancelLauncherMigration(token).catch(console.error);
@@ -178,31 +201,18 @@
 <section class="migration" aria-label={t("migration.title")}>
 	<p class="hint">{t("migration.description")}</p>
 	<div class="providers">
-		{#each ["official", "multimc"] as choice (choice)}
+		{#each providers as choice (choice.id)}
 			<button
 				type="button"
 				class="provider"
-				class:active={provider === choice}
-				aria-pressed={provider === choice}
+				class:active={provider === choice.id}
+				aria-pressed={provider === choice.id}
 				disabled={busy}
-				onclick={() => changeProvider(choice as MigrationProvider)}
+				onclick={() => changeProvider(choice.id)}
 			>
-				<Icon
-					name={choice === "official"
-						? "brand:vanilla"
-						: "instance:folder"}
-					size={22}
-				/>
+				<Icon name={choice.icon} size={22} />
 				<span
-					><strong
-						>{choice === "official"
-							? t("migration.official")
-							: "MultiMC (Forks)"}</strong
-					><small
-						>{choice === "official"
-							? t("migration.officialHint")
-							: "MultiMC · PolyMC · Prism Launcher"}</small
-					></span
+					><strong>{choice.label}</strong><small>{choice.hint}</small></span
 				>
 			</button>
 		{/each}
@@ -225,9 +235,7 @@
 		>
 	</div>
 	<p class="hint">
-		{provider === "official"
-			? t("migration.officialFolder")
-			: t("migration.multimcFolder")}
+		{providers.find((entry) => entry.id === provider)?.folder ?? ""}
 	</p>
 	{#if location}<p class="path">{location}</p>{/if}
 	{#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -390,7 +398,7 @@
 	}
 	.providers {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 10px;
 	}
 	.provider {
