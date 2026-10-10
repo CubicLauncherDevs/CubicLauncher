@@ -118,6 +118,10 @@
 		box-shadow: var(--shadow-lg, 0 20px 40px rgba(0, 0, 0, 0.4));
 		transition: width var(--resize-duration)
 			cubic-bezier(0.25, 0.8, 0.25, 1);
+		/* Thinner, less intrusive scrollbars inside modals (inherited by
+		   every scroll region within the modal). */
+		--scrollbar-size: 4px;
+		--scrollbar-track: transparent;
 	}
 
 	.modal.animate-resize {
@@ -153,6 +157,8 @@
 		min-height: 0;
 		overflow-y: auto;
 		overscroll-behavior: contain;
+		/* Keep content clear of the scrollbar so it doesn't look cramped. */
+		padding-right: 8px;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

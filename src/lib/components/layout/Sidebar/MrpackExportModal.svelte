@@ -3,6 +3,8 @@
 	import { SvelteMap, SvelteSet } from "svelte/reactivity";
 	import { save } from "@tauri-apps/plugin-dialog";
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
+	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
+	import Icon from "$lib/icons/Icon.svelte";
 	import { t } from "$lib/i18n";
 	import { showSuccess } from "$lib/state/state.svelte";
 	import {
@@ -177,11 +179,19 @@
 			<li>
 				{#if node.entry.isDir}
 					<details open={depth === 0}>
-						<summary>{@render checkbox(node)}</summary>
+						<summary>
+							<span class="chevron" aria-hidden="true"
+								><ChevronRightIcon size={12} /></span
+							>
+							{@render checkbox(node)}
+						</summary>
 						{@render branch(node.children, depth + 1)}
 					</details>
 				{:else}
-					<div class="file-row">{@render checkbox(node)}</div>
+					<div class="file-row">
+						<span class="chevron-spacer" aria-hidden="true"></span>
+						{@render checkbox(node)}
+					</div>
 				{/if}
 			</li>
 		{/each}
@@ -193,81 +203,128 @@
 	title={t("mrpackExport.title")}
 	width="720px"
 	closeDisabled={working}
+	scrollBody
 >
 	{#if loading}
-		<p role="status">{t("mrpackExport.loading")}</p>
+		<div class="status" role="status">
+			<span class="spinner"></span>
+			<span>{t("mrpackExport.loading")}</span>
+		</div>
 	{:else if preview}
-		<fieldset disabled={working} class="metadata">
-			<label
-				>{t("mrpackExport.name")}<input
+		<fieldset class="panel metadata" disabled={working}>
+			<label class="field">
+				<span class="input-label">{t("mrpackExport.name")}</span>
+				<input
+					class="text-input"
 					bind:value={name}
 					maxlength="512"
 					required
-				/></label
-			>
-			<label
-				>{t("mrpackExport.version")}<input
+				/>
+			</label>
+			<label class="field">
+				<span class="input-label">{t("mrpackExport.version")}</span>
+				<input
+					class="text-input"
 					bind:value={versionId}
 					maxlength="512"
 					required
-				/></label
-			>
-			<label>
-				{t("mrpackExport.authorOptional")}
-				<input bind:value={author} maxlength="512" autocomplete="off" />
+				/>
 			</label>
-			<label
-				>{t("mrpackExport.summary")}<textarea
+			<label class="field">
+				<span class="input-label"
+					>{t("mrpackExport.authorOptional")}</span
+				>
+				<input
+					class="text-input"
+					bind:value={author}
+					maxlength="512"
+					autocomplete="off"
+				/>
+			</label>
+			<label class="field">
+				<span class="input-label">{t("mrpackExport.summary")}</span>
+				<textarea
+					class="text-input"
 					bind:value={summary}
 					maxlength="16384"
-					rows="2"></textarea></label
-			>
+					rows="2"></textarea>
+			</label>
 		</fieldset>
-		<p class="dependencies">
-			{Object.entries(preview.dependencies)
-				.map(([key, value]) => `${key}: ${value}`)
-				.join(" · ")}
-		</p>
-		<p>{t("mrpackExport.hint")}</p>
-		<div class="toolbar">
-			<button
-				type="button"
-				class="btn-secondary"
-				disabled={working}
-				onclick={defaults}>{t("mrpackExport.defaults")}</button
-			>
-			<button
-				type="button"
-				class="btn-secondary"
-				disabled={working}
-				onclick={() =>
-					toggle(
-						files.map((file) => file.path),
-						true,
-					)}>{t("mrpackExport.selectAll")}</button
-			>
-			<button
-				type="button"
-				class="btn-secondary"
-				disabled={working}
-				onclick={() => (selected = new SvelteSet())}
-				>{t("mrpackExport.selectNone")}</button
-			>
-		</div>
-		<div class="file-tree" aria-label={t("mrpackExport.files")}>
-			{@render branch(tree, 0)}
-			{#if !files.length}<p>{t("mrpackExport.empty")}</p>{/if}
-		</div>
-		<p aria-live="polite">
-			{t("mrpackExport.selection", {
-				count: selected.size,
-				size: formatSize(selectedSize),
-			})}
-		</p>
+		{#if Object.keys(preview.dependencies).length}
+			<p class="dependencies">
+				<Icon name="instance:puzzle" size={14} />
+				<span>
+					{Object.entries(preview.dependencies)
+						.map(([key, value]) => `${key}: ${value}`)
+						.join(" · ")}
+				</span>
+			</p>
+		{/if}
+		<section class="panel files">
+			<div class="files-head">
+				<span class="panel-icon"
+					><Icon name="ui:download" size={18} /></span
+				>
+				<div class="files-heading">
+					<strong>{t("mrpackExport.files")}</strong>
+					<span class="files-count" aria-live="polite">
+						{t("mrpackExport.selection", {
+							count: selected.size,
+							size: formatSize(selectedSize),
+						})}
+					</span>
+				</div>
+				<div class="toolbar">
+					<button
+						type="button"
+						class="btn-secondary"
+						disabled={working}
+						onclick={defaults}
+					>
+						<Icon name="ui:refresh" size={14} />
+						{t("mrpackExport.defaults")}
+					</button>
+					<button
+						type="button"
+						class="btn-secondary"
+						disabled={working}
+						onclick={() =>
+							toggle(
+								files.map((file) => file.path),
+								true,
+							)}
+					>
+						<Icon name="ui:check" size={14} />
+						{t("mrpackExport.selectAll")}
+					</button>
+					<button
+						type="button"
+						class="btn-secondary"
+						disabled={working}
+						onclick={() => (selected = new SvelteSet())}
+					>
+						<Icon name="ui:close" size={14} />
+						{t("mrpackExport.selectNone")}
+					</button>
+				</div>
+			</div>
+			<div class="file-tree" aria-label={t("mrpackExport.files")}>
+				{@render branch(tree, 0)}
+				{#if !files.length}<p class="empty">
+						{t("mrpackExport.empty")}
+					</p>{/if}
+			</div>
+			<p class="hint">{t("mrpackExport.hint")}</p>
+		</section>
 	{/if}
-	{#if working}<p role="status">{t("mrpackExport.exporting")}</p>{/if}
+	{#if working}
+		<div class="status" role="status">
+			<span class="spinner"></span>
+			<span>{t("mrpackExport.exporting")}</span>
+		</div>
+	{/if}
 	{#if error}
-		<p class="error" role="alert">{error}</p>
+		<div class="step-error" role="alert">{error}</div>
 		{#if !preview && !loading}<button
 				type="button"
 				class="btn-secondary"
@@ -275,108 +332,299 @@
 			>{/if}
 	{/if}
 	{#snippet footer()}
-		<button
-			type="button"
-			class="btn-secondary"
-			disabled={working}
-			onclick={() => (open = false)}>{t("mrpackExport.cancel")}</button
-		>
-		<button
-			type="button"
-			class="btn-primary"
-			disabled={loading ||
-				working ||
-				!preview ||
-				!name.trim() ||
-				!versionId.trim()}
-			onclick={exportPack}>{t("mrpackExport.export")}</button
-		>
+		<div class="footer-actions">
+			<button
+				type="button"
+				class="btn-secondary"
+				disabled={working}
+				onclick={() => (open = false)}
+			>
+				{t("mrpackExport.cancel")}
+			</button>
+			<button
+				type="button"
+				class="btn-primary"
+				disabled={loading ||
+					working ||
+					!preview ||
+					!name.trim() ||
+					!versionId.trim()}
+				onclick={exportPack}
+			>
+				<Icon name="ui:download" size={16} />
+				{t("mrpackExport.export")}
+			</button>
+		</div>
 	{/snippet}
 </ModalBase>
 
 <style>
-	.metadata {
-		display: grid;
-		gap: 12px;
-		border: 0;
-		padding: 0;
+	.panel {
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-lg, 8px);
+		background: var(--bg-card);
+		padding: 16px;
 		margin: 0;
 	}
-	.metadata label {
+	.metadata {
 		display: grid;
-		gap: 6px;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: start;
+		gap: 14px 16px;
 	}
-	.metadata input,
-	textarea {
+	.metadata .field {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+	.metadata .input-label {
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		margin-bottom: 5px;
+	}
+	.metadata .text-input {
 		box-sizing: border-box;
 		width: 100%;
-		padding: 8px 10px;
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		background: var(--bg-input);
-		color: var(--text-primary);
-		font: inherit;
+		min-width: 0;
+		min-height: 36px;
+		padding: 8px 12px;
 	}
-	textarea {
+	.metadata textarea.text-input {
 		resize: vertical;
 	}
-	.dependencies,
-	.size {
+	.dependencies {
+		display: flex;
+		align-items: center;
+		gap: 8px;
 		color: var(--text-secondary);
-		font-size: 0.85rem;
+		font-size: 0.75rem;
+		overflow-wrap: anywhere;
+	}
+	.dependencies :global(.icon-svg) {
+		flex-shrink: 0;
+		color: var(--text-muted);
+	}
+	.files {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+	.files-head {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+	.panel-icon {
+		display: grid;
+		place-items: center;
+		flex-shrink: 0;
+		width: 34px;
+		height: 34px;
+		border: 1px solid rgba(var(--accent-rgb), 0.15);
+		border-radius: var(--border-radius-lg, 8px);
+		background: rgba(var(--accent-rgb), 0.07);
+		color: var(--accent);
+	}
+	.files-heading {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+		margin-right: auto;
+	}
+	.files-heading strong {
+		color: var(--text-primary);
+		font-size: 0.9rem;
+		font-weight: 600;
+	}
+	.files-count,
+	.empty {
+		color: var(--text-secondary);
+		font-size: 0.72rem;
 	}
 	.toolbar {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 8px;
-		margin-bottom: 12px;
+	}
+	.toolbar button {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
 	}
 	.file-tree {
-		max-height: 340px;
+		max-height: 320px;
 		overflow: auto;
+		scrollbar-gutter: stable;
 		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		padding: 8px;
+		border-radius: var(--border-radius-lg, 8px);
+		background: var(--bg-input);
+		padding: 8px 12px 8px 8px;
 	}
-	ul {
+	.file-tree ul {
 		list-style: none;
 		margin: 0;
-		padding-left: 16px;
+		padding: 0 0 0 16px;
 	}
 	.file-tree > ul {
 		padding-left: 0;
 	}
+	summary,
+	.file-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
 	summary {
+		list-style: none;
 		cursor: pointer;
 	}
-	.file-label {
-		display: inline-flex;
-		gap: 8px;
-		align-items: center;
-		width: calc(100% - 22px);
-		min-height: 30px;
-		vertical-align: middle;
+	summary::-webkit-details-marker {
+		display: none;
 	}
-	.file-label input {
+	.chevron,
+	.chevron-spacer {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 16px;
+		height: 16px;
 		flex-shrink: 0;
 	}
-	.filename {
-		overflow-wrap: anywhere;
+	.chevron {
+		color: var(--text-secondary);
+		transition: transform var(--transition-fast) ease;
+	}
+	details[open] > summary .chevron {
+		transform: rotate(90deg);
+	}
+	.file-label {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex: 1;
 		min-width: 0;
+		min-height: 28px;
+		cursor: pointer;
+	}
+	.file-label input[type="checkbox"] {
+		appearance: none;
+		-webkit-appearance: none;
+		position: relative;
+		width: 16px;
+		height: 16px;
+		flex-shrink: 0;
+		margin: 0;
+		background: var(--bg-sidebar);
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		cursor: pointer;
+		transition:
+			background var(--transition-fast) ease,
+			border-color var(--transition-fast) ease;
+	}
+	.file-label input[type="checkbox"]:hover:not(:disabled) {
+		border-color: var(--text-muted);
+	}
+	.file-label input[type="checkbox"]:checked,
+	.file-label input[type="checkbox"]:indeterminate {
+		background: var(--accent);
+		border-color: var(--accent);
+	}
+	.file-label input[type="checkbox"]:checked::after {
+		content: "✓";
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		color: var(--accent-text);
+		font-size: 10px;
+		font-weight: 800;
+		line-height: 1;
+	}
+	.file-label input[type="checkbox"]:indeterminate::after {
+		content: "";
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 8px;
+		height: 2px;
+		transform: translate(-50%, -50%);
+		background: var(--accent-text);
+		border-radius: 1px;
+	}
+	.file-label input[type="checkbox"]:disabled {
+		opacity: var(--disabled-opacity, 0.5);
+		cursor: not-allowed;
+	}
+	.filename {
+		min-width: 0;
+		overflow-wrap: anywhere;
 	}
 	.size {
 		margin-left: auto;
 		padding-left: 8px;
+		color: var(--text-secondary);
+		font-size: 0.85rem;
 		white-space: nowrap;
 	}
-	.file-row {
-		padding-left: 18px;
+	.hint {
+		color: var(--text-secondary);
+		font-size: 0.72rem;
+		line-height: 1.5;
 	}
-	.file-row .file-label {
-		width: 100%;
+	.status {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		color: var(--text-secondary);
+		font-size: var(--font-size-control);
 	}
-	.error {
+	.spinner {
+		width: 14px;
+		height: 14px;
+		flex-shrink: 0;
+		border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+		border-top-color: currentColor;
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.spinner {
+			animation: none;
+		}
+	}
+	.step-error {
 		color: var(--color-error);
+		font-size: 0.8rem;
+		background: rgba(var(--color-error-rgb), 0.1);
+		border: 1px solid rgba(var(--color-error-rgb), 0.2);
+		border-radius: 6px;
+		padding: 10px;
+		text-align: center;
+		font-weight: 500;
 		overflow-wrap: anywhere;
+	}
+	.footer-actions {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		width: 100%;
+		gap: 10px;
+	}
+	.footer-actions button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
 	}
 </style>
