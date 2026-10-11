@@ -39,7 +39,7 @@
             rustc
             rustfmt
           ]
-          ++ lib.optionals stdenv.isLinux [
+          ++ lib.optionals stdenv.hostPlatform.isLinux [
             glib-networking
             gst_all_1.gst-libav
             gst_all_1.gst-plugins-bad
@@ -50,11 +50,17 @@
             libsoup_3
             webkitgtk_4_1
           ]
-          ++ lib.optionals stdenv.isDarwin [
+          ++ lib.optionals stdenv.hostPlatform.isDarwin [
             apple-sdk
           ];
 
           shellHook = ''
+            # WebKitGTK + NVIDIA proprietary driver on Wayland (Hyprland): the
+            # DMA-BUF renderer trips "Error 71 (Protocol error) dispatching to
+            # Wayland display". Explicit sync is off by default on NVIDIA EGL
+            # and the DMABUF renderer is disabled as a reliable fallback.
+            export __NV_DISABLE_EXPLICIT_SYNC=1
+            export WEBKIT_DISABLE_DMABUF_RENDERER=1
             echo "Entorno de desarrollo de CubicLauncher listo."
             echo "Comandos útiles:"
             echo "  bun install"
