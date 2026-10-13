@@ -4,7 +4,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
-
   outputs =
     { self, nixpkgs }:
     let
@@ -21,11 +20,9 @@
         default = (pkgsFor system).callPackage ./dist/nix/package.nix { };
         cubiclauncher = self.packages.${system}.default;
       });
-
       devShells = forAllSystems (system: {
         default = (pkgsFor system).mkShell {
           name = "cubiclauncher-dev";
-
           packages = with (pkgsFor system); [
             bun
             cargo
@@ -53,8 +50,12 @@
           ++ lib.optionals stdenv.hostPlatform.isDarwin [
             apple-sdk
           ];
-
           shellHook = ''
+            # WebKitGTK uses GIO's TLS backend. In Nix shells the module can be
+            # installed but not discoverable unless GIO_EXTRA_MODULES is set.
+            ${(pkgsFor system).lib.optionalString (pkgsFor system).stdenv.hostPlatform.isLinux ''
+              export GIO_EXTRA_MODULES="${(pkgsFor system).glib-networking}/lib/gio/modules''${GIO_EXTRA_MODULES:+:$GIO_EXTRA_MODULES}"
+            ''}
             # WebKitGTK + NVIDIA proprietary driver on Wayland (Hyprland): the
             # DMA-BUF renderer trips "Error 71 (Protocol error) dispatching to
             # Wayland display". Explicit sync is off by default on NVIDIA EGL
@@ -70,7 +71,6 @@
           '';
         };
       });
-
       formatter = forAllSystems (system: (pkgsFor system).nixpkgs-fmt);
 
       checks = forAllSystems (system: {
