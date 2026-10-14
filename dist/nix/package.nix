@@ -2,6 +2,7 @@
 , stdenv
 , rustPlatform
 , apple-sdk ? null
+, alsa-lib
 , bun
 , cargo-tauri
 , darwin ? null
@@ -9,9 +10,11 @@
 , glib-networking
 , gtk3
 , libsoup_3
+, libpulseaudio
 , nodejs
 , openssl
 , pkg-config
+, pipewire
 , webkitgtk_4_1
 , writableTmpDirAsHomeHook
 , wrapGAppsHook4
@@ -105,6 +108,12 @@ rustPlatform.buildRustPackage rec {
   );
 
   doCheck = false;
+
+  # Minecraft inherits this path from the launcher. Its bundled OpenAL loads
+  # audio backend libraries dynamically, so ELF patching cannot discover them.
+  preFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
+    gappsWrapperArgs+=(--prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ alsa-lib libpulseaudio pipewire ]}")
+  '';
 
   postInstall = lib.optionalString stdenv.hostPlatform.isLinux ''
     if [ -f "$out/share/applications/cubiclauncher.desktop" ]; then

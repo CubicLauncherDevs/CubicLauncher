@@ -37,6 +37,7 @@
             rustfmt
           ]
           ++ lib.optionals stdenv.hostPlatform.isLinux [
+            alsa-lib
             glib-networking
             gsettings-desktop-schemas
             gst_all_1.gst-libav
@@ -49,6 +50,8 @@
             libglvnd
             libsoup_3
             mesa
+            libpulseaudio
+            pipewire
             wayland
             webkitgtk_4_1
           ]
@@ -62,6 +65,9 @@
               export XDG_DATA_DIRS="${(pkgsFor system).gsettings-desktop-schemas}/share/gsettings-schemas/${(pkgsFor system).gsettings-desktop-schemas.name}:${(pkgsFor system).gtk3}/share/gsettings-schemas/${(pkgsFor system).gtk3.name}:''${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
               export GIO_MODULE_DIR="${(pkgsFor system).glib-networking}/lib/gio/modules/"
               export GIO_EXTRA_MODULES="${(pkgsFor system).glib-networking}/lib/gio/modules''${GIO_EXTRA_MODULES:+:$GIO_EXTRA_MODULES}"
+              # Minecraft's bundled OpenAL loads audio backends with dlopen.
+              # Keep them discoverable on NixOS, including NVIDIA systems.
+              export LD_LIBRARY_PATH="${(pkgsFor system).lib.makeLibraryPath (with (pkgsFor system); [ alsa-lib libpulseaudio pipewire ])}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
               # Use Mesa built against the same glibc as this shell's toolchain.
               # The host driver in /run/opengl-driver may require a newer glibc
               # than the nixpkgs revision pinned in flake.lock.
