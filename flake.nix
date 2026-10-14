@@ -56,12 +56,32 @@
             ${(pkgsFor system).lib.optionalString (pkgsFor system).stdenv.hostPlatform.isLinux ''
               export GIO_EXTRA_MODULES="${(pkgsFor system).glib-networking}/lib/gio/modules''${GIO_EXTRA_MODULES:+:$GIO_EXTRA_MODULES}"
             ''}
-            # WebKitGTK + NVIDIA proprietary driver on Wayland (Hyprland): the
-            # DMA-BUF renderer trips "Error 71 (Protocol error) dispatching to
-            # Wayland display". Explicit sync is off by default on NVIDIA EGL
-            # and the DMABUF renderer is disabled as a reliable fallback.
-            export __NV_DISABLE_EXPLICIT_SYNC=1
-            export WEBKIT_DISABLE_DMABUF_RENDERER=1
+            # WebKitGTK GPU rendering workarounds.
+            #
+            # WebKitGTK's DMA-BUF renderer is broken on the NVIDIA proprietary
+            # driver under Wayland (WebKit crashes with "Error 71 / Protocol
+            # error dispatching to Wayland display"), so software rendering is
+            # enabled there. Every other setup (AMD/Intel, NVIDIA on X11, any
+            # X11, macOS) keeps the accelerated DMA-BUF renderer.
+            #
+            # Detection is intentionally broad to cover as many setups as
+            # possible (nvidia / nvidia-open modules, /proc node, or nvidia-smi
+            # in PATH for Wayland sessions detected via either variable).
+            # Override it when your environment differs:
+            #   CUBICLAUNCHER_WEBKIT_SOFTWARE=1  -> force software rendering
+            #   CUBICLAUNCHER_WEBKIT_SOFTWARE=0  -> force hardware rendering
+            if [ -z "''${CUBICLAUNCHER_WEBKIT_SOFTWARE:-}" ]; then
+              if [ -e /sys/module/nvidia ] || [ -e /proc/driver/nvidia ] || command -v nvidia-smi >/dev/null 2>&1; then
+                if [ "''${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "''${WAYLAND_DISPLAY:-}" ]; then
+                  CUBICLAUNCHER_WEBKIT_SOFTWARE=1
+                fi
+              fi
+            fi
+            if [ "''${CUBICLAUNCHER_WEBKIT_SOFTWARE:-0}" = "1" ]; then
+              export __NV_DISABLE_EXPLICIT_SYNC="''${__NV_DISABLE_EXPLICIT_SYNC:-1}"
+              export WEBKIT_DISABLE_DMABUF_RENDERER="''${WEBKIT_DISABLE_DMABUF_RENDERER:-1}"
+              echo "WebKitGTK: renderizado por software (NVIDIA + Wayland)."
+            fi
             echo "Entorno de desarrollo de CubicLauncher listo."
             echo "Comandos útiles:"
             echo "  bun install"
