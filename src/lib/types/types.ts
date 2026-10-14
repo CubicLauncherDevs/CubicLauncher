@@ -14,6 +14,10 @@ export interface InstanceDto {
 	path: string;
 	overrides: InstOverrides | null;
 	pinned: boolean;
+	/** Perfil global de options.txt asignado a la instancia. */
+	options_profile_id: string | null;
+	/** Si el perfil se aplica automáticamente antes de lanzar. */
+	auto_apply_options: boolean;
 }
 
 export interface InstOverrides {

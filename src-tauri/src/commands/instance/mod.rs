@@ -9,6 +9,7 @@ pub mod mod_versions;
 pub mod modpack;
 pub mod mods;
 pub mod mrpack_export;
+pub mod options;
 pub mod screens;
 pub mod servers;
 pub mod worlds;

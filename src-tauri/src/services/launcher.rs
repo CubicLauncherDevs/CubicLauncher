@@ -822,6 +822,56 @@ impl Launcher {
             }
         }
 
+        // Auto-aplicar el perfil global de options.txt antes de lanzar. Un fallo
+        // aquí no impide el arranque del juego: se avisa y se continúa.
+        if handle.get_auto_apply_options().await
+            && let Some(profile_id) = handle.get_options_profile_id().await
+        {
+            match crate::services::options_profiles::get(profile_id.as_ref()) {
+                Some(profile) => {
+                    let opt_instance = instance_dir.clone();
+                    let opt_key = handle.uuid.to_string();
+                    let opt_backup_root = crate::services::options_profiles::backup_root();
+                    let opt_guard = handle.try_lock_files();
+                    let result = tokio::task::spawn_blocking(move || {
+                        let _guard = opt_guard.map_err(crate::core::CoreError::Other)?;
+                        crate::services::options_profiles::apply_to_instance(
+                            &opt_instance,
+                            &opt_key,
+                            &profile.content,
+                            crate::services::options_profiles::BackupMode::Rolling,
+                            &opt_backup_root,
+                        )
+                    })
+                    .await;
+                    match result {
+                        Ok(Ok(outcome)) => {
+                            if outcome.changed {
+                                info!("options.txt auto-aplicado desde el perfil {}", profile_id);
+                            }
+                        }
+                        Ok(Err(e)) => {
+                            warn!("No se pudo auto-aplicar options.txt: {}", e);
+                            push_launcher_message(
+                                &handle.uuid,
+                                format!("No se pudo aplicar el perfil de options.txt: {e}"),
+                            )
+                            .await;
+                        }
+                        Err(e) => {
+                            warn!("Tarea de auto-apply de options.txt falló: {}", e);
+                        }
+                    }
+                }
+                None => {
+                    warn!(
+                        "Perfil de options.txt {} no encontrado, se omite el auto-apply",
+                        profile_id
+                    );
+                }
+            }
+        }
+
         // Resolve the root per launch, after storage admission, rather than
         // retaining the directory that was active when the launcher started.
         let beta_hide_delay = beta_readiness_delay(

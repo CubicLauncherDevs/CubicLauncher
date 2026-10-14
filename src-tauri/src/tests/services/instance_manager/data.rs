@@ -18,6 +18,15 @@ fn legacy_instances_default_playtime_to_zero() {
 }
 
 #[test]
+fn legacy_instances_default_options_profile_to_none() {
+    let data: InstanceData =
+        serde_json::from_str(r#"{"name":"Old","version":"1.12.2","last_played":0,"uuid":"test"}"#)
+            .unwrap();
+    assert!(data.options_profile_id.is_none());
+    assert!(!data.auto_apply_options);
+}
+
+#[test]
 fn test_validate_name_empty() {
     assert!(validate_instance_name("").is_err());
 }

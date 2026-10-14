@@ -33,6 +33,7 @@
 	import NotificationSettings from "./NotificationSettings.svelte";
 	import InterfaceSettings from "./InterfaceSettings.svelte";
 	import StorageSection from "./StorageSection.svelte";
+	import OptionsProfilesSection from "./OptionsProfilesSection.svelte";
 	import "./controls.css";
 
 	interface Props {
@@ -771,6 +772,14 @@
 							>
 						</label>
 					</div>
+				</CollapsibleSection>
+
+				<CollapsibleSection
+					title={t("optionsProfiles.title")}
+					iconName="instance:check-square"
+					storageKey="section_options_profiles"
+				>
+					<OptionsProfilesSection />
 				</CollapsibleSection>
 			</div>
 		{/if}

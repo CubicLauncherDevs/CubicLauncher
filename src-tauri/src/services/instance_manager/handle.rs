@@ -217,6 +217,14 @@ impl InstanceHandle {
         self.data.read().await.pinned
     }
 
+    pub async fn get_options_profile_id(&self) -> Option<Arc<str>> {
+        self.data.read().await.options_profile_id.clone()
+    }
+
+    pub async fn get_auto_apply_options(&self) -> bool {
+        self.data.read().await.auto_apply_options
+    }
+
     pub async fn get_minecraft_jar(&self) -> crate::services::minecraft_jar::MinecraftJarConfig {
         self.data.read().await.minecraft_jar.clone()
     }
@@ -240,6 +248,13 @@ impl InstanceHandle {
     pub async fn set_pinned(&self, pinned: bool) {
         let mut data = self.data.write().await;
         data.pinned = pinned;
+        data.dirty = true;
+    }
+
+    pub async fn set_options_profile(&self, profile_id: Option<Arc<str>>, auto_apply: bool) {
+        let mut data = self.data.write().await;
+        data.options_profile_id = profile_id;
+        data.auto_apply_options = auto_apply;
         data.dirty = true;
     }
 
@@ -278,6 +293,8 @@ impl InstanceHandle {
             path: data.get_instance_dir(),
             overrides: data.overrides.clone(),
             pinned: data.pinned,
+            options_profile_id: data.options_profile_id.clone(),
+            auto_apply_options: data.auto_apply_options,
         }
     }
     pub async fn set_name(&self, name: String) {

@@ -10,6 +10,7 @@
 	import AdvancedSection from "./AdvancedSection.svelte";
 	import InstallationSection from "./InstallationSection.svelte";
 	import MinecraftJarSection from "./MinecraftJarSection.svelte";
+	import OptionsSection from "./OptionsSection.svelte";
 
 	interface Props {
 		onclose?: () => void;
@@ -263,6 +264,15 @@
 					{saving}
 					onJavaChange={handleJavaChange}
 				/>
+			</CollapsibleSection>
+			<CollapsibleSection
+				title={t("instanceEditor.options.title")}
+				iconName="nav:sliders"
+				storageKey="instance_options"
+			>
+				{#key instance.uuid}
+					<OptionsSection {instance} />
+				{/key}
 			</CollapsibleSection>
 		</div>
 	</div>

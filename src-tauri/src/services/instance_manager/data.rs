@@ -27,6 +27,12 @@ pub(crate) struct InstanceData {
     pub minecraft_jar: crate::services::minecraft_jar::MinecraftJarConfig,
     #[serde(default)]
     pub pinned: bool,
+    /// Perfil global de `options.txt` asignado a esta instancia.
+    #[serde(default)]
+    pub options_profile_id: Option<Arc<str>>,
+    /// Si es `true`, el perfil se aplica automáticamente antes de lanzar.
+    #[serde(default)]
+    pub auto_apply_options: bool,
     #[serde(skip)]
     pub dirty: bool,
     #[serde(skip)]
@@ -66,6 +72,8 @@ impl InstanceData {
             overrides: None,
             minecraft_jar: Default::default(),
             pinned: false,
+            options_profile_id: None,
+            auto_apply_options: false,
             dirty: true,
             instance_root: PathManager::get().get_instance_dir().to_path_buf(),
         }
@@ -131,6 +139,8 @@ pub struct InstanceDto {
     pub path: PathBuf,
     pub overrides: Option<InstOverrides>,
     pub pinned: bool,
+    pub options_profile_id: Option<Arc<str>>,
+    pub auto_apply_options: bool,
 }
 
 pub fn validate_instance_name(name: &str) -> Result<(), String> {

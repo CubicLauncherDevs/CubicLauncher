@@ -14,6 +14,7 @@ pub mod market_requests;
 pub mod modrinth;
 pub mod neoforge;
 pub mod optifine;
+pub mod options_profiles;
 pub mod others;
 pub mod pack;
 pub mod profile;

@@ -20,6 +20,9 @@ pub enum InstanceError {
     #[error("No se puede modificar una instancia mientras está en ejecución")]
     Busy,
 
+    #[error("Ya existe un options.txt en la instancia")]
+    OptionsExists,
+
     #[error("Hay una operación de archivos en curso en esta instancia")]
     FileOperationInProgress,
 
@@ -75,6 +78,7 @@ impl InstanceError {
             Self::AlreadyStarted => "INST_ALREADY_STARTED",
             Self::AlreadyExists => "INST_EXISTS",
             Self::Busy => "INST_BUSY",
+            Self::OptionsExists => "INST_OPTIONS_EXISTS",
             Self::FileOperationInProgress => "INST_FILES_BUSY",
             Self::LogNotFound => "INST_LOG_NOT_FOUND",
             Self::FilenameParse => "INST_FILENAME_PARSE",
