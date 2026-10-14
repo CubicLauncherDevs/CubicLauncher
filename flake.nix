@@ -49,6 +49,12 @@
             libgbm
             libglvnd
             libsoup_3
+            libx11
+            libxcursor
+            libxi
+            libxinerama
+            libxrandr
+            libxxf86vm
             mesa
             libpulseaudio
             pipewire
@@ -65,9 +71,10 @@
               export XDG_DATA_DIRS="${(pkgsFor system).gsettings-desktop-schemas}/share/gsettings-schemas/${(pkgsFor system).gsettings-desktop-schemas.name}:${(pkgsFor system).gtk3}/share/gsettings-schemas/${(pkgsFor system).gtk3.name}:''${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
               export GIO_MODULE_DIR="${(pkgsFor system).glib-networking}/lib/gio/modules/"
               export GIO_EXTRA_MODULES="${(pkgsFor system).glib-networking}/lib/gio/modules''${GIO_EXTRA_MODULES:+:$GIO_EXTRA_MODULES}"
-              # Minecraft's bundled OpenAL loads audio backends with dlopen.
+              # OpenAL and GLFW load audio and X11 libraries with dlopen.
+              # GLFW needs libXi for raw mouse input and libXcursor for cursors.
               # Keep them discoverable on NixOS, including NVIDIA systems.
-              export LD_LIBRARY_PATH="${(pkgsFor system).lib.makeLibraryPath (with (pkgsFor system); [ alsa-lib libpulseaudio pipewire ])}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+              export LD_LIBRARY_PATH="${(pkgsFor system).lib.makeLibraryPath (with (pkgsFor system); [ alsa-lib libpulseaudio pipewire libx11 libxcursor libxi libxinerama libxrandr libxxf86vm ])}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
               # Use Mesa built against the same glibc as this shell's toolchain.
               # The host driver in /run/opengl-driver may require a newer glibc
               # than the nixpkgs revision pinned in flake.lock.

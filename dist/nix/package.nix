@@ -11,6 +11,12 @@
 , gtk3
 , libsoup_3
 , libpulseaudio
+, libx11
+, libxcursor
+, libxi
+, libxinerama
+, libxrandr
+, libxxf86vm
 , nodejs
 , openssl
 , pkg-config
@@ -109,10 +115,10 @@ rustPlatform.buildRustPackage rec {
 
   doCheck = false;
 
-  # Minecraft inherits this path from the launcher. Its bundled OpenAL loads
-  # audio backend libraries dynamically, so ELF patching cannot discover them.
+  # Minecraft inherits this path from the launcher. OpenAL and GLFW load audio
+  # and X11 libraries dynamically, so ELF patching cannot discover them.
   preFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
-    gappsWrapperArgs+=(--prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ alsa-lib libpulseaudio pipewire ]}")
+    gappsWrapperArgs+=(--prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [ alsa-lib libpulseaudio pipewire libx11 libxcursor libxi libxinerama libxrandr libxxf86vm ]}")
   '';
 
   postInstall = lib.optionalString stdenv.hostPlatform.isLinux ''
