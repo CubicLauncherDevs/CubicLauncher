@@ -44,6 +44,31 @@ bun install
 bun run tauri dev
 ```
 
+En Linux, el devShell configura `XDG_DATA_DIRS` con los esquemas de GTK3 y
+`gsettings-desktop-schemas`, conservando las rutas existentes. También fija
+`GIO_MODULE_DIR` y añade el backend TLS de `glib-networking` a
+`GIO_EXTRA_MODULES` para que WebKitGTK pueda cargar recursos HTTPS.
+
+En Linux con controladores Mesa (por ejemplo, AMD e Intel), el devShell usa
+Mesa, EGL, GBM y Wayland de la misma revisión de Nixpkgs que la glibc del
+compilador, fijada en `flake.lock`. También configura las rutas de carga para
+evitar que EGL seleccione el Mesa de `/run/opengl-driver`, que puede requerir
+una glibc más nueva y terminar con `EGL_BAD_PARAMETER`.
+
+Al entrar al entorno se muestran las versiones de Mesa y glibc. Después de
+cambiar el flake, salir del shell anterior y volver a ejecutar `nix develop`.
+Las variables explícitas `__EGL_VENDOR_LIBRARY_FILENAMES`,
+`LIBGL_DRIVERS_PATH` y `GBM_BACKENDS_PATH` se respetan; quitarlas antes de
+entrar si se quiere usar los valores del flake.
+
+Con NVIDIA propietario se conservan los controladores del sistema, que deben
+coincidir con el módulo del kernel. Si requieren una glibc más nueva que la
+del flake, usar el Nixpkgs del sistema en el entorno de desarrollo:
+
+```bash
+nix develop --override-input nixpkgs nixpkgs --no-write-lock-file
+```
+
 ### Build local
 
 ```bash

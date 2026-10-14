@@ -38,23 +38,41 @@
           ]
           ++ lib.optionals stdenv.hostPlatform.isLinux [
             glib-networking
+            gsettings-desktop-schemas
             gst_all_1.gst-libav
             gst_all_1.gst-plugins-bad
             gst_all_1.gst-plugins-base
             gst_all_1.gst-plugins-good
             gst_all_1.gstreamer
             gtk3
+            libgbm
+            libglvnd
             libsoup_3
+            mesa
+            wayland
             webkitgtk_4_1
           ]
           ++ lib.optionals stdenv.hostPlatform.isDarwin [
             apple-sdk
           ];
           shellHook = ''
-            # WebKitGTK uses GIO's TLS backend. In Nix shells the module can be
-            # installed but not discoverable unless GIO_EXTRA_MODULES is set.
+            # GTK schemas and WebKitGTK's GIO TLS backend need explicit discovery
+            # paths when running an unwrapped development binary in a Nix shell.
             ${(pkgsFor system).lib.optionalString (pkgsFor system).stdenv.hostPlatform.isLinux ''
+              export XDG_DATA_DIRS="${(pkgsFor system).gsettings-desktop-schemas}/share/gsettings-schemas/${(pkgsFor system).gsettings-desktop-schemas.name}:${(pkgsFor system).gtk3}/share/gsettings-schemas/${(pkgsFor system).gtk3.name}:''${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+              export GIO_MODULE_DIR="${(pkgsFor system).glib-networking}/lib/gio/modules/"
               export GIO_EXTRA_MODULES="${(pkgsFor system).glib-networking}/lib/gio/modules''${GIO_EXTRA_MODULES:+:$GIO_EXTRA_MODULES}"
+              # Use Mesa built against the same glibc as this shell's toolchain.
+              # The host driver in /run/opengl-driver may require a newer glibc
+              # than the nixpkgs revision pinned in flake.lock.
+              # Proprietary NVIDIA drivers must stay matched to the host kernel.
+              if ! { [ -e /sys/module/nvidia ] || [ -e /proc/driver/nvidia ] || command -v nvidia-smi >/dev/null 2>&1; }; then
+                export __EGL_VENDOR_LIBRARY_FILENAMES="''${__EGL_VENDOR_LIBRARY_FILENAMES:-${(pkgsFor system).mesa}/share/glvnd/egl_vendor.d/50_mesa.json}"
+                export LIBGL_DRIVERS_PATH="''${LIBGL_DRIVERS_PATH:-${(pkgsFor system).mesa}/lib/dri}"
+                export GBM_BACKENDS_PATH="''${GBM_BACKENDS_PATH:-${(pkgsFor system).mesa}/lib/gbm}"
+                export LD_LIBRARY_PATH="${(pkgsFor system).lib.makeLibraryPath (with (pkgsFor system); [ libglvnd libgbm wayland mesa ])}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+                echo "Gráficos del flake: Mesa ${(pkgsFor system).mesa.version} / glibc ${(pkgsFor system).glibc.version}."
+              fi
             ''}
             # WebKitGTK GPU rendering workarounds.
             #
