@@ -57,13 +57,6 @@ cargo test -p aqua
 cargo test -p cubiclauncher --lib services::launcher::tests
 ```
 
-`ui/perfAnimations.test.mjs` usa Chromium/Chrome en modo headless. Permite elegir
-el ejecutable con `CHROME_BIN`; en su defecto busca primero `google-chrome` o
-`google-chrome-stable` y después `chromium` o `chromium-browser` en `PATH`.
-Si no encuentra ninguno, el test se marca como omitido; una ruta explícita inválida
-produce un error. CI usa `/usr/bin/google-chrome` y `dbus-run-session` para evitar
-los lanzadores Snap y las esperas de servicios de escritorio durante el arranque.
-La prueba espera a que terminen las animaciones finitas usando la API del navegador.
 Los tests de manifiestos de `aqua` requieren conexión a Internet.
 
 Las mediciones sintéticas de rendimiento Rust están marcadas con `#[ignore]`
@@ -151,17 +144,8 @@ cargo test -p aqua optifine_official_install_smoke -- --ignored --nocapture
 
 ```bash
 cargo test -p cubiclauncher --lib services::settings_manager
-bun test --conditions=browser ./tests/frontend/ui/interfacePreferences.test.mjs ./tests/frontend/ui/interfaceLayout.test.mjs
+bun test --conditions=browser ./tests/frontend/ui/interfacePreferences.test.mjs
 ```
-
-La regresión de interfaz monta los controles, el Drawer, las listas virtualizadas
-y los menús reales en Chrome, Chromium o Firefox. Recorre los cinco temas incluidos
-y un tema con variables en `rem`/`calc()` y `Inject.css`, con cuatro escalas y tres
-densidades. Simula el viewport CSS resultante del zoom nativo en una ventana de
-800 × 600; el zoom nativo se verifica por separado mediante su llamada IPC.
-Comprueba la conservación de estilos del tema y altura de las tarjetas, los
-espacios entre filas, menús dentro del viewport, cambios de tema en vivo, el final
-de las listas, recuperación de un fallo de zoom y restablecimiento.
 
 - [ ] En Tauri, abrir Personalizar → Interfaz y probar 90 %, 100 %, 110 % y 125 %
   con la ventana en su tamaño mínimo. Comprobar clics, menús, scroll y paneles.
@@ -193,13 +177,7 @@ bun test --conditions=browser ./tests/frontend/ui/saveQueue.test.mjs ./tests/fro
 ```bash
 cargo test -p cubiclauncher --lib services::settings_manager
 bun test --conditions=browser ./tests/frontend/ui/notificationPreferences.test.mjs
-bun test --conditions=browser ./tests/frontend/ui/drawerGestures.test.mjs
 ```
-
-La regresión de gestos monta los controles reales dentro del Drawer y usa Chrome,
-Chromium o Firefox en modo headless (se omite si no encuentra ninguno). Comprueba
-los cuatro sentidos del panel, exclusión de controles, guardado de deslizadores,
-cancelación y pérdida de captura, y cierre desde una zona libre.
 
 - [ ] Comprobar el orden Launcher → Minecraft → Personalizar → Java y abrir
   Personalizar → Notificaciones.
@@ -425,7 +403,6 @@ cargo test -p cubiclauncher --lib settings_manager
 cargo test -p cubiclauncher --lib atomic_file
 cargo test -p cubiclauncher --lib shared_storage
 cargo test -p cubiclauncher --lib services::launcher::tests
-bun test --conditions=browser ./tests/frontend/ui/modpackSelection.test.mjs
 ```
 
 - Las descargas obligatorias deben fallar si se agotan todas sus URLs, sin
@@ -443,14 +420,11 @@ bun test --conditions=browser ./tests/frontend/ui/modpackSelection.test.mjs
   debe usarse la ubicación nueva, sin reiniciar el launcher.
 - Probar manifiestos inválidos, credenciales caducadas y Java no ejecutable:
   el error debe propagarse y la instancia debe permitir un nuevo intento.
-- La regresión de modpacks controla respuestas fuera de orden de ambos
-  proveedores, navegación atrás, errores y desmontaje; comprueba además que la
-  instalación recibe el proyecto y archivo seleccionados, sin mezclarlos.
 
 #### Arranque y carga bajo demanda
 
 ```bash
-bun test --conditions=browser ./tests/frontend/ui/launcherStartup.test.mjs ./tests/frontend/ui/startupPage.test.mjs
+bun test --conditions=browser ./tests/frontend/ui/launcherStartup.test.mjs
 ```
 
 La prueba del servicio verifica que las consolas solo procesan cambios de ajustes
@@ -458,13 +432,6 @@ y tema, sin inicializar los estados de descargas ni cargar instancias. La lista
 de versiones instaladas se actualiza al finalizar una descarga aunque nunca se
 haya abierto el descargador; las finalizaciones durante una lectura se agrupan
 en una lectura posterior, descartando el resultado antiguo.
-
-La prueba de página monta la ruta y sus contenedores reales en un navegador
-headless, con llamadas nativas y paneles finales instrumentados. Comprueba que
-Ajustes y Descargador se importan al abrirse, que reabrir el descargador conserva
-su montaje y que una consola no inicia Discord, el actualizador ni drag-and-drop.
-También comprueba el desmontaje durante un arranque pendiente. Se omite si no
-encuentra un navegador compatible.
 
 - [ ] Arrancar sin abrir paneles: no debe solicitarse el catálogo de versiones
   disponibles por el descargador. Abrirlo por primera vez, cerrarlo y reabrirlo;
@@ -573,7 +540,7 @@ Los avisos de temas son orientativos, no mediciones de CPU/GPU. La estimacion de
 #### Actualización del launcher
 
 ```bash
-bun test --conditions=browser ./tests/frontend/ui/updater.test.mjs ./tests/frontend/ui/autoUpdateScheduler.test.mjs ./tests/frontend/ui/versionMetadata.test.mjs ./tests/frontend/ui/startupPage.test.mjs
+bun test --conditions=browser ./tests/frontend/ui/updater.test.mjs ./tests/frontend/ui/autoUpdateScheduler.test.mjs ./tests/frontend/ui/versionMetadata.test.mjs
 cargo test -p cubiclauncher --lib core::updater
 ```
 
