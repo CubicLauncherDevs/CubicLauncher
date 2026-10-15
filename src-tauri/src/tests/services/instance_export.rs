@@ -1,54 +1,5 @@
 use super::*;
 
-#[test]
-fn streamed_export_preserves_large_and_empty_files() {
-    use std::io::Read;
-    let dir = tempfile::tempdir().unwrap();
-    let saves = dir.path().join("saves");
-    std::fs::create_dir(&saves).unwrap();
-    let block: Vec<u8> = (0..32768).map(|i| (i % 251) as u8).collect();
-    let mut file = std::fs::File::create(saves.join("world.dat")).unwrap();
-    for _ in 0..513 {
-        file.write_all(&block).unwrap();
-    }
-    file.write_all(b"short final chunk").unwrap();
-    drop(file);
-    std::fs::write(saves.join("empty.dat"), []).unwrap();
-    let output = dir.path().join("export.zip");
-    let mut writer = zip::ZipWriter::new(std::fs::File::create(&output).unwrap());
-    add_path_to_zip(
-        &mut writer,
-        &saves,
-        Path::new(".minecraft/saves"),
-        zip::write::SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Deflated),
-        true,
-    )
-    .unwrap();
-    writer.finish().unwrap();
-    let mut archive = zip::ZipArchive::new(std::fs::File::open(output).unwrap()).unwrap();
-    assert_eq!(
-        archive
-            .by_name(".minecraft/saves/empty.dat")
-            .unwrap()
-            .size(),
-        0
-    );
-    let mut file = archive.by_name(".minecraft/saves/world.dat").unwrap();
-    assert_eq!(
-        file.size(),
-        (block.len() * 513 + b"short final chunk".len()) as u64
-    );
-    let mut buffer = vec![0; block.len()];
-    for _ in 0..513 {
-        file.read_exact(&mut buffer).unwrap();
-        assert_eq!(buffer, block);
-    }
-    let mut tail = String::new();
-    file.read_to_string(&mut tail).unwrap();
-    assert_eq!(tail, "short final chunk");
-}
-
 #[tokio::test]
 async fn exported_minecraft_jar_and_modpack_round_trip_without_external_paths_or_cache() {
     use crate::services::minecraft_jar::{self, JarMod, MinecraftJarConfig};

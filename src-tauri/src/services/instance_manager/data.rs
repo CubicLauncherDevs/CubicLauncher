@@ -106,14 +106,6 @@ impl InstanceData {
     }
 
     async fn load_from(root: &Path, name: &str) -> Option<Self> {
-        let root = root.to_path_buf();
-        let name = name.to_owned();
-        tokio::task::spawn_blocking(move || Self::read_from(&root, &name))
-            .await
-            .ok()?
-    }
-
-    fn read_from(root: &Path, name: &str) -> Option<Self> {
         validate_instance_name(name).ok()?;
         let content = zellkern::path_security::ConfinedDir::open(root)
             .ok()?

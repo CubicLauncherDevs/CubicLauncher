@@ -2,7 +2,6 @@ use crate::core::path_manager::PathManager;
 use crate::core::{AppEvent, FsError, InstanceError, emit};
 use crate::services::launcher::remove_log_ring;
 use compact_str::ToCompactString;
-use futures::{StreamExt, stream};
 use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -18,7 +17,6 @@ use super::data::{InstOverrides, InstanceData, validate_instance_name};
 use super::handle::InstanceHandle;
 
 pub(crate) const SYNC_INTERVAL_SECS: u64 = 30;
-const INSTANCE_LOAD_CONCURRENCY: usize = 4;
 // Longer than a valid instance name, and inside the root to stay on its filesystem.
 pub(crate) const DELETION_DIR: &str = ".cubic-pending-instance-deletions";
 
@@ -90,12 +88,7 @@ impl InstanceManager {
         let names = if let Ok(mut dir) = tokio::fs::read_dir(&base_dir).await {
             let mut names = Vec::new();
             while let Ok(Some(entry)) = dir.next_entry().await {
-                if entry.file_name() != DELETION_DIR
-                    && entry
-                        .metadata()
-                        .await
-                        .is_ok_and(|metadata| metadata.is_dir())
-                {
+                if entry.file_name() != DELETION_DIR && entry.path().is_dir() {
                     names.push(entry.file_name().to_string_lossy().to_string());
                 }
             }
@@ -104,14 +97,11 @@ impl InstanceManager {
             Vec::new()
         };
 
-        let handles = load_instances(
-            names,
-            |name| async move { InstanceHandle::load(&name).await },
-        )
-        .await;
+        let handles: Vec<Option<InstanceHandle>> =
+            futures::future::join_all(names.iter().map(|name| InstanceHandle::load(name))).await;
 
         let mut guard = manager.instances.write().await;
-        for handle in handles {
+        for handle in handles.into_iter().flatten() {
             guard.insert(handle.uuid.to_string(), handle);
         }
         drop(guard);
@@ -358,20 +348,6 @@ impl InstanceManager {
 
         Ok(())
     }
-}
-
-/// Bound disk reads and interrupted-update recovery, preserving discovery order.
-async fn load_instances<T, F, Fut>(names: Vec<String>, load: F) -> Vec<T>
-where
-    F: FnMut(String) -> Fut,
-    Fut: std::future::Future<Output = Option<T>>,
-{
-    stream::iter(names)
-        .map(load)
-        .buffered(INSTANCE_LOAD_CONCURRENCY)
-        .filter_map(|handle| async move { handle })
-        .collect()
-        .await
 }
 
 fn trash_dir(instances: &Path) -> PathBuf {
