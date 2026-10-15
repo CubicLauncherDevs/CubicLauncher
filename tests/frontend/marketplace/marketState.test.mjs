@@ -128,6 +128,9 @@ const getModrinthProjectVersions = mock(async (..._args) => []);
 const getCurseForgeProject = mock(async (_id) => null);
 const getCurseForgeProjectFiles = mock(async (..._args) => []);
 const getCurseForgeProjectDescription = mock(async (_id) => "description");
+const getCurseForgeFileDownloadUrl = mock(
+	async (_id, _fileId) => "https://example.com/file.zip",
+);
 const deleteInstanceFile = mock(async (_uuid, _dir, filename) => {
 	disk = disk.filter((entry) => entry.filename !== filename);
 });
@@ -159,6 +162,7 @@ const api = {
 	getCurseForgeProject,
 	getCurseForgeProjectFiles,
 	getCurseForgeProjectDescription,
+	getCurseForgeFileDownloadUrl,
 	deleteInstanceFile,
 	toggleInstanceMod,
 	downloadMods: mock(async () => {}),

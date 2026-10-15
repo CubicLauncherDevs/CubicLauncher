@@ -802,6 +802,7 @@ export async function searchCurseForge(
 	index: string = "popularity",
 	limit: number = 24,
 	offset: number = 0,
+	classId?: number,
 	signal?: AbortSignal,
 ): Promise<CurseForgeSearchResult | null> {
 	return (
@@ -815,6 +816,7 @@ export async function searchCurseForge(
 				index,
 				limit,
 				offset,
+				classId: classId ?? null,
 			},
 			signal,
 		)) ?? null

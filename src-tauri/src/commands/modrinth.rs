@@ -267,18 +267,15 @@ async fn download_resourcepacks_inner(
         .await
         .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
 
-    // Cache metadata via ablage
+    // Cache metadata via ablage, preserving the real download source
+    // (Modrinth or CurseForge) so the catalog can match the installed pack.
     for m in &packs {
-        if let (Some(project_id), Some(version_id)) = (&m.project_id, &m.version_id) {
+        if m.project_id.is_some() && m.version_id.is_some() {
             crate::services::save_pack_cache(
                 &rp_dir,
                 &m.filename,
                 &crate::services::PackCacheEntry {
-                    source: crate::services::ModSource::Modrinth {
-                        project_id: project_id.clone(),
-                        version_id: version_id.clone(),
-                        slug: None,
-                    },
+                    source: download_source(m),
                 },
             );
         }
@@ -358,18 +355,15 @@ async fn download_shaderpacks_inner(
         .await
         .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
 
-    // Cache metadata via ablage
+    // Cache metadata via ablage, preserving the real download source
+    // (Modrinth or CurseForge) so the catalog can match the installed pack.
     for m in &packs {
-        if let (Some(project_id), Some(version_id)) = (&m.project_id, &m.version_id) {
+        if m.project_id.is_some() && m.version_id.is_some() {
             crate::services::save_pack_cache(
                 &sp_dir,
                 &m.filename,
                 &crate::services::PackCacheEntry {
-                    source: crate::services::ModSource::Modrinth {
-                        project_id: project_id.clone(),
-                        version_id: version_id.clone(),
-                        slug: None,
-                    },
+                    source: download_source(m),
                 },
             );
         }

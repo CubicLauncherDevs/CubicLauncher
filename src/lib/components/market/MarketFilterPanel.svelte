@@ -50,9 +50,7 @@
 	);
 	const sources = $derived<{ value: MarketSource; label: string }[]>([
 		{ value: "modrinth", label: "Modrinth" },
-		...(isModContent
-			? [{ value: "curseforge" as const, label: "CurseForge" }]
-			: []),
+		{ value: "curseforge", label: "CurseForge" },
 		{ value: "local", label: t("market.filter.tabLocal") },
 	]);
 	const categories = [

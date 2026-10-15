@@ -13,6 +13,7 @@ import {
 	getCurseForgeProject,
 	getCurseForgeProjectFiles,
 	getCurseForgeProjectDescription,
+	getCurseForgeFileDownloadUrl,
 	toggleInstanceMod,
 	downloadMods,
 	downloadResourcePacks,
@@ -109,6 +110,13 @@ const CURSEFORGE_CATEGORY_IDS: Record<string, number> = {
 	library: 421,
 	decoration: 424,
 	storage: 420,
+};
+
+// CurseForge class IDs for the Minecraft game (gameId 432).
+const CURSEFORGE_CLASS_IDS: Record<ContentType, number> = {
+	mods: 6,
+	resourcepacks: 12,
+	shaderpacks: 6552,
 };
 
 export interface MarketFilters {
@@ -653,7 +661,6 @@ export function createMarketState(
 
 	async function searchRemoteCurseForge(reset = false, pageOffset?: number) {
 		if (disposed) return;
-		if (!isModContent) return;
 		if (!reset && (loadingRemote || loadingMore)) return;
 
 		if (reset) {
@@ -675,20 +682,24 @@ export function createMarketState(
 		error = null;
 
 		try {
-			const categoryId = filters.category
-				? CURSEFORGE_CATEGORY_IDS[filters.category]
-				: null;
+			const categoryId =
+				isModContent && filters.category
+					? CURSEFORGE_CATEGORY_IDS[filters.category]
+					: null;
 			const category = categoryId ? String(categoryId) : null;
 			const index = searchSort;
+			// Loaders only apply to mods; resource packs and shaders ignore them.
+			const searchLoader = isModContent ? filters.loader : "";
 
 			const result = await searchCurseForge(
 				filters.query.trim(),
-				filters.loader,
+				searchLoader,
 				filters.gameVersion,
 				category,
 				index,
 				PAGE_SIZE,
 				currentOffset,
+				CURSEFORGE_CLASS_IDS[contentType],
 				controller.signal,
 			);
 
@@ -778,7 +789,7 @@ export function createMarketState(
 					getCurseForgeProject(Number(projectId), controller.signal),
 					getCurseForgeProjectFiles(
 						Number(projectId),
-						filters.loader,
+						isModContent ? filters.loader : "",
 						filters.gameVersion,
 						controller.signal,
 					),
@@ -1021,7 +1032,7 @@ export function createMarketState(
 			? (
 					await getCurseForgeProjectFiles(
 						Number(projectId),
-						loader,
+						isModContent ? loader : "",
 						gameVersion,
 						signal,
 					)
@@ -1199,7 +1210,17 @@ export function createMarketState(
 						},
 					);
 				} else {
-					if (!version.primaryFileUrl || !version.primaryFileName)
+					// CurseForge files often omit a direct URL; resolve it on demand.
+					let url = version.primaryFileUrl;
+					if (!url && project.source === "curseforge")
+						url =
+							(await getCurseForgeFileDownloadUrl(
+								Number(projectId),
+								Number(version.id),
+								version.primaryFileName,
+							)) ?? "";
+					if (abandoned()) return;
+					if (!url || !version.primaryFileName)
 						throw new Error(
 							t("market.quickInstall.noDownload", {
 								name: project.title,
@@ -1210,7 +1231,7 @@ export function createMarketState(
 							source: project.source,
 							project_id: projectId,
 							version_id: version.id,
-							url: version.primaryFileUrl,
+							url,
 							filename: version.primaryFileName,
 						},
 					];
@@ -1793,7 +1814,6 @@ export function createMarketState(
 
 	function setSource(source: MarketSource) {
 		if (disposed) return;
-		if (source === "curseforge" && !isModContent) return;
 		if (source === filters.source) return;
 		// Invalidate in-flight pages before changing the list's source.
 		invalidateSearch();
