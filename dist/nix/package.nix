@@ -30,7 +30,7 @@
 rustPlatform.buildRustPackage rec {
   # Identidad y versión del paquete.
   pname = "cubiclauncher";
-  version = "35.0.0";
+  version = "36.0.0";
 
   # Código fuente del proyecto, excluyendo los archivos que Nix
   # considera innecesarios mediante cleanSource.
