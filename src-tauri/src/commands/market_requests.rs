@@ -103,6 +103,8 @@ pub enum MarketRequest {
         index: String,
         limit: u32,
         offset: u32,
+        #[serde(default)]
+        class_id: Option<u32>,
     },
     GetModrinthProject {
         project_id: String,
@@ -159,6 +161,7 @@ impl MarketRequest {
                 index,
                 limit,
                 offset,
+                class_id,
             } => serde_json::to_value(
                 search_curseforge(
                     query,
@@ -168,7 +171,7 @@ impl MarketRequest {
                     index,
                     limit.min(100),
                     offset,
-                    None,
+                    class_id,
                 )
                 .await?,
             )

@@ -527,7 +527,8 @@
 							class="market-detail-btn primary"
 							disabled={installing ||
 								(contentType !== "mods" &&
-									!selectedVersion.primaryFileUrl)}
+									!selectedVersion.primaryFileUrl &&
+									project.source !== "curseforge")}
 							onclick={handleInstall}
 						>
 							{#if installing}
