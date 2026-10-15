@@ -1155,7 +1155,6 @@
 		width: 20px;
 		height: 20px;
 		opacity: 0.5;
-		filter: var(--icon-filter);
 		flex-shrink: 0;
 		transition: opacity 0.15s;
 	}
