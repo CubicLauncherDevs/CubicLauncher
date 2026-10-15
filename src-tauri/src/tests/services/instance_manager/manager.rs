@@ -1,5 +1,34 @@
 use super::*;
 
+#[tokio::test]
+async fn startup_bounds_concurrent_loads_and_keeps_valid_instances_in_order() {
+    use std::sync::atomic::AtomicUsize;
+    let active = AtomicUsize::new(0);
+    let peak = AtomicUsize::new(0);
+    let names = (0..25).map(|i| i.to_string()).collect();
+    let loaded = load_instances(names, |name| {
+        let active = &active;
+        let peak = &peak;
+        async move {
+            let count = active.fetch_add(1, Ordering::SeqCst) + 1;
+            peak.fetch_max(count, Ordering::SeqCst);
+            time::sleep(Duration::from_millis(2)).await;
+            active.fetch_sub(1, Ordering::SeqCst);
+            let index = name.parse::<usize>().unwrap();
+            (index % 3 != 0).then_some(index)
+        }
+    })
+    .await;
+    assert_eq!(loaded, (0..25).filter(|i| i % 3 != 0).collect::<Vec<_>>());
+    assert_eq!(peak.load(Ordering::SeqCst), INSTANCE_LOAD_CONCURRENCY);
+    assert_eq!(active.load(Ordering::SeqCst), 0);
+    let empty: Vec<()> = load_instances(Vec::new(), |_| async {
+        panic!("empty startup must not load")
+    })
+    .await;
+    assert!(empty.is_empty());
+}
+
 async fn fixture() -> (tempfile::TempDir, Arc<InstanceManager>) {
     let temp = tempfile::tempdir().unwrap();
     let instance_dir = temp.path().join("instances");

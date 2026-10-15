@@ -2,6 +2,13 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+mod snapshots;
+
+#[cfg(test)]
+#[path = "tests/repo.rs"]
+mod tests;
 
 const MAGIC: &[u8; 4] = b"CREP";
 const VERSION: u8 = 2;
@@ -9,11 +16,11 @@ const ENTRY_SCHEMA_VER: u8 = 1;
 
 pub struct Repo {
     path: PathBuf,
-    entries: HashMap<String, Entry>,
+    entries: Arc<HashMap<String, Entry>>,
     dirty: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     /// Version de schema del dato serializado.
     /// El consumidor puede checkear esto para saber si puede deserializar o necesita refetch.
@@ -27,11 +34,7 @@ pub struct Entry {
 impl Repo {
     pub fn open(path: impl AsRef<Path>) -> Self {
         let path = path.as_ref().to_path_buf();
-        let entries = if path.exists() {
-            read_all(&path).unwrap_or_default()
-        } else {
-            HashMap::new()
-        };
+        let entries = snapshots::open(&path);
         Repo {
             path,
             entries,
@@ -44,12 +47,19 @@ impl Repo {
     }
 
     pub fn put(&mut self, key: impl Into<String>, entry: Entry) {
-        self.entries.insert(key.into(), entry);
+        let key = key.into();
+        if self.entries.get(&key) == Some(&entry) {
+            return;
+        }
+        Arc::make_mut(&mut self.entries).insert(key, entry);
         self.dirty = true;
     }
 
     pub fn remove(&mut self, key: &str) -> Option<Entry> {
-        let r = self.entries.remove(key);
+        if !self.entries.contains_key(key) {
+            return None;
+        }
+        let r = Arc::make_mut(&mut self.entries).remove(key);
         if r.is_some() {
             self.dirty = true;
         }
@@ -142,6 +152,7 @@ impl Repo {
         drop(tmp);
         fs::rename(&tmp_path, &self.path)
             .map_err(|e| format!("Failed to rename temp file: {}", e))?;
+        snapshots::invalidate(&self.path);
 
         // ensure parent dir fsync for directory metadata durability
         if let Some(parent) = self.path.parent()

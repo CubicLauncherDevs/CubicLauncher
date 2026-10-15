@@ -9,6 +9,7 @@ dependencies = [
  "crc32fast",
  "postcard",
  "serde",
+ "tempfile",
 ]
 
 [[package]]

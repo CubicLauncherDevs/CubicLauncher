@@ -136,9 +136,10 @@ pub fn export_to_zip(input: &ExportInput, dest: &Path) -> Result<PathBuf, String
     write_zip_file(&mut zip, "mmc-pack.json", mmc_pack.as_bytes(), options)?;
 
     if let Some(icon) = &input.icon_src {
-        let data =
-            std::fs::read(icon).map_err(|e| format!("No se pudo leer el icono {:?}: {e}", icon))?;
-        write_zip_file(&mut zip, "icon.png", &data, options)?;
+        zip.start_file("icon.png", options)
+            .map_err(|e| format!("No se pudo iniciar icon.png: {e}"))?;
+        copy_file_to_zip(&mut zip, icon)
+            .map_err(|e| format!("No se pudo exportar el icono {:?}: {e}", icon))?;
     }
 
     zip.add_directory(".minecraft", options)
@@ -251,11 +252,19 @@ fn add_path_to_zip(
             )?;
         }
     } else {
-        zip.start_file(zip_path.to_string_lossy(), options)?;
-        let data = std::fs::read(src)?;
-        zip.write_all(&data)?;
+        zip.start_file(
+            zip_path.to_string_lossy(),
+            options.large_file(metadata.len() >= u32::MAX as u64),
+        )?;
+        copy_file_to_zip(zip, src)?;
     }
     Ok(())
+}
+
+/// Stream through a fixed-size buffer instead of retaining the whole source file.
+fn copy_file_to_zip(zip: &mut zip::ZipWriter<std::fs::File>, path: &Path) -> std::io::Result<u64> {
+    let mut source = std::fs::File::open(path)?;
+    std::io::copy(&mut source, zip)
 }
 
 fn build_instance_cfg(input: &ExportInput) -> String {
