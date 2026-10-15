@@ -6,6 +6,7 @@ import {
 import {
 	applyInterfaceScale,
 	applyInterfaceDensity,
+	applyInterfaceFont,
 } from "../../../src/lib/api/interfaceAppearance.ts";
 
 test("invalid and legacy interface preferences recover without altering the source", () => {
@@ -20,15 +21,22 @@ test("invalid and legacy interface preferences recover without altering the sour
 		expect(interfacePreferences(value)).toEqual({
 			scale: 100,
 			density: "theme",
+			font: "theme",
 		});
 	}
-	const saved = Object.freeze({ scale: 125, density: "comfortable" });
+	const saved = Object.freeze({
+		scale: 125,
+		density: "comfortable",
+		font: "Cantarell",
+	});
 	expect(interfacePreferences(saved)).toBe(saved);
 	expect(interfacePreferences()).toBe(DEFAULT_INTERFACE_PREFERENCES);
 	expect(interfacePreferences({ scale: 90 })).toEqual({
 		scale: 90,
 		density: "theme",
+		font: "theme",
 	});
+	expect(interfacePreferences({ scale: 90, font: "  " }).font).toBe("theme");
 });
 
 test("native zoom serializes changes, deduplicates successful requests and recovers after failure", async () => {
@@ -131,6 +139,34 @@ test("density updates do not rewrite an unchanged root attribute", () => {
 		applyInterfaceDensity("theme");
 		expect(writes).toBe(3);
 		expect(attribute).toBeNull();
+	} finally {
+		if (descriptor)
+			Object.defineProperty(globalThis, "document", descriptor);
+		else delete globalThis.document;
+	}
+});
+
+test("font override sets and clears the root --font-family", () => {
+	const descriptor = Object.getOwnPropertyDescriptor(globalThis, "document");
+	const properties = new Map();
+	Object.defineProperty(globalThis, "document", {
+		configurable: true,
+		value: {
+			documentElement: {
+				style: {
+					setProperty: (key, value) => properties.set(key, value),
+					removeProperty: (key) => properties.delete(key),
+				},
+			},
+		},
+	});
+	try {
+		applyInterfaceFont("Cantarell");
+		expect(properties.get("--font-family")).toBe(
+			'"Cantarell", system-ui, sans-serif',
+		);
+		applyInterfaceFont("theme");
+		expect(properties.has("--font-family")).toBe(false);
 	} finally {
 		if (descriptor)
 			Object.defineProperty(globalThis, "document", descriptor);

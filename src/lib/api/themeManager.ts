@@ -64,7 +64,6 @@ export interface ThemeResponse {
 }
 
 const THEME_VARS_ID = "cubic-theme-vars";
-const DEFAULT_FONTS_ID = "cubic-default-fonts";
 const CUSTOM_CSS_ID = "cubic-theme-css";
 const CUSTOM_FONTS_ID = "cubic-theme-fonts";
 
@@ -130,46 +129,6 @@ export function invalidateThemeCache(themeId?: string): void {
 	} else {
 		themeCache.clear();
 	}
-}
-
-const defaultFontsCSS = `
-@font-face {
-	font-family: "Cantarell";
-	src: url("/fonts/Cantarell-Regular.woff2") format("woff2");
-	font-weight: 400;
-	font-style: normal;
-	font-display: swap;
-}
-@font-face {
-	font-family: "Cantarell";
-	src: url("/fonts/Cantarell-Italic.woff2") format("woff2");
-	font-weight: 400;
-	font-style: italic;
-	font-display: swap;
-}
-@font-face {
-	font-family: "Cantarell";
-	src: url("/fonts/Cantarell-Bold.woff2") format("woff2");
-	font-weight: 700;
-	font-style: normal;
-	font-display: swap;
-}
-@font-face {
-	font-family: "Cantarell";
-	src: url("/fonts/Cantarell-BoldItalic.woff2") format("woff2");
-	font-weight: 700;
-	font-style: italic;
-	font-display: swap;
-}
-`;
-
-function injectDefaultFonts() {
-	let el = document.getElementById(DEFAULT_FONTS_ID);
-	if (el) return;
-	el = document.createElement("style");
-	el.id = DEFAULT_FONTS_ID;
-	el.textContent = defaultFontsCSS;
-	document.head.appendChild(el);
 }
 
 export async function listThemes(): Promise<ThemeEntry[]> {
@@ -472,8 +431,6 @@ export function applyTheme(
 					"1",
 				);
 			});
-		} else {
-			injectDefaultFonts();
 		}
 
 		if (theme.inject_css) {

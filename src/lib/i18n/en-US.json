@@ -249,12 +249,17 @@
 			"scaleHint": "Changes the size of the whole window. 100% is the original size.",
 			"density": "Density",
 			"densityHint": "Spacing between cards, lists and options, without altering their size or the typography.",
+			"font": "Font",
+			"fontHint": "Typography for the whole interface. “Theme” uses the one defined by the active theme.",
 			"scaleError": "Could not apply the interface change",
 			"reset": "Reset interface",
 			"densities": {
 				"theme": "Theme",
 				"compact": "Compact",
 				"comfortable": "Comfortable"
+			},
+			"fonts": {
+				"theme": "Theme"
 			}
 		},
 		"personalize": {

@@ -11,6 +11,20 @@ export function applyInterfaceDensity(density: string): void {
 	else root.setAttribute("data-interface-density", attribute);
 }
 
+/** "theme" uses the active theme's --font-family; any other value overrides it
+ * globally via an inline custom property on <html>, which wins over the theme
+ * stylesheet and survives theme switches. */
+export function applyInterfaceFont(font: string): void {
+	const value = interfacePreferences({ font }).font;
+	const root = document.documentElement;
+	if (value === "theme") root.style.removeProperty("--font-family");
+	else
+		root.style.setProperty(
+			"--font-family",
+			`"${value}", system-ui, sans-serif`,
+		);
+}
+
 const settled = Promise.resolve();
 let zoomQueue = settled;
 let appliedScale: number | undefined;

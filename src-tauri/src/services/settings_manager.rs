@@ -462,8 +462,11 @@ impl SettingsManager {
         self.normalize_offline_users();
         self.normalize_notification_preferences();
         let previous_scale = self.interface_preferences.scale;
+        let previous_font = self.interface_preferences.font.clone();
         self.interface_preferences.normalize();
-        if self.interface_preferences.scale != previous_scale {
+        if self.interface_preferences.scale != previous_scale
+            || self.interface_preferences.font != previous_font
+        {
             self.dirty = true;
         }
         // v1 → v2: memoria en MB a GB

@@ -7,7 +7,7 @@ async function serviceFixture() {
 	const root = resolve(import.meta.dir, "../../..");
 	const service = resolve(root, "src/lib/api/launcherService.ts");
 	const stub = `
-export const launcherStore={settings:{discord_presence:false,interface_preferences:{scale:100,density:'theme'},notification_preferences:{title_size:13}}};
+export const launcherStore={settings:{discord_presence:false,interface_preferences:{scale:100,density:'theme',font:'theme'},notification_preferences:{title_size:13}}};
 export const hooks={read:async()=>null,write:async()=>{}};
 export const getSettings=()=>hooks.read();
 export const updateSettings=settings=>hooks.write(structuredClone(settings));

@@ -4,31 +4,45 @@ export const INTERFACE_DENSITIES = ["theme", "compact", "comfortable"] as const;
 export interface InterfacePreferences {
 	scale: (typeof INTERFACE_SCALES)[number];
 	density: (typeof INTERFACE_DENSITIES)[number];
+	/** "theme" usa la fuente del tema; cualquier otro valor es una familia
+	 * empaquetada en el proyecto que sobreescribe --font-family globalmente. */
+	font: string;
 }
 
 export const DEFAULT_INTERFACE_PREFERENCES: Readonly<InterfacePreferences> =
-	Object.freeze({ scale: 100, density: "theme" });
+	Object.freeze({ scale: 100, density: "theme", font: "theme" });
 
 export function interfacePreferences(
-	value?: { scale?: number; density?: string } | null,
+	value?: { scale?: number; density?: string; font?: string } | null,
 ): Readonly<InterfacePreferences> {
-	const { scale, density } = value ?? {};
+	const { scale, density, font } = value ?? {};
 	const validScale = INTERFACE_SCALES.includes(
 		scale as InterfacePreferences["scale"],
 	);
 	const validDensity = INTERFACE_DENSITIES.includes(
 		density as InterfacePreferences["density"],
 	);
-	if (validScale && validDensity) return value as InterfacePreferences;
+	const validFont = typeof font === "string" && font.trim().length > 0;
+	if (validScale && validDensity && validFont)
+		return value as InterfacePreferences;
 	const normalizedScale = validScale
 		? (scale as InterfacePreferences["scale"])
 		: 100;
 	const normalizedDensity = validDensity
 		? (density as InterfacePreferences["density"])
 		: "theme";
-	if (normalizedScale === 100 && normalizedDensity === "theme")
+	const normalizedFont = validFont ? (font as string) : "theme";
+	if (
+		normalizedScale === 100 &&
+		normalizedDensity === "theme" &&
+		normalizedFont === "theme"
+	)
 		return DEFAULT_INTERFACE_PREFERENCES;
-	return { scale: normalizedScale, density: normalizedDensity };
+	return {
+		scale: normalizedScale,
+		density: normalizedDensity,
+		font: normalizedFont,
+	};
 }
 
 // Change only whitespace. Subtract the original gap before adding the adjusted

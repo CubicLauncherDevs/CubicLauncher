@@ -249,12 +249,17 @@
 			"scaleHint": "Cambia el tamaño de toda la ventana. 100 % es el tamaño original.",
 			"density": "Densidad",
 			"densityHint": "Separación entre tarjetas, listas y opciones, sin alterar su tamaño ni la tipografía.",
+			"font": "Fuente",
+			"fontHint": "Tipografía de toda la interfaz. «Del tema» usa la que define el tema activo.",
 			"scaleError": "No se pudo aplicar el cambio de interfaz",
 			"reset": "Restablecer interfaz",
 			"densities": {
 				"theme": "Del tema",
 				"compact": "Compacta",
 				"comfortable": "Cómoda"
+			},
+			"fonts": {
+				"theme": "Del tema"
 			}
 		},
 		"personalize": {

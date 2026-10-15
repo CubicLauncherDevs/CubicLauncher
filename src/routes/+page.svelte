@@ -34,8 +34,10 @@
 	import {
 		applyInterfaceScale,
 		applyInterfaceDensity,
+		applyInterfaceFont,
 	} from "$lib/api/interfaceAppearance";
 	import { interfacePreferences } from "$lib/utils/interfacePreferences";
+	import { injectProjectFonts } from "$lib/fonts/projectFonts";
 
 	const logParams = $derived.by(() => {
 		if (typeof window === "undefined") return null;
@@ -157,6 +159,9 @@
 		interfacePreferences(launcherStore.settings.interface_preferences)
 			.density,
 	);
+	const interfaceFont = $derived(
+		interfacePreferences(launcherStore.settings.interface_preferences).font,
+	);
 
 	$effect(() => {
 		void applyInterfaceScale(interfaceScale).catch((error) => {
@@ -166,6 +171,10 @@
 
 	$effect(() => {
 		applyInterfaceDensity(interfaceDensity);
+	});
+
+	$effect(() => {
+		applyInterfaceFont(interfaceFont);
 	});
 	onDestroy(() => {
 		if (typeof document !== "undefined") applyInterfaceDensity("theme");
@@ -200,6 +209,7 @@
 	});
 
 	onMount(async () => {
+		injectProjectFonts();
 		initEventListeners(logParams ? "logs" : "main");
 		if (logParams) {
 			await syncSettings();

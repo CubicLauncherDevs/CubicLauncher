@@ -626,8 +626,6 @@ test("invalid font constructors and rejected loads do not prevent CSS or other f
 });
 
 test("repeated switches bound blob, stylesheet and registered-font counts", async () => {
-	const defaults = style("cubic-default-fonts");
-	expect(defaults.textContent.match(/@font-face/g)).toHaveLength(4);
 	for (let index = 0; index < 6; index++) {
 		const oldImage = images.at(-1);
 		const oldVars = style();
@@ -662,7 +660,6 @@ test("repeated switches bound blob, stylesheet and registered-font counts", asyn
 		expect(createBlob).toHaveBeenCalledTimes(index + 1);
 		expect(revokeBlob).toHaveBeenCalledTimes(index);
 		expect(nodes.map((node) => node.id).sort()).toEqual([
-			"cubic-default-fonts",
 			"cubic-theme-css",
 			"cubic-theme-vars",
 		]);
@@ -679,8 +676,8 @@ test("repeated switches bound blob, stylesheet and registered-font counts", asyn
 	expect(revokeBlob.mock.calls.map(([url]) => url)).toEqual(
 		createBlob.mock.results.map(({ value }) => value),
 	);
-	expect(style("cubic-default-fonts")).toBe(defaults);
-	expect(nodes).toHaveLength(2);
+	expect(style("cubic-default-fonts")).toBeUndefined();
+	expect(nodes).toHaveLength(1);
 	expect(properties.size).toBe(0);
 	expect(themeIcons.size).toBe(0);
 });

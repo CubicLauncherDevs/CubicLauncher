@@ -4,6 +4,8 @@
 	import { applyInterfaceScale } from "$lib/api/interfaceAppearance";
 	import { patchPreferences } from "$lib/utils/preferencePatch";
 	import SegmentedControl from "./SegmentedControl.svelte";
+	import Select from "$lib/components/layout/Select.svelte";
+	import { FONT_THEME, PROJECT_FONTS } from "$lib/fonts/projectFonts";
 	import {
 		DEFAULT_INTERFACE_PREFERENCES,
 		INTERFACE_SCALES,
@@ -17,12 +19,14 @@
 	let changing = $state(false);
 	let selectedScale = $state("100");
 	let selectedDensity = $state("theme");
+	let selectedFont = $state(FONT_THEME);
 	const preferences = $derived(
 		interfacePreferences(launcherStore.settings.interface_preferences),
 	);
 	$effect(() => {
 		selectedScale = String(preferences.scale);
 		selectedDensity = preferences.density;
+		selectedFont = preferences.font;
 	});
 	const scales = INTERFACE_SCALES.map((value) => ({
 		value: String(value),
@@ -34,13 +38,21 @@
 			label: t(`settings.interface.densities.${value}`),
 		})),
 	);
+	const fonts = $derived([
+		{ value: FONT_THEME, label: t("settings.interface.fonts.theme") },
+		...PROJECT_FONTS.map((font) => ({
+			value: font.family,
+			label: font.family,
+		})),
+	]);
 
 	async function update(patch: Partial<InterfacePreferences>) {
 		if (changing) return;
 		const next = interfacePreferences({ ...preferences, ...patch });
 		if (
 			next.scale === preferences.scale &&
-			next.density === preferences.density
+			next.density === preferences.density &&
+			next.font === preferences.font
 		)
 			return;
 		try {
@@ -55,6 +67,7 @@
 			} finally {
 				selectedScale = String(preferences.scale);
 				selectedDensity = preferences.density;
+				selectedFont = preferences.font;
 				// Disk writes do not need to block the controls or native zoom.
 				changing = false;
 			}
@@ -95,6 +108,18 @@
 				})}
 		/>
 		<p class="qm-ram-hint">{t("settings.interface.densityHint")}</p>
+	</div>
+	<div class="interface-field">
+		<span class="interface-label">{t("settings.interface.font")}</span>
+		<Select
+			id="interface-font"
+			label={t("settings.interface.font")}
+			bind:value={selectedFont}
+			options={fonts}
+			disabled={changing}
+			onchange={(value) => update({ font: value })}
+		/>
+		<p class="qm-ram-hint">{t("settings.interface.fontHint")}</p>
 	</div>
 	<div class="interface-actions">
 		<button

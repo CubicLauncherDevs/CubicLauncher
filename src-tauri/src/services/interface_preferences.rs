@@ -15,6 +15,9 @@ pub enum InterfaceDensity {
 pub struct InterfacePreferences {
     pub scale: u32,
     pub density: InterfaceDensity,
+    /// "theme" usa la fuente del tema; cualquier otro valor es una familia
+    /// empaquetada en el proyecto que sobreescribe --font-family.
+    pub font: String,
 }
 
 impl Default for InterfacePreferences {
@@ -22,6 +25,7 @@ impl Default for InterfacePreferences {
         Self {
             scale: 100,
             density: InterfaceDensity::Theme,
+            font: "theme".to_string(),
         }
     }
 }
@@ -30,6 +34,9 @@ impl InterfacePreferences {
     pub fn normalize(&mut self) {
         if ![90, 100, 110, 125].contains(&self.scale) {
             self.scale = 100;
+        }
+        if self.font.trim().is_empty() {
+            self.font = "theme".to_string();
         }
     }
 }
