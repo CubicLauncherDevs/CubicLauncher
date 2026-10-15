@@ -89,7 +89,7 @@ ls -la result/bin
 ## Distribuir binarios con Cachix
 
 El workflow `.github/workflows/nix-cache.yml` compila el paquete completo para
-Linux x86_64, Linux ARM64 y macOS ARM64. Se ejecuta al publicar releases,
+Linux x86_64 y Linux ARM64. Se ejecuta al publicar releases,
 al terminar el workflow Publish Release y manualmente desde Actions. Publica el launcher y sus
 dependencias; también guarda resultados intermedios para próximos builds.
 
@@ -102,7 +102,7 @@ dependencias; también guarda resultados intermedios para próximos builds.
 3. Crear la variable de repositorio `CACHIX_CACHE_NAME` con el nombre real de
    la caché, por ejemplo `cubiclauncher` si se ha registrado con ese nombre.
 4. Subir el workflow y ejecutarlo desde Actions → Nix Binary Cache. Sin la
-   variable de nombre, el job queda desactivado; sin token, falla con un mensaje.
+   variable de nombre o el token, el workflow falla con un mensaje explicativo.
 
 No se publica desde pull requests. El primer build puede tardar; los siguientes
 reutilizan los resultados disponibles. Cada arquitectura se publica por separado.

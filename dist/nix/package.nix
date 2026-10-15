@@ -14,9 +14,9 @@
   libpulseaudio,
   libgbm,
   libglvnd,
+  makeWrapper,
   mesa,
   wayland,
-  writeShellScript,
   libx11,
   libxcursor,
   libxi,
@@ -193,9 +193,25 @@ rustPlatform.buildRustPackage rec {
   # El wrapper de GTK propaga estas rutas al launcher y a los procesos
   # que este inicia, como el propio Minecraft.
   preFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
-    # Detectar el controlador al iniciar, igual que en el devShell.
-    gappsWrapperArgs+=(--run "source ${writeShellScript "cubiclauncher-graphics" ''
-      if ! { [ -e /sys/module/nvidia ] || [ -e /proc/driver/nvidia ] || command -v nvidia-smi >/dev/null 2>&1; }; then
+    gappsWrapperArgs+=(--prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [
+      alsa-lib
+      libpulseaudio
+      pipewire
+      libx11
+      libxcursor
+      libxi
+      libxinerama
+      libxrandr
+      libxxf86vm
+    ]}")
+  '';
+
+  # wrapGAppsHook4 uses a C wrapper that cannot run startup shell snippets.
+  # Put a small shell wrapper in front of it for host-specific EGL detection.
+  postFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
+    mv "$out/bin/cubiclauncher" "$out/bin/.cubiclauncher-wrapped"
+    ${makeWrapper}/bin/makeWrapper "$out/bin/.cubiclauncher-wrapped" "$out/bin/cubiclauncher" \
+      --run 'if ! { [ -e /sys/module/nvidia ] || [ -e /proc/driver/nvidia ] || command -v nvidia-smi >/dev/null 2>&1; }; then
         export __EGL_VENDOR_LIBRARY_FILENAMES="''${__EGL_VENDOR_LIBRARY_FILENAMES:-${mesa}/share/glvnd/egl_vendor.d/50_mesa.json}"
         export LIBGL_DRIVERS_PATH="''${LIBGL_DRIVERS_PATH:-${mesa}/lib/dri}"
         export GBM_BACKENDS_PATH="''${GBM_BACKENDS_PATH:-${mesa}/lib/gbm}"
@@ -208,19 +224,7 @@ rustPlatform.buildRustPackage rec {
       if [ "''${CUBICLAUNCHER_WEBKIT_SOFTWARE:-0}" = "1" ]; then
         export __NV_DISABLE_EXPLICIT_SYNC="''${__NV_DISABLE_EXPLICIT_SYNC:-1}"
         export WEBKIT_DISABLE_DMABUF_RENDERER="''${WEBKIT_DISABLE_DMABUF_RENDERER:-1}"
-      fi
-    ''}")
-    gappsWrapperArgs+=(--prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [
-      alsa-lib
-      libpulseaudio
-      pipewire
-      libx11
-      libxcursor
-      libxi
-      libxinerama
-      libxrandr
-      libxxf86vm
-    ]}")
+      fi'
   '';
 
   # Corregir la entrada .desktop después de instalar el paquete.
