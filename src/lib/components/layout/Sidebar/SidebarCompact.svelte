@@ -259,7 +259,7 @@
 										height="32"
 									/>
 								{:else}
-									{instance.name.charAt(0).toUpperCase()}
+									<Icon name="brand:cubic" size={32} />
 								{/if}
 								{#if instance.status === "started"}
 									<span

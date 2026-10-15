@@ -58,9 +58,7 @@
 					height="20"
 				/>
 			{:else}
-				<span class="instance-icon-letter">
-					{instance.name.charAt(0).toUpperCase()}
-				</span>
+				<Icon name="brand:cubic" size={20} />
 			{/if}
 			{#if isRunning}
 				<span
@@ -214,12 +212,6 @@
 		height: 100%;
 		border-radius: 2px;
 		object-fit: cover;
-	}
-
-	.instance-icon-letter {
-		font-size: 0.8rem;
-		font-weight: 700;
-		line-height: 1;
 	}
 
 	.instance-text {

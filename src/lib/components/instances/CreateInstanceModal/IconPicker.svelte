@@ -128,7 +128,16 @@
 	title={t("createInstance.iconLabel")}
 	onclick={() => (open = !open)}
 >
-	<img src={getPreviewIconSrc(selectedIcon)} alt="" />
+	{#if selectedIcon}
+		<img src={getPreviewIconSrc(selectedIcon)} alt="" />
+	{:else}
+		<Icon
+			name="brand:cubic"
+			width="100%"
+			height="100%"
+			class="default-icon"
+		/>
+	{/if}
 </button>
 
 {#if open}
