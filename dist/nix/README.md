@@ -49,7 +49,7 @@ En Linux, el devShell configura `XDG_DATA_DIRS` con los esquemas de GTK3 y
 `GIO_MODULE_DIR` y añade el backend TLS de `glib-networking` a
 `GIO_EXTRA_MODULES` para que WebKitGTK pueda cargar recursos HTTPS.
 
-En Linux con controladores Mesa (por ejemplo, AMD e Intel), el devShell usa
+En Linux con controladores Mesa (por ejemplo, AMD e Intel), el devShell y el paquete instalado usan
 Mesa, EGL, GBM y Wayland de la misma revisión de Nixpkgs que la glibc del
 compilador, fijada en `flake.lock`. También configura las rutas de carga para
 evitar que EGL seleccione el Mesa de `/run/opengl-driver`, que puede requerir
@@ -70,6 +70,16 @@ nix develop --override-input nixpkgs nixpkgs --no-write-lock-file
 ```
 
 ### Build local
+
+El paquete instalado configura EGL igual que el devShell y conserva los
+controladores del sistema para NVIDIA. También aplica el ajuste de WebKitGTK
+para NVIDIA con Wayland; `CUBICLAUNCHER_WEBKIT_SOFTWARE=1` lo fuerza y
+`CUBICLAUNCHER_WEBKIT_SOFTWARE=0` desactiva la detección automática.
+
+Para verificar una corrección de EGL, ejecutar `./result/bin/cubiclauncher`
+fuera de `nix develop` después del build. Instalar con `nix profile add .`.
+Si ya existe una entrada del repositorio local, consultar su nombre con
+`nix profile list` y actualizarla con `nix profile upgrade <nombre>`.
 
 ```bash
 nix build .

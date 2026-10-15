@@ -12,6 +12,11 @@
   gtk3,
   libsoup_3,
   libpulseaudio,
+  libgbm,
+  libglvnd,
+  mesa,
+  wayland,
+  writeShellScript,
   libx11,
   libxcursor,
   libxi,
@@ -188,6 +193,23 @@ rustPlatform.buildRustPackage rec {
   # El wrapper de GTK propaga estas rutas al launcher y a los procesos
   # que este inicia, como el propio Minecraft.
   preFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
+    # Detectar el controlador al iniciar, igual que en el devShell.
+    gappsWrapperArgs+=(--run "source ${writeShellScript "cubiclauncher-graphics" ''
+      if ! { [ -e /sys/module/nvidia ] || [ -e /proc/driver/nvidia ] || command -v nvidia-smi >/dev/null 2>&1; }; then
+        export __EGL_VENDOR_LIBRARY_FILENAMES="''${__EGL_VENDOR_LIBRARY_FILENAMES:-${mesa}/share/glvnd/egl_vendor.d/50_mesa.json}"
+        export LIBGL_DRIVERS_PATH="''${LIBGL_DRIVERS_PATH:-${mesa}/lib/dri}"
+        export GBM_BACKENDS_PATH="''${GBM_BACKENDS_PATH:-${mesa}/lib/gbm}"
+        export LD_LIBRARY_PATH="${lib.makeLibraryPath [ libglvnd libgbm wayland mesa ]}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      elif [ -z "''${CUBICLAUNCHER_WEBKIT_SOFTWARE:-}" ]; then
+        if [ "''${XDG_SESSION_TYPE:-}" = "wayland" ] || [ -n "''${WAYLAND_DISPLAY:-}" ]; then
+          CUBICLAUNCHER_WEBKIT_SOFTWARE=1
+        fi
+      fi
+      if [ "''${CUBICLAUNCHER_WEBKIT_SOFTWARE:-0}" = "1" ]; then
+        export __NV_DISABLE_EXPLICIT_SYNC="''${__NV_DISABLE_EXPLICIT_SYNC:-1}"
+        export WEBKIT_DISABLE_DMABUF_RENDERER="''${WEBKIT_DISABLE_DMABUF_RENDERER:-1}"
+      fi
+    ''}")
     gappsWrapperArgs+=(--prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [
       alsa-lib
       libpulseaudio
