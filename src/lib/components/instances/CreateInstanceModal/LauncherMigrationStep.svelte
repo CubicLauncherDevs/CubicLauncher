@@ -212,7 +212,8 @@
 			>
 				<Icon name={choice.icon} size={22} />
 				<span
-					><strong>{choice.label}</strong><small>{choice.hint}</small></span
+					><strong>{choice.label}</strong><small>{choice.hint}</small
+					></span
 				>
 			</button>
 		{/each}

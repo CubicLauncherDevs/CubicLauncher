@@ -51,7 +51,10 @@
 		const name = editing.name.trim();
 		if (!name) {
 			showErrorParsed(
-				JSON.stringify({ code: "GENERIC", params: { error: t("optionsProfiles.nameRequired") } }),
+				JSON.stringify({
+					code: "GENERIC",
+					params: { error: t("optionsProfiles.nameRequired") },
+				}),
 			);
 			return;
 		}
@@ -94,7 +97,10 @@
 		busy = true;
 		try {
 			await deleteOptionsProfile(profile.id);
-			showSuccess(t("optionsProfiles.title"), t("optionsProfiles.deleted"));
+			showSuccess(
+				t("optionsProfiles.title"),
+				t("optionsProfiles.deleted"),
+			);
 			if (editing?.id === profile.id) editing = null;
 			await loadOptionsProfiles(true);
 		} catch (e) {
@@ -115,7 +121,10 @@
 			if (typeof path !== "string") return;
 			busy = true;
 			await importOptionsProfileFromFile(path, "");
-			showSuccess(t("optionsProfiles.title"), t("optionsProfiles.created"));
+			showSuccess(
+				t("optionsProfiles.title"),
+				t("optionsProfiles.created"),
+			);
 			await loadOptionsProfiles(true);
 		} catch (e) {
 			showErrorParsed(e);
@@ -215,7 +224,12 @@
 					spellcheck="false"></textarea>
 			</div>
 			<div class="actions">
-				<button type="button" class="btn" disabled={busy} onclick={save}>
+				<button
+					type="button"
+					class="btn"
+					disabled={busy}
+					onclick={save}
+				>
 					{editing.id
 						? t("optionsProfiles.save")
 						: t("optionsProfiles.create")}

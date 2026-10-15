@@ -12,10 +12,14 @@ const cache = new SvelteMap<string, CacheEntry>();
 const MAX = 50;
 const TTL_MS = 5 * 60 * 1000; // 5 minutos
 
-// AbortControllers for in-flight fallback fetches, keyed by uuid@version.
-// Not reactive: these are short-lived request handles, not UI state.
+interface PendingAvatar {
+	controller: AbortController;
+	promise: Promise<string>;
+}
+
+// Request handles are not UI state. Share both native and fallback requests.
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
-const pendingFetches = new Map<string, AbortController>();
+const pendingFetches = new Map<string, PendingAvatar>();
 
 /**
  * Versiones reactivas de avatar por UUID.
@@ -27,51 +31,27 @@ function cacheKey(uuid: string, version: number): string {
 	return `${uuid}@${version}`;
 }
 
-function abortPending(uuid: string, version: number): void {
-	const key = cacheKey(uuid, version);
-	const controller = pendingFetches.get(key);
-	if (controller) {
-		controller.abort();
-		pendingFetches.delete(key);
+function getCacheEntry(key: string): CacheEntry | undefined {
+	const entry = cache.get(key);
+	if (entry && Date.now() - entry.fetchedAt >= TTL_MS) {
+		cache.delete(key);
+		return undefined;
 	}
-}
-
-function pruneExpired(): void {
-	const now = Date.now();
-	for (const [key, entry] of cache.entries()) {
-		if (now - entry.fetchedAt >= TTL_MS) {
-			cache.delete(key);
-		}
-	}
+	return entry;
 }
 
 export function getAvatar(url: string): string | undefined {
-	return cache.get(url)?.svg;
+	return getCacheEntry(url)?.svg;
 }
 
-export function setAvatar(url: string, svg: string) {
+export function setAvatar(url: string, svg: string): void {
+	// Refreshing an existing entry must not evict an unrelated avatar.
+	cache.delete(url);
 	if (cache.size >= MAX) {
 		const first = cache.keys().next();
 		if (!first.done) cache.delete(first.value);
 	}
 	cache.set(url, { svg, fetchedAt: Date.now() });
-}
-
-function setAvatarFor(uuid: string, version: number, svg: string) {
-	const key = cacheKey(uuid, version);
-	if (cache.size >= MAX) {
-		const first = cache.keys().next();
-		if (!first.done) cache.delete(first.value);
-	}
-	cache.set(key, { svg, fetchedAt: Date.now() });
-}
-
-function getAvatarFor(uuid: string, version: number): CacheEntry | undefined {
-	pruneExpired();
-	return (
-		(cache.get(cacheKey(uuid, version)) as CacheEntry | undefined) ??
-		undefined
-	);
 }
 
 export function invalidateAvatarCache(url: string) {
@@ -80,6 +60,12 @@ export function invalidateAvatarCache(url: string) {
 
 export function invalidateAvatarFor(uuid: string) {
 	const prefix = `${uuid}@`;
+	for (const [key, pending] of pendingFetches) {
+		if (key.startsWith(prefix)) {
+			pending.controller.abort();
+			pendingFetches.delete(key);
+		}
+	}
 	for (const key of cache.keys()) {
 		if (key.startsWith(prefix)) cache.delete(key);
 	}
@@ -92,9 +78,7 @@ export function getAvatarVersion(uuid: string): number {
 export function bumpAvatarVersion(uuid: string): number {
 	const next = (avatarVersions.get(uuid) ?? 0) + 1;
 	avatarVersions.set(uuid, next);
-	// Abort any in-flight fetch for the old version; the component will retry
-	// with the new version on its next render cycle.
-	abortPending(uuid, next - 1);
+	// Discard old requests and cached textures before loading the new skin.
 	invalidateAvatarFor(uuid);
 	return next;
 }
@@ -131,40 +115,58 @@ export async function fetchAvatarSvg(
 	}
 
 	const version = getAvatarVersion(uuid);
-	const cached = getAvatarFor(uuid, version) as CacheEntry | undefined;
-	if (cached) {
-		return cached.svg;
+	const key = cacheKey(uuid, version);
+	const cached = getCacheEntry(key);
+	if (cached) return cached.svg;
+
+	const pending = pendingFetches.get(key);
+	if (pending) return pending.promise;
+
+	const controller = new AbortController();
+	const fallbackUrl = buildAvatarUrl(
+		uuid,
+		username ?? "",
+		userType,
+		serverUrl,
+	);
+	const promise = loadAvatar(uuid, fallbackUrl, controller.signal)
+		.then((svg) => {
+			// Native requests cannot be aborted; reject results invalidated in flight.
+			if (
+				controller.signal.aborted ||
+				getAvatarVersion(uuid) !== version
+			) {
+				return DEFAULT_AVATAR_SVG;
+			}
+			if (svg) setAvatar(key, svg);
+			return svg;
+		})
+		.finally(() => {
+			// An invalidation may already have started a replacement request.
+			if (pendingFetches.get(key)?.controller === controller) {
+				pendingFetches.delete(key);
+			}
+		});
+	pendingFetches.set(key, { controller, promise });
+	return promise;
+}
+
+async function loadAvatar(
+	uuid: string,
+	fallbackUrl: string,
+	signal: AbortSignal,
+): Promise<string> {
+	try {
+		return await getAvatarSvg(uuid);
+	} catch (error) {
+		if (signal.aborted) return DEFAULT_AVATAR_SVG;
+		console.error("Error cargando avatar:", error);
 	}
 
 	try {
-		const svg = await getAvatarSvg(uuid);
-		setAvatarFor(uuid, version, svg);
-		return svg;
-	} catch (err) {
-		console.error("Error cargando avatar:", err);
-		const fallbackUrl = buildAvatarUrl(
-			uuid,
-			username ?? "",
-			userType,
-			serverUrl,
-		);
-		const key = cacheKey(uuid, version);
-		abortPending(uuid, version);
-		const controller = new AbortController();
-		pendingFetches.set(key, controller);
-
-		try {
-			const res = await fetch(fallbackUrl, {
-				signal: controller.signal,
-			});
-			pendingFetches.delete(key);
-			if (!res.ok) return DEFAULT_AVATAR_SVG;
-			const svg = await res.text();
-			setAvatarFor(uuid, version, svg);
-			return svg;
-		} catch {
-			pendingFetches.delete(key);
-			return DEFAULT_AVATAR_SVG;
-		}
+		const response = await fetch(fallbackUrl, { signal });
+		return response.ok ? await response.text() : DEFAULT_AVATAR_SVG;
+	} catch {
+		return DEFAULT_AVATAR_SVG;
 	}
 }

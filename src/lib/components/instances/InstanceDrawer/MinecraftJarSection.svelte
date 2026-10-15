@@ -106,7 +106,10 @@
 		<div class="current-row">
 			<div class="current">
 				<span class="label">{t("minecraftJar.current")}</span>
-				<span class="badge">{config.replacement?.name ?? t("minecraftJar.original")}</span>
+				<span class="badge"
+					>{config.replacement?.name ??
+						t("minecraftJar.original")}</span
+				>
 			</div>
 			<button
 				type="button"
@@ -120,10 +123,20 @@
 	{/if}
 
 	<div class="action-bar">
-		<button type="button" class="btn-primary" {disabled} onclick={() => selectFiles(false)}>
+		<button
+			type="button"
+			class="btn-primary"
+			{disabled}
+			onclick={() => selectFiles(false)}
+		>
 			{t("minecraftJar.add")}
 		</button>
-		<button type="button" class="btn-secondary" {disabled} onclick={() => selectFiles(true)}>
+		<button
+			type="button"
+			class="btn-secondary"
+			{disabled}
+			onclick={() => selectFiles(true)}
+		>
 			{t("minecraftJar.replace")}
 		</button>
 	</div>
@@ -156,25 +169,43 @@
 								type="button"
 								class="icon-btn"
 								disabled={disabled || index === 0}
-								aria-label={t("minecraftJar.moveUp", { name: mod.name })}
-								title={t("minecraftJar.moveUp", { name: mod.name })}
+								aria-label={t("minecraftJar.moveUp", {
+									name: mod.name,
+								})}
+								title={t("minecraftJar.moveUp", {
+									name: mod.name,
+								})}
 								onclick={() =>
-									perform(() => ({ type: "move", file: mod.file, offset: -1 }))
-								}
+									perform(() => ({
+										type: "move",
+										file: mod.file,
+										offset: -1,
+									}))}
 							>
-								<span class="chev rotate-180" aria-hidden="true">
+								<span
+									class="chev rotate-180"
+									aria-hidden="true"
+								>
 									<ChevronDownIcon size={16} />
 								</span>
 							</button>
 							<button
 								type="button"
 								class="icon-btn"
-								disabled={disabled || index === config.mods.length - 1}
-								aria-label={t("minecraftJar.moveDown", { name: mod.name })}
-								title={t("minecraftJar.moveDown", { name: mod.name })}
+								disabled={disabled ||
+									index === config.mods.length - 1}
+								aria-label={t("minecraftJar.moveDown", {
+									name: mod.name,
+								})}
+								title={t("minecraftJar.moveDown", {
+									name: mod.name,
+								})}
 								onclick={() =>
-									perform(() => ({ type: "move", file: mod.file, offset: 1 }))
-								}
+									perform(() => ({
+										type: "move",
+										file: mod.file,
+										offset: 1,
+									}))}
 							>
 								<span class="chev" aria-hidden="true">
 									<ChevronDownIcon size={16} />
@@ -184,10 +215,14 @@
 								type="button"
 								class="icon-btn"
 								{disabled}
-								aria-label={t("minecraftJar.removeNamed", { name: mod.name })}
+								aria-label={t("minecraftJar.removeNamed", {
+									name: mod.name,
+								})}
 								onclick={() =>
-									perform(() => ({ type: "remove", file: mod.file }))
-								}
+									perform(() => ({
+										type: "remove",
+										file: mod.file,
+									}))}
 								title={t("minecraftJar.remove")}
 							>
 								<Trash width="16" height="16" />
@@ -205,7 +240,7 @@
 </section>
 
 <style>
-.jar-section {
+	.jar-section {
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
@@ -341,6 +376,4 @@
 		color: var(--text-muted);
 		font-size: 0.8rem;
 	}
-
-
 </style>

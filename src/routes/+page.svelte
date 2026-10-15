@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
-	import type { Component } from "svelte";
+	import { lazyComponent } from "$lib/utils/lazyComponent.svelte";
 	import "../styles/App.css";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import {
@@ -17,8 +17,7 @@
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
 	import JreInstallPrompt from "$lib/components/ui/JreInstallPrompt.svelte";
-	import UpdateModal from "$lib/components/ui/UpdateModal.svelte";
-	import Tutorial from "$lib/components/layout/welcome/welcome.svelte";
+	import { updaterState } from "$lib/state/updaterState.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
 	import { initDiscordPresence } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
@@ -30,10 +29,6 @@
 	import { startAutoUpdates } from "$lib/api/updaterServices";
 	import { saveSettings } from "$lib/api/launcherService";
 	import { showSuccess, showError } from "$lib/state/state.svelte";
-	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal/CreateInstanceModal.svelte";
-	import LogWindow from "$lib/components/log/LogWindow.svelte";
-	import InstanceDrawer from "$lib/components/instances/InstanceDrawer/InstanceDrawer.svelte";
-	import ProfileView from "$lib/components/profiles/ProfileView.svelte";
 	import { loadInstalledVersions } from "$lib/state/versionsState.svelte";
 	import { animDuration } from "$lib/utils/animations";
 	import {
@@ -70,46 +65,88 @@
 	let dragPaths = $state<string[]>([]);
 	let editingInstance = $state<InstanceDto | null>(null);
 	let showTutorial = $state(false);
-	let SettingsComponent = $state<Component<{ onclose: () => void }> | null>(
-		null,
+	const settingsPanel = lazyComponent(
+		() => import("$lib/components/settings/Settings.svelte"),
+		() => quickMenuOpen,
+		(error) => {
+			quickMenuOpen = false;
+			showError(t("errors.title"), String(error));
+		},
 	);
-	let VersionDownloaderComponent = $state<Component<{
-		open: boolean;
-	}> | null>(null);
+	const SettingsComponent = $derived(settingsPanel.component);
 
-	$effect(() => {
-		if (!quickMenuOpen || SettingsComponent) return;
-		let active = true;
-		import("$lib/components/settings/Settings.svelte")
-			.then((module) => {
-				if (active) SettingsComponent = module.default;
-			})
-			.catch((error) => {
-				if (!active) return;
-				quickMenuOpen = false;
-				showError(t("errors.title"), String(error));
-			});
-		return () => {
-			active = false;
-		};
-	});
+	const versionPanel = lazyComponent(
+		() =>
+			import("$lib/components/layout/VersionDownloader/VersionDownloader.svelte"),
+		() => versionDownloaderOpen,
+		(error) => {
+			versionDownloaderOpen = false;
+			showError(t("errors.title"), String(error));
+		},
+	);
+	const VersionDownloaderComponent = $derived(versionPanel.component);
 
-	$effect(() => {
-		if (!versionDownloaderOpen || VersionDownloaderComponent) return;
-		let active = true;
-		import("$lib/components/layout/VersionDownloader/VersionDownloader.svelte")
-			.then((module) => {
-				if (active) VersionDownloaderComponent = module.default;
-			})
-			.catch((error) => {
-				if (!active) return;
-				versionDownloaderOpen = false;
-				showError(t("errors.title"), String(error));
-			});
-		return () => {
-			active = false;
-		};
-	});
+	const createPanel = lazyComponent(
+		() =>
+			import("$lib/components/instances/CreateInstanceModal/CreateInstanceModal.svelte"),
+		() => openCreateModal,
+		(error) => {
+			openCreateModal = false;
+			showError(t("errors.title"), String(error));
+		},
+	);
+	const CreateInstanceModal = $derived(createPanel.component);
+
+	const editorPanel = lazyComponent(
+		() =>
+			import("$lib/components/instances/InstanceDrawer/InstanceDrawer.svelte"),
+		() => instanceEditorOpen,
+		(error) => {
+			instanceEditorOpen = false;
+			showError(t("errors.title"), String(error));
+		},
+	);
+	const InstanceDrawer = $derived(editorPanel.component);
+
+	const profilePanel = lazyComponent(
+		() => import("$lib/components/profiles/ProfileView.svelte"),
+		() => showProfileView,
+		(error) => {
+			showProfileView = false;
+			showError(t("errors.title"), String(error));
+		},
+	);
+	const ProfileView = $derived(profilePanel.component);
+
+	const tutorialPanel = lazyComponent(
+		() => import("$lib/components/layout/welcome/welcome.svelte"),
+		() => showTutorial,
+		(error) => {
+			showTutorial = false;
+			showError(t("errors.title"), String(error));
+		},
+	);
+	const Tutorial = $derived(tutorialPanel.component);
+
+	let logError = $state("");
+	const logPanel = lazyComponent(
+		() => import("$lib/components/log/LogWindow.svelte"),
+		() => logParams !== null,
+		(error) => {
+			logError = String(error);
+		},
+	);
+	const LogWindow = $derived(logPanel.component);
+
+	const updatePanel = lazyComponent(
+		() => import("$lib/components/ui/UpdateModal.svelte"),
+		() => !logParams && updaterState.open,
+		(error) => {
+			updaterState.open = false;
+			showError(t("errors.title"), String(error));
+		},
+	);
+	const UpdateModal = $derived(updatePanel.component);
 
 	const sidebarTransitionDuration = $derived(animDuration(0.35, 0.05));
 	const interfaceScale = $derived(
@@ -403,10 +440,16 @@
 </script>
 
 {#if logParams}
-	<LogWindow
-		instanceId={logParams.instanceId}
-		instanceName={logParams.instanceName}
-	/>
+	{#if LogWindow}
+		<LogWindow
+			instanceId={logParams.instanceId}
+			instanceName={logParams.instanceName}
+		/>
+	{:else if logError}
+		<p role="alert">{t("errors.title")}: {logError}</p>
+	{:else}
+		<p role="status">{t("common.loading")}</p>
+	{/if}
 {:else}
 	<div class="app-container" class:drag-over={isDragOver}>
 		{#if isDragOver}
@@ -466,7 +509,11 @@
 			<div class="background-overlay"></div>
 
 			{#if showProfileView}
-				<ProfileView onclose={() => (showProfileView = false)} />
+				{#if ProfileView}
+					<ProfileView onclose={() => (showProfileView = false)} />
+				{:else}
+					<p role="status">{t("common.loading")}</p>
+				{/if}
 			{:else if selectedInstance}
 				<InstanceView {selectedInstance} />
 			{:else}
@@ -489,17 +536,21 @@
 
 	{#if editingInstance}
 		<Drawer bind:open={instanceEditorOpen} direction="right">
-			<InstanceDrawer
-				onclose={() => {
-					instanceEditorOpen = false;
-					clearTimeout(editingTimer);
-					editingTimer = setTimeout(
-						() => (editingInstance = null),
-						350,
-					);
-				}}
-				instance={editingInstance}
-			/>
+			{#if InstanceDrawer}
+				<InstanceDrawer
+					onclose={() => {
+						instanceEditorOpen = false;
+						clearTimeout(editingTimer);
+						editingTimer = setTimeout(
+							() => (editingInstance = null),
+							350,
+						);
+					}}
+					instance={editingInstance}
+				/>
+			{:else}
+				<p role="status">{t("common.loading")}</p>
+			{/if}
 		</Drawer>
 	{/if}
 
@@ -515,25 +566,46 @@
 		</ModalBase>
 	{/if}
 
-	<CreateInstanceModal
-		bind:open={openCreateModal}
-		bind:mrpackPath={droppedMrpackPath}
-		bind:instanceZipPath={droppedInstanceZipPath}
-		oninstallstarted={(name) => (pendingModpackName = name)}
-		oninstallfailed={(name) => {
-			if (pendingModpackName === name) pendingModpackName = null;
-		}}
-	/>
+	{#if CreateInstanceModal}
+		<CreateInstanceModal
+			bind:open={openCreateModal}
+			bind:mrpackPath={droppedMrpackPath}
+			bind:instanceZipPath={droppedInstanceZipPath}
+			oninstallstarted={(name) => (pendingModpackName = name)}
+			oninstallfailed={(name) => {
+				if (pendingModpackName === name) pendingModpackName = null;
+			}}
+		/>
+	{:else if openCreateModal}
+		<ModalBase
+			bind:open={openCreateModal}
+			title={t("createInstance.title")}
+		>
+			<p role="status">{t("common.loading")}</p>
+		</ModalBase>
+	{/if}
 
-	<Tutorial
-		bind:open={showTutorial}
-		onclose={onTutorialClose}
-		onopensettings={() => (quickMenuOpen = true)}
-	/>
+	{#if Tutorial}
+		<Tutorial
+			bind:open={showTutorial}
+			onclose={onTutorialClose}
+			onopensettings={() => (quickMenuOpen = true)}
+		/>
+	{/if}
 
 	<NotificationContainer />
 	<JreInstallPrompt />
-	<UpdateModal />
+	{#if UpdateModal}
+		<UpdateModal />
+	{:else if updaterState.open}
+		<ModalBase
+			bind:open={updaterState.open}
+			title={t("updater.title")}
+			width="560px"
+		>
+			<p role="status">{t("common.loading")}</p>
+		</ModalBase>
+	{/if}
 {/if}
 
 <style>

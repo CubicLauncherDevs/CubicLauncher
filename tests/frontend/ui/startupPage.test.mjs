@@ -19,6 +19,7 @@ const browserPath = [
 // instrumented so imports/mounts can be counted separately from visibility.
 const common = `
 export const calls={};
+export const updaterState=$state({open:false});
 export const count=key=>{calls[key]=(calls[key]??0)+1};
 export const hooks={settings:null,instances:null};
 export const launcherStore=$state({loadedInstances:[],settings:{language:'en-US',theme:'test',show_tutorial:false,license_accepted:true,discord_presence:true,auto_updates:true,interface_preferences:{scale:100,density:'theme'}}});
@@ -65,7 +66,12 @@ async function run(){
  let app=mount(Page,{target:document.querySelector('main')});
  await settle();
  assert(calls.main===1 && calls.instances===1 && calls.installed===1,'main startup missing');
- assert(!calls.settingsImport && !calls.downloaderImport && !calls.catalog,'closed panels did work');
+ assert(!calls.settingsImport && !calls.downloaderImport && !calls.catalog && !calls.createMount && !calls.profileMount,'closed panels did work');
+ await click('#open-create');
+ assert(calls.createMount===1,'create panel did not load');
+ await click('#open-profile');
+ assert(calls.profileMount===1,'profile did not load');
+ await click('#close-profile');
  await click('#open-settings');
  assert(calls.settingsImport===1 && calls.settingsMount===1,'settings did not lazy load');
  await click('#close-settings');
@@ -201,6 +207,13 @@ test.skipIf(!browserPath)(
 						build.onResolve(
 							{ filter: /.*/ },
 							({ path, importer }) => {
+								if (path === "$lib/utils/lazyComponent.svelte")
+									return {
+										path: join(
+											root,
+											"src/lib/utils/lazyComponent.svelte.ts",
+										),
+									};
 								if (path === "$lib/utils/animateWidth")
 									return {
 										path: join(
@@ -271,7 +284,7 @@ test.skipIf(!browserPath)(
 							({ path }) => {
 								let source = "";
 								if (/Sidebar(Compact)?\.svelte$/.test(path))
-									source = `<script>let {onopenquickmenu,onopenversiondownloader}=$props()</script><button id="open-settings" onclick={onopenquickmenu}>Settings</button><button id="open-downloader" onclick={onopenversiondownloader}>Versions</button>`;
+									source = `<script>let {onopenquickmenu,onopenversiondownloader,onopencreateinstance,onopenprofileview}=$props()</script><button id="open-settings" onclick={onopenquickmenu}>Settings</button><button id="open-downloader" onclick={onopenversiondownloader}>Versions</button><button id="open-create" onclick={onopencreateinstance}>Create</button><button id="open-profile" onclick={onopenprofileview}>Profile</button>`;
 								if (path.endsWith("/Settings.svelte"))
 									source = `<script module>import {count} from 'startup-common';count('settingsImport')</script><script>import {onMount} from 'svelte';let {onclose}=$props();onMount(()=>{count('settingsMount')})</script><button id="close-settings" onclick={onclose}>Close</button>`;
 								if (path.endsWith("/VersionDownloader.svelte"))
@@ -281,7 +294,9 @@ test.skipIf(!browserPath)(
 								if (
 									path.endsWith("/CreateInstanceModal.svelte")
 								)
-									source = `<script>import {onMount} from 'svelte';import {hooks} from 'startup-common';let {oninstallstarted,oninstallfailed}=$props();onMount(()=>{hooks.startModpack=oninstallstarted;hooks.failModpack=oninstallfailed})</script>`;
+									source = `<script>import {onMount} from 'svelte';import {hooks,count} from 'startup-common';let {oninstallstarted,oninstallfailed}=$props();onMount(()=>{count('createMount');hooks.startModpack=oninstallstarted;hooks.failModpack=oninstallfailed})</script>`;
+								if (path.endsWith("/ProfileView.svelte"))
+									source = `<script>import {onMount} from "svelte";import {count} from "startup-common";let {onclose}=$props();onMount(()=>{count("profileMount")})</script><button id="close-profile" onclick={onclose}>Close</button>`;
 								if (path.endsWith("/InstanceView.svelte"))
 									source = `<script>let {selectedInstance}=$props()</script><div id="selected-instance">{selectedInstance.uuid}</div>`;
 								return {
@@ -294,6 +309,20 @@ test.skipIf(!browserPath)(
 									}).js.code,
 								};
 							},
+						);
+						build.onLoad(
+							{ filter: /lazyComponent\.svelte\.ts$/ },
+							async ({ path }) => ({
+								loader: "js",
+								contents: compileModule(
+									new Bun.Transpiler({
+										loader: "ts",
+									}).transformSync(
+										await readFile(path, "utf8"),
+									),
+									{ filename: path, generate: "client" },
+								).js.code,
+							}),
 						);
 						build.onLoad(
 							{ filter: /\.svelte$/ },

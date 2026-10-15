@@ -22,8 +22,11 @@ export const listOptionsProfiles = () =>
 export const createOptionsProfile = (name: string, content: string) =>
 	invoke<OptionsProfile>("create_options_profile", { name, content });
 
-export const updateOptionsProfile = (id: string, name: string, content: string) =>
-	invoke<OptionsProfile>("update_options_profile", { id, name, content });
+export const updateOptionsProfile = (
+	id: string,
+	name: string,
+	content: string,
+) => invoke<OptionsProfile>("update_options_profile", { id, name, content });
 
 export const deleteOptionsProfile = (id: string) =>
 	invoke<void>("delete_options_profile", { id });
@@ -64,8 +67,7 @@ export const setInstanceOptionsProfile = (
 	id: string,
 	profileId: string | null,
 	autoApply: boolean,
-) =>
-	invoke<void>("set_instance_options_profile", { id, profileId, autoApply });
+) => invoke<void>("set_instance_options_profile", { id, profileId, autoApply });
 
 /** Extrae el código de error del JSON `{ code }` emitido por Rust. */
 export function optionsErrorCode(err: unknown): string | null {

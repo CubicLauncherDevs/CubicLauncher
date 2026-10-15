@@ -2,6 +2,8 @@
 	import { InstState, type InstanceDto } from "$lib/types/types";
 	import { launchInstance } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
+	import { showError } from "$lib/state/state.svelte";
+	import { lazyComponent } from "$lib/utils/lazyComponent.svelte";
 	import { fade } from "svelte/transition";
 	import { killInst } from "$lib/api/launcherService";
 	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
@@ -67,36 +69,48 @@
 		}
 	});
 
-	import type MarketType from "../Market/Market.svelte";
-	import type ScreenshotsTabType from "../ScreenshotsTab.svelte";
-	import type WorldsTabType from "../WorldsTab.svelte";
-	import type ServersTabType from "../ServersTab.svelte";
+	const marketContentType = $derived(
+		activeSection === "market"
+			? "mods"
+			: activeSection === "resources"
+				? "resourcepacks"
+				: activeSection === "shaderpacks"
+					? "shaderpacks"
+					: null,
+	);
 
-	let Market: typeof MarketType | null = $state(null);
-	let ScreenshotsTab: typeof ScreenshotsTabType | null = $state(null);
-	let WorldsTab: typeof WorldsTabType | null = $state(null);
-	let ServersTab: typeof ServersTabType | null = $state(null);
+	function handlePanelError(error: unknown) {
+		activeSection = "detalles";
+		showError(t("errors.title"), String(error));
+	}
 
-	$effect(() => {
-		if (
-			(activeSection === "market" ||
-				activeSection === "resources" ||
-				activeSection === "shaderpacks") &&
-			!Market
-		) {
-			import("../Market/Market.svelte").then((m) => (Market = m.default));
-		} else if (activeSection === "worlds" && !WorldsTab) {
-			import("../WorldsTab.svelte").then((m) => (WorldsTab = m.default));
-		} else if (activeSection === "servers" && !ServersTab) {
-			import("../ServersTab.svelte").then(
-				(m) => (ServersTab = m.default),
-			);
-		} else if (activeSection === "screenshots" && !ScreenshotsTab) {
-			import("../ScreenshotsTab.svelte").then(
-				(m) => (ScreenshotsTab = m.default),
-			);
-		}
-	});
+	const marketPanel = lazyComponent(
+		() => import("../Market/Market.svelte"),
+		() => marketContentType !== null,
+		handlePanelError,
+	);
+	const Market = $derived(marketPanel.component);
+
+	const worldsPanel = lazyComponent(
+		() => import("../WorldsTab.svelte"),
+		() => activeSection === "worlds",
+		handlePanelError,
+	);
+	const WorldsTab = $derived(worldsPanel.component);
+
+	const serversPanel = lazyComponent(
+		() => import("../ServersTab.svelte"),
+		() => activeSection === "servers",
+		handlePanelError,
+	);
+	const ServersTab = $derived(serversPanel.component);
+
+	const screenshotsPanel = lazyComponent(
+		() => import("../ScreenshotsTab.svelte"),
+		() => activeSection === "screenshots",
+		handlePanelError,
+	);
+	const ScreenshotsTab = $derived(screenshotsPanel.component);
 
 	function handlePlay() {
 		if (bannerState === "Started") {
@@ -244,27 +258,12 @@
 			</div>
 		{:else}
 			<div class="subview-section" in:fade={{ duration: 400 }}>
-				{#if activeSection === "market"}
-					{#key selectedInstance.uuid}
-						{#if Market}
-							<Market instance={selectedInstance} />
-						{/if}
-					{/key}
-				{:else if activeSection === "resources"}
-					{#key selectedInstance.uuid}
+				{#if marketContentType}
+					{#key `${selectedInstance.uuid}:${marketContentType}`}
 						{#if Market}
 							<Market
 								instance={selectedInstance}
-								contentType="resourcepacks"
-							/>
-						{/if}
-					{/key}
-				{:else if activeSection === "shaderpacks"}
-					{#key selectedInstance.uuid}
-						{#if Market}
-							<Market
-								instance={selectedInstance}
-								contentType="shaderpacks"
+								contentType={marketContentType}
 							/>
 						{/if}
 					{/key}

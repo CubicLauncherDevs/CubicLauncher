@@ -162,7 +162,7 @@
 				{serverInfo}
 				bind:username
 				bind:password
-				signupUrl={signupUrl}
+				{signupUrl}
 				onback={() => {
 					step = "server";
 					serverInfo = null;
