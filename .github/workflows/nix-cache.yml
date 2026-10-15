@@ -1,0 +1,130 @@
+name: Nix Binary Cache
+
+on:
+    release:
+        types: [published]
+    # Releases published with GITHUB_TOKEN do not emit another workflow event.
+    workflow_run:
+        workflows: ["Publish Release"]
+        types: [completed]
+    workflow_dispatch:
+
+concurrency:
+    group: nix-release-channels
+    cancel-in-progress: false
+
+permissions:
+    contents: read
+
+env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+    resolve:
+        if: vars.CACHIX_CACHE_NAME != ''
+        runs-on: ubuntu-24.04
+        outputs:
+            channels: ${{ steps.releases.outputs.result }}
+        steps:
+            - name: Find latest published stable and beta
+              id: releases
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const releases = await github.paginate(github.rest.repos.listReleases, {
+                        ...context.repo, per_page: 100
+                      });
+                      const published = releases.filter(r => !r.draft)
+                        .sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at));
+                      const channels = [];
+                      for (const [name, prerelease] of [['latest-release', false], ['latest-beta', true]]) {
+                        const release = published.find(r => r.prerelease === prerelease);
+                        if (!release) continue;
+                        const {data: commit} = await github.rest.repos.getCommit({
+                          ...context.repo, ref: `refs/tags/${release.tag_name}`
+                        });
+                        channels.push({name, sha: commit.sha, tag: release.tag_name});
+                      }
+                      return channels;
+
+    build:
+        needs: resolve
+        if: needs.resolve.outputs.channels != '[]'
+        name: Publish (${{ matrix.channel.name }}, ${{ matrix.platform.system }})
+        runs-on: ${{ matrix.platform.runner }}
+        timeout-minutes: 120
+        strategy:
+            fail-fast: false
+            matrix:
+                # Keep in sync with supportedSystems in flake.nix.
+                channel: ${{ fromJSON(needs.resolve.outputs.channels) }}
+                platform:
+                    - system: x86_64-linux
+                      runner: ubuntu-24.04
+                    - system: aarch64-linux
+                      runner: ubuntu-24.04-arm
+                    - system: aarch64-darwin
+                      runner: macos-15
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ matrix.channel.sha }}
+
+            - name: Check Cachix credentials
+              env:
+                  CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+              run: |
+                  if [ -z "$CACHIX_AUTH_TOKEN" ]; then
+                      echo "::error::Configure the CACHIX_AUTH_TOKEN repository secret with a write token for the cache."
+                      exit 1
+                  fi
+
+            - name: Install Nix
+              uses: cachix/install-nix-action@v31
+              with:
+                  extra_nix_config: |
+                      experimental-features = nix-command flakes
+
+            - name: Configure Cachix
+              uses: cachix/cachix-action@v17
+              with:
+                  name: ${{ vars.CACHIX_CACHE_NAME }}
+                  authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+            - name: Build launcher
+              run: nix build --print-build-logs ".#packages.${{ matrix.platform.system }}.default"
+
+            # Explicitly publish the closure even when the output was substituted.
+            - name: Publish launcher
+              env:
+                  CACHIX_CACHE_NAME: ${{ vars.CACHIX_CACHE_NAME }}
+                  CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+              run: cachix push "$CACHIX_CACHE_NAME" ./result
+
+    promote:
+        needs: [resolve, build]
+        runs-on: ubuntu-24.04
+        permissions:
+            contents: write
+        steps:
+            - name: Update install channels after all binaries are cached
+              uses: actions/github-script@v7
+              env:
+                  CHANNELS: ${{ needs.resolve.outputs.channels }}
+              with:
+                  script: |
+                      for (const channel of JSON.parse(process.env.CHANNELS)) {
+                        const ref = `tags/${channel.name}`;
+                        try {
+                          await github.rest.git.getRef({...context.repo, ref});
+                        } catch (error) {
+                          if (error.status !== 404) throw error;
+                          await github.rest.git.createRef({
+                            ...context.repo, ref: `refs/${ref}`, sha: channel.sha
+                          });
+                          continue;
+                        }
+                        await github.rest.git.updateRef({
+                          ...context.repo, ref, sha: channel.sha, force: true
+                        });
+                      }

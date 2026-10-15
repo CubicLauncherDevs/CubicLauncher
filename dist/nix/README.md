@@ -86,6 +86,86 @@ nix build .
 ls -la result/bin
 ```
 
+## Distribuir binarios con Cachix
+
+El workflow `.github/workflows/nix-cache.yml` compila el paquete completo para
+Linux x86_64, Linux ARM64 y macOS ARM64. Se ejecuta al publicar releases,
+al terminar el workflow Publish Release y manualmente desde Actions. Publica el launcher y sus
+dependencias; también guarda resultados intermedios para próximos builds.
+
+### Activación inicial del mantenedor
+
+1. Crear una **caché pública** en [Cachix](https://app.cachix.org), con firma
+   administrada por Cachix, y generar un token de escritura para esa caché.
+2. En GitHub → Settings → Secrets and variables → Actions, guardar el token
+   como secreto `CACHIX_AUTH_TOKEN`. No incluirlo en archivos del repositorio.
+3. Crear la variable de repositorio `CACHIX_CACHE_NAME` con el nombre real de
+   la caché, por ejemplo `cubiclauncher` si se ha registrado con ese nombre.
+4. Subir el workflow y ejecutarlo desde Actions → Nix Binary Cache. Sin la
+   variable de nombre, el job queda desactivado; sin token, falla con un mensaje.
+
+No se publica desde pull requests. El primer build puede tardar; los siguientes
+reutilizan los resultados disponibles. Cada arquitectura se publica por separado.
+
+Se seleccionan dos canales según la fecha de publicación en GitHub:
+
+- `latest-release`: última release pública que no sea prerelease.
+- `latest-beta`: última prerelease pública (incluye las versiones DEV).
+
+Los borradores se excluyen. Después de compilar y subir ambos canales para las
+tres plataformas, se actualizan los tags móviles `latest-release` y `latest-beta`.
+Si falla un build, los tags conservan sus destinos anteriores. Si no hay ninguna
+beta publicada, ese canal todavía no se crea. Reservar esos dos nombres para el
+workflow y permitir su actualización en las reglas de tags del repositorio.
+
+El workflow debe estar en la rama predeterminada. Las releases seleccionadas
+deben incluir un flake compilable y la corrección de EGL; el workflow compila
+exactamente el código de cada release, sin agregarle cambios de `develop`.
+
+### Instalar usando los binarios publicados
+
+Sustituir `NOMBRE_CACHE` por el nombre configurado por el proyecto:
+
+```bash
+nix run nixpkgs#cachix -- use NOMBRE_CACHE
+
+# Elegir uno de los dos canales:
+nix profile add github:CubicLauncherDevs/CubicLauncher/latest-release
+# o:
+nix profile add github:CubicLauncherDevs/CubicLauncher/latest-beta
+```
+
+Para actualizar conservando el canal elegido, consultar el nombre con
+`nix profile list` y ejecutar `nix profile upgrade --refresh <nombre>`.
+
+En NixOS, seguir las indicaciones de `cachix use` e incorporar la configuración
+generada al sistema; aplicar después con `sudo nixos-rebuild switch`.
+
+Para descargar un build concreto, usar la revisión que haya terminado de
+publicarse en Actions:
+
+```bash
+nix profile add github:CubicLauncherDevs/CubicLauncher/REVISION
+```
+
+La caché debe contener el resultado del mismo código, `flake.lock` y plataforma.
+Si no existe un resultado coincidente, Nix compila localmente. Los cambios
+locales sin publicar también pueden provocar una compilación.
+
+### Subir un build local existente
+
+Después de configurar las credenciales con `cachix authtoken` siguiendo la
+[documentación de Cachix](https://docs.cachix.org/getting-started):
+
+```bash
+nix build .
+nix run nixpkgs#cachix -- push NOMBRE_CACHE ./result
+```
+
+Esto permite aprovechar el build local sin esperar al primer build de CI para
+esa plataforma. Para que sirva a otros, publicar también la revisión del código
+con la que se compiló.
+
 ## Actualizar el hash de Cargo (`cargoHash`)
 
 `cargoHash` cubre el árbol de dependencias de Rust (`cargoDeps`). Su valor
