@@ -44,6 +44,7 @@ export const deleteInstanceFile=async(id,dir,filename)=>{
  lists[id]=lists[id].filter(path=>!path.endsWith('/'+filename));
 };
 export const t=key=>key;
+export const showError=()=>{};
 export const launcherStore={settings:{reduce_animations:true}};
 export const launchInstance=()=>{};
 export const killInst=()=>{};
