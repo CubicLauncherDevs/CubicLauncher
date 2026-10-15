@@ -507,7 +507,6 @@
 							</div>
 						</div>
 						<VersionSelectorStep
-							includeAvailable
 							bind:loading={versionLoading}
 							bind:selectedLoader
 							bind:selectedMcVersion
