@@ -133,10 +133,11 @@ exactamente el código de cada release, sin agregarle cambios de `develop`.
 
 ### Instalar usando los binarios publicados
 
-Sustituir `NOMBRE_CACHE` por el nombre configurado por el proyecto:
+La caché pública del proyecto se llama `cubiclauncher` y ofrece builds para
+Linux x86_64 y ARM64:
 
 ```bash
-nix run nixpkgs#cachix -- use NOMBRE_CACHE
+nix run nixpkgs#cachix -- use cubiclauncher
 
 # Elegir uno de los dos canales:
 nix profile add github:CubicLauncherDevs/CubicLauncher/latest-release
@@ -149,12 +150,15 @@ Para actualizar conservando el canal elegido, consultar el nombre con
 
 En NixOS, seguir las indicaciones de `cachix use` e incorporar la configuración
 generada al sistema; aplicar después con `sudo nixos-rebuild switch`.
+Si la configuración del sistema usa un flake en Git, agregar los archivos
+generados con `git add` antes de reconstruir.
 
-Para descargar un build concreto, usar la revisión que haya terminado de
-publicarse en Actions:
+Para descargar un build concreto, sustituir `TAG` por el tag exacto de la
+release que haya terminado de publicarse en Actions. También se puede usar
+un hash de commit:
 
 ```bash
-nix profile add github:CubicLauncherDevs/CubicLauncher/REVISION
+nix profile add github:CubicLauncherDevs/CubicLauncher/TAG
 ```
 
 La caché debe contener el resultado del mismo código, `flake.lock` y plataforma.

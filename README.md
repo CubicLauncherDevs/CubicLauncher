@@ -38,17 +38,47 @@ También hay un [PKGBUILD](dist/arch/PKGBUILD) si prefieres compilarlo localment
 
 ## Nix y NixOS
 
-Con `flakes` y `nix-command` activados:
+Con `flakes` y `nix-command` activados, configura la caché pública de
+[Cachix](https://cubiclauncher.cachix.org) para descargar los binarios publicados
+para Linux x86_64 y ARM64:
 
 ```bash
-# Instalar en el perfil de usuario
-nix profile add github:CubicLauncherDevs/CubicLauncher
-
-# Ejecutar sin instalar
-nix run github:CubicLauncherDevs/CubicLauncher
+nix run nixpkgs#cachix -- use cubiclauncher
 ```
 
-El flake ofrece paquetes para `x86_64-linux`, `aarch64-linux` y `aarch64-darwin`. Más detalles en la [guía de Nix](dist/nix/README.md).
+En NixOS, incorpora la configuración generada siguiendo las indicaciones del
+comando y aplica los cambios con `sudo nixos-rebuild switch` antes de instalar.
+Si tu configuración usa un flake en Git, agrega también los archivos generados
+al repositorio con `git add` para que Nix pueda leerlos.
+
+Elige la versión estable o la beta:
+
+```bash
+# Última versión estable publicada en la caché
+nix profile add github:CubicLauncherDevs/CubicLauncher/latest-release
+
+# Alternativa: última beta publicada en la caché
+nix profile add github:CubicLauncherDevs/CubicLauncher/latest-beta
+
+# Ejecutar sin instalar
+nix run github:CubicLauncherDevs/CubicLauncher/latest-release
+```
+
+También puedes instalar un tag específico reemplazando `TAG` por el nombre
+exacto de la versión en [Releases](https://github.com/CubicLauncherDevs/CubicLauncher/releases):
+
+```bash
+nix profile add github:CubicLauncherDevs/CubicLauncher/TAG
+```
+
+Nix usa Cachix automáticamente si está disponible el build de esa revisión y
+arquitectura; de lo contrario, compila localmente. Los canales `latest-release`
+y `latest-beta` se actualizan cuando termina correctamente su publicación en
+la caché; si un canal aún no se publicó, su tag puede no existir.
+
+El flake ofrece paquetes para `x86_64-linux`, `aarch64-linux` y `aarch64-darwin`;
+la caché del proyecto se publica solo para Linux. Más detalles y comandos de
+actualización en la [guía de Nix](dist/nix/README.md).
 
 Para ver en qué otras distribuciones está disponible, revisa [Repology](https://repology.org/project/cubiclauncher/versions).
 
