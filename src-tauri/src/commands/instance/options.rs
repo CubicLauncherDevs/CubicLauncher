@@ -32,7 +32,7 @@ pub async fn apply_options_profile(
     }
     let instance_dir = handle.get_instance_dir().await;
     if !overwrite && instance_dir.join("options.txt").exists() {
-        return Err(InstanceError::OptionsExists.to_string());
+        return Err(InstanceError::OptionsExists.into());
     }
 
     let backup_root = options_profiles::backup_root();
