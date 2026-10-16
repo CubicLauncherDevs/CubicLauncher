@@ -69,6 +69,7 @@ jobs:
                         const {data: commit} = await github.rest.repos.getCommit({
                           ...context.repo, ref: `refs/tags/${release.tag_name}`
                         });
+                        core.info(`${name}: ${release.tag_name} -> ${commit.sha}`);
                         channels.push({name, sha: commit.sha, tag: release.tag_name});
                       }
                       if (channels.length === 0) {
@@ -85,7 +86,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                # Keep in sync with supportedSystems in flake.nix.
+                # Publish only the Linux platforms supported by the flake.
                 channel: ${{ fromJSON(needs.resolve.outputs.channels) }}
                 platform:
                     - system: x86_64-linux
@@ -117,6 +118,41 @@ jobs:
               with:
                   name: ${{ vars.CACHIX_CACHE_NAME }}
                   authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+            - name: Check packaging before compiling Rust
+              # Use the selected tag's actual hooks with a tiny executable.
+              # Keep this inline so it also checks older tags without this workflow.
+              run: |
+                  # Nix expands the expressions; the shell must leave them untouched.
+                  # shellcheck disable=SC2016
+                  nix build --impure --no-link --print-build-logs --expr '
+                    let
+                      flake = builtins.getFlake "git+file://${toString ./.}";
+                      pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; };
+                      app = flake.packages.${builtins.currentSystem}.default;
+                      probe = pkgs.writeShellScript "cubiclauncher-probe" "
+                        test \"$CUBIC_WRAPPER_CHECK\" = 1 || exit 1
+                        test -n \"$GIO_EXTRA_MODULES\" || exit 1
+                        test \"$#\" = 2 || exit 1
+                        test \"$1\" = \"argument with spaces\" || exit 1
+                        test -z \"$2\" || exit 1
+                      ";
+                    in pkgs.stdenv.mkDerivation {
+                      name = "cubiclauncher-wrapper-check";
+                      dontUnpack = true;
+                      strictDeps = true;
+                      nativeBuildInputs = builtins.filter
+                        (p: builtins.elem p [ pkgs.makeWrapper pkgs.wrapGAppsHook4 ])
+                        app.nativeBuildInputs;
+                      buildInputs = app.buildInputs;
+                      installPhase = "mkdir -p $out/bin; cp ${probe} $out/bin/cubiclauncher";
+                      preFixup = app.preFixup or "";
+                      postFixup = (app.postFixup or "") + "\n
+                        CUBIC_WRAPPER_CHECK=1 timeout 10 \\
+                          \"$out/bin/cubiclauncher\" \"argument with spaces\" \"\"
+                      ";
+                    }
+                  '
 
             - name: Build launcher
               run: nix build --print-build-logs ".#packages.${{ matrix.platform.system }}.default"

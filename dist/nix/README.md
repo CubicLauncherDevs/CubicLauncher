@@ -95,6 +95,12 @@ el selector permite elegir `release`, `beta` o `both` (valor predeterminado).
 Los disparos automáticos compilan ambos canales. Publica el launcher y sus
 dependencias; también guarda resultados intermedios para próximos builds.
 
+Antes de compilar Rust, el workflow ejecuta los hooks de empaquetado del tag
+seleccionado sobre un programa mínimo. Comprueba que los wrappers arrancan,
+conservan los argumentos y el entorno, y no entran en un bucle. Así los errores
+del wrapper fallan antes de compilar el launcher. El log de resolución muestra
+el tag y el commit elegidos: actualizar `develop` no actualiza los tags de release.
+
 ### Activación inicial del mantenedor
 
 1. Crear una **caché pública** en [Cachix](https://app.cachix.org), con firma
