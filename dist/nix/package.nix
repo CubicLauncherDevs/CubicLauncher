@@ -139,6 +139,7 @@ rustPlatform.buildRustPackage rec {
   nativeBuildInputs = [
     bun
     cargo-tauri.hook
+    makeWrapper
     nodejs
     pkg-config
   ]
@@ -210,7 +211,7 @@ rustPlatform.buildRustPackage rec {
   # Put a small shell wrapper in front of it for host-specific EGL detection.
   postFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
     mv "$out/bin/cubiclauncher" "$out/bin/.cubiclauncher-wrapped"
-    ${makeWrapper}/bin/makeWrapper "$out/bin/.cubiclauncher-wrapped" "$out/bin/cubiclauncher" \
+    makeWrapper "$out/bin/.cubiclauncher-wrapped" "$out/bin/cubiclauncher" \
       --run 'if ! { [ -e /sys/module/nvidia ] || [ -e /proc/driver/nvidia ] || command -v nvidia-smi >/dev/null 2>&1; }; then
         export __EGL_VENDOR_LIBRARY_FILENAMES="''${__EGL_VENDOR_LIBRARY_FILENAMES:-${mesa}/share/glvnd/egl_vendor.d/50_mesa.json}"
         export LIBGL_DRIVERS_PATH="''${LIBGL_DRIVERS_PATH:-${mesa}/lib/dri}"
