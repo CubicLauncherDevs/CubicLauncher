@@ -67,7 +67,7 @@
 			id: "multimc" as MigrationProvider,
 			icon: "instance:folder",
 			label: "MultiMC (Forks)",
-			hint: "MultiMC · PolyMC · Prism Launcher",
+			hint: "MultiMC · PolyMC · Prism Launcher · Freesm Launcher",
 			folder: t("migration.multimcFolder"),
 		},
 		{

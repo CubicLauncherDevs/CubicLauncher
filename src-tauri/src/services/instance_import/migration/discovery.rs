@@ -20,35 +20,7 @@ pub fn default_roots(provider: Provider) -> Vec<PathBuf> {
             home.join("Library/Application Support/minecraft"),
             home.join(".var/app/com.mojang.Minecraft/.minecraft"),
         ],
-        Provider::Multimc => {
-            let mut paths = Vec::new();
-            // Known MultiMC-compatible launchers (directories vary by distro and fork)
-            for name in [
-                "multimc",
-                "MultiMC",
-                "PrismLauncher",
-                "PolyMC",
-                // PineconeMC / Ely Prism Launcher forks
-                "ElyPrismLauncher",
-                "PineconeMC",
-            ] {
-                paths.push(base.data_dir().join(name));
-                paths.push(home.join(name));
-                paths.push(home.join(".config").join(name));
-            }
-            // Flatpak sandboxed app data directories
-            for (app, name) in [
-                ("org.prismlauncher.PrismLauncher", "PrismLauncher"),
-                ("org.polymc.PolyMC", "PolyMC"),
-                ("org.multimc.MultiMC", "multimc"),
-                // PineconeMC Flatpak ID storing data under ElyPrismLauncher or PineconeMC
-                ("ru.pineconemc.launcher", "ElyPrismLauncher"),
-                ("ru.pineconemc.launcher", "PineconeMC"),
-            ] {
-                paths.push(home.join(".var/app").join(app).join("data").join(name));
-            }
-            paths
-        }
+        Provider::Multimc => multimc_candidate_roots(base.data_dir(), home),
         Provider::Xmcl => vec![
             // Data directory (holds instances.json). Linux ~/.config/xmcl,
             // macOS ~/Library/Application Support/xmcl, Windows %APPDATA%\xmcl.
@@ -67,6 +39,43 @@ pub fn default_roots(provider: Provider) -> Vec<PathBuf> {
     let mut seen = HashSet::new();
     roots.retain(|p| p.is_dir() && seen.insert(fs::canonicalize(p).unwrap_or_else(|_| p.clone())));
     roots
+}
+
+/// Directorios de datos candidatos para MultiMC y sus forks.
+///
+/// Las carpetas varían según distro y fork, así que se prueban varias
+/// combinaciones; `default_roots` filtra después las que no existan.
+fn multimc_candidate_roots(data_dir: &Path, home: &Path) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    // Known MultiMC-compatible launchers (directories vary by distro and fork)
+    for name in [
+        "multimc",
+        "MultiMC",
+        "PrismLauncher",
+        "PolyMC",
+        // PineconeMC / Ely Prism Launcher forks
+        "ElyPrismLauncher",
+        "PineconeMC",
+        // Freesm Launcher (Prism Launcher fork)
+        "FreesmLauncher",
+    ] {
+        paths.push(data_dir.join(name));
+        paths.push(home.join(name));
+        paths.push(home.join(".config").join(name));
+    }
+    // Flatpak sandboxed app data directories
+    for (app, name) in [
+        ("org.prismlauncher.PrismLauncher", "PrismLauncher"),
+        ("org.polymc.PolyMC", "PolyMC"),
+        ("org.multimc.MultiMC", "multimc"),
+        // PineconeMC Flatpak ID storing data under ElyPrismLauncher or PineconeMC
+        ("ru.pineconemc.launcher", "ElyPrismLauncher"),
+        ("ru.pineconemc.launcher", "PineconeMC"),
+        ("org.freesmlauncher.FreesmLauncher", "FreesmLauncher"),
+    ] {
+        paths.push(home.join(".var/app").join(app).join("data").join(name));
+    }
+    paths
 }
 
 pub fn scan_root(

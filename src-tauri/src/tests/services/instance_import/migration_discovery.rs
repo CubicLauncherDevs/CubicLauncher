@@ -130,6 +130,23 @@ fn multimc_forks_accept_both_game_folders_and_only_explicit_memory_overrides() {
 }
 
 #[test]
+fn multimc_roots_include_freesm_launcher_and_its_flatpak() {
+    let data_dir = Path::new("/data");
+    let home = Path::new("/home/user");
+    let roots = multimc_candidate_roots(data_dir, home);
+    for expected in [
+        data_dir.join("FreesmLauncher"),
+        home.join(".config").join("FreesmLauncher"),
+        home.join(".var/app")
+            .join("org.freesmlauncher.FreesmLauncher")
+            .join("data")
+            .join("FreesmLauncher"),
+    ] {
+        assert!(roots.contains(&expected), "missing {}", expected.display());
+    }
+}
+
+#[test]
 fn malformed_multimc_instance_does_not_abort_other_instances() {
     let root = tempfile::tempdir().unwrap();
     let bad = root.path().join("bad");

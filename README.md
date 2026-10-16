@@ -94,7 +94,7 @@ Para ver en qué otras distribuciones está disponible, revisa [Repology](https:
 
 ## Migrar desde otro launcher
 
-Puedes copiar tus instancias desde el launcher oficial o desde MultiMC y sus forks (PolyMC, Prism Launcher, PineconeMC). Los originales no se tocan.
+Puedes copiar tus instancias desde el launcher oficial o desde MultiMC y sus forks (PolyMC, Prism Launcher, PineconeMC, Freesm Launcher). Los originales no se tocan.
 
 1. Ve a **Crear instancia → Local → Migrar**.
 2. Elige el launcher de origen y pulsa **Buscar instalaciones**. Si usas una instalación portable o una ruta personalizada, usa **Elegir carpeta**.

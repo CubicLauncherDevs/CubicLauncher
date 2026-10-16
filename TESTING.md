@@ -100,6 +100,7 @@ bun run tauri build
 - Abrir **Crear instancia → Local → Migrar** y comprobar detección automática y selección manual para el launcher oficial y **MultiMC (Forks)**.
 - Con carpetas de prueba, migrar perfiles oficiales Vanilla y Fabric/Forge con `gameDir` personalizado; revisar la indicación de carpetas compartidas y la resolución de `latest-release` / `latest-snapshot`.
 - Migrar instancias de Prism/PolyMC con `minecraft` y `.minecraft`, iconos personalizados y memoria sobrescrita explícitamente.
+- Comprobar que las instalaciones de Freesm Launcher (incluida la Flatpak `org.freesmlauncher.FreesmLauncher`) se detectan automáticamente y migran con el mismo formato que Prism.
 - Seleccionar varias instancias con nombres repetidos; comprobar las sugerencias únicas y la validación de nombres editados.
 - Comprobar progreso de copia, resumen por instancia y versiones añadidas a la cola; comparar los archivos de mundos, mods y opciones con los originales.
 - Cancelar una copia grande y cerrar el asistente durante otra; verificar que no queda una instancia incompleta y que las ya terminadas permanecen.
