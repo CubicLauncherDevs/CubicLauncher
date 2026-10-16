@@ -27,6 +27,8 @@ struct LocaleMetadata {
 pub struct StoredLocale {
     code: String,
     id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<String>,
     data: String,
 }
 
@@ -39,6 +41,8 @@ pub struct LocaleEntry {
     flag: String,
     #[serde(default)]
     installed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    percentage: Option<f64>,
 }
 
 const API_BASE: &str = "https://i18n.cubiclauncher.org";
@@ -61,7 +65,15 @@ fn locales_dir() -> PathBuf {
     PathManager::get().get_settings_dir().join("i18n")
 }
 
-fn parse_locale_metadata(data: &str) -> Result<(String, String), String> {
+struct ParsedLocale {
+    code: String,
+    id: String,
+    version: Option<String>,
+    label: String,
+}
+
+// Parses a dictionary once, exposing every field callers need.
+fn parse_locale(data: &str) -> Result<ParsedLocale, String> {
     let metadata: LocaleMetadata =
         serde_json::from_str(data).map_err(|e| format!("Invalid locale JSON: {e}"))?;
 
@@ -82,7 +94,18 @@ fn parse_locale_metadata(data: &str) -> Result<(String, String), String> {
         .ok_or_else(|| format!("Invalid locale id: {}", metadata.id))?
         .to_ascii_lowercase();
 
-    Ok((code, metadata.id))
+    let label = metadata
+        .languages
+        .get(&code)
+        .cloned()
+        .unwrap_or_else(|| metadata.id.clone());
+
+    Ok(ParsedLocale {
+        code,
+        id: metadata.id,
+        version: metadata.version,
+        label,
+    })
 }
 
 async fn ensure_bundled_locales(dir: &Path) -> Result<(), String> {
@@ -133,14 +156,15 @@ async fn read_stored_locales(dir: &Path) -> Result<Vec<LocaleEntry>, String> {
                 continue;
             }
         };
-        let (code, id) = match parse_locale_metadata(&data) {
-            Ok(metadata) => metadata,
+        let parsed = match parse_locale(&data) {
+            Ok(parsed) => parsed,
             Err(error) => {
                 warn!(path = %original_path.display(), %error, "Ignoring invalid locale file");
                 continue;
             }
         };
 
+        let id = parsed.id;
         let canonical_path = dir.join(format!("{id}.json"));
         if original_path != canonical_path {
             if canonical_path.exists() {
@@ -160,19 +184,15 @@ async fn read_stored_locales(dir: &Path) -> Result<Vec<LocaleEntry>, String> {
             }
         }
 
-        let metadata: LocaleMetadata = serde_json::from_str(&data).map_err(|e| e.to_string())?;
         locales.insert(
             id.clone(),
             LocaleEntry {
-                label: metadata
-                    .languages
-                    .get(&code)
-                    .cloned()
-                    .unwrap_or_else(|| id.clone()),
+                label: parsed.label,
                 flag: locale_flag(&id),
-                code,
+                code: parsed.code,
                 id,
                 installed: true,
+                percentage: None,
             },
         );
     }
@@ -180,8 +200,8 @@ async fn read_stored_locales(dir: &Path) -> Result<Vec<LocaleEntry>, String> {
     Ok(locales.into_values().collect())
 }
 
-async fn save_locale_to(dir: &Path, data: String) -> Result<(), String> {
-    let (code, id) = parse_locale_metadata(&data)?;
+// Writes a dictionary whose identity was already parsed by the caller.
+async fn write_locale_file(dir: &Path, data: String, code: &str, id: &str) -> Result<(), String> {
     fs::create_dir_all(dir).await.map_err(|e| e.to_string())?;
 
     let path = dir.join(format!("{id}.json"));
@@ -208,7 +228,43 @@ async fn save_locale_to(dir: &Path, data: String) -> Result<(), String> {
         warn!(path = %legacy_path.display(), %error, "Could not remove legacy locale file");
     }
 
+    // New data invalidates any previously stored validator.
+    remove_etag(dir, id).await;
+
     Ok(())
+}
+
+async fn save_locale_to(dir: &Path, data: String) -> Result<(), String> {
+    let parsed = parse_locale(&data)?;
+    write_locale_file(dir, data, &parsed.code, &parsed.id).await
+}
+
+fn etag_path(dir: &Path, id: &str) -> PathBuf {
+    dir.join(format!("{id}.etag"))
+}
+
+async fn read_etag(dir: &Path, id: &str) -> Option<String> {
+    let raw = fs::read_to_string(etag_path(dir, id)).await.ok()?;
+    let tag = raw.trim();
+    (!tag.is_empty()).then(|| tag.to_owned())
+}
+
+async fn write_etag(dir: &Path, id: &str, etag: &str) -> Result<(), String> {
+    let tag = etag.trim();
+    if tag.is_empty() {
+        return Ok(());
+    }
+    fs::write(etag_path(dir, id), tag)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+async fn remove_etag(dir: &Path, id: &str) {
+    match fs::remove_file(etag_path(dir, id)).await {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => warn!(%error, "Could not remove locale etag"),
+    }
 }
 
 #[tauri::command]
@@ -276,18 +332,19 @@ async fn read_locale_from(dir: &Path, code: &str) -> Result<Option<StoredLocale>
         let Ok(data) = fs::read_to_string(&path).await else {
             continue;
         };
-        let Ok((found, id)) = parse_locale_metadata(&data) else {
+        let Ok(parsed) = parse_locale(&data) else {
             continue;
         };
-        if found != code {
+        if parsed.code != code {
             continue;
         }
         if path == dir.join(format!("{code}.json")) {
             save_locale_to(dir, data.clone()).await?;
         }
         return Ok(Some(StoredLocale {
-            code: found,
-            id,
+            code: parsed.code,
+            id: parsed.id,
+            version: parsed.version,
             data,
         }));
     }
@@ -295,9 +352,7 @@ async fn read_locale_from(dir: &Path, code: &str) -> Result<Option<StoredLocale>
 }
 
 fn version_of(locale: &StoredLocale) -> Option<String> {
-    serde_json::from_str::<LocaleMetadata>(&locale.data)
-        .ok()?
-        .version
+    locale.version.clone()
 }
 
 fn changed_locale(
@@ -308,6 +363,11 @@ fn changed_locale(
         .filter(|locale| known_version.is_none() || version_of(locale).as_deref() != known_version)
 }
 
+enum Download {
+    NotModified,
+    Updated(StoredLocale),
+}
+
 impl LocaleService {
     async fn load(&self, dir: &Path, code: &str) -> Result<Option<StoredLocale>, String> {
         let _guard = self.disk.lock().await;
@@ -315,10 +375,73 @@ impl LocaleService {
     }
 
     async fn save(&self, dir: &Path, data: String) -> Result<(), String> {
+        let parsed = parse_locale(&data)?;
+        self.store(dir, data, &parsed.code, &parsed.id).await
+    }
+
+    // Persists a dictionary whose identity was already parsed, invalidating the cache.
+    async fn store(&self, dir: &Path, data: String, code: &str, id: &str) -> Result<(), String> {
         let mut metadata = self.disk.lock().await;
-        save_locale_to(dir, data).await?;
+        write_locale_file(dir, data, code, id).await?;
         *metadata = None;
         Ok(())
+    }
+
+    async fn download(
+        &self,
+        dir: &Path,
+        code: &str,
+        local: Option<&StoredLocale>,
+        if_none_match: Option<&str>,
+        client: &reqwest::Client,
+        base: &str,
+    ) -> Result<Download, String> {
+        let mut request = client
+            .get(format!("{base}/{code}"))
+            .timeout(Duration::from_secs(10));
+        if let Some(tag) = if_none_match {
+            request = request.header(reqwest::header::IF_NONE_MATCH, tag);
+        }
+
+        let response = request.send().await.map_err(|e| e.to_string())?;
+
+        // A 304 has an empty body, so it must be handled before error/body parsing.
+        if response.status() == reqwest::StatusCode::NOT_MODIFIED {
+            return Ok(Download::NotModified);
+        }
+
+        let response = response.error_for_status().map_err(|e| e.to_string())?;
+
+        // Capture the validator before the body is consumed.
+        let etag = response
+            .headers()
+            .get(reqwest::header::ETAG)
+            .and_then(|value| value.to_str().ok())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+
+        let data = response.text().await.map_err(|e| e.to_string())?;
+        let parsed = parse_locale(&data)?;
+        if parsed.code != code {
+            return Err("Locale response does not match requested language".into());
+        }
+
+        // Rewriting an identical dictionary only burns disk I/O; the validator still refreshes.
+        if local.is_none_or(|stored| stored.data != data) {
+            self.store(dir, data.clone(), &parsed.code, &parsed.id)
+                .await?;
+        }
+        if let Some(etag) = etag {
+            write_etag(dir, &parsed.id, &etag).await?;
+        }
+
+        Ok(Download::Updated(StoredLocale {
+            code: parsed.code,
+            id: parsed.id,
+            version: parsed.version,
+            data,
+        }))
     }
 
     async fn refresh(
@@ -339,6 +462,23 @@ impl LocaleService {
             return Ok(changed_locale(local, known_version));
         }
         let result = async {
+            let etag = match local.as_ref() {
+                Some(locale) => read_etag(dir, &locale.id).await,
+                None => None,
+            };
+
+            // A stored validator lets us skip the download entirely on 304.
+            if etag.is_some() {
+                return match self
+                    .download(dir, code, local.as_ref(), etag.as_deref(), client, base)
+                    .await?
+                {
+                    Download::NotModified => Ok(local),
+                    Download::Updated(locale) => Ok(Some(locale)),
+                };
+            }
+
+            // Without a validator, keep the cheap version probe before downloading.
             if let Some(version) = local.as_ref().and_then(version_of) {
                 #[derive(Deserialize)]
                 struct Version {
@@ -359,27 +499,14 @@ impl LocaleService {
                     return Ok(local);
                 }
             }
-            let data = client
-                .get(format!("{base}/{code}"))
-                .timeout(Duration::from_secs(10))
-                .send()
-                .await
-                .map_err(|e| e.to_string())?
-                .error_for_status()
-                .map_err(|e| e.to_string())?
-                .text()
-                .await
-                .map_err(|e| e.to_string())?;
-            let (found, id) = parse_locale_metadata(&data)?;
-            if found != code {
-                return Err("Locale response does not match requested language".into());
+
+            match self
+                .download(dir, code, local.as_ref(), None, client, base)
+                .await?
+            {
+                Download::Updated(locale) => Ok(Some(locale)),
+                Download::NotModified => Ok(local),
             }
-            self.save(dir, data.clone()).await?;
-            Ok(Some(StoredLocale {
-                code: found,
-                id,
-                data,
-            }))
         }
         .await;
         checks.retain(|(key, _, _)| key != code);

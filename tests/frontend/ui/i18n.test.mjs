@@ -238,6 +238,30 @@ test("opening the selector requests metadata only and deduplicates concurrent op
 	expect(f.isFetched("fr")).toBe(true);
 });
 
+test("catalog progress percentages reach the locale list", async () => {
+	const f = await fixture();
+	f.hooks.invoke = async () => [
+		{
+			code: "fr",
+			id: "fr-FR",
+			label: "Français",
+			flag: "🇫🇷",
+			installed: false,
+			percentage: 42.5,
+		},
+	];
+	await f.loadAvailableLocales();
+	expect(f.locales.find((l) => l.code === "fr").percentage).toBe(42.5);
+});
+
+test("locale badges prefer progress and fall back to the id", async () => {
+	const f = await fixture();
+	const entry = { code: "fr", id: "fr-FR", label: "x", flag: "" };
+	expect(f.localeBadge({ ...entry, percentage: 77.6 })).toBe("77.6%");
+	expect(f.localeBadge({ ...entry, percentage: 100 })).toBe("100%");
+	expect(f.localeBadge(entry)).toBe("fr-FR");
+});
+
 test("missing dictionaries fall back without retry loops and allow an explicit retry", async () => {
 	const f = await fixture();
 	f.hooks.invoke = async () => null;

@@ -3,6 +3,7 @@
 	import {
 		t,
 		locales,
+		localeBadge,
 		downloadLocale,
 		loadAvailableLocales,
 	} from "$lib/i18n";
@@ -28,7 +29,7 @@
 				value: locale.code,
 				label,
 				subtitle: label === locale.label ? undefined : locale.label,
-				badge: locale.id,
+				badge: localeBadge(locale),
 				status:
 					i18nLoader.loading === locale.code
 						? ("loading" as const)

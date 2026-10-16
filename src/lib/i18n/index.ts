@@ -48,6 +48,14 @@ export function isFetched(lang: string): boolean {
 	return i18nLoader.fetched.has(lang);
 }
 
+// Translation progress comes from the remote catalog; fall back to the locale id.
+export function localeBadge(entry: {
+	id: string;
+	percentage?: number;
+}): string {
+	return entry.percentage != null ? `${entry.percentage}%` : entry.id;
+}
+
 function localeFlag(id: string): string {
 	const region = id
 		.split("-")

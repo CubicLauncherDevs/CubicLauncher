@@ -5,6 +5,7 @@ export type LocaleEntry = {
 	id: string;
 	label: string;
 	flag: string;
+	percentage?: number;
 };
 
 export const i18nLoader = $state({
