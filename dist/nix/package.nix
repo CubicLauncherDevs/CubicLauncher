@@ -238,6 +238,7 @@ rustPlatform.buildRustPackage rec {
     if [ -f "$out/share/applications/cubiclauncher.desktop" ]; then
       ${lib.getExe' desktop-file-utils "desktop-file-edit"} \
         --set-key Exec --set-value "$out/bin/cubiclauncher" \
+        --set-key Icon --set-value "$out/share/icons/hicolor/128x128/apps/cubiclauncher.png" \
         "$out/share/applications/cubiclauncher.desktop"
     fi
   '';
