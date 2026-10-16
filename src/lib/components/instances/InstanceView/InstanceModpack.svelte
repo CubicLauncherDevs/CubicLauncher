@@ -163,7 +163,7 @@
 				disabled={busy || changing || loading}
 				onclick={toggleLock}
 			>
-				<Icon name={pack.locked ? "ui:unlock" : "ui:lock"} size={14} />
+				<Icon name={pack.locked ? "ui:lock" : "ui:unlock"} size={14} />
 			</button>
 			<button
 				type="button"
