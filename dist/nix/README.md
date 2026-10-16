@@ -89,8 +89,10 @@ ls -la result/bin
 ## Distribuir binarios con Cachix
 
 El workflow `.github/workflows/nix-cache.yml` compila el paquete completo para
-Linux x86_64 y Linux ARM64. Se ejecuta al publicar releases,
-al terminar el workflow Publish Release y manualmente desde Actions. Publica el launcher y sus
+Linux x86_64 y Linux ARM64. Se ejecuta al publicar releases, al terminar el
+workflow Publish Release y manualmente desde Actions. En la ejecución manual,
+el selector permite elegir `release`, `beta` o `both` (valor predeterminado).
+Los disparos automáticos compilan ambos canales. Publica el launcher y sus
 dependencias; también guarda resultados intermedios para próximos builds.
 
 ### Activación inicial del mantenedor
@@ -112,8 +114,9 @@ Se seleccionan dos canales según la fecha de publicación en GitHub:
 - `latest-release`: última release pública que no sea prerelease.
 - `latest-beta`: última prerelease pública (incluye las versiones DEV).
 
-Los borradores se excluyen. Después de compilar y subir ambos canales para las
-tres plataformas, se actualizan los tags móviles `latest-release` y `latest-beta`.
+Los borradores se excluyen. Después de compilar y subir el canal seleccionado
+para ambas arquitecturas Linux, se actualiza su tag móvil (`latest-release` o
+`latest-beta`). Si se elige `both`, se actualizan ambos tags.
 Si falla un build, los tags conservan sus destinos anteriores. Si no hay ninguna
 beta publicada, ese canal todavía no se crea. Reservar esos dos nombres para el
 workflow y permitir su actualización en las reglas de tags del repositorio.
