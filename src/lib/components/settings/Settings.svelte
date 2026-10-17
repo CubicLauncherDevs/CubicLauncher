@@ -56,15 +56,7 @@
 
 	const JRE_VERSIONS = [8, 17, 21, 25];
 	/** Proveedores conocidos; se usan mientras no llega la lista del backend. */
-	const DEFAULT_JRE_VENDORS = [
-		"zulu",
-		"temurin",
-		"liberica",
-		"graalvm",
-		"corretto",
-		"microsoft",
-		"semeru",
-	];
+	const DEFAULT_JRE_VENDORS = ["zulu", "temurin", "liberica", "graalvm"];
 	let jreStatuses = $state<Record<number, JreStatus>>({});
 	let jreActionStates = $state<Record<number, string | undefined>>({});
 	let jreVendors = $state<Record<number, string[]>>({});

@@ -3,7 +3,6 @@ use crate::core::emit;
 use crate::services::DownloadQueue;
 use crate::services::java_manager::JavaManager;
 use aqua::{JreBatch, JreStatus, JreVendor};
-use smallvec::SmallVec;
 use tauri::command;
 use tracing::info;
 
@@ -68,20 +67,20 @@ pub async fn get_available_jre_vendors(version: u8) -> Result<Vec<String>, Strin
 #[command]
 pub async fn get_jre_versions() -> Result<Vec<JreStatus>, String> {
     info!("Getting status for all JRE versions");
+    // Cada versión lanza un subproceso `java -version`; se consultan en
+    // paralelo para que la pestaña de Java no espere una tras otra.
     let versions = [8u8, 17, 21, 25];
-    let mut results = SmallVec::<[JreStatus; 4]>::new();
-    for v in versions {
+    let results = futures::future::join_all(versions.into_iter().map(|v| async move {
         match JavaManager::get_status(v).await {
-            Ok(status) => results.push(status),
-            Err(e) => {
-                results.push(JreStatus {
-                    version: v,
-                    installed: false,
-                    java_version: Some(format!("error: {}", e)),
-                    vendor: None,
-                });
-            }
+            Ok(status) => status,
+            Err(e) => JreStatus {
+                version: v,
+                installed: false,
+                java_version: Some(format!("error: {}", e)),
+                vendor: None,
+            },
         }
-    }
-    Ok(results.into_vec())
+    }))
+    .await;
+    Ok(results)
 }

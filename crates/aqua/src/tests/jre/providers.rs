@@ -41,15 +41,13 @@ fn test_foojay_slug_covers_extra_vendors() {
     }
 
     assert_eq!(JreVendor::Liberica.foojay_slug(), Some("liberica"));
-    assert_eq!(JreVendor::Semeru.foojay_slug(), Some("semeru"));
+    assert_eq!(JreVendor::GraalVm.foojay_slug(), Some("graalvm"));
 }
 
 #[test]
 fn test_foojay_package_type_avoids_missing_jre() {
-    // Estos proveedores solo publican JDK.
+    // GraalVM solo publica JDK.
     assert_eq!(JreVendor::GraalVm.foojay_package_type(), "jdk");
-    assert_eq!(JreVendor::Corretto.foojay_package_type(), "jdk");
-    assert_eq!(JreVendor::Microsoft.foojay_package_type(), "jdk");
     assert_eq!(JreVendor::Liberica.foojay_package_type(), "jre");
 }
 
@@ -69,8 +67,8 @@ fn test_foojay_packages_url_includes_filters() {
         assert!(url.contains(expected), "missing {expected} in {url}");
     }
 
-    let url = foojay_packages_url(JreVendor::Semeru, 8);
-    assert!(url.contains("distribution=semeru"));
+    let url = foojay_packages_url(JreVendor::Liberica, 8);
+    assert!(url.contains("distribution=liberica"));
     assert!(url.contains("package_type=jre"));
 }
 
@@ -123,19 +121,6 @@ fn test_detect_vendor_from_java_version_output() {
             "OpenJDK Runtime Environment GraalVM CE 21.0.2+13.1 (build 21.0.2+13.1)",
             JreVendor::GraalVm,
         ),
-        (
-            "OpenJDK Runtime Environment Corretto-21.0.2.13.1 (build 21.0.2+13)",
-            JreVendor::Corretto,
-        ),
-        (
-            "OpenJDK Runtime Environment Microsoft-10345742 (build 21.0.2+13)",
-            JreVendor::Microsoft,
-        ),
-        (
-            "IBM Semeru Runtime Open Edition (build 21.0.12.0)",
-            JreVendor::Semeru,
-        ),
-        ("Eclipse OpenJ9 VM (build 21.0.12)", JreVendor::Semeru),
         (
             "BellSoft Liberica Runtime Environment 21.0.12 (build 21.0.12+12)",
             JreVendor::Liberica,

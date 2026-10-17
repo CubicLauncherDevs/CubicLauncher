@@ -2,6 +2,8 @@ use crate::errors::AquaError;
 use crate::jre::types::{ArchiveFormat, JrePackage};
 use crate::utilities::HTTP_CLIENT;
 use serde::Deserialize;
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
 
 /// Base de la API Disco de foojay. Agrega builds de OpenJDK de distintas
 /// distribuciones con un formato uniforme, por lo que cada proveedor nuevo
@@ -16,23 +18,12 @@ pub enum JreVendor {
     Zulu,
     Temurin,
     Liberica,
-    Corretto,
-    Microsoft,
     GraalVm,
-    Semeru,
 }
 
 impl JreVendor {
     /// Orden en el que se listan los proveedores en la interfaz.
-    pub const ALL: &[JreVendor] = &[
-        Self::Zulu,
-        Self::Temurin,
-        Self::Liberica,
-        Self::GraalVm,
-        Self::Corretto,
-        Self::Microsoft,
-        Self::Semeru,
-    ];
+    pub const ALL: &[JreVendor] = &[Self::Zulu, Self::Temurin, Self::Liberica, Self::GraalVm];
 
     /// Identificador estable usado por los ajustes y la interfaz.
     pub const fn id(&self) -> &'static str {
@@ -40,10 +31,7 @@ impl JreVendor {
             Self::Zulu => "zulu",
             Self::Temurin => "temurin",
             Self::Liberica => "liberica",
-            Self::Corretto => "corretto",
-            Self::Microsoft => "microsoft",
             Self::GraalVm => "graalvm",
-            Self::Semeru => "semeru",
         }
     }
 
@@ -62,10 +50,7 @@ impl JreVendor {
             Self::Zulu => "Azul Zulu",
             Self::Temurin => "Eclipse Temurin",
             Self::Liberica => "BellSoft Liberica",
-            Self::Corretto => "Amazon Corretto",
-            Self::Microsoft => "Microsoft Build of OpenJDK",
             Self::GraalVm => "GraalVM",
-            Self::Semeru => "IBM Semeru (OpenJ9)",
         }
     }
 
@@ -75,17 +60,14 @@ impl JreVendor {
         match self {
             Self::Zulu | Self::Temurin => None,
             Self::Liberica => Some("liberica"),
-            Self::Corretto => Some("corretto"),
-            Self::Microsoft => Some("microsoft"),
             Self::GraalVm => Some("graalvm"),
-            Self::Semeru => Some("semeru"),
         }
     }
 
-    /// Tipo de paquete publicado por el proveedor. Varios solo ofrecen JDK.
+    /// Tipo de paquete publicado por el proveedor. GraalVM solo ofrece JDK.
     const fn foojay_package_type(&self) -> &'static str {
         match self {
-            Self::Corretto | Self::Microsoft | Self::GraalVm => "jdk",
+            Self::GraalVm => "jdk",
             _ => "jre",
         }
     }
@@ -96,20 +78,15 @@ impl JreVendor {
     pub fn detect(version_output: &str) -> Option<Self> {
         const MARKERS: &[(&str, JreVendor)] = &[
             ("graalvm", JreVendor::GraalVm),
-            ("corretto", JreVendor::Corretto),
-            ("microsoft", JreVendor::Microsoft),
             ("temurin", JreVendor::Temurin),
             ("zulu", JreVendor::Zulu),
-            ("semeru", JreVendor::Semeru),
-            ("openj9", JreVendor::Semeru),
             ("liberica", JreVendor::Liberica),
             ("bellsoft", JreVendor::Liberica),
         ];
 
-        let lower = version_output.to_ascii_lowercase();
         MARKERS
             .iter()
-            .find(|(marker, _)| lower.contains(marker))
+            .find(|(marker, _)| contains_ignore_ascii_case(version_output, marker))
             .map(|(_, vendor)| *vendor)
     }
 
@@ -129,6 +106,23 @@ impl JreVendor {
         }
     }
 }
+
+/// Búsqueda case-insensitive sin asignar una copia en minúsculas del texto.
+fn contains_ignore_ascii_case(haystack: &str, needle: &str) -> bool {
+    let haystack = haystack.as_bytes();
+    let needle = needle.as_bytes();
+    !needle.is_empty()
+        && haystack.len() >= needle.len()
+        && haystack
+            .windows(needle.len())
+            .any(|window| window.eq_ignore_ascii_case(needle))
+}
+
+/// Cache en proceso de proveedores disponibles por versión. La lista depende
+/// de la plataforma compilada, así que la clave es solo la versión mayor. Evita
+/// repetir la consulta a foojay cada vez que se abre la pestaña de Java.
+static VENDOR_CACHE: LazyLock<Mutex<HashMap<u8, Vec<JreVendor>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Default provider chain used by the launcher. Tries the fastest/most
 /// reliable provider first and falls back to the next one on failure.
@@ -165,6 +159,15 @@ impl JreProviderChain {
     /// plataforma actuales. Los proveedores con API propia se consideran
     /// siempre disponibles.
     pub async fn available_vendors(major_version: u8) -> Result<Vec<JreVendor>, AquaError> {
+        if let Some(cached) = VENDOR_CACHE
+            .lock()
+            .expect("vendor cache poisoned")
+            .get(&major_version)
+            .cloned()
+        {
+            return Ok(cached);
+        }
+
         let url = format!(
             "{FOOJAY_API}/distributions?version={}&operating_system={}&architecture={}&include_versions=false",
             major_version,
@@ -183,7 +186,7 @@ impl JreProviderChain {
             .json()
             .await?;
 
-        Ok(JreVendor::ALL
+        let vendors: Vec<JreVendor> = JreVendor::ALL
             .iter()
             .copied()
             .filter(|vendor| {
@@ -194,7 +197,14 @@ impl JreProviderChain {
                         .any(|distribution| distribution.api_parameter == slug)
                 })
             })
-            .collect())
+            .collect();
+
+        VENDOR_CACHE
+            .lock()
+            .expect("vendor cache poisoned")
+            .insert(major_version, vendors.clone());
+
+        Ok(vendors)
     }
 }
 

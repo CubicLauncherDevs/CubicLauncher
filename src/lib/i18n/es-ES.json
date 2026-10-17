@@ -436,15 +436,9 @@
 				"liberica": "BellSoft Liberica",
 				"libericaHint": "Compilaciones de BellSoft con soporte a largo plazo.",
 				"graalvm": "GraalVM",
-				"graalvmHint": "Compilador JIT de Graal, suele ir más rápido con mods. JDK para Java 17 o superior.",
-				"corretto": "Amazon Corretto",
-				"correttoHint": "Compilaciones de Amazon con soporte a largo plazo. Se distribuye como JDK.",
-				"microsoft": "Microsoft OpenJDK",
-				"microsoftHint": "Compilaciones de Microsoft, usadas por muchos launchers de Minecraft. Se distribuye como JDK.",
-				"semeru": "IBM Semeru (OpenJ9)",
-				"semeruHint": "Máquina virtual OpenJ9. Consume menos memoria RAM, útil en equipos con poca memoria."
+				"graalvmHint": "Compilador JIT de Graal, suele ir más rápido con mods. JDK para Java 17 o superior."
 			},
-			"providersCredit": "Runtimes de Java proporcionados por Azul, Eclipse Temurin, BellSoft, Amazon, Microsoft, IBM y GraalVM mediante foojay."
+			"providersCredit": "Runtimes de Java proporcionados por Azul, Eclipse Temurin, BellSoft y GraalVM mediante foojay."
 		}
 	},
 	"updater": {

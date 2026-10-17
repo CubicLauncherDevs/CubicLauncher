@@ -94,13 +94,19 @@ pub async fn download_and_extract(
         Some(item_label.clone()),
     );
 
+    // El recorrido del árbol extraído usa `std::fs`, así que se ejecuta en el
+    // pool bloqueante para no detener el runtime async.
+    let search_dir = staging_dir.clone();
+    let binary_name = pkg.java_binary_name();
     let runtime_root =
-        find_runtime_root(&staging_dir, pkg.java_binary_name()).ok_or_else(|| {
-            AquaError::Other(format!(
-                "No se encontró el binario {} dentro del JRE extraído",
-                pkg.java_binary_name()
-            ))
-        })?;
+        tokio::task::spawn_blocking(move || find_runtime_root(&search_dir, binary_name))
+            .await?
+            .ok_or_else(|| {
+                AquaError::Other(format!(
+                    "No se encontró el binario {} dentro del JRE extraído",
+                    pkg.java_binary_name()
+                ))
+            })?;
 
     // Ensure the destination is clean before installing.
     if dest_dir.exists() {

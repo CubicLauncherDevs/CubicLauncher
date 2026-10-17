@@ -89,7 +89,7 @@ Para ver en qué otras distribuciones está disponible, revisa [Repology](https:
 - Iniciar sesión con Microsoft, Yggdrasil o jugar sin conexión.
 - Buscar e instalar mods, resource packs y shaders desde Modrinth y CurseForge, e importar modpacks.
 - Administrar mundos y listas de servidores por instancia.
-- Elegir la versión de Java y su proveedor (Azul Zulu, Eclipse Temurin, BellSoft Liberica, GraalVM, Amazon Corretto, Microsoft e IBM Semeru), ajustar la memoria y ver la consola de registros.
+- Elegir la versión de Java y su proveedor (Azul Zulu, Eclipse Temurin, BellSoft Liberica y GraalVM), ajustar la memoria y ver la consola de registros.
 - Cambiar tema e idioma, y mostrar la actividad en Discord.
 
 ## Migrar desde otro launcher
