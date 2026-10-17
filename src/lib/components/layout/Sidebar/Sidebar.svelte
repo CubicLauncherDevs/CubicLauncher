@@ -123,10 +123,9 @@
 						keyFn={(i) => i.uuid}
 						hideScrollbar={true}
 					>
-						{#snippet children(instance, index)}
+						{#snippet children(instance)}
 							<InstanceItem
 								{instance}
-								{index}
 								selected={selectedInstance?.uuid ===
 									instance.uuid}
 								onselect={() => selectInstance(instance)}

@@ -7,14 +7,12 @@
 
 	let {
 		instance,
-		index,
 		selected,
 		onselect,
 		onedit,
 		ondelete,
 	}: {
 		instance: InstanceDto;
-		index: number;
 		selected: boolean;
 		onselect: () => void;
 		onedit: () => void;
@@ -35,8 +33,6 @@
 <div
 	class="instance-item"
 	class:active={selected}
-	class:odd={index % 2 !== 0}
-	class:pinned={isPinned}
 	data-instance-uuid={instance.uuid}
 	onclick={onselect}
 	onkeydown={(e) => {
@@ -46,27 +42,25 @@
 	tabindex="0"
 	title={instance.name}
 >
-	<div class="instance-icon-strip">
-		<div class="instance-icon-inner">
-			{#if instance.icon}
-				<img
-					src={iconUrl}
-					alt={instance.name}
-					loading="lazy"
-					decoding="async"
-					width="20"
-					height="20"
-				/>
-			{:else}
-				<Icon name="brand:cubic" size={20} />
-			{/if}
-			{#if isRunning}
-				<span
-					class="status-dot"
-					aria-label={t("instanceView.status.started")}
-				></span>
-			{/if}
-		</div>
+	<div class="instance-icon">
+		{#if instance.icon}
+			<img
+				src={iconUrl}
+				alt={instance.name}
+				loading="lazy"
+				decoding="async"
+				width="24"
+				height="24"
+			/>
+		{:else}
+			<Icon name="brand:cubic" size={24} />
+		{/if}
+		{#if isRunning}
+			<span
+				class="status-dot"
+				aria-label={t("instanceView.status.started")}
+			></span>
+		{/if}
 	</div>
 
 	<div class="instance-text">
@@ -98,23 +92,31 @@
 			<Trash width="14" height="14" />
 		</button>
 	</div>
+
+	{#if isPinned}
+		<span class="pin-badge" aria-hidden="true"
+			><Icon name="ui:pin" size={11} /></span
+		>
+	{/if}
 </div>
 
 <style>
 	.instance-item {
-		--item-bg: var(--bg-card);
+		/* Color opaco por estado; alimenta el fondo y el degradado de las
+		   acciones sin provocar reflujo al hacer hover. */
+		--item-bg: var(--bg-sidebar);
 
 		position: relative;
 		display: flex;
 		align-items: center;
-		border-radius: var(--border-radius);
+		border-radius: var(--border-radius-lg);
 		cursor: pointer;
 		transition:
-			background 0.18s ease,
-			border-color 0.18s ease,
-			box-shadow 0.18s ease;
+			background 0.15s ease,
+			border-color 0.15s ease,
+			box-shadow 0.15s ease;
 		border: 1px solid transparent;
-		background: var(--item-bg);
+		background: transparent;
 		color: var(--text-primary);
 		width: 100%;
 		text-align: left;
@@ -130,88 +132,59 @@
 		contain: layout paint style;
 	}
 
-	.instance-item.odd {
-		--item-bg: var(--surface-selected);
-	}
-
 	.instance-item:hover {
-		--item-bg: var(--surface-hover);
-		border-color: var(--border);
+		--item-bg: color-mix(in srgb, var(--surface-rgb) 6%, var(--bg-sidebar));
+		background: var(--item-bg);
 	}
 
 	.instance-item:focus-visible {
-		--item-bg: var(--surface-hover);
+		--item-bg: color-mix(in srgb, var(--surface-rgb) 6%, var(--bg-sidebar));
+		background: var(--item-bg);
 		border-color: var(--text-secondary);
 	}
 
 	.instance-item.active {
 		--item-bg: var(--bg-item-active);
-		border-color: var(--border);
+		background: var(--item-bg);
+		border-color: var(--accent);
+		box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.08);
 	}
 
-	.instance-item.pinned::before {
-		content: "";
-		position: absolute;
-		left: 0;
-		top: 12px;
-		bottom: 12px;
-		width: 3px;
-		border-radius: 0 3px 3px 0;
-		background: var(--color-warning);
-		opacity: 0.9;
-		z-index: 2;
-	}
-
-	.instance-icon-strip {
+	.instance-icon {
+		position: relative;
 		flex-shrink: 0;
-		width: 34px;
-		height: 100%;
+		width: 24px;
+		height: 24px;
+		margin-left: 12px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border-right: 1px solid var(--border);
-		position: relative;
-		z-index: 0;
+		border-radius: var(--border-radius-sm);
 		color: var(--text-primary);
-		transition: color 0.18s ease;
 	}
 
-	.instance-icon-strip::before {
-		content: "";
-		position: absolute;
-		inset: 0;
-		background: var(--surface-active);
-		transition:
-			background 0.18s ease,
-			filter 0.18s ease;
-		z-index: 0;
-	}
-
-	.instance-item.active .instance-icon-strip {
-		color: var(--accent-text);
-	}
-
-	.instance-item.active .instance-icon-strip::before {
-		background: var(--accent);
-		filter: brightness(0.65);
-	}
-
-	.instance-icon-inner {
-		position: relative;
-		width: 20px;
-		height: 20px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1;
-	}
-
-	.instance-icon-inner img {
+	.instance-icon img {
 		display: block;
 		width: 100%;
 		height: 100%;
-		border-radius: 2px;
+		border-radius: inherit;
 		object-fit: cover;
+	}
+
+	.pin-badge {
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 16px;
+		height: 16px;
+		margin-right: 8px;
+		background: var(--bg-sidebar);
+		border: 1px solid var(--border);
+		border-radius: 50%;
+		color: var(--color-warning);
+		pointer-events: none;
+		box-shadow: var(--shadow-sm);
 	}
 
 	.instance-text {
@@ -220,7 +193,7 @@
 		flex-direction: column;
 		gap: 1px;
 		min-width: 0;
-		padding: 0 10px;
+		padding: 0 10px 0 12px;
 	}
 
 	.instance-name {
@@ -229,11 +202,6 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		transition: color 0.15s ease;
-	}
-
-	.instance-item.active .instance-name {
-		color: var(--text-primary);
 	}
 
 	.instance-subtitle {
@@ -251,28 +219,25 @@
 	}
 
 	.instance-actions {
-		display: none;
+		position: absolute;
+		top: 50%;
+		right: 4px;
+		transform: translateY(-50%);
+		display: flex;
 		align-items: center;
 		gap: 4px;
-		padding-right: 4px;
+		padding-left: 16px;
+		background: linear-gradient(90deg, transparent, var(--item-bg) 45%);
 		opacity: 0;
-		transition: opacity 0.2s ease;
-		transition-behavior: allow-discrete;
-	}
-
-	@starting-style {
-		.instance-item:hover .instance-actions,
-		.instance-item.active .instance-actions,
-		.instance-item:focus-within .instance-actions {
-			opacity: 0;
-		}
+		pointer-events: none;
+		transition: opacity 0.15s ease;
 	}
 
 	.instance-item:hover .instance-actions,
 	.instance-item.active .instance-actions,
 	.instance-item:focus-within .instance-actions {
-		display: flex;
 		opacity: 1;
+		pointer-events: auto;
 	}
 
 	.action-btn {
@@ -308,14 +273,14 @@
 
 	.status-dot {
 		position: absolute;
-		bottom: 2px;
-		right: 2px;
-		width: 7px;
-		height: 7px;
+		bottom: -1px;
+		right: -1px;
+		width: 8px;
+		height: 8px;
 		border-radius: 50%;
 		background: var(--color-status-started);
-		box-shadow: 0 0 0 2px var(--item-bg);
-		transition: box-shadow 0.18s ease;
+		border: 1.5px solid var(--bg-sidebar);
+		box-shadow: 0 0 4px rgba(var(--color-success-rgb), 0.5);
 	}
 
 	@media (max-width: 650px) {
