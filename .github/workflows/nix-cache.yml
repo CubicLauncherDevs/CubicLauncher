@@ -98,6 +98,15 @@ jobs:
               with:
                   ref: ${{ matrix.channel.sha }}
 
+            - name: Reuse current Nix packaging
+              # Release tags cut before the packaging fix ship a stale
+              # dist/nix/package.nix. Overlay the current one so the tag's
+              # source (identical Cargo.lock/Rust code) builds consistently.
+              run: |
+                  git fetch --no-tags --depth=1 origin \
+                    "${{ github.event.repository.default_branch }}"
+                  git checkout FETCH_HEAD -- dist/nix/package.nix
+
             - name: Check Cachix credentials
               env:
                   CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
