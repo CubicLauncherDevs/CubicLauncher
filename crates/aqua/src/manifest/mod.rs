@@ -23,9 +23,7 @@ struct ManifestEntry {
 }
 
 async fn fetch_manifest_v2(client: &Client) -> Result<ManifestV2, AquaError> {
-    let resp = client
-        .get(MOJANG_MANIFEST_URL)
-        .send()
+    let resp = crate::utilities::get_with_fallback(client, MOJANG_MANIFEST_URL)
         .await?
         .json::<ManifestV2>()
         .await?;
@@ -36,7 +34,10 @@ async fn fetch_version_json(
     client: &Client,
     url: &str,
 ) -> Result<(VersionManifest, Vec<u8>), AquaError> {
-    let bytes = client.get(url).send().await?.bytes().await?;
+    let bytes = crate::utilities::get_with_fallback(client, url)
+        .await?
+        .bytes()
+        .await?;
     let manifest = VersionManifest::from_bytes(&bytes)?;
     Ok((manifest, bytes.to_vec()))
 }
@@ -227,7 +228,7 @@ pub async fn resolve_asset_index(
     client: &Client,
     version: &NormalizedVersion,
 ) -> Result<(VersionAssets, Vec<u8>), AquaError> {
-    let res = client.get(&version.asset_index.url).send().await?;
+    let res = crate::utilities::get_with_fallback(client, &version.asset_index.url).await?;
     let bytes = res.bytes().await?;
     let assets: VersionAssets = serde_json::from_slice(&bytes)?;
     Ok((assets, bytes.to_vec()))

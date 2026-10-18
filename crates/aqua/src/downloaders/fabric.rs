@@ -50,9 +50,7 @@ impl FabricBatch {
             "https://meta.fabricmc.net/v2/versions/loader/{}",
             game_version
         );
-        let response = HTTP_CLIENT
-            .get(&loader_url)
-            .send()
+        let response = crate::utilities::get_with_fallback(&HTTP_CLIENT, &loader_url)
             .await
             .map_err(|e| AquaError::Other(format!("Error fetching Fabric loaders: {}", e)))?;
 
@@ -85,9 +83,7 @@ impl FabricBatch {
             game_version, loader_version
         );
 
-        let profile_text = HTTP_CLIENT
-            .get(&profile_url)
-            .send()
+        let profile_text = crate::utilities::get_with_fallback(&HTTP_CLIENT, &profile_url)
             .await
             .map_err(|e| AquaError::Other(format!("Error fetching Fabric profile: {}", e)))?
             .text()

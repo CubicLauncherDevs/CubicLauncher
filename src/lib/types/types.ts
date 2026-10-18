@@ -107,6 +107,8 @@ export interface Settings {
 	disable_infinite_animations: boolean;
 	disable_skin3d_animations: boolean;
 	reduce_log_animations: boolean;
+	/** Proveedor de descargas: "official" (Mojang) o "bmclapi" (espejo China). */
+	download_provider: string;
 }
 
 export interface JreStatus {

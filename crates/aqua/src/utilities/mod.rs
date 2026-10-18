@@ -24,6 +24,45 @@ pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
 
 const MAX_DOWNLOAD_ATTEMPTS: usize = 3;
 
+/// Petición GET respetando el proveedor activo: intenta primero el espejo
+/// BMCLAPI (si aplica) y cae al servidor oficial como respaldo.
+pub(crate) async fn get_with_fallback(
+    client: &Client,
+    url: &str,
+) -> Result<reqwest::Response, AquaError> {
+    let candidates = crate::provider::preferred_urls(url);
+    let mut last_error: Option<AquaError> = None;
+    for candidate in &candidates {
+        let is_mirror = crate::provider::is_mirror_url(candidate);
+        // El espejo en cooldown se salta silenciosamente; el oficial lo respalda.
+        if is_mirror && crate::provider::mirror_cooldown_active() {
+            continue;
+        }
+        let _permit = if is_mirror {
+            match crate::provider::acquire_mirror_permit().await {
+                Some(permit) => Some(permit),
+                None => continue,
+            }
+        } else {
+            None
+        };
+        match client.get(candidate).send().await {
+            Ok(resp) if resp.status().is_success() => return Ok(resp),
+            Ok(resp) => {
+                if is_mirror && resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                    crate::provider::note_mirror_rate_limited(retry_after_secs(&resp));
+                }
+                last_error = Some(AquaError::Other(format!(
+                    "HTTP {} para {candidate}",
+                    resp.status()
+                )));
+            }
+            Err(e) => last_error = Some(AquaError::RequestError(e)),
+        }
+    }
+    Err(last_error.unwrap_or_else(|| AquaError::Other("Request failed".into())))
+}
+
 /// Publish fetched metadata only after the batch has completed successfully.
 pub(crate) async fn write_metadata(path: &Path, bytes: &[u8]) -> Result<(), AquaError> {
     let temporary = path.with_extension(format!("json.tmp.{}", uuid::Uuid::new_v4()));
@@ -138,9 +177,58 @@ pub async fn download_file_with_headers(
         }
     }
 
+    // El proveedor BMCLAPI devuelve [espejo, oficial]; el oficial, solo [url].
+    let candidates = crate::provider::preferred_urls(url);
+    let mut last_error: Option<AquaError> = None;
+
+    for candidate in &candidates {
+        let is_mirror = crate::provider::is_mirror_url(candidate);
+        // El espejo en cooldown se salta sin ruido; el oficial lo respalda.
+        if is_mirror && crate::provider::mirror_cooldown_active() {
+            continue;
+        }
+        // Ante cualquier fallo del espejo se cae al oficial de inmediato, que ya
+        // aplica sus propios reintentos. El oficial conserva los 3 intentos.
+        let attempts = if is_mirror { 1 } else { MAX_DOWNLOAD_ATTEMPTS };
+        match download_single_url(candidate, path, expected_hash, reporter, headers, attempts).await
+        {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                if candidates.len() > 1 {
+                    warn!("Falló la descarga desde {}: {e}", candidate);
+                }
+                last_error = Some(e);
+            }
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| AquaError::Other("Download failed".into())))
+}
+
+async fn download_single_url(
+    url: &str,
+    path: &Path,
+    expected_hash: &str,
+    reporter: Option<&dyn ProgressReporter>,
+    headers: &[(String, String)],
+    max_attempts: usize,
+) -> Result<(), AquaError> {
+    let is_mirror = crate::provider::is_mirror_url(url);
+
+    // El permiso se mantiene durante toda la descarga, de modo que solo haya
+    // `MIRROR_MAX_CONCURRENCY` descargas simultáneas contra el espejo.
+    let _permit = if is_mirror {
+        match crate::provider::acquire_mirror_permit().await {
+            Some(permit) => Some(permit),
+            None => return Err(AquaError::Other("BMCLAPI en cooldown".into())),
+        }
+    } else {
+        None
+    };
+
     let temp_file = path.with_extension(format!("tmp.{}", uuid::Uuid::new_v4()));
 
-    for attempt in 1..=MAX_DOWNLOAD_ATTEMPTS {
+    for attempt in 1..=max_attempts {
         // Clean temp from previous attempts
         let _ = tokio::fs::remove_file(&temp_file).await;
 
@@ -164,13 +252,19 @@ pub async fn download_file_with_headers(
         let response = match request.send().await {
             Ok(r) if r.status().is_success() => r,
             Ok(r) => {
+                // El WAF de BMCLAPI limita por IP: abrimos el circuito y dejamos
+                // que el llamador use el servidor oficial sin reintentar.
+                if is_mirror && r.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                    crate::provider::note_mirror_rate_limited(retry_after_secs(&r));
+                    return Err(AquaError::Other("BMCLAPI rate limit (429)".into()));
+                }
                 warn!(
                     "HTTP {} on attempt {}/{}",
                     r.status(),
                     attempt,
-                    MAX_DOWNLOAD_ATTEMPTS
+                    max_attempts
                 );
-                if attempt == MAX_DOWNLOAD_ATTEMPTS {
+                if attempt == max_attempts {
                     return Err(AquaError::Other(format!("HTTP {}", r.status())));
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(100 * (1 << (attempt - 1))))
@@ -178,11 +272,8 @@ pub async fn download_file_with_headers(
                 continue;
             }
             Err(e) => {
-                warn!(
-                    "Request failed attempt {}/{}: {}",
-                    attempt, MAX_DOWNLOAD_ATTEMPTS, e
-                );
-                if attempt == MAX_DOWNLOAD_ATTEMPTS {
+                warn!("Request failed attempt {}/{}: {}", attempt, max_attempts, e);
+                if attempt == max_attempts {
                     return Err(AquaError::RequestError(e));
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(100 * (1 << (attempt - 1))))
@@ -225,7 +316,7 @@ pub async fn download_file_with_headers(
 
         if !write_ok {
             let _ = tokio::fs::remove_file(&temp_file).await;
-            if attempt == MAX_DOWNLOAD_ATTEMPTS {
+            if attempt == max_attempts {
                 return Err(AquaError::Other("Download stream failed".into()));
             }
             continue;
@@ -239,10 +330,10 @@ pub async fn download_file_with_headers(
             if actual_hash != expected_hash {
                 warn!(
                     "Hash mismatch attempt {}/{}: expected={}, got={}",
-                    attempt, MAX_DOWNLOAD_ATTEMPTS, expected_hash, actual_hash
+                    attempt, max_attempts, expected_hash, actual_hash
                 );
                 let _ = tokio::fs::remove_file(&temp_file).await;
-                if attempt == MAX_DOWNLOAD_ATTEMPTS {
+                if attempt == max_attempts {
                     return Err(AquaError::HashMismatch {
                         expected: expected_hash.to_string(),
                         actual: actual_hash,
@@ -259,6 +350,21 @@ pub async fn download_file_with_headers(
     }
 
     Err(AquaError::Other("Download failed after retries".into()))
+}
+
+/// Lee el cooldown indicado por el servidor en `Retry-After` (o en la variante
+/// no estándar `retry-after-short` que usa el WAF de BMCLAPI), en segundos.
+/// Devuelve `0` si no hay cabecera o no es un número entero.
+fn retry_after_secs(resp: &reqwest::Response) -> u64 {
+    for key in ["retry-after", "retry-after-short"] {
+        if let Some(value) = resp.headers().get(key)
+            && let Ok(text) = value.to_str()
+            && let Ok(secs) = text.trim().parse::<u64>()
+        {
+            return secs;
+        }
+    }
+    0
 }
 
 pub async fn verify_file_hash(path: &Path, expected_hash: &str) -> Result<bool, AquaError> {

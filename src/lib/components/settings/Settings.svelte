@@ -15,6 +15,7 @@
 	import { openUrl } from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
 	import LanguageSelect from "$lib/components/layout/LanguageSelect.svelte";
+	import Select from "$lib/components/layout/Select.svelte";
 	import { listThemes } from "$lib/api/themeManager";
 	import ThemeSelector from "./ThemeSelector.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
@@ -702,6 +703,43 @@
 							)}</label
 						>
 					</div>
+				</CollapsibleSection>
+
+				<CollapsibleSection
+					title={t("settings.minecraft.downloadProviderTitle")}
+					iconName="ui:download"
+					storageKey="section_download_provider"
+				>
+					<Select
+						id="download-provider"
+						compact
+						label={t("settings.minecraft.downloadProviderLabel")}
+						value={launcherStore.settings.download_provider}
+						options={[
+							{
+								value: "official",
+								label: t(
+									"settings.minecraft.downloadProviderOfficial",
+								),
+								subtitle: t(
+									"settings.minecraft.downloadProviderOfficialHint",
+								),
+							},
+							{
+								value: "bmclapi",
+								label: t(
+									"settings.minecraft.downloadProviderBmclapi",
+								),
+								subtitle: t(
+									"settings.minecraft.downloadProviderBmclapiHint",
+								),
+							},
+						]}
+						onchange={(value) => {
+							launcherStore.settings.download_provider = value;
+							handleSave();
+						}}
+					/>
 				</CollapsibleSection>
 
 				<CollapsibleSection

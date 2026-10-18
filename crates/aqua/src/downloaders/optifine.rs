@@ -19,6 +19,35 @@ pub struct OptiFineBatch {
     items: Vec<DownloadItemSpec>,
 }
 
+/// Elige la URL del instalador: BMCLAPI cuando está activo (evita depender del
+/// servidor oficial de OptiFine), o el flujo normal de resolución en caso contrario.
+async fn resolve_installer_url(version: &OptiFineVersion) -> Result<String, AquaError> {
+    if crate::provider::download_provider() == crate::provider::DownloadProvider::Bmclapi
+        && let Some(url) = bmclapi_optifine_url(version)
+    {
+        return Ok(url);
+    }
+    resolve_download_url(version).await
+}
+
+/// Construye la URL del espejo BMCLAPI: `/optifine/{mcversion}/{type}/{patch}`.
+fn bmclapi_optifine_url(version: &OptiFineVersion) -> Option<String> {
+    if version.filename.starts_with("preview_") {
+        return None;
+    }
+    let (kind, patch) = version.optifine_version.rsplit_once('_')?;
+    if kind.is_empty() || patch.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "{}/optifine/{}/{}/{}",
+        crate::provider::BMCLAPI_ROOT,
+        version.game_version,
+        kind,
+        patch
+    ))
+}
+
 impl OptiFineBatch {
     pub async fn new(
         shared_dir: &Path,
@@ -37,7 +66,7 @@ impl OptiFineBatch {
         let staging_dir = shared_dir
             .join("temp")
             .join(format!("optifine-{}", uuid::Uuid::new_v4()));
-        let url = resolve_download_url(&version).await?;
+        let url = resolve_installer_url(&version).await?;
         let items = vec![
             DownloadItemSpec::new(url, staging_dir.join("installer.jar"), "OptiFine installer")
                 .with_stage(DownloadStage::Library),

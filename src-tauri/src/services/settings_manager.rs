@@ -68,6 +68,11 @@ fn default_active_user_idx() -> usize {
 fn default_jre_vendor() -> CompactString {
     CompactString::from("auto")
 }
+/// Proveedor de descargas de archivos de juego. `official` usa Mojang;
+/// `bmclapi` usa el espejo para China con fallback al oficial.
+fn default_download_provider() -> CompactString {
+    CompactString::from("official")
+}
 fn default_user() -> Vec<MinecraftUser> {
     let vec = vec![MinecraftUser::cracked("Steve")];
     vec
@@ -173,6 +178,9 @@ pub struct SettingsManager {
     /// Vacío = ubicación por defecto.
     #[serde(default)]
     pub custom_shared_dir: PathBuf,
+    /// Proveedor de descargas: `official` (Mojang) o `bmclapi` (espejo China).
+    #[serde(default = "default_download_provider")]
+    pub download_provider: CompactString,
     #[serde(skip)]
     pub dirty: bool,
     #[serde(skip)]
@@ -265,6 +273,7 @@ impl Default for SettingsManager {
             reduce_log_animations: false,
             custom_instances_dir: PathBuf::new(),
             custom_shared_dir: PathBuf::new(),
+            download_provider: default_download_provider(),
             dirty: true,
             revision: 0,
         }

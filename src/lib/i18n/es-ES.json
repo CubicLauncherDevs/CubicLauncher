@@ -388,7 +388,13 @@
 			"consoleHistoryLimit": "Límite del historial",
 			"consoleHistoryHint": "Máximo de líneas que se conservarán en la consola de cada instancia (100-5000).",
 			"consoleShowLevelTags": "Mostrar etiquetas de nivel",
-			"consoleShowLevelTagsHint": "No recomendado: ocultar las etiquetas dificulta filtrar el log por nivel."
+			"consoleShowLevelTagsHint": "No recomendado: ocultar las etiquetas dificulta filtrar el log por nivel.",
+			"downloadProviderTitle": "Proveedor de descargas",
+			"downloadProviderLabel": "Servidor de descargas",
+			"downloadProviderOfficial": "Oficial (Mojang)",
+			"downloadProviderOfficialHint": "Servidores oficiales. Recomendado fuera de China.",
+			"downloadProviderBmclapi": "BMCLAPI (China)",
+			"downloadProviderBmclapiHint": "Espejo para jugadores en China con descargas lentas. Si falla, usa los servidores oficiales como respaldo."
 		},
 		"about": {
 			"title": "Sobre Nosotros",

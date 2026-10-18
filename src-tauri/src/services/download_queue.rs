@@ -76,6 +76,12 @@ fn preferred_jre_vendor(java_version: u8) -> Option<JreVendor> {
     JreVendor::from_id(SettingsManager::read().get_jre_vendor(java_version))
 }
 
+/// Aplica el proveedor de descargas configurado al downloader global de `aqua`.
+fn apply_download_provider() {
+    let provider_id = SettingsManager::read().download_provider.clone();
+    aqua::set_download_provider(aqua::DownloadProvider::from_id(provider_id.as_str()));
+}
+
 impl DownloadQueue {
     pub fn get() -> &'static Arc<DownloadQueue> {
         DOWNLOAD_QUEUE
@@ -233,6 +239,7 @@ impl DownloadQueue {
     }
 
     async fn process_version(queue: &Arc<DownloadQueue>, version: Arc<str>) {
+        apply_download_provider();
         let _shared_guard = super::shared_storage::acquire().await;
         let shared_dir = PathManager::get().get_shared_dir();
         let manager = DownloadManager::new(shared_dir.clone());

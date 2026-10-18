@@ -388,7 +388,13 @@
 			"consoleHistoryLimit": "History limit",
 			"consoleHistoryHint": "Maximum lines kept in each instance console (100-5000).",
 			"consoleShowLevelTags": "Show level tags",
-			"consoleShowLevelTagsHint": "Not recommended: hiding tags makes it harder to filter logs by level."
+			"consoleShowLevelTagsHint": "Not recommended: hiding tags makes it harder to filter logs by level.",
+			"downloadProviderTitle": "Download provider",
+			"downloadProviderLabel": "Download server",
+			"downloadProviderOfficial": "Official (Mojang)",
+			"downloadProviderOfficialHint": "Official servers. Recommended outside China.",
+			"downloadProviderBmclapi": "BMCLAPI (China)",
+			"downloadProviderBmclapiHint": "Mirror for players in China with slow downloads. Falls back to the official servers if it fails."
 		},
 		"about": {
 			"title": "About",
