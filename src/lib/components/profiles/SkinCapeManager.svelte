@@ -367,6 +367,21 @@
 					</button>
 				</div>
 			{/if}
+			<button
+				type="button"
+				class="upload-cta"
+				class:drop-active={draggingPng && dropTargetActive}
+				onclick={() => handleFileUpload()}
+				disabled={processing}
+				title={t("userMenu.skinCape.uploadSkin")}
+			>
+				<Icon name="ui:upload" size={15} />
+				<span>
+					{draggingPng && dropTargetActive
+						? t("userMenu.skinCape.dropSkinHere")
+						: t("userMenu.skinCape.uploadHint")}
+				</span>
+			</button>
 		</div>
 
 		<CapeList
@@ -376,18 +391,6 @@
 			{processing}
 			onSelect={handleSelectCape}
 		/>
-
-		<div class="upload-panel">
-			<button
-				type="button"
-				class="upload-btn"
-				onclick={() => handleFileUpload()}
-				disabled={processing}
-			>
-				<Icon name="ui:upload" size={14} />
-				<span>{t("userMenu.skinCape.uploadSkin")}</span>
-			</button>
-		</div>
 	{/if}
 </div>
 
@@ -538,38 +541,49 @@
 		cursor: not-allowed;
 	}
 
-	.upload-panel {
-		display: flex;
-		justify-content: center;
-		padding: 4px 0;
-	}
-
-	.upload-btn {
+	.upload-cta {
+		position: absolute;
+		left: 12px;
+		bottom: 12px;
+		z-index: 5;
 		display: inline-flex;
 		align-items: center;
-		justify-content: center;
 		gap: 6px;
-		padding: 6px 12px;
+		padding: 7px 12px;
 		border-radius: var(--border-radius-sm);
 		font-family: inherit;
-		font-size: 0.72rem;
+		font-size: 0.7rem;
 		font-weight: 600;
 		cursor: pointer;
+		background: rgba(var(--bg-card-rgb, 0, 0, 0), 0.72);
+		backdrop-filter: blur(4px);
+		border: 1px solid var(--border);
+		color: var(--text-primary);
+		max-width: calc(100% - 108px);
 		transition:
 			background 0.15s ease,
 			border-color 0.15s ease,
 			color 0.15s ease;
-		background: var(--bg-card);
-		color: var(--text-secondary);
-		border: 1px solid var(--border);
 	}
 
-	.upload-btn:hover:not(:disabled) {
-		background: var(--surface-hover);
-		color: var(--text-primary);
+	.upload-cta span {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
-	.upload-btn:disabled {
+	.upload-cta:hover:not(:disabled) {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+
+	.upload-cta.drop-active {
+		border-color: var(--accent);
+		color: var(--accent);
+		background: rgba(var(--accent-rgb), 0.16);
+	}
+
+	.upload-cta:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
@@ -645,6 +659,11 @@
 		.save-actions-float {
 			bottom: 8px;
 			right: 8px;
+		}
+
+		.upload-cta {
+			left: 8px;
+			bottom: 8px;
 		}
 	}
 </style>

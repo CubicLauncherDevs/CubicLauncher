@@ -588,6 +588,7 @@
 			"loading": "Loading Minecraft profile...",
 			"currentSkin": "Current skin",
 			"uploadSkin": "Upload skin (.png)",
+			"uploadHint": "Drag your skin or click to upload",
 			"dropSkinHere": "Drop skin here",
 			"invalidSkinFile": "Only .png files are allowed",
 			"classic": "Classic",
