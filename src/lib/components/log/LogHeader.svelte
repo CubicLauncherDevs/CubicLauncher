@@ -2,6 +2,7 @@
 	import type { Snippet } from "svelte";
 	import Icon from "$lib/icons/Icon.svelte";
 	import { t } from "$lib/i18n";
+	import LogMenu from "./LogMenu.svelte";
 
 	interface Props {
 		instanceName: string;
@@ -22,71 +23,53 @@
 		onUpload,
 		children,
 	}: Props = $props();
-	let actions: HTMLDetailsElement;
-	let trigger: HTMLElement;
-
-	function closeActions() {
-		if (!actions?.open) return;
-		actions.open = false;
-		trigger.focus();
-	}
 </script>
-
-<svelte:window
-	onclick={(event) => {
-		if (actions && !actions.contains(event.target as Node))
-			actions.open = false;
-	}}
-	onkeydown={(event) => {
-		if (event.key === "Escape") closeActions();
-	}}
-/>
 
 <header class="log-header">
 	<h1 title={instanceName}>{instanceName}</h1>
 	<div class="controls">{@render children()}</div>
-	<details class="actions" bind:this={actions}>
-		<summary bind:this={trigger}>
-			{t(uploading ? "logWindow.uploading" : "logWindow.actions")}
-			<Icon name="log:chevron-down" size={12} />
-		</summary>
-		<div class="action-list">
-			<button
-				type="button"
-				disabled={totalLines === 0}
-				onclick={() => {
-					closeActions();
-					onCopy();
-				}}
-			>
-				<Icon name="log:copy" size={14} />
-				{t("logWindow.copy")}
-			</button>
-			<button
-				type="button"
-				disabled={totalLines === 0 || uploading}
-				onclick={() => {
-					closeActions();
-					onUpload();
-				}}
-			>
-				<Icon name="log:upload" size={14} />
-				{t(uploading ? "logWindow.uploading" : "logWindow.upload")}
-			</button>
-			<button
-				type="button"
-				class="clear-action"
-				disabled={totalLines === 0}
-				onclick={() => {
-					closeActions();
-					onClear();
-				}}
-			>
-				<Icon name="log:clear" size={14} />
-				{t("logWindow.clear")}
-			</button>
-		</div>
-	</details>
+	<div class="actions">
+		<LogMenu
+			label={t(uploading ? "logWindow.uploading" : "logWindow.actions")}
+		>
+			{#snippet children({ close })}
+				<button
+					type="button"
+					disabled={totalLines === 0}
+					onclick={() => {
+						close();
+						onCopy();
+					}}
+				>
+					<Icon name="log:copy" size={14} />
+					{t("logWindow.copy")}
+				</button>
+				<button
+					type="button"
+					disabled={totalLines === 0 || uploading}
+					onclick={() => {
+						close();
+						onUpload();
+					}}
+				>
+					<Icon name="log:upload" size={14} />
+					{t(uploading ? "logWindow.uploading" : "logWindow.upload")}
+				</button>
+				<button
+					type="button"
+					class="clear-action"
+					disabled={totalLines === 0}
+					onclick={() => {
+						close();
+						onClear();
+					}}
+				>
+					<Icon name="log:clear" size={14} />
+					{t("logWindow.clear")}
+				</button>
+			{/snippet}
+		</LogMenu>
+	</div>
 </header>
 
 <style>
@@ -115,15 +98,14 @@
 	}
 
 	.actions {
-		position: relative;
 		flex-shrink: 0;
 	}
 
-	summary,
 	button {
 		display: flex;
 		align-items: center;
 		gap: 8px;
+		width: 100%;
 		min-height: 32px;
 		padding: 6px 8px;
 		border: none;
@@ -131,47 +113,20 @@
 		background: transparent;
 		color: var(--text-secondary);
 		font: inherit;
+		text-align: left;
 		cursor: pointer;
 	}
 
-	summary {
-		list-style: none;
-	}
-	summary::-webkit-details-marker {
-		display: none;
-	}
-
-	summary:hover,
-	.actions[open] summary,
 	button:hover:not(:disabled) {
 		background: var(--surface-hover);
 		color: var(--text-primary);
 	}
 
-	summary:focus-visible,
 	button:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
 
-	.action-list {
-		position: absolute;
-		top: calc(100% + 4px);
-		right: 0;
-		z-index: 20;
-		width: max-content;
-		max-width: calc(100vw - 28px);
-		padding: 4px;
-		background: var(--bg-card);
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		box-shadow: var(--shadow-md);
-	}
-
-	button {
-		width: 100%;
-		text-align: left;
-	}
 	button:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;

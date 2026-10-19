@@ -1,8 +1,10 @@
 <script lang="ts">
 	import type { SvelteSet } from "svelte/reactivity";
 	import Icon from "$lib/icons/Icon.svelte";
+	import CheckIcon from "$lib/icons/CheckIcon.svelte";
 	import { t } from "$lib/i18n";
 	import { LEVEL_ORDER } from "./logHelpers";
+	import LogMenu from "./LogMenu.svelte";
 
 	interface Props {
 		activeLevels: SvelteSet<string>;
@@ -37,6 +39,29 @@
 			: activeLevels.has("warn")
 				? "warnings"
 				: "errors",
+	);
+
+	const LEVEL_FILTERS: {
+		value: "all" | "warnings" | "errors";
+		labelKey: string;
+		levels: string[];
+	}[] = [
+		{ value: "all", labelKey: "logWindow.all", levels: LEVEL_ORDER },
+		{
+			value: "warnings",
+			labelKey: "logWindow.warnings",
+			levels: ["warn", "error", "fatal", "stderr"],
+		},
+		{
+			value: "errors",
+			labelKey: "logWindow.errors",
+			levels: ["error", "fatal", "stderr"],
+		},
+	];
+
+	const currentLevelFilter = $derived(
+		LEVEL_FILTERS.find((option) => option.value === filter) ??
+			LEVEL_FILTERS[0],
 	);
 </script>
 
@@ -84,29 +109,31 @@
 		{/if}
 	</div>
 	{#if showLevelTags}
-		<div class="level-select">
-			<select
-				aria-label={t("logWindow.levels")}
-				class:filtered={filter !== "all"}
-				value={filter}
-				onchange={(event) => {
-					const value = event.currentTarget.value;
-					onSetLevels(
-						value === "all"
-							? LEVEL_ORDER
-							: value === "warnings"
-								? ["warn", "error", "fatal", "stderr"]
-								: ["error", "fatal", "stderr"],
-					);
-				}}
+		<div class="level-menu">
+			<LogMenu
+				label={t(currentLevelFilter.labelKey)}
+				ariaLabel={t("logWindow.levels")}
+				filtered={filter !== "all"}
 			>
-				<option value="all">{t("logWindow.all")}</option>
-				<option value="warnings">{t("logWindow.warnings")}</option>
-				<option value="errors">{t("logWindow.errors")}</option>
-			</select>
-			<span class="select-chevron" aria-hidden="true">
-				<Icon name="log:chevron-down" size={12} />
-			</span>
+				{#snippet children({ close })}
+					{#each LEVEL_FILTERS as option (option.value)}
+						<button
+							type="button"
+							class="level-option"
+							class:selected={filter === option.value}
+							onclick={() => {
+								onSetLevels([...option.levels]);
+								close();
+							}}
+						>
+							<span>{t(option.labelKey)}</span>
+							{#if filter === option.value}
+								<CheckIcon size={14} />
+							{/if}
+						</button>
+					{/each}
+				{/snippet}
+			</LogMenu>
 		</div>
 	{/if}
 </div>
@@ -170,8 +197,7 @@
 		background: var(--surface-hover);
 		color: var(--text-primary);
 	}
-	button:focus-visible,
-	select:focus-visible {
+	button:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
@@ -191,50 +217,19 @@
 	.match-count {
 		margin: 0 4px;
 	}
-	.level-select {
-		position: relative;
+	.level-menu {
 		flex-shrink: 0;
 	}
 
-	select {
-		appearance: none;
-		width: 172px;
-		min-height: 34px;
-		padding: 6px 30px 6px 10px;
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		background: var(--surface-input);
-		color: var(--text-secondary);
-		font: inherit;
-		cursor: pointer;
-		transition:
-			border-color 0.15s ease,
-			background 0.15s ease;
+	.level-option {
+		justify-content: space-between;
+		width: 100%;
+		text-align: left;
 	}
 
-	select:hover {
-		background: var(--surface-hover);
-		border-color: var(--text-tertiary);
-	}
-
-	select.filtered {
-		border-color: var(--accent);
+	.level-option.selected {
+		background: var(--surface-selected);
 		color: var(--accent);
-	}
-
-	option {
-		background: var(--bg-card);
-		color: var(--text-primary);
-	}
-
-	.select-chevron {
-		position: absolute;
-		right: 10px;
-		top: 50%;
-		transform: translateY(-50%);
-		display: flex;
-		color: var(--text-secondary);
-		pointer-events: none;
 	}
 
 	@media (max-width: 520px) {
@@ -244,7 +239,7 @@
 		.search-group {
 			flex-basis: 100%;
 		}
-		.level-select {
+		.level-menu {
 			margin-left: auto;
 		}
 	}
