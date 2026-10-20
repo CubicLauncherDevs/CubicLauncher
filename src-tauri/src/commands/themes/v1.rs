@@ -1,8 +1,12 @@
 use super::FontFace;
+use super::assets::{BgValidationError, extract_preview, resolve_background, resolve_fonts};
 use super::{Theme, ZipImportable};
+use crate::core::errors::{CoreError, FsError};
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::Path;
+use tracing::warn;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 /// Estructura que representa la primera version del sistema de Themes
@@ -80,6 +84,47 @@ impl Theme for ThemeFile {
             icons: HashMap::new(),
             inject_css: None, // Not implemented
         }
+    }
+
+    fn load(theme_base: &Path, id: &str) -> Result<super::ThemeResponse, String> {
+        let path = theme_base.join("theme.json");
+        let content = std::fs::read_to_string(&path).map_err(|e| {
+            FsError::ReadFile {
+                path: path.to_string_lossy().into_owned(),
+                source: e,
+            }
+            .to_string()
+        })?;
+        let mut theme: Self = serde_json::from_str(&content)
+            .map_err(|e| CoreError::Other(format!("Theme '{}' inválido: {}", id, e)).to_string())?;
+
+        match resolve_background(theme_base, &mut theme.bg_image)? {
+            Some(BgValidationError::TooLarge) => {
+                warn!("Theme '{}': bg_image demasiado grande, ignorando", id);
+                theme.bg_image_warning_key = Some("themes.warning.largeFile".into());
+            }
+            Some(BgValidationError::InvalidImage) => {
+                warn!("Theme '{}': bg_image no es una imagen válida", id);
+                theme.bg_image_warning_key = Some("themes.warning.notAnImage".into());
+            }
+            Some(BgValidationError::Io) | None => {}
+        }
+        resolve_fonts(theme_base, &mut theme.fonts)?;
+        Ok(theme.to_theme_res())
+    }
+
+    fn list_entry(theme_base: &Path, id: &str) -> Option<ThemeEntry> {
+        let content = std::fs::read_to_string(theme_base.join("theme.json")).ok()?;
+        let theme: Self = serde_json::from_str(&content).ok()?;
+        Some(ThemeEntry {
+            id: id.into(),
+            name: theme.name.to_lowercase(),
+            author: theme.author.to_lowercase(),
+            version: theme.version,
+            r#type: theme.r#type,
+            preview: Some(extract_preview(&theme.variables)),
+            icon: None,
+        })
     }
 }
 
