@@ -612,6 +612,7 @@
 			"rateLimitTitle": "Too many changes",
 			"rateLimitMessage": "You're making changes too fast. Wait a few seconds before trying again.",
 			"unequipPending": "Cape unequipped (pending save)",
+			"modelDetected": "Detected from the skin. You can change it.",
 			"skinCloset": {
 				"title": "Skin closet",
 				"savedSkins": "Saved skins",

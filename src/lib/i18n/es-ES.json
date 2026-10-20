@@ -612,6 +612,7 @@
 			"rateLimitTitle": "Demasiados cambios",
 			"rateLimitMessage": "Estás haciendo cambios muy rápido. Esperá unos segundos antes de volver a intentarlo.",
 			"unequipPending": "Capa desequipada (pendiente de guardar)",
+			"modelDetected": "Detectado según la skin. Podés cambiarlo.",
 			"skinCloset": {
 				"title": "Armario de skins",
 				"savedSkins": "Skins guardadas",
