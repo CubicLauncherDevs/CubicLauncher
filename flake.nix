@@ -23,6 +23,7 @@
       devShells = forAllSystems (system: {
         default = (pkgsFor system).mkShell {
           name = "cubiclauncher-dev";
+          RUST_SRC_PATH = "${(pkgsFor system).rustPlatform.rustLibSrc}";
           packages = with (pkgsFor system); [
             bun
             cargo
@@ -35,6 +36,7 @@
             pkg-config
             rustc
             rustfmt
+            rustPlatform.rustLibSrc
           ]
           ++ lib.optionals stdenv.hostPlatform.isLinux [
             alsa-lib
