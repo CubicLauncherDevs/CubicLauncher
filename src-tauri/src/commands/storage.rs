@@ -1,9 +1,22 @@
-use crate::core::default_instances_dir;
+use crate::core::{PathManager, default_instances_dir};
 use crate::services::shared_storage::{self, DirUsage, SharedDirInfo};
 use crate::services::storage_migration::{self, InstancesDirInfo, MoveProgress, MoveResult};
 use std::path::PathBuf;
+use tauri::Manager;
 use tauri::ipc::Channel;
 use tracing::{error, info};
+
+/// El asset protocol necesita permitir la carpeta activa, que puede estar
+/// fuera de `$HOME/.cubic` tras una migración o al reiniciar el launcher.
+pub(crate) fn allow_current_instances_asset_scope(app: &tauri::AppHandle) -> Result<(), String> {
+    let dir = PathManager::get().get_instance_dir();
+    let dir = dir
+        .canonicalize()
+        .map_err(|e| format!("No se pudo resolver {}: {e}", dir.display()))?;
+    app.asset_protocol_scope()
+        .allow_directory(&dir, true)
+        .map_err(|e| format!("No se pudo permitir el acceso a {}: {e}", dir.display()))
+}
 
 /// Estado del directorio de instancias para la UI de ajustes.
 #[tauri::command]
@@ -14,6 +27,7 @@ pub async fn get_instances_dir_info() -> Result<InstancesDirInfo, String> {
 /// Cambia el directorio de instancias moviendo las existentes (hardlinks).
 #[tauri::command]
 pub async fn change_instances_dir(
+    app: tauri::AppHandle,
     new_dir: String,
     on_progress: Channel<MoveProgress>,
 ) -> Result<MoveResult, String> {
@@ -21,6 +35,12 @@ pub async fn change_instances_dir(
     let result = storage_migration::change_instances_dir(PathBuf::from(new_dir), on_progress).await;
     if let Err(ref e) = result {
         error!("Error cambiando directorio de instancias: {e}");
+    }
+    if let Err(scope_error) = allow_current_instances_asset_scope(&app) {
+        error!("Error configurando el asset protocol: {scope_error}");
+        if result.is_ok() {
+            return Err(scope_error);
+        }
     }
     result
 }
@@ -33,12 +53,21 @@ pub fn cancel_instances_dir_change() {
 
 /// Restablece el directorio de instancias al predeterminado moviendo las existentes.
 #[tauri::command]
-pub async fn reset_instances_dir(on_progress: Channel<MoveProgress>) -> Result<MoveResult, String> {
+pub async fn reset_instances_dir(
+    app: tauri::AppHandle,
+    on_progress: Channel<MoveProgress>,
+) -> Result<MoveResult, String> {
     info!("Restableciendo directorio de instancias al predeterminado");
     let result =
         storage_migration::change_instances_dir(default_instances_dir(), on_progress).await;
     if let Err(ref e) = result {
         error!("Error restableciendo directorio de instancias: {e}");
+    }
+    if let Err(scope_error) = allow_current_instances_asset_scope(&app) {
+        error!("Error configurando el asset protocol: {scope_error}");
+        if result.is_ok() {
+            return Err(scope_error);
+        }
     }
     result
 }

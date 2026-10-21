@@ -221,6 +221,8 @@ pub fn run() {
                 return Err("Error de inicialización: no se pudieron crear los directorios".into());
             }
 
+            commands::storage::allow_current_instances_asset_scope(app.handle())?;
+
             let _window = services::launch_window::create_main_window(app.handle())?;
 
             let handle = app.handle().clone();
