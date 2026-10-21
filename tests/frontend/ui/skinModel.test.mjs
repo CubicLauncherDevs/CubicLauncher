@@ -60,8 +60,31 @@ test("antialiasing leftovers in the slim-only zones do not count", () => {
 	expect(detect(image)).toBe("slim");
 });
 
-test("an empty arm falls back to classic instead of guessing slim", () => {
-	expect(detect(skin())).toBe("classic");
+test("without enough pixels to decide, no model is returned", () => {
+	// Imagen vacía.
+	expect(detect(skin())).toBe(null);
+	// Brazos dibujados, pero con la cara de atrás y la de abajo transparentes:
+	// justo las caras que distinguen un modelo del otro.
+	const transparentBacks = [
+		{ x: 44, y: 16, w: 3, h: 4 },
+		{ x: 40, y: 20, w: 11, h: 12 },
+		{ x: 36, y: 48, w: 3, h: 4 },
+		{ x: 32, y: 52, w: 11, h: 12 },
+	];
+	expect(detect(skin({ paint: transparentBacks }))).toBe(null);
+});
+
+test("one drawn arm is enough to decide", () => {
+	const leftSlimArm = [
+		{ x: 36, y: 48, w: 6, h: 4 },
+		{ x: 32, y: 52, w: 14, h: 12 },
+	];
+	expect(detect(skin({ paint: leftSlimArm }))).toBe("slim");
+	const rightClassicArm = [
+		{ x: 44, y: 16, w: 8, h: 4 },
+		{ x: 40, y: 20, w: 16, h: 12 },
+	];
+	expect(detect(skin({ paint: rightClassicArm }))).toBe("classic");
 });
 
 test("legacy 64x32 skins are always classic", () => {

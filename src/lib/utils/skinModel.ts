@@ -7,8 +7,9 @@
  * clásica, el juego lee esas columnas vacías y, como dibuja opaca la capa base,
  * aparece una franja (casi siempre negra) en la parte de atrás del brazo.
  *
- * Ante la duda se devuelve clásico: es el modelo por defecto del juego y el que
- * no deja franjas vacías en una skin que no las tenía.
+ * Solo se decide con pruebas en la imagen. Si las caras que distinguen los dos
+ * modelos están vacías (brazo sin dibujar, transparente o imagen incompleta), se
+ * devuelve `null` y quien llama conserva el modelo elegido.
  */
 
 export type SkinModel = "classic" | "slim";
@@ -20,19 +21,41 @@ interface Zone {
 	h: number;
 }
 
+/**
+ * Una cara del brazo cuyo ancho cambia entre modelos: la parte que ambos dibujan
+ * y las columnas que solo existen en el clásico.
+ */
+interface ArmFace {
+	shared: Zone;
+	classicOnly: Zone;
+}
+
 /** Por debajo de este alfa un píxel cuenta como vacío: el antialiasing deja restos. */
 const CLEAR_ALPHA = 8;
 
-/** Zonas que el modelo delgado nunca usa, en píxeles de una skin de 64×64. */
-const SLIM_UNUSED: readonly Zone[] = [
-	{ x: 54, y: 20, w: 2, h: 12 }, // brazo derecho, cara de atrás
-	{ x: 50, y: 16, w: 2, h: 4 }, // brazo derecho, parte de abajo
-	{ x: 46, y: 52, w: 2, h: 12 }, // brazo izquierdo, cara de atrás
-	{ x: 42, y: 48, w: 2, h: 4 }, // brazo izquierdo, parte de abajo
+/** Cara de atrás y parte de abajo de cada brazo, en píxeles de una skin de 64×64. */
+const ARM_FACES: readonly ArmFace[] = [
+	// brazo derecho, cara de atrás
+	{
+		shared: { x: 52, y: 20, w: 2, h: 12 },
+		classicOnly: { x: 54, y: 20, w: 2, h: 12 },
+	},
+	// brazo derecho, parte de abajo
+	{
+		shared: { x: 48, y: 16, w: 2, h: 4 },
+		classicOnly: { x: 50, y: 16, w: 2, h: 4 },
+	},
+	// brazo izquierdo, cara de atrás
+	{
+		shared: { x: 44, y: 52, w: 2, h: 12 },
+		classicOnly: { x: 46, y: 52, w: 2, h: 12 },
+	},
+	// brazo izquierdo, parte de abajo
+	{
+		shared: { x: 40, y: 48, w: 2, h: 4 },
+		classicOnly: { x: 42, y: 48, w: 2, h: 4 },
+	},
 ];
-
-/** Cara de adelante del brazo derecho: si está vacía, no hay nada que mirar. */
-const RIGHT_ARM_FRONT: Zone = { x: 44, y: 20, w: 4, h: 12 };
 
 /**
  * @param rgba píxeles RGBA de la imagen completa, fila por fila
@@ -43,9 +66,9 @@ export function detectSkinModel(
 	rgba: ArrayLike<number>,
 	width: number,
 	height: number,
-): SkinModel {
+): SkinModel | null {
 	const scale = Math.max(1, Math.round(width / 64));
-	// Las skins de 64×32 (anteriores a 1.8) no tienen modelo delgado.
+	// El formato de 64×32 (anterior a 1.8) solo tiene brazos de 4 px.
 	if (Math.round(height / scale) < 64) return "classic";
 
 	const alphaAt = (x: number, y: number): number => {
@@ -63,14 +86,18 @@ export function detectSkinModel(
 		return false;
 	};
 
-	if (!hasPixels(RIGHT_ARM_FRONT)) return "classic";
-	return SLIM_UNUSED.some(hasPixels) ? "classic" : "slim";
+	// Algo dibujado donde el delgado no llega solo puede ser de un brazo clásico.
+	if (ARM_FACES.some((face) => hasPixels(face.classicOnly))) return "classic";
+	// Una cara dibujada que termina antes de esas columnas es de un brazo delgado.
+	if (ARM_FACES.some((face) => hasPixels(face.shared))) return "slim";
+	return null;
 }
 
 /**
  * Igual que {@link detectSkinModel}, a partir de una URL que el canvas pueda leer
  * (por ejemplo, el data URL de la vista previa). Devuelve `null` si la imagen no
- * se puede leer, para que quien llama conserve el modelo elegido.
+ * se puede leer o no alcanza para decidir, para que quien llama conserve el
+ * modelo elegido.
  */
 export async function detectSkinModelFromUrl(
 	url: string,
