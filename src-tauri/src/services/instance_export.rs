@@ -21,6 +21,7 @@ use zellkern::{GameVersion, Loader};
 const GAME_DATA_ENTRIES: &[&str] = &[
     "mods",
     "resourcepacks",
+    "texturepacks",
     "shaderpacks",
     "saves",
     "screenshots",

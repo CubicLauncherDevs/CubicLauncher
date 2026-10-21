@@ -224,8 +224,11 @@ async fn download_resourcepacks_inner(
         return Err(InstanceError::Busy.to_string());
     }
     let instance_dir = handle.get_instance_dir().await;
-    let rp_dir = instance_dir.join("resourcepacks");
-    ensure_downloads_mutable(&instance_dir, "resourcepacks", &packs).await?;
+    let version = handle.get_version().await;
+    crate::services::pack_dir::migrate_legacy_packs(&instance_dir, &version).await?;
+    let pack_dir = crate::services::pack_dir::physical_pack_dir(&version, "resourcepacks");
+    let rp_dir = instance_dir.join(pack_dir);
+    ensure_downloads_mutable(&instance_dir, pack_dir, &packs).await?;
 
     tokio::fs::create_dir_all(&rp_dir).await.map_err(|e| {
         FsError::CreateDir {

@@ -223,7 +223,14 @@ pub async fn get_instance_resourcepacks(id: String) -> Result<Vec<ModDto>, Strin
     };
 
     let instance_dir = handle.get_instance_dir().await;
-    let resourcepacks_dir = instance_dir.join("resourcepacks");
+    let version = handle.get_version().await;
+    let pack_dir = crate::services::pack_dir::physical_pack_dir(&version, "resourcepacks");
+    if !handle.is_busy()
+        && let Ok(_files_guard) = handle.try_lock_files()
+    {
+        crate::services::pack_dir::migrate_legacy_packs(&instance_dir, &version).await?;
+    }
+    let resourcepacks_dir = instance_dir.join(pack_dir);
 
     struct FileEntry {
         path: PathBuf,
@@ -267,7 +274,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Result<Vec<ModDto>, Strin
     .unwrap_or_default();
 
     if entries.is_empty() {
-        return annotate_pack_inventory(&instance_dir, "resourcepacks", Vec::new()).await;
+        return annotate_pack_inventory(&instance_dir, pack_dir, Vec::new()).await;
     }
 
     let dir_clone = entries[0].path.parent().unwrap().to_path_buf();
@@ -336,7 +343,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Result<Vec<ModDto>, Strin
             resourcepacks.len(),
             id
         );
-        return annotate_pack_inventory(&instance_dir, "resourcepacks", resourcepacks).await;
+        return annotate_pack_inventory(&instance_dir, pack_dir, resourcepacks).await;
     }
 
     // Cache miss: return minimal, enrich in background
@@ -371,6 +378,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Result<Vec<ModDto>, Strin
 
     let id2 = id.clone();
     let cache_path2 = cache_path.clone();
+    let pack_dir_task = pack_dir.to_string();
     tokio::spawn(async move {
         let handles: Vec<_> = entries
             .into_iter()
@@ -402,7 +410,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Result<Vec<ModDto>, Strin
         let Ok(_files_guard) = handle.try_lock_files() else {
             return;
         };
-        if handle.get_instance_dir().await.join("resourcepacks") != resourcepacks_dir {
+        if handle.get_instance_dir().await.join(&pack_dir_task) != resourcepacks_dir {
             return;
         }
         let mut repo = ablage::Repo::open(&cache_path2);
@@ -432,7 +440,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Result<Vec<ModDto>, Strin
         event_bus::emit(event_bus::AppEvent::ResourcepacksEnriched { id: id2.into() });
     });
 
-    annotate_pack_inventory(&instance_dir, "resourcepacks", minimal).await
+    annotate_pack_inventory(&instance_dir, pack_dir, minimal).await
 }
 
 #[tauri::command]

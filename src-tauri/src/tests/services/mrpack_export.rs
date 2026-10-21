@@ -205,6 +205,7 @@ fn defaults_sizes_and_internal_metadata_are_filtered_at_every_depth() {
         "kubejs/a.js",
         "defaultconfigs/a.toml",
         "resourcepacks/a.zip",
+        "texturepacks/a.zip",
         "shaderpacks/a.zip",
     ] {
         put(&input, path, b"abc");
@@ -241,8 +242,8 @@ fn defaults_sizes_and_internal_metadata_are_filtered_at_every_depth() {
         .iter()
         .filter(|e| !e.is_dir)
         .collect::<Vec<_>>();
-    assert_eq!(files.len(), 13);
-    assert_eq!(files.iter().filter(|e| e.default_selected).count(), 7);
+    assert_eq!(files.len(), 14);
+    assert_eq!(files.iter().filter(|e| e.default_selected).count(), 8);
     assert_eq!(files.iter().filter(|e| !e.default_selected).count(), 6);
     assert!(
         files

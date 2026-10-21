@@ -151,6 +151,7 @@ fn selected_by_default(path: &str) -> bool {
                 | "kubejs"
                 | "defaultconfigs"
                 | "resourcepacks"
+                | "texturepacks"
                 | "shaderpacks"
         )
     )
@@ -163,7 +164,9 @@ fn downloadable_content(path: &str) -> bool {
     };
     match directory {
         "mods" => file.to_ascii_lowercase().ends_with(".jar"),
-        "resourcepacks" | "shaderpacks" => file.to_ascii_lowercase().ends_with(".zip"),
+        "resourcepacks" | "texturepacks" | "shaderpacks" => {
+            file.to_ascii_lowercase().ends_with(".zip")
+        }
         _ => false,
     }
 }

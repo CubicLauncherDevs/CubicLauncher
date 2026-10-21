@@ -73,9 +73,16 @@ pub async fn open_instance_dir(id: String, sub_dir: Option<String>) -> Result<()
 
     let _files_guard = handle.try_lock_files()?;
     let instance_dir = handle.get_instance_dir().await;
+    let version = handle.get_version().await;
 
     let path = match sub_dir {
-        Some(ref sub) => sanitize_sub_path(&instance_dir, Path::new(sub))?,
+        Some(ref sub) => {
+            let name = crate::services::pack_dir::physical_pack_dir(&version, sub);
+            if name != sub.as_str() && !handle.is_busy() {
+                crate::services::pack_dir::migrate_legacy_packs(&instance_dir, &version).await?;
+            }
+            sanitize_sub_path(&instance_dir, Path::new(name))?
+        }
         None => instance_dir,
     };
 
@@ -230,6 +237,11 @@ pub async fn delete_instance_file(
     }
 
     let instance_dir = handle.get_instance_dir().await;
+    let version = handle.get_version().await;
+    let sub_dir = crate::services::pack_dir::physical_pack_dir(&version, &sub_dir).to_string();
+    if sub_dir == crate::services::pack_dir::TEXTURE_PACKS {
+        crate::services::pack_dir::migrate_legacy_packs(&instance_dir, &version).await?;
+    }
     let sub_path = sanitize_sub_path(&instance_dir, Path::new(&sub_dir))?;
     validate_filename(&filename)?;
     let file_path = sub_path.join(&filename);
@@ -256,8 +268,8 @@ pub async fn delete_instance_file(
         warn!("Archivo {:?} no existe, nada que eliminar", file_path);
     }
 
-    // Clean up ablage cache if deleting from resourcepacks or shaderpacks
-    let pack_dirs = ["resourcepacks", "shaderpacks"];
+    // Clean up ablage cache if deleting from resource/texture packs or shaderpacks
+    let pack_dirs = ["resourcepacks", "texturepacks", "shaderpacks"];
     if pack_dirs.contains(&sub_dir.as_str()) {
         let sub_path2 = sub_path.clone();
         let filename2 = filename.clone();
@@ -291,6 +303,11 @@ pub async fn add_instance_file(
     }
 
     let instance_dir = handle.get_instance_dir().await;
+    let version = handle.get_version().await;
+    let sub_dir = crate::services::pack_dir::physical_pack_dir(&version, &sub_dir).to_string();
+    if sub_dir == crate::services::pack_dir::TEXTURE_PACKS {
+        crate::services::pack_dir::migrate_legacy_packs(&instance_dir, &version).await?;
+    }
     let dest_dir = sanitize_sub_path(&instance_dir, Path::new(&sub_dir))?;
     info!(
         "Agregando archivo '{}' a instancia {} en sub_dir '{}'",

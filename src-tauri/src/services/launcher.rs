@@ -521,6 +521,16 @@ impl Launcher {
                 })?;
         }
 
+        // Las versiones anteriores a 1.6 leen `texturepacks`, no `resourcepacks`.
+        if let Err(e) =
+            crate::services::pack_dir::migrate_legacy_packs(&instance_dir, &version).await
+        {
+            warn!(
+                "No se pudieron migrar los texturepacks de '{}': {}",
+                name, e
+            );
+        }
+
         // Si la versión o alguna de sus dependencias no está descargada,
         // encolar la descarga y salir con error descriptivo.
         // El frontend puede escuchar "download-finished" y reintentar el launch

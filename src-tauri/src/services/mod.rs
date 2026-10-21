@@ -18,6 +18,7 @@ pub mod modpack_update;
 pub mod mrpack_export;
 pub(crate) mod notification_preferences;
 pub mod options_profiles;
+pub mod pack_dir;
 pub mod server_manager;
 #[cfg(test)]
 #[path = "../tests/services/server_performance.rs"]

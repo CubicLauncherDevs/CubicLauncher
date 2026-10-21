@@ -471,6 +471,14 @@ en una lectura posterior, descartando el resultado antiguo.
 - [ ] Activar/desactivar un mod con otra version instalada: solo debe renombrarse el archivo seleccionado, conservando la seleccion tras el refresco.
 - [ ] Cambiar de Modrinth/CurseForge a Local con una peticion pendiente: la respuesta tardia no debe reemplazar ni mezclarse con los archivos locales.
 
+#### Paquetes de texturas en versiones anteriores a 1.6
+
+- [ ] Crear o importar una instancia `b1.7.3` (Beta 1.7.3), instalar un texture pack y comprobar que el archivo queda en `<instancia>/texturepacks`, no en `resourcepacks`.
+- [ ] Verificar que el pack aparezca en la pestaña de recursos, que "Abrir carpeta" abra `texturepacks` y que el juego lo muestre.
+- [ ] Colocar un pack manualmente en `<instancia>/resourcepacks`: al listar, abrir la carpeta o lanzar el juego debe moverse a `texturepacks` sin sobrescribir archivos existentes.
+- [ ] Repetir con una instancia moderna (`1.20.1` o similar): los packs deben seguir usando `resourcepacks` y no debe crearse `texturepacks`.
+- [ ] Exportar la instancia legacy a ZIP y a mrpack: el pack de `texturepacks` debe conservarse.
+
 #### Memoria y ciclo de vida de la market
 
 - Ejecutar `bun test --conditions=browser ./tests/frontend/marketplace` y `cargo test -p cubiclauncher --lib market_`.
