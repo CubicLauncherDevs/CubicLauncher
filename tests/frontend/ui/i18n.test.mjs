@@ -234,7 +234,7 @@ test("opening the selector requests metadata only and deduplicates concurrent op
 	];
 	await Promise.all([f.loadAvailableLocales(), f.loadAvailableLocales()]);
 	expect(f.calls.map((c) => c.command)).toEqual(["list_locales"]);
-	expect(f.locales.map((l) => l.code)).toEqual(["fr", "es", "en"]);
+	expect(f.locales.map((l) => l.code)).toEqual(["fr", "es", "en", "ru"]);
 	expect(f.isFetched("fr")).toBe(true);
 });
 

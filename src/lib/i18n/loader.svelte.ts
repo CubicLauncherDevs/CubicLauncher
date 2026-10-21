@@ -17,4 +17,5 @@ export const i18nLoader = $state({
 export const locales = $state<LocaleEntry[]>([
 	{ code: "es", id: "es-ES", label: "Español", flag: "🇪🇸" },
 	{ code: "en", id: "en-US", label: "English", flag: "🇺🇸" },
+	{ code: "ru", id: "ru-RU", label: "Русский", flag: "🇷🇺" },
 ]);

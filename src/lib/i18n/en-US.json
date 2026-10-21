@@ -232,7 +232,8 @@
 		"fr": "French",
 		"de": "German",
 		"uk": "Ukrainian",
-		"ja": "Japanese"
+		"ja": "Japanese",
+		"ru": "Russian"
 	},
 	"settings": {
 		"title": "Settings",
