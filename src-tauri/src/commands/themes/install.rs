@@ -26,7 +26,7 @@ fn import_zip_inner<T: ZipImportable>(zip_path: &str) -> Result<Option<ThemeEntr
     Ok(Some(entry))
 }
 
-// Separe esto pq me agobiaban esas 700 lineas 
+// Separe esto pq me agobiaban esas 700 lineas
 #[command]
 pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
     info!("Importando theme desde '{}'", source_path);
