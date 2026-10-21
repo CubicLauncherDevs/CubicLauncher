@@ -102,6 +102,136 @@ Puedes copiar tus instancias desde el launcher oficial o desde MultiMC y sus for
 
 Se copian mundos, mods, configuraciones, packs, capturas, servidores y opciones. Las versiones y loaders se instalan después desde la cola de descargas, y las cuentas hay que configurarlas de nuevo en CubicLauncher. Los componentes desconocidos y los parches del juego base no son compatibles, y no se admiten enlaces simbólicos dentro de los datos copiados.
 
+# Cómo funciona
+
+CubicLauncher separa la interfaz del trabajo pesado. El frontend SvelteKit envía comandos al backend Tauri y este responde con eventos (`app-event`) y transmisiones de logs. Cada instancia guarda su configuración en `instance.cub`, mientras que los archivos compartidos (versiones, librerías, assets y JRE) viven en el directorio `shared`.
+
+- `~/.cubic/instances/<nombre>/`: datos de la instancia y su archivo `instance.cub`.
+- `~/.cubic/shared/`: `versions`, `libraries`, `assets`, `natives` y `runtimes`.
+- `~/.cubic/settings/settings.cub`: ajustes, cuentas y preferencias.
+- `~/.cubic/themes/` y `~/.cubic/skins/`: temas y skins del usuario.
+
+## Flujo general
+
+```mermaid
+flowchart TD
+    subgraph ARRANQUE["1. Arranque"]
+        A(["Inicio"]) --> B["Tauri crea la ventana y asegura<br/>~/.cubic/{instances,shared,settings,themes,skins}"]
+        B --> C["Inicializa servicios<br/>PathManager · Settings · DownloadQueue · Launcher<br/>InstanceManager · EventBus · ThemeWatcher"]
+        C --> D["Carga settings.cub y los instance.cub"]
+        D --> E["SvelteKit: syncSettings, get_instances,<br/>versiones instaladas y preferencias"]
+    end
+
+    E --> F{"Acción del usuario"}
+
+    subgraph INSTANCIAS["2. Instancias"]
+        F -->|"Crear / importar"| G["create_instance"]
+        G --> H["Validar nombre y versión<br/>crear carpeta y escribir instance.cub"]
+        H --> I{"¿Versión y dependencias<br/>completas?"}
+        I -->|"No"| J["Encolar en DownloadQueue"]
+        I -->|"Sí"| K["Instancia lista"]
+    end
+
+    subgraph DESCARGAS["3. Descarga de versiones"]
+        J --> L["Worker de descarga"]
+        L --> M{"Tipo de versión"}
+        M -->|"Vanilla"| N["Manifiesto de Mojang"]
+        M -->|"Fabric / Quilt"| O["Metadatos del loader + MC base"]
+        M -->|"Forge / NeoForge"| P["JRE + MC base + instalador"]
+        M -->|"OptiFine"| Q["JRE + MC base + instalador"]
+        N --> R["aqua descarga<br/>librerías · assets · JAR · natives"]
+        O --> R
+        P --> R
+        Q --> R
+        R --> S["Marcadores .cubic-installing<br/>y .cubic-complete"]
+        S --> K
+    end
+
+    subgraph AUTH["4. Cuentas"]
+        F -->|"Iniciar sesión"| T{"Proveedor"}
+        T -->|"Microsoft"| U["Device code o WebView OAuth"]
+        T -->|"Yggdrasil"| V["Servidor + authlib-injector"]
+        T -->|"Sin conexión"| W["Usuario local"]
+        U --> X["Tokens en almacenamiento seguro"]
+        V --> X
+        W --> Y["Perfil local en settings.cub"]
+        X --> E
+        Y --> E
+    end
+
+    subgraph LANZAR["5. Lanzamiento"]
+        K --> Z["Comando launch"]
+        Z --> AA["Launcher.launch<br/>lock de archivos + estado Starting"]
+        AA --> AB{"¿Faltan dependencias?"}
+        AB -->|"Sí"| J
+        AB -->|"No"| AC["Leer version.json y resolver herencia<br/>Vanilla → loader"]
+        AC --> AD["Resolver Java requerido<br/>manifest → loader → overrides"]
+        AD --> AE{"¿JRE disponible?"}
+        AE -->|"No"| AF["Pedir / encolar instalación de JRE"]
+        AE -->|"Sí"| AG["Refrescar token de la cuenta"]
+        AG --> AH["Construir LaunchConfig<br/>RAM · JVM args · env · auth · quickPlay"]
+        AH --> AI["Aplicar options.txt y minecraft.jar<br/>si están configurados"]
+        AI --> AJ["launchwerk: extraer natives<br/>+ CommandBuilder (zellkern)"]
+        AJ --> AK["Lanzar proceso Java<br/>stdout/stderr → logs y UI"]
+        AK --> AL["Estado Started<br/>Discord Presence"]
+    end
+
+    subgraph EJECUCION["6. Ejecución y cierre"]
+        AL --> AM{"¿Cómo termina el proceso?"}
+        AM -->|"Salida normal / kill"| AN["Estado Off"]
+        AM -->|"Código != 0<br/>sin kill ni Stopping!"| AO["Crash detectado<br/>snapshot de logs + ventana de consola"]
+        AN --> E
+        AO --> E
+    end
+
+    S -.->|"eventos DProgress / DFinish / DError"| E
+    AK -.->|"logs y eventos app-event"| E
+```
+
+## Ciclo de lanzamiento
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Frontend SvelteKit
+    participant IPC as Comandos Tauri
+    participant L as Launcher
+    participant Q as DownloadQueue
+    participant A as aqua
+    participant Z as zellkern / launchwerk
+    participant J as Java / Minecraft
+    participant EV as EventBus
+
+    UI->>IPC: invoke("launch")
+    IPC->>L: launch(handle)
+    L->>L: Bloquear archivos y marcar Starting
+    L->>L: Verificar dependencias de la versión
+    alt Faltan dependencias
+        L->>Q: enqueue(version)
+        Q->>A: Descargar versión, loader o JRE
+        A-->>Q: Progreso de descarga
+        Q->>EV: DProgress / DFinish / DError
+        EV-->>UI: app-event
+        L-->>UI: Error VersionNotFound
+    else Dependencias completas
+        L->>L: Leer manifiesto y resolver Java
+        L->>L: Refrescar token y construir LaunchConfig
+        L->>Z: prepare(manifest, config, instancia)
+        Z->>Z: Extraer natives + CommandBuilder
+        Z->>J: Spawn del proceso Java
+        J-->>L: stdout / stderr
+        L->>EV: Logs e InstanceEdited
+        EV-->>UI: app-event
+        J-->>L: El proceso termina
+        alt Salida normal o kill
+            L->>EV: Estado Off
+        else Crash
+            L->>EV: InstanceCrashed + snapshot de logs
+        end
+        EV-->>UI: app-event
+    end
+```
+
 # Ayuda y soporte
 
 Si necesitas ayuda, puedes abrir un [issue](https://github.com/CubicLauncherDevs/CubicLauncher/issues). Si no es un error, probablemente sea más rápido preguntar en Discord.
