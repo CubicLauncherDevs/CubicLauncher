@@ -614,6 +614,8 @@
 			"rateLimitMessage": "Estás haciendo cambios muy rápido. Esperá unos segundos antes de volver a intentarlo.",
 			"unequipPending": "Capa desequipada (pendiente de guardar)",
 			"modelDetected": "Detectado según la skin. Podés cambiarlo.",
+			"classicLocked": "Una skin delgada (Alex) no se puede guardar como Clásico (Steve).",
+			"modelLockedSlim": "Skin delgada (Alex): no se puede cambiar a Clásico para evitar franjas negras en los brazos.",
 			"skinCloset": {
 				"title": "Armario de skins",
 				"savedSkins": "Skins guardadas",

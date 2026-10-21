@@ -614,6 +614,8 @@
 			"rateLimitMessage": "You're making changes too fast. Wait a few seconds before trying again.",
 			"unequipPending": "Cape unequipped (pending save)",
 			"modelDetected": "Detected from the skin. You can change it.",
+			"classicLocked": "A slim skin (Alex) can't be saved as Classic (Steve).",
+			"modelLockedSlim": "Slim skin (Alex): it can't be changed to Classic to avoid black stripes on the arms.",
 			"skinCloset": {
 				"title": "Skin closet",
 				"savedSkins": "Saved skins",

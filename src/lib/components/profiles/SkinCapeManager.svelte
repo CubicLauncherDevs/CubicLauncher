@@ -13,7 +13,11 @@
 	} from "$lib/api/cubicApi";
 	import { showError, showSuccess } from "$lib/state/state.svelte";
 	import { bumpAvatarVersion } from "$lib/state/avatarCache.svelte";
-	import { detectSkinModelFromUrl } from "$lib/utils/skinModel";
+	import {
+		canUseSkinModel,
+		detectSkinModelFromUrl,
+		type SkinModel,
+	} from "$lib/utils/skinModel";
 	import Icon from "$lib/icons/Icon.svelte";
 	import SkinPreview from "./SkinPreview.svelte";
 	import CapeList from "./CapeList.svelte";
@@ -33,15 +37,18 @@
 	let loading = $state(false);
 	// Flag no reactivo para evitar rerenders/reintentos infinitos en Svelte 5.
 	let fetchingProfile = false;
-	let skinModel = $state<"classic" | "slim">("classic");
+	let skinModel = $state<SkinModel>("classic");
 	let processing = $state(false);
 	let draggingPng = $state(false);
 	let dropTargetActive = $state(false);
 	let originalCapeId = $state<string | null>(null);
 	let selectedCapeId = $state<string | null>(null);
-	let originalVariant = $state<"classic" | "slim">("classic");
-	// El modelo actual lo eligió la detección al subir, no el usuario.
-	let modelDetected = $state(false);
+	let originalVariant = $state<SkinModel>("classic");
+	// Modelo detectado en la skin activa de la cuenta. `null` cuando no alcanza
+	// para decidir.
+	let activeDetectedModel = $state<SkinModel | null>(null);
+	// Modelo detectado en la skin que el usuario acaba de subir.
+	let pendingDetectedModel = $state<SkinModel | null>(null);
 
 	interface PendingSkin {
 		filePath: string;
@@ -50,6 +57,12 @@
 	}
 
 	let pendingSkin = $state<PendingSkin | null>(null);
+
+	// Manda la skin pendiente; si no hay, la activa.
+	const detectedModel = $derived(
+		pendingSkin ? pendingDetectedModel : activeDetectedModel,
+	);
+	const classicLocked = $derived(detectedModel === "slim");
 
 	async function loadProfile(silent = false) {
 		if (fetchingProfile) return;
@@ -71,6 +84,16 @@
 				originalCapeId = activeCape?.id ?? null;
 				selectedCapeId = originalCapeId;
 				pendingSkin = null;
+				pendingDetectedModel = null;
+				// El modelo sale de los píxeles de la skin, no solo del `variant`
+				// que reporta Mojang: así una skin delgada guardada como clásica
+				// también queda protegida de las franjas negras.
+				const detected = activeSkin?.url
+					? await detectSkinModelFromUrl(activeSkin.url)
+					: null;
+				// Si mientras se leía la imagen el usuario ya subió otra skin, la
+				// detección de esa subida manda.
+				if (!pendingSkin) activeDetectedModel = detected;
 			}
 		} finally {
 			fetchingProfile = false;
@@ -80,9 +103,9 @@
 
 	function discardChanges() {
 		pendingSkin = null;
+		pendingDetectedModel = null;
 		selectedCapeId = originalCapeId;
 		skinModel = originalVariant;
-		modelDetected = false;
 	}
 
 	async function handleFileUpload(filePath?: string) {
@@ -111,7 +134,7 @@
 		// guardada como clásica muestra una franja negra en los brazos.
 		const detected = await detectSkinModelFromUrl(previewUrl);
 		if (detected) skinModel = detected;
-		modelDetected = detected !== null;
+		pendingDetectedModel = detected;
 		pendingSkin = {
 			filePath: selected,
 			variant: skinModel === "slim" ? "SLIM" : "CLASSIC",
@@ -131,9 +154,11 @@
 		await handleFileUpload(png);
 	}
 
-	function handleModelChange(model: "classic" | "slim") {
+	function handleModelChange(model: SkinModel) {
+		// Una skin delgada no puede guardarse como clásica: aparecerían franjas
+		// negras en los brazos.
+		if (!canUseSkinModel(detectedModel, model)) return;
 		skinModel = model;
-		modelDetected = false;
 		if (pendingSkin) {
 			pendingSkin.variant = model === "slim" ? "SLIM" : "CLASSIC";
 		}
@@ -155,6 +180,16 @@
 	async function handleSaveChanges() {
 		processing = true;
 		try {
+			// Última barrera: nunca subir como clásica una skin que se detectó
+			// delgada, aunque algo haya cambiado el estado por fuera del selector.
+			if (!canUseSkinModel(detectedModel, skinModel)) {
+				showError(
+					t("errors.title"),
+					t("userMenu.skinCape.modelLockedSlim"),
+				);
+				return;
+			}
+
 			let skinChanged = false;
 			if (pendingSkin) {
 				await uploadSkinFile(
@@ -313,7 +348,10 @@
 						class="model-btn"
 						class:active={skinModel === "classic"}
 						onclick={() => handleModelChange("classic")}
-						disabled={processing}
+						disabled={processing || classicLocked}
+						title={classicLocked
+							? t("userMenu.skinCape.classicLocked")
+							: undefined}
 					>
 						{t("userMenu.skinCape.classic")}
 					</button>
@@ -327,11 +365,6 @@
 						{t("userMenu.skinCape.slim")}
 					</button>
 				</div>
-				{#if pendingSkin && modelDetected}
-					<p class="model-hint" in:fly={{ y: -4, duration: 150 }}>
-						{t("userMenu.skinCape.modelDetected")}
-					</p>
-				{/if}
 			</div>
 
 			<SkinPreview
@@ -400,6 +433,28 @@
 				</span>
 			</button>
 		</div>
+
+		{#if classicLocked || (pendingSkin && detectedModel)}
+			<div
+				class="model-notice"
+				class:locked={classicLocked}
+				role="note"
+				in:fly={{ y: -4, duration: 150 }}
+			>
+				<Icon
+					name={classicLocked ? "ui:lock" : "ui:check-circle"}
+					size={14}
+					color={classicLocked
+						? "var(--accent)"
+						: "var(--text-muted)"}
+				/>
+				<span>
+					{classicLocked
+						? t("userMenu.skinCape.modelLockedSlim")
+						: t("userMenu.skinCape.modelDetected")}
+				</span>
+			</div>
+		{/if}
 
 		<CapeList
 			capes={profile.capes}
@@ -515,23 +570,29 @@
 		top: 12px;
 		right: 12px;
 		z-index: 5;
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 4px;
 	}
 
-	.model-hint {
-		margin: 0;
-		max-width: 180px;
-		padding: 3px 8px;
-		font-size: 0.65rem;
-		text-align: right;
-		color: var(--text-secondary);
-		background: rgba(var(--bg-card-rgb, 0, 0, 0), 0.6);
-		backdrop-filter: blur(4px);
+	.model-notice {
+		display: flex;
+		align-items: flex-start;
+		gap: 8px;
+		padding: 8px 10px;
+		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
-		border: var(--border-width) solid var(--border);
+		background: var(--bg-card);
+		color: var(--text-secondary);
+		font-size: 0.72rem;
+		line-height: 1.4;
+	}
+
+	.model-notice span {
+		min-width: 0;
+	}
+
+	.model-notice.locked {
+		border-color: rgba(var(--accent-rgb), 0.35);
+		background: rgba(var(--accent-rgb), 0.08);
+		color: var(--text-primary);
 	}
 
 	.model-selector {

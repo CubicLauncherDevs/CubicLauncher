@@ -119,6 +119,14 @@ bun run tauri build
 
 `dangerousDisableAssetCspModification` excluye solo `style-src`: los temas crean estilos inline dinamicos. Inyectar hashes/nonces en esa directiva haria que el navegador ignorase `'unsafe-inline'` y bloqueara esos estilos. La modificacion automatica de `script-src` permanece activa.
 
+### Skins
+
+- [ ] Subir una skin dibujada para el modelo delgado (Alex): el botón **Clásico** queda deshabilitado y el aviso explica que aparecerían franjas negras.
+- [ ] Subir una skin clásica (Steve): se puede alternar entre Clásico y Delgado y guardar.
+- [ ] Con una skin delgada ya activa en la cuenta, comprobar que no se puede pasar a Clásico sin volver a subir el archivo.
+- [ ] Sin conexión (no se puede leer la imagen de la skin activa), comprobar que el selector sigue disponible y no bloquea de más.
+- [ ] Ejecutar `bun test --conditions=browser ./tests/frontend/ui/skinModel.test.mjs`.
+
 ### Instancias
 
 - [ ] Crear instancia Vanilla y lanzarla.

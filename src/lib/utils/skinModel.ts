@@ -14,6 +14,24 @@
 
 export type SkinModel = "classic" | "slim";
 
+/**
+ * Decide si se puede usar un modelo con la skin detectada.
+ *
+ * Una skin delgada no puede pasar a clásico: el juego lee las columnas que la
+ * skin delgada no dibuja y, como la capa base es opaca, aparecen franjas
+ * (casi siempre negras) en la parte de atrás de los brazos. Al revés no pasa
+ * nada: una skin clásica guardada como delgada solo se ve con brazos más finos.
+ *
+ * Si no hay datos suficientes para detectar el modelo (`null`), se deja elegir
+ * al usuario.
+ */
+export function canUseSkinModel(
+	detected: SkinModel | null,
+	target: SkinModel,
+): boolean {
+	return !(detected === "slim" && target === "classic");
+}
+
 interface Zone {
 	x: number;
 	y: number;
@@ -125,6 +143,10 @@ export async function detectSkinModelFromUrl(
 function loadImage(url: string): Promise<HTMLImageElement> {
 	return new Promise((resolve, reject) => {
 		const image = new Image();
+		// Sin CORS el canvas queda contaminado y getImageData falla: hace falta
+		// para leer skins remotas (textures.minecraft.net las sirve con
+		// Access-Control-Allow-Origin).
+		image.crossOrigin = "anonymous";
 		image.onload = () => resolve(image);
 		image.onerror = () => reject(new Error("No se pudo leer la skin"));
 		image.src = url;

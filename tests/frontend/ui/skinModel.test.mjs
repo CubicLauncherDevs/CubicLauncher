@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test";
-import { detectSkinModel } from "../../../src/lib/utils/skinModel.ts";
+import {
+	canUseSkinModel,
+	detectSkinModel,
+} from "../../../src/lib/utils/skinModel.ts";
 
 // Skin sintética: se pintan rectángulos opacos en coordenadas de 64×64.
 function skin({ width = 64, height = 64, paint = [], alpha = 255 } = {}) {
@@ -108,4 +111,16 @@ test("HD skins are read with the same rule", () => {
 	expect(detect(skin({ width: 128, height: 64, paint: SLIM_ARMS }))).toBe(
 		"classic",
 	);
+});
+
+test("a slim skin cannot be switched to the classic model", () => {
+	// Delgado -> clásico es el caso que deja columnas vacías y franjas negras.
+	expect(canUseSkinModel("slim", "classic")).toBe(false);
+	expect(canUseSkinModel("slim", "slim")).toBe(true);
+	// Clásico -> delgado solo adelgaza los brazos, no rompe la skin.
+	expect(canUseSkinModel("classic", "classic")).toBe(true);
+	expect(canUseSkinModel("classic", "slim")).toBe(true);
+	// Sin datos suficientes se deja elegir libremente.
+	expect(canUseSkinModel(null, "classic")).toBe(true);
+	expect(canUseSkinModel(null, "slim")).toBe(true);
 });
