@@ -635,6 +635,10 @@
 		},
 		"authModal": {
 			"title": "Microsoft Login",
+			"sessionExpired": "The session for {username} expired. Sign in again to continue.",
+			"fromLauncher": "From the launcher",
+			"withCode": "With an authentication code",
+			"otherMethod": "Choose another method",
 			"instruction": "To login with your Microsoft account, copy the following link and enter the code shown below:",
 			"copyLink": "Copy link",
 			"linkCopied": "Link copied!",
@@ -1121,7 +1125,7 @@
 		"AUTH_TOKENS_SAVE": "Could not save tokens: {error}",
 		"AUTH_TOKENS_DEL": "Could not delete tokens: {error}",
 		"AUTH_BLOCKED": "Internal error: {error}",
-		"AUTH_SESSION_EXPIRED": "Session expired. Please restart the launcher and log in again: {error}",
+		"AUTH_SESSION_EXPIRED": "Session expired. Sign in again: {error}",
 		"INST_BUSY": "Instance is running",
 		"GENERIC": "An unexpected error occurred: {error}"
 	},

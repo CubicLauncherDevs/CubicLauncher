@@ -635,6 +635,10 @@
 		},
 		"authModal": {
 			"title": "Inicio de Sesión Microsoft",
+			"sessionExpired": "La sesión de {username} venció. Inicia sesión de nuevo para continuar.",
+			"fromLauncher": "Desde el launcher",
+			"withCode": "Con código de autenticación",
+			"otherMethod": "Elegir otro método",
 			"instruction": "Para iniciar sesión con tu cuenta de Microsoft, copia el siguiente enlace e introduce el código que aparece a continuación:",
 			"copyLink": "Copiar enlace",
 			"linkCopied": "¡Enlace copiado!",
@@ -1121,7 +1125,7 @@
 		"AUTH_TOKENS_SAVE": "Error al guardar tokens: {error}",
 		"AUTH_TOKENS_DEL": "Error al eliminar tokens: {error}",
 		"AUTH_BLOCKED": "Error interno: {error}",
-		"AUTH_SESSION_EXPIRED": "Sesión expirada. Reinicia el launcher e inicia sesión de nuevo: {error}",
+		"AUTH_SESSION_EXPIRED": "Sesión expirada. Inicia sesión de nuevo: {error}",
 		"GENERIC": "Ocurrió un error inesperado: {error}",
 		"INST_BUSY": "La instancia se está ejecutando"
 	},

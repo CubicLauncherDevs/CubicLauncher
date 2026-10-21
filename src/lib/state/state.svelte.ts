@@ -5,6 +5,7 @@ import type {
 	NotificationType,
 	JreInstallPrompt,
 	PendingJreLaunch,
+	MinecraftUser,
 } from "../types/types";
 import { DEFAULT_CONSOLE_HISTORY_LIMIT } from "$lib/components/log/logHelpers";
 import { t } from "$lib/i18n";
@@ -19,6 +20,10 @@ export interface LauncherState {
 	notifications: Notification[];
 	jreInstallPrompt: JreInstallPrompt | null;
 	pendingJreLaunch: PendingJreLaunch | null;
+	reauthPrompt: Pick<
+		MinecraftUser,
+		"uuid" | "username" | "user_type" | "yggdrasil_server_url"
+	> | null;
 }
 
 export const launcherStore = $state<LauncherState>({
@@ -28,6 +33,7 @@ export const launcherStore = $state<LauncherState>({
 	notifications: [],
 	jreInstallPrompt: null,
 	pendingJreLaunch: null,
+	reauthPrompt: null,
 	settings: {
 		user: [],
 		active_user_idx: 0,
@@ -189,6 +195,21 @@ export function showErrorParsed(rawError: unknown) {
 	try {
 		const parsed = JSON.parse(rawError as string);
 		if (parsed.code) {
+			if (parsed.code === "AUTH_SESSION_EXPIRED") {
+				const user =
+					launcherStore.settings.user[
+						launcherStore.settings.active_user_idx
+					];
+				if (user && user.user_type !== "Cracked") {
+					launcherStore.reauthPrompt = {
+						uuid: user.uuid,
+						username: user.username,
+						user_type: user.user_type,
+						yggdrasil_server_url: user.yggdrasil_server_url,
+					};
+					return;
+				}
+			}
 			const params = parsed.params || {};
 			const msg = t(`errors.${parsed.code}`, params);
 			if (parsed.code === "INST_VERSION_NOT_FOUND") {

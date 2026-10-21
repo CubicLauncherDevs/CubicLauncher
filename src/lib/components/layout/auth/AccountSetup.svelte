@@ -15,10 +15,16 @@
 		provider,
 		onclose,
 		onsuccess,
+		initialServerUrl,
+		autoConnect = false,
+		reauthUsername,
 	}: {
 		provider: AccountProvider;
 		onclose: () => void;
 		onsuccess?: () => void;
+		initialServerUrl?: string;
+		autoConnect?: boolean;
+		reauthUsername?: string;
 	} = $props();
 
 	let open = $state(true);
@@ -123,12 +129,16 @@
 			</form>
 		</ModalBase>
 	{:else if provider === "premium"}
-		<AuthModal bind:open {onsuccess} />
+		<AuthModal bind:open {onsuccess} {reauthUsername} />
 	{:else}
 		<YggdrasilModal
 			bind:open
 			title={t(`userMenu.accountSetup.${provider}`)}
-			initialServerUrl={ACCOUNT_SERVER_PRESETS[provider] ?? ""}
+			initialServerUrl={initialServerUrl ??
+				ACCOUNT_SERVER_PRESETS[provider] ??
+				""}
+			{autoConnect}
+			{reauthUsername}
 			serverInstruction={provider === "cubicAuth"
 				? t("userMenu.accountSetup.cubicAuthServer")
 				: undefined}

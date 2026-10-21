@@ -20,7 +20,7 @@ pub enum AuthError {
     #[error("La autenticación fue cancelada o expiró: {0}")]
     AuthCancelled(String),
 
-    #[error("Sesión expirada. Reinicia el launcher e inicia sesión de nuevo: {0}")]
+    #[error("Sesión expirada. Inicia sesión de nuevo: {0}")]
     SessionExpired(String),
 
     #[error(transparent)]

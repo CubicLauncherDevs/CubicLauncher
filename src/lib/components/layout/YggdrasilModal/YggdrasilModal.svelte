@@ -23,6 +23,7 @@
 		signupUrl,
 		autoConnect = false,
 		onsuccess,
+		reauthUsername,
 	} = $props<{
 		open: boolean;
 		initialServerUrl?: string;
@@ -31,6 +32,7 @@
 		signupUrl?: string;
 		autoConnect?: boolean;
 		onsuccess?: () => void;
+		reauthUsername?: string;
 	}>();
 
 	type Step = "server" | "login" | "loading" | "success" | "error";
@@ -116,6 +118,13 @@
 
 <ModalBase bind:open title={title ?? t("userMenu.yggdrasilModal.title")}>
 	<div class="ygg-container">
+		{#if reauthUsername}
+			<p class="reauth-message">
+				{t("userMenu.authModal.sessionExpired", {
+					username: reauthUsername,
+				})}
+			</p>
+		{/if}
 		<div class="ygg-logo-wrapper">
 			<svg
 				class="ygg-logo"
@@ -174,6 +183,10 @@
 </ModalBase>
 
 <style>
+	.reauth-message {
+		margin: 0 0 1rem;
+		color: var(--text-secondary);
+	}
 	.ygg-container {
 		display: flex;
 		flex-direction: column;

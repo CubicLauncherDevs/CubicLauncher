@@ -556,7 +556,7 @@ impl Launcher {
         // refresco de Microsoft nunca se ejecuta.
         if let Err(e) = user.load_tokens() {
             error!("No se pudieron cargar los tokens del usuario: {:?}", e);
-            return Err(AppError::Auth(AuthError::AuthFailed(format!(
+            return Err(AppError::Auth(AuthError::SessionExpired(format!(
                 "No se pudieron cargar los tokens: {}",
                 e
             ))));
@@ -1042,11 +1042,10 @@ pub(crate) async fn refresh_microsoft_token(
     }
 
     let Some(refresh_token) = user.refresh_token.clone() else {
-        warn!(
-            "No hay refresh token de Microsoft para {}. Continuando con el token actual.",
-            user.username
-        );
-        return Ok(user);
+        warn!("No hay refresh token de Microsoft para {}.", user.username);
+        return Err(AppError::Auth(AuthError::SessionExpired(
+            "No hay un token de refresco disponible. Vuelve a iniciar sesión.".into(),
+        )));
     };
 
     info!("Refrescando token de Microsoft...");
@@ -1090,14 +1089,19 @@ async fn refresh_yggdrasil_token(mut user: MinecraftUser) -> Result<MinecraftUse
         Some(url) => url.clone(),
         None => {
             warn!("URL del servidor Yggdrasil no configurada, no se puede refrescar token");
-            return Ok(user);
+            return Err(AppError::Auth(AuthError::SessionExpired(
+                "Falta la dirección del servidor de autenticación. Vuelve a iniciar sesión.".into(),
+            )));
         }
     };
 
     // Load tokens from secure storage
     if let Err(e) = user.load_tokens() {
         warn!("Error cargando tokens Yggdrasil: {:?}", e);
-        return Ok(user);
+        return Err(AppError::Auth(AuthError::SessionExpired(format!(
+            "No se pudieron cargar los tokens Yggdrasil: {}. Vuelve a iniciar sesión.",
+            e
+        ))));
     }
 
     let client_token = user

@@ -17,6 +17,8 @@
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
 	import JreInstallPrompt from "$lib/components/ui/JreInstallPrompt.svelte";
+	import AccountSetup from "$lib/components/layout/auth/AccountSetup.svelte";
+	import { getAccountProvider } from "$lib/utils/accountProviders";
 	import { updaterState } from "$lib/state/updaterState.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
 	import { initDiscordPresence } from "$lib/api/cubicApi";
@@ -605,6 +607,16 @@
 
 	<NotificationContainer />
 	<JreInstallPrompt />
+	{#if launcherStore.reauthPrompt && !logParams}
+		<AccountSetup
+			provider={getAccountProvider(launcherStore.reauthPrompt)}
+			initialServerUrl={launcherStore.reauthPrompt.yggdrasil_server_url ??
+				undefined}
+			autoConnect={launcherStore.reauthPrompt.user_type === "Yggdrasil"}
+			reauthUsername={launcherStore.reauthPrompt.username}
+			onclose={() => (launcherStore.reauthPrompt = null)}
+		/>
+	{/if}
 	{#if UpdateModal}
 		<UpdateModal />
 	{:else if updaterState.open}
