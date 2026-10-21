@@ -13,6 +13,7 @@
 	} from "$lib/api/cubicApi";
 	import { showError, showSuccess } from "$lib/state/state.svelte";
 	import { bumpAvatarVersion } from "$lib/state/avatarCache.svelte";
+	import { detectSkinModelFromUrl } from "$lib/utils/skinModel";
 	import Icon from "$lib/icons/Icon.svelte";
 	import SkinPreview from "./SkinPreview.svelte";
 	import CapeList from "./CapeList.svelte";
@@ -39,6 +40,8 @@
 	let originalCapeId = $state<string | null>(null);
 	let selectedCapeId = $state<string | null>(null);
 	let originalVariant = $state<"classic" | "slim">("classic");
+	// El modelo actual lo eligió la detección al subir, no el usuario.
+	let modelDetected = $state(false);
 
 	interface PendingSkin {
 		filePath: string;
@@ -79,6 +82,7 @@
 		pendingSkin = null;
 		selectedCapeId = originalCapeId;
 		skinModel = originalVariant;
+		modelDetected = false;
 	}
 
 	async function handleFileUpload(filePath?: string) {
@@ -103,6 +107,11 @@
 			showError(t("errors.title"), String(e));
 			return;
 		}
+		// El modelo sale de la propia skin, no de la anterior: una skin delgada
+		// guardada como clásica muestra una franja negra en los brazos.
+		const detected = await detectSkinModelFromUrl(previewUrl);
+		if (detected) skinModel = detected;
+		modelDetected = detected !== null;
 		pendingSkin = {
 			filePath: selected,
 			variant: skinModel === "slim" ? "SLIM" : "CLASSIC",
@@ -124,6 +133,7 @@
 
 	function handleModelChange(model: "classic" | "slim") {
 		skinModel = model;
+		modelDetected = false;
 		if (pendingSkin) {
 			pendingSkin.variant = model === "slim" ? "SLIM" : "CLASSIC";
 		}
@@ -296,25 +306,32 @@
 		</div>
 	{:else if profile}
 		<div class="preview-card">
-			<div class="model-selector">
-				<button
-					type="button"
-					class="model-btn"
-					class:active={skinModel === "classic"}
-					onclick={() => handleModelChange("classic")}
-					disabled={processing}
-				>
-					{t("userMenu.skinCape.classic")}
-				</button>
-				<button
-					type="button"
-					class="model-btn"
-					class:active={skinModel === "slim"}
-					onclick={() => handleModelChange("slim")}
-					disabled={processing}
-				>
-					{t("userMenu.skinCape.slim")}
-				</button>
+			<div class="model-controls">
+				<div class="model-selector">
+					<button
+						type="button"
+						class="model-btn"
+						class:active={skinModel === "classic"}
+						onclick={() => handleModelChange("classic")}
+						disabled={processing}
+					>
+						{t("userMenu.skinCape.classic")}
+					</button>
+					<button
+						type="button"
+						class="model-btn"
+						class:active={skinModel === "slim"}
+						onclick={() => handleModelChange("slim")}
+						disabled={processing}
+					>
+						{t("userMenu.skinCape.slim")}
+					</button>
+				</div>
+				{#if pendingSkin && modelDetected}
+					<p class="model-hint" in:fly={{ y: -4, duration: 150 }}>
+						{t("userMenu.skinCape.modelDetected")}
+					</p>
+				{/if}
 			</div>
 
 			<SkinPreview
@@ -493,11 +510,31 @@
 		height: 100%;
 	}
 
-	.model-selector {
+	.model-controls {
 		position: absolute;
 		top: 12px;
 		right: 12px;
 		z-index: 5;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 4px;
+	}
+
+	.model-hint {
+		margin: 0;
+		max-width: 180px;
+		padding: 3px 8px;
+		font-size: 0.65rem;
+		text-align: right;
+		color: var(--text-secondary);
+		background: rgba(var(--bg-card-rgb, 0, 0, 0), 0.6);
+		backdrop-filter: blur(4px);
+		border-radius: var(--border-radius-sm);
+		border: var(--border-width) solid var(--border);
+	}
+
+	.model-selector {
 		display: inline-flex;
 		gap: 4px;
 		background: rgba(var(--bg-card-rgb, 0, 0, 0), 0.6);
@@ -651,7 +688,7 @@
 			height: 260px;
 		}
 
-		.model-selector {
+		.model-controls {
 			top: 8px;
 			right: 8px;
 		}
