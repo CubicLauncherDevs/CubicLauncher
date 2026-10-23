@@ -1,0 +1,11 @@
+.git
+.github
+.svelte-kit
+build
+dist
+node_modules
+target
+tests
+result
+result-*
+*.snt

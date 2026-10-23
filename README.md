@@ -82,6 +82,80 @@ actualización en la [guía de Nix](dist/nix/README.md).
 
 Para ver en qué otras distribuciones está disponible, revisa [Repology](https://repology.org/project/cubiclauncher/versions).
 
+## Docker
+
+La imagen se publica en GitHub Packages para `linux/amd64` y `linux/arm64`:
+
+```bash
+docker pull ghcr.io/cubiclauncherdevs/cubiclauncher:latest
+```
+
+Como CubicLauncher es una aplicación de escritorio, el contenedor necesita
+acceso al servidor gráfico del host. En X11:
+
+```bash
+xhost +si:localuser:$(id -un)
+docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/data \
+  -e DISPLAY \
+  -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+  -v cubic-data:/data \
+  --device /dev/dri \
+  ghcr.io/cubiclauncherdevs/cubiclauncher:latest
+```
+
+En Wayland:
+
+```bash
+docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/data \
+  -e XDG_RUNTIME_DIR=/run/user/$(id -u) \
+  -e WAYLAND_DISPLAY \
+  -e GDK_BACKEND=wayland \
+  -v "$XDG_RUNTIME_DIR:/run/user/$(id -u)" \
+  -v cubic-data:/data \
+  --device /dev/dri \
+  ghcr.io/cubiclauncherdevs/cubiclauncher:latest
+```
+
+El volumen `cubic-data` conserva `~/.cubic` (instancias, ajustes y el JRE que
+descarga el launcher). Para usar los datos del host, monta
+`-v "$HOME/.cubic:/data/.cubic"`. La imagen funciona con cualquier UID gracias a
+`--user`, pero el directorio `/data` debe ser escribible por ese UID (el volumen
+se crea con permisos `1777`).
+
+Notas:
+
+- Con NVIDIA necesitas `nvidia-container-toolkit` y `--gpus all`. Si la interfaz
+  aparece en blanco, añade `-e WEBKIT_DISABLE_DMABUF_RENDERER=1`.
+- Para audio con PulseAudio monta el socket y define `PULSE_SERVER`; para ALSA
+  usa `--device /dev/snd`.
+- El actualizador integrado no funciona dentro del contenedor: actualiza
+  cambiando la etiqueta de la imagen.
+- Si WebKit falla al iniciar por el sandbox, prueba
+  `--security-opt seccomp=unconfined`.
+
+Para compilar la imagen localmente:
+
+```bash
+docker build -t cubiclauncher .
+```
+
+El workflow [`.github/workflows/docker.yml`](.github/workflows/docker.yml)
+publica la imagen al crear un tag `v*`. Para sembrar la primera versión con el
+último release publicado, ejecútalo manualmente desde
+**Actions → Docker Image → Run workflow** y deja el campo `tag` vacío: se
+resolverá automáticamente el último release estable (por ejemplo, `v36.0.1`) y
+se compilará el código de ese tag, no el de la rama actual. También puedes
+indicar un tag concreto; si no es el último release, no se moverá `latest`.
+
+Las etiquetas publicadas son la versión (`36.0.1`), `36.0`, `36` y `latest`.
+`latest` solo se mueve cuando se publica el release más reciente; las versiones
+prerelease únicamente reciben su propia etiqueta. Si el paquete aparece privado,
+cambia su visibilidad a pública en la configuración del paquete en GitHub.
+
 # Qué puede hacer
 
 - Crear, configurar, importar y exportar instancias.

@@ -1,0 +1,199 @@
+name: Docker Image
+
+on:
+    push:
+        tags:
+            - "v*"
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "Tag a publicar (vacío = último release estable)"
+                required: false
+                type: string
+
+env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    REGISTRY: ghcr.io
+    IMAGE_NAME: cubiclauncherdevs/cubiclauncher
+
+permissions:
+    contents: read
+    packages: write
+
+jobs:
+    resolve:
+        name: Resolve tag
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            tag: ${{ steps.resolve.outputs.tag }}
+            version: ${{ steps.resolve.outputs.version }}
+            is_latest: ${{ steps.resolve.outputs.is_latest }}
+        steps:
+            - name: Resolve tag
+              id: resolve
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  INPUT_TAG: ${{ github.event.inputs.tag }}
+                  REF_NAME: ${{ github.ref_name }}
+              run: |
+                  if [[ "${{ github.event_name }}" == "push" ]]; then
+                    tag="$REF_NAME"
+                    if [[ "$tag" == *-* ]]; then
+                      is_latest=false
+                    else
+                      is_latest=true
+                    fi
+                  else
+                    latest=$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name)
+                    if [[ -n "$INPUT_TAG" ]]; then
+                      tag="$INPUT_TAG"
+                      if [[ "$tag" == "$latest" ]]; then
+                        is_latest=true
+                      else
+                        is_latest=false
+                      fi
+                    else
+                      tag="$latest"
+                      is_latest=true
+                    fi
+                  fi
+
+                  if [[ ! "$tag" =~ ^v[0-9]+(\.[0-9]+)*(-[0-9A-Za-z.-]+)?$ ]]; then
+                    echo "Tag inválido: $tag" >&2
+                    exit 1
+                  fi
+
+                  {
+                    echo "tag=$tag"
+                    echo "version=${tag#v}"
+                    echo "is_latest=$is_latest"
+                  } >> "$GITHUB_OUTPUT"
+
+    build:
+        name: Build (${{ matrix.platform }})
+        needs: resolve
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 120
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - platform: linux/amd64
+                      arch: amd64
+                      runner: ubuntu-24.04
+                    - platform: linux/arm64
+                      arch: arm64
+                      runner: ubuntu-24.04-arm
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Checkout ${{ needs.resolve.outputs.tag }}
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ needs.resolve.outputs.tag }}
+                  path: source
+
+            - name: Prepare build context
+              run: |
+                  cp Dockerfile source/Dockerfile
+                  cp .dockerignore source/.dockerignore
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to GHCR
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Build and push by digest
+              id: build
+              uses: docker/build-push-action@v6
+              with:
+                  context: source
+                  platforms: ${{ matrix.platform }}
+                  labels: |
+                      org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+                      org.opencontainers.image.title=CubicLauncher
+                      org.opencontainers.image.description=Launcher de Minecraft de código abierto
+                      org.opencontainers.image.licenses=GPL-3.0-only
+                  outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+                  cache-from: type=gha,scope=${{ matrix.platform }}
+                  cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+
+            - name: Export digest
+              run: |
+                  mkdir -p /tmp/digests
+                  digest="${{ steps.build.outputs.digest }}"
+                  touch "/tmp/digests/${digest#sha256:}"
+
+            - name: Upload digest
+              uses: actions/upload-artifact@v4
+              with:
+                  name: digests-${{ matrix.arch }}
+                  path: /tmp/digests/*
+                  if-no-files-found: error
+                  retention-days: 1
+
+    merge:
+        name: Publish multi-arch manifest
+        needs: [build, resolve]
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - name: Download digests
+              uses: actions/download-artifact@v4
+              with:
+                  path: /tmp/digests
+                  pattern: digests-*
+                  merge-multiple: true
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to GHCR
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Create multi-arch manifest
+              working-directory: /tmp/digests
+              env:
+                  VERSION: ${{ needs.resolve.outputs.version }}
+                  IS_LATEST: ${{ needs.resolve.outputs.is_latest }}
+              run: |
+                  image="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+                  tags=("-t" "${image}:${VERSION}")
+
+                  if [[ "$VERSION" != *-* ]]; then
+                    IFS='.' read -r major minor _rest <<< "$VERSION"
+
+                    if [[ -n "${minor:-}" && "${major}.${minor}" != "$VERSION" ]]; then
+                      tags+=("-t" "${image}:${major}.${minor}")
+                    fi
+
+                    if [[ "$major" != "$VERSION" ]]; then
+                      tags+=("-t" "${image}:${major}")
+                    fi
+
+                    if [[ "$IS_LATEST" == "true" ]]; then
+                      tags+=("-t" "${image}:latest")
+                    fi
+                  fi
+
+                  refs=()
+                  for file in *; do
+                    refs+=("${image}@sha256:${file}")
+                  done
+
+                  docker buildx imagetools create "${tags[@]}" "${refs[@]}"
+
+            - name: Inspect image
+              run: |
+                  docker buildx imagetools inspect \
+                    ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.resolve.outputs.version }}
