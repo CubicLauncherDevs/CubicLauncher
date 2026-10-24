@@ -1,4 +1,5 @@
 use crate::core::http_client::HTTP;
+use crate::core::sanitize::redact_log_line;
 use crate::core::webview::secondary_window_config;
 use crate::services::launcher::{LogLine, get_log_history};
 use dashmap::DashMap;
@@ -113,11 +114,16 @@ pub async fn open_log_window(
 
 #[tauri::command]
 pub async fn upload_log_to_mclogs(content: String) -> Result<String, String> {
-    // El contenido ya fue sanitizado al entrar al LogRing; no es necesario
-    // volver a limpiarlo aquí.
+    // El contenido llega desde el WebView, así que no se confía en que el
+    // LogRing ya lo haya limpiado: un log antiguo, una línea pegada a mano o
+    // una ruta distinta podrían publicar un JWT en un servicio externo.
+    let content = redact_log_line(&content);
+    if content.trim().is_empty() {
+        return Err("No hay contenido para subir".to_string());
+    }
     let resp = HTTP
         .post("https://api.mclo.gs/1/log")
-        .form(&[("content", content.as_str())])
+        .form(&[("content", content.as_ref())])
         .send()
         .await
         .map_err(|e| format!("Error de red: {}", e))?;

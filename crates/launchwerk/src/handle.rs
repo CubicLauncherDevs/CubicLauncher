@@ -114,8 +114,21 @@ impl InstanceHandle {
             inner.uuid,
             cmd_args.len()
         );
+        // Los argumentos incluyen --accessToken: nunca deben llegar a stdout
+        // ni a un log redirigido por el usuario.
+        let mut hide_next = false;
         for (i, arg) in cmd_args.iter().enumerate() {
-            debug!("  [{i}] {arg}");
+            if hide_next {
+                debug!("  [{i}] ***");
+                hide_next = false;
+            } else if is_secret_flag(arg) {
+                debug!("  [{i}] {arg}");
+                hide_next = true;
+            } else if looks_like_jwt(arg) {
+                debug!("  [{i}] ***");
+            } else {
+                debug!("  [{i}] {arg}");
+            }
         }
 
         // ── Spawn ─────────────────────────────────────────────────────────
@@ -250,4 +263,17 @@ impl InstanceHandle {
             stderr: stderr_rx,
         }
     }
+}
+
+/// Banderas cuyo argumento siguiente es una credencial de sesión.
+fn is_secret_flag(arg: &str) -> bool {
+    matches!(
+        arg.to_ascii_lowercase().as_str(),
+        "--accesstoken" | "--clienttoken" | "--authtoken" | "--session" | "--token"
+    )
+}
+
+/// Un JWT compacto tiene tres segmentos y empieza por `eyJ` (base64 de `{"`).
+fn looks_like_jwt(arg: &str) -> bool {
+    arg.starts_with("eyJ") && arg.matches('.').count() == 2
 }

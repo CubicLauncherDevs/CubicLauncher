@@ -127,39 +127,10 @@ fn strip_ansi(line: &str) -> String {
     ansi_regex().replace_all(line, "").into_owned()
 }
 
-fn token_regex() -> &'static Regex {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r#"(?i)(access[_-]?token|refresh[_-]?token|client[_-]?token|authorization|bearer)(['"]?\s*[:=]\s*['"]?|\s+)([A-Za-z0-9_\-\.]+)"#).unwrap()
-    })
-}
-
-fn session_id_regex() -> &'static Regex {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r#"(?i)(session\s+id\s+is\s*[:=]?\s*)([A-Za-z0-9_\-\.=+/]+)"#).unwrap()
-    })
-}
-
 /// Limpia líneas que puedan contener credenciales. Oculta solo el valor,
 /// no descarta la línea completa.
 fn sanitize_line(line: &str) -> String {
-    let line = token_regex().replace_all(line, "${1}${2}***").into_owned();
-    let line = session_id_regex()
-        .replace_all(&line, "${1}***")
-        .into_owned();
-    let line = email_regex().replace_all(&line, "<email>").into_owned();
-    ip_regex().replace_all(&line, "<ip>").into_owned()
-}
-
-fn ip_regex() -> &'static Regex {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r#"\b(?:\d{1,3}\.){3}\d{1,3}\b"#).unwrap())
-}
-
-fn email_regex() -> &'static Regex {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r#"(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}"#).unwrap())
+    crate::core::sanitize::redact_log_line(line).into_owned()
 }
 
 // ── User-aware Sensitive Data Filter ────────────────────────────────────────
