@@ -97,12 +97,16 @@
 	}
 </script>
 
-<aside class="sidebar">
-	<div class="sidebar-header" data-tutorial="sidebar-header">
+<aside class="sidebar" data-part="sidebar-panel">
+	<div
+		class="sidebar-header"
+		data-tutorial="sidebar-header"
+		data-part="sidebar-header"
+	>
 		<h1 class="sidebar-title">CUBICLAUNCHER</h1>
 	</div>
 
-	<div class="sidebar-content">
+	<div class="sidebar-content" data-part="sidebar-content">
 		<div
 			class="instances-section"
 			role="region"
@@ -139,7 +143,7 @@
 		</div>
 	</div>
 
-	<div class="sidebar-sections">
+	<div class="sidebar-sections" data-part="sidebar-sections">
 		<DownloadQueue />
 
 		<div class="section-full">

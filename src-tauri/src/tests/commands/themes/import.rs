@@ -1,4 +1,5 @@
 use super::*;
+use crate::commands::themes::load_user_theme;
 use std::io::Write;
 
 struct TestDir(PathBuf);

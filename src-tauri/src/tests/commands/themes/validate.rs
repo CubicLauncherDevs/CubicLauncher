@@ -327,3 +327,117 @@ fn inject_enabled_overrides_injects_css_false() {
             .any(|warning| warning.contains("missing.css"))
     );
 }
+
+
+// ── Herencia (extends) y layout packs ───────────────────────────────────────
+
+fn write_theme(dir: &TestDir, theme: &str, meta: &str, definition: &str) {
+    dir.write(&format!("{theme}/Meta.toml"), meta);
+    dir.write(&format!("{theme}/Definition.toml"), definition);
+}
+
+#[test]
+fn valid_extends_has_no_errors() {
+    let dir = TestDir::new();
+    write_theme(
+        &dir,
+        "base",
+        "name = 'Base'\nauthor = 'Author'\n",
+        "[colors]\naccent = '#ff0000'\n",
+    );
+    write_theme(
+        &dir,
+        "child",
+        "name = 'Child'\nauthor = 'Author'\nextends = 'base'\n",
+        "[colors]\naccent = '#0000ff'\n",
+    );
+
+    let report = validate_theme_at(&dir.path().join("child"), "child");
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+}
+
+#[test]
+fn extends_cycle_reports_error() {
+    let dir = TestDir::new();
+    write_theme(
+        &dir,
+        "a",
+        "name = 'A'\nauthor = 'Author'\nextends = 'b'\n",
+        "[colors]\naccent = '#ff0000'\n",
+    );
+    write_theme(
+        &dir,
+        "b",
+        "name = 'B'\nauthor = 'Author'\nextends = 'a'\n",
+        "[colors]\naccent = '#00ff00'\n",
+    );
+
+    let report = validate_theme_at(&dir.path().join("a"), "a");
+    assert!(
+        report
+            .errors
+            .iter()
+            .any(|error| error.contains("Ciclo de herencia")),
+        "{:?}",
+        report.errors
+    );
+}
+
+#[test]
+fn extends_missing_base_reports_error() {
+    let dir = TestDir::new();
+    write_theme(
+        &dir,
+        "child",
+        "name = 'Child'\nauthor = 'Author'\nextends = 'ghost'\n",
+        "[colors]\naccent = '#0000ff'\n",
+    );
+
+    let report = validate_theme_at(&dir.path().join("child"), "child");
+    assert!(
+        report
+            .errors
+            .iter()
+            .any(|error| error.contains("'ghost' no está instalado")),
+        "{:?}",
+        report.errors
+    );
+}
+
+#[test]
+fn layout_pack_missing_reports_warning() {
+    let dir = TestDir::new();
+    dir.write("Meta.toml", META);
+    dir.write(
+        "Definition.toml",
+        "[layout_pack]\npath = 'Nope.css'\n",
+    );
+
+    let report = validate_theme_at(dir.path(), "pack_author");
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+    assert!(
+        report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("Nope.css")),
+        "{:?}",
+        report.warnings
+    );
+}
+
+#[test]
+fn valid_layout_pack_has_no_errors() {
+    let dir = TestDir::new();
+    dir.write("Meta.toml", META);
+    dir.write(
+        "Definition.toml",
+        "[layout_pack]\npath = 'Layout.css'\n",
+    );
+    dir.write(
+        "Layout.css",
+        "[data-part='app'] { flex-direction: row-reverse; }\n",
+    );
+
+    let report = validate_theme_at(dir.path(), "pack_author");
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+}

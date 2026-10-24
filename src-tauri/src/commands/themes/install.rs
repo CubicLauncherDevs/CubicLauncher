@@ -2,7 +2,7 @@ use super::archive::{StagedTheme, build_theme_id, stage_zip};
 use super::assets::{extract_preview, resolve_theme_asset};
 use super::v1::{ThemeEntry, ThemeFile};
 use super::v2::ThemeMeta;
-use super::{ZipImportable, load_user_theme};
+use super::{ZipImportable, load_user_theme_at};
 use crate::core::errors::{CoreError, FsError};
 use crate::core::{PathManager, safe_join, validate_identifier};
 use crate::theme_watcher::ThemeWatcher;
@@ -85,7 +85,7 @@ pub fn import_theme(source_path: String) -> Result<ThemeEntry, String> {
         }
     }
 
-    load_user_theme(&staged_dir, &theme_id)?;
+    load_user_theme_at(&staged_dir, &theme_id, PathManager::get().get_themes_dir())?;
     let watch = ThemeWatcher::pause_import(&theme_dir);
     staged.install(&theme_dir)?;
     watch.finish();

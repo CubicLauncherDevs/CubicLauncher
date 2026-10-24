@@ -463,7 +463,7 @@
 		<p role="status">{t("common.loading")}</p>
 	{/if}
 {:else}
-	<div class="app-container" class:drag-over={isDragOver}>
+	<div class="app-container" class:drag-over={isDragOver} data-part="app">
 		{#if isDragOver}
 			<div class="drag-overlay">
 				<div class="drag-overlay-content">
@@ -481,6 +481,7 @@
 
 		<div
 			class="sidebar-container"
+			data-part="sidebar"
 			class:compact={sidebarMode === "compact"}
 			style="transition-duration: {sidebarTransitionDuration}s"
 		>
@@ -517,8 +518,11 @@
 			{/if}
 		</div>
 
-		<main class="main-content">
-			<div class="background-overlay"></div>
+		<main class="main-content" data-part="content">
+			<div
+				class="background-overlay"
+				data-part="background-overlay"
+			></div>
 
 			{#if showProfileView}
 				{#if ProfileView}

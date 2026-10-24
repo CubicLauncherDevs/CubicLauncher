@@ -6,6 +6,7 @@ use super::assets::{
 use super::v1::{ThemeEntry, ThemePreview};
 use super::{Theme, ZipImportable};
 use crate::core::errors::{CoreError, FsError};
+use crate::core::validate_identifier;
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -44,6 +45,9 @@ pub struct ThemeMeta {
     pub format: u32,
     #[serde(default)]
     pub api_version: Option<String>,
+    /// Id de otro tema V2 instalado del que se heredan los tokens.
+    #[serde(default)]
+    pub extends: Option<String>,
     #[serde(default, flatten)]
     pub extra: HashMap<String, toml::Value>,
 }
@@ -86,6 +90,9 @@ pub struct ThemeDef {
     pub components: HashMap<String, HashMap<String, String>>,
     #[serde(default)]
     pub inject: Option<InjectConfig>,
+    /// CSS opcional que reestructura el shell usando atributos `data-part`.
+    #[serde(default)]
+    pub layout_pack: Option<LayoutPackConfig>,
     #[serde(default, flatten)]
     pub extra: HashMap<String, toml::Value>,
 }
@@ -142,6 +149,16 @@ pub struct InjectConfig {
     pub enabled: Option<bool>,
     #[serde(default)]
     pub layer: Option<String>,
+    #[serde(default, flatten)]
+    pub extra: HashMap<String, toml::Value>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+pub struct LayoutPackConfig {
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub enabled: Option<bool>,
     #[serde(default, flatten)]
     pub extra: HashMap<String, toml::Value>,
 }
@@ -206,12 +223,17 @@ impl Theme for V2Theme {
             bg_image_position: self.theme.background.position.clone(),
             bg_image_brightness: self.theme.background.brightness,
             inject_layer: None,
+            layout_css: None,
         }
     }
 
-    fn load(theme_base: &Path, id: &str) -> Result<super::ThemeResponse, String> {
+    fn load_at(
+        theme_base: &Path,
+        id: &str,
+        themes_root: &Path,
+    ) -> Result<super::ThemeResponse, String> {
         let meta = read_meta(theme_base)?;
-        let mut theme = read_definition(theme_base)?;
+        let mut theme = load_definition_with_inheritance(theme_base, id, themes_root)?;
 
         match resolve_background(theme_base, &mut theme.background.reference_path)? {
             Some(BgValidationError::TooLarge) => {
@@ -258,10 +280,12 @@ impl Theme for V2Theme {
         resolve_fonts(theme_base, &mut theme.fonts)?;
 
         let (inject_css, inject_layer) = resolve_inject(theme_base, &meta, &theme, id)?;
+        let layout_css = resolve_layout_pack(theme_base, &theme, id)?;
 
         let mut response = Self { meta, theme }.to_theme_res();
         response.inject_css = inject_css;
         response.inject_layer = inject_layer;
+        response.layout_css = layout_css;
         info!("Theme V2 convertido a intermediario correctamente");
         Ok(response)
     }
@@ -385,6 +409,157 @@ fn resolve_inject(
     let content = read_css(&path)?;
     info!("Inject.css leido, {} bytes", content.len());
     Ok((Some(content), None))
+}
+
+pub(super) const MAX_EXTENDS_DEPTH: usize = 8;
+
+/// Carga `Definition.toml` resolviendo `extends` recursivamente. La cadena se
+/// busca siempre dentro de `themes_root`, nunca con rutas del manifest.
+fn load_definition_with_inheritance(
+    theme_base: &Path,
+    id: &str,
+    themes_root: &Path,
+) -> Result<ThemeDef, String> {
+    let mut chain: Vec<String> = Vec::new();
+    resolve_definition(theme_base, id, themes_root, &mut chain, 0)
+}
+
+fn resolve_definition(
+    theme_base: &Path,
+    id: &str,
+    themes_root: &Path,
+    chain: &mut Vec<String>,
+    depth: usize,
+) -> Result<ThemeDef, String> {
+    if depth > MAX_EXTENDS_DEPTH {
+        return Err(format!(
+            "Herencia demasiado profunda: '{}' supera el máximo de {MAX_EXTENDS_DEPTH} niveles",
+            chain.join(" -> ")
+        ));
+    }
+    if chain.iter().any(|seen| seen == id) {
+        let mut cycle = chain.clone();
+        cycle.push(id.to_string());
+        return Err(format!("Ciclo de herencia: {}", cycle.join(" -> ")));
+    }
+    chain.push(id.to_string());
+
+    let meta = read_meta(theme_base)?;
+    let theme = read_definition(theme_base)?;
+
+    let Some(base_id) = meta
+        .extends
+        .as_deref()
+        .map(str::trim)
+        .filter(|base| !base.is_empty())
+    else {
+        return Ok(theme);
+    };
+
+    let base_id = base_id.strip_prefix("user:").unwrap_or(base_id);
+    validate_identifier(base_id).map_err(|e| format!("Meta.toml: 'extends' inválido: {e}"))?;
+
+    let base_dir = themes_root.join(base_id);
+    if !base_dir.join("Meta.toml").is_file() {
+        return Err(format!(
+            "Meta.toml: el tema base '{base_id}' no está instalado o no es V2"
+        ));
+    }
+
+    let base = resolve_definition(&base_dir, base_id, themes_root, chain, depth + 1)?;
+    info!("Theme '{}': hereda tokens de '{}'", id, base_id);
+    Ok(merge_definitions(base, theme))
+}
+
+/// El hijo gana clave a clave. Assets, fuentes, iconos e `[inject]` no se
+/// heredan porque sus rutas son relativas al tema que los declara.
+fn merge_definitions(mut base: ThemeDef, child: ThemeDef) -> ThemeDef {
+    base.colors.extend(child.colors);
+    base.text.extend(child.text);
+    base.borders.extend(child.borders);
+    base.layout.extend(child.layout);
+    base.shadows.extend(child.shadows);
+    base.backgrounds.extend(child.backgrounds);
+    base.backdrop.extend(child.backdrop);
+    base.others.extend(child.others);
+    base.tokens.extend(child.tokens);
+    base.spacing.extend(child.spacing);
+    base.motion.extend(child.motion);
+    for (component, entries) in child.components {
+        base.components.entry(component).or_default().extend(entries);
+    }
+    base.typography = merge_typography(base.typography, child.typography);
+    base.background = merge_background(base.background, child.background);
+
+    base.fonts = child.fonts;
+    base.icons = child.icons;
+    base.inject = child.inject;
+    base.layout_pack = child.layout_pack;
+    base.extra = child.extra;
+    base
+}
+
+fn merge_typography(base: Typography, child: Typography) -> Typography {
+    Typography {
+        family: child.family.or(base.family),
+        size_base: child.size_base.or(base.size_base),
+        size_sm: child.size_sm.or(base.size_sm),
+        size_lg: child.size_lg.or(base.size_lg),
+        size_control: child.size_control.or(base.size_control),
+        size_label: child.size_label.or(base.size_label),
+        weight_normal: child.weight_normal.or(base.weight_normal),
+        weight_medium: child.weight_medium.or(base.weight_medium),
+        weight_bold: child.weight_bold.or(base.weight_bold),
+        line_height: child.line_height.or(base.line_height),
+        extra: child.extra,
+    }
+}
+
+fn merge_background(base: Background, child: Background) -> Background {
+    Background {
+        // La imagen es un asset del tema base y no se hereda.
+        reference_path: child.reference_path,
+        image_blur: child.image_blur.or(base.image_blur),
+        image_opacity: child.image_opacity.or(base.image_opacity),
+        mode: child.mode.or(base.mode),
+        position: child.position.or(base.position),
+        brightness: child.brightness.or(base.brightness),
+        extra: child.extra,
+    }
+}
+
+fn resolve_layout_pack(
+    theme_base: &Path,
+    theme: &ThemeDef,
+    id: &str,
+) -> Result<Option<String>, String> {
+    let Some(config) = theme.layout_pack.as_ref() else {
+        return Ok(None);
+    };
+    if config.enabled == Some(false) {
+        info!("Theme '{}': [layout_pack] deshabilitado", id);
+        return Ok(None);
+    }
+
+    let path = config.path.as_deref().unwrap_or("Layout.css");
+    let Some(resolved) = resolve_theme_asset(theme_base, path)? else {
+        return Ok(None);
+    };
+    if !resolved.is_file() {
+        warn!(
+            "Theme '{}': [layout_pack].path '{}' no existe, ignorando",
+            id, path
+        );
+        return Ok(None);
+    }
+
+    let content = read_css(&resolved)?;
+    info!(
+        "Theme '{}': layout pack leído ({} bytes)",
+        id,
+        content.len()
+    );
+    Ok(Some(content))
 }
 
 pub(super) fn is_valid_token_name(name: &str) -> bool {

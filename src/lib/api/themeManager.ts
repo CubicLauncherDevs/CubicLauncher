@@ -75,11 +75,13 @@ export interface ThemeResponse {
 	bg_image_position?: string | null;
 	bg_image_brightness?: number | null;
 	inject_layer?: string | null;
+	layout_css?: string | null;
 }
 
 const THEME_VARS_ID = "cubic-theme-vars";
 const CUSTOM_CSS_ID = "cubic-theme-css";
 const CUSTOM_FONTS_ID = "cubic-theme-fonts";
+const LAYOUT_CSS_ID = "cubic-theme-layout";
 
 let currentImage: HTMLImageElement | null = null;
 let currentGeneration = 0;
@@ -236,6 +238,19 @@ function buildInjectCss(theme: ThemeResponse): string | null {
 	return theme.inject_css;
 }
 
+/**
+ * Aplica el layout pack del tema. Va sin capa y después del CSS del tema para
+ * que pueda reestructurar el shell mediante los atributos data-part estables.
+ */
+function applyLayoutCss(css: string | null | undefined) {
+	document.getElementById(LAYOUT_CSS_ID)?.remove();
+	if (!css) return;
+	const style = document.createElement("style");
+	style.id = LAYOUT_CSS_ID;
+	style.textContent = css;
+	document.head.appendChild(style);
+}
+
 function setThemeStyle(css: string) {
 	let el = document.getElementById(THEME_VARS_ID) as HTMLStyleElement | null;
 	if (!el) {
@@ -269,6 +284,9 @@ function clearThemeResources() {
 
 	const existingCustomCss = document.getElementById(CUSTOM_CSS_ID);
 	if (existingCustomCss) existingCustomCss.remove();
+
+	const existingLayout = document.getElementById(LAYOUT_CSS_ID);
+	if (existingLayout) existingLayout.remove();
 
 	const existingCustom = document.getElementById(CUSTOM_FONTS_ID);
 	if (existingCustom) existingCustom.remove();
@@ -490,6 +508,9 @@ export function applyTheme(
 			link.id = CUSTOM_CSS_ID;
 			document.head.appendChild(link);
 		}
+
+		// El layout pack va al final: es el único CSS pensado para reestructurar.
+		applyLayoutCss(theme.layout_css);
 
 		appliedThemeId = themeId;
 	})()

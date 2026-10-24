@@ -114,10 +114,15 @@ impl Theme for ThemeFile {
             bg_image_position: None,
             bg_image_brightness: None,
             inject_layer: None,
+            layout_css: None,
         }
     }
 
-    fn load(theme_base: &Path, id: &str) -> Result<super::ThemeResponse, String> {
+    fn load_at(
+        theme_base: &Path,
+        id: &str,
+        _themes_root: &Path,
+    ) -> Result<super::ThemeResponse, String> {
         let path = theme_base.join("theme.json");
         let content = std::fs::read_to_string(&path).map_err(|e| {
             FsError::ReadFile {

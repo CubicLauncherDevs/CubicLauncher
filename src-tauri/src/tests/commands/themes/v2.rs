@@ -9,6 +9,7 @@ fn build_theme_meta(name: &str) -> ThemeMeta {
         injects_css: None,
         format: 2,
         api_version: None,
+        extends: None,
         extra: HashMap::new(),
     }
 }
@@ -69,6 +70,7 @@ fn build_theme_def() -> ThemeDef {
         motion: HashMap::new(),
         components: HashMap::new(),
         inject: None,
+        layout_pack: None,
         extra: HashMap::new(),
     }
 }
@@ -484,6 +486,7 @@ fn flatten_empty_sections() {
         motion: HashMap::new(),
         components: HashMap::new(),
         inject: None,
+        layout_pack: None,
         extra: HashMap::new(),
     };
 
@@ -616,4 +619,218 @@ fn to_theme_res_fields() {
     assert!(res.bg_image_position.is_none());
     assert!(res.bg_image_brightness.is_none());
     assert!(res.inject_layer.is_none());
+}
+
+
+// ── Herencia (extends) y layout packs ───────────────────────────────────────
+
+struct ThemeTree(std::path::PathBuf);
+
+impl ThemeTree {
+    fn new() -> Self {
+        let path = std::env::temp_dir().join(format!("cubic-theme-tree-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&path).unwrap();
+        Self(path)
+    }
+
+    fn path(&self) -> &std::path::Path {
+        &self.0
+    }
+
+    fn theme(&self, id: &str) -> std::path::PathBuf {
+        self.0.join(id)
+    }
+
+    fn write(&self, theme: &str, name: &str, content: &str) {
+        let path = self.theme(theme).join(name);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(path, content).unwrap();
+    }
+}
+
+impl Drop for ThemeTree {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn write_meta(tree: &ThemeTree, id: &str, name: &str, extra: &str) {
+    tree.write(
+        id,
+        "Meta.toml",
+        &format!("name = '{name}'\nauthor = 'Author'\nversion = '1.0'\n{extra}"),
+    );
+}
+
+#[test]
+fn extends_merges_tokens_and_child_wins() {
+    let tree = ThemeTree::new();
+    write_meta(&tree, "base", "Base", "");
+    tree.write(
+        "base",
+        "Definition.toml",
+        "[colors]\naccent = '#ff0000'\nbg = '#101010'\n\n[text]\nprimary = '#ffffff'\n\n[typography]\nfamily = 'Inter, sans-serif'\n\n[tokens]\n'--base-token' = '1'\n",
+    );
+
+    write_meta(&tree, "child", "Child", "extends = 'base'\n");
+    tree.write(
+        "child",
+        "Definition.toml",
+        "[colors]\naccent = '#0000ff'\n",
+    );
+
+    let res = V2Theme::load(&tree.theme("child"), "child").unwrap();
+
+    assert_eq!(res.variables.get("--accent").map(String::as_str), Some("#0000ff"));
+    assert_eq!(res.variables.get("--bg").map(String::as_str), Some("#101010"));
+    assert_eq!(
+        res.variables.get("--text-primary").map(String::as_str),
+        Some("#ffffff")
+    );
+    assert_eq!(
+        res.variables.get("--font-family").map(String::as_str),
+        Some("Inter, sans-serif")
+    );
+    assert_eq!(
+        res.variables.get("--base-token").map(String::as_str),
+        Some("1")
+    );
+}
+
+#[test]
+fn extends_does_not_inherit_assets() {
+    let tree = ThemeTree::new();
+    write_meta(&tree, "base", "Base", "");
+    tree.write(
+        "base",
+        "Definition.toml",
+        "[[fonts]]\nfamily = 'Base'\nsrc = 'base.woff2'\n\n[icons]\npreview = 'preview.png'\n\n[background]\nreference_path = 'bg.webp'\nimage_blur = 12\n",
+    );
+
+    write_meta(&tree, "child", "Child", "extends = 'base'\n");
+    tree.write("child", "Definition.toml", "[colors]\naccent = '#0000ff'\n");
+
+    let res = V2Theme::load(&tree.theme("child"), "child").unwrap();
+
+    assert!(res.fonts.is_empty());
+    assert!(res.icons.is_empty());
+    assert!(res.bg_image.is_none());
+    // Los escalares del fondo sí se heredan.
+    assert_eq!(res.bg_image_blur, Some(12.0));
+}
+
+#[test]
+fn extends_cycle_is_an_error() {
+    let tree = ThemeTree::new();
+    write_meta(&tree, "a", "A", "extends = 'b'\n");
+    tree.write("a", "Definition.toml", "[colors]\naccent = '#ff0000'\n");
+    write_meta(&tree, "b", "B", "extends = 'a'\n");
+    tree.write("b", "Definition.toml", "[colors]\naccent = '#00ff00'\n");
+
+    let error = V2Theme::load(&tree.theme("a"), "a").unwrap_err();
+
+    assert!(error.contains("Ciclo de herencia"), "{error}");
+    assert!(error.contains("a -> b -> a"), "{error}");
+}
+
+#[test]
+fn extends_missing_base_is_an_error() {
+    let tree = ThemeTree::new();
+    write_meta(&tree, "child", "Child", "extends = 'ghost'\n");
+    tree.write("child", "Definition.toml", "[colors]\naccent = '#0000ff'\n");
+
+    let error = V2Theme::load(&tree.theme("child"), "child").unwrap_err();
+
+    assert!(error.contains("no está instalado"), "{error}");
+}
+
+#[test]
+fn extends_rejects_path_traversal() {
+    let tree = ThemeTree::new();
+    write_meta(&tree, "child", "Child", "extends = '../evil'\n");
+    tree.write("child", "Definition.toml", "[colors]\naccent = '#0000ff'\n");
+
+    let error = V2Theme::load(&tree.theme("child"), "child").unwrap_err();
+
+    assert!(error.contains("extends"), "{error}");
+}
+
+#[test]
+fn extends_depth_is_limited() {
+    let tree = ThemeTree::new();
+    for index in 0..10 {
+        let extra = if index == 9 {
+            String::new()
+        } else {
+            format!("extends = 'theme{}'\n", index + 1)
+        };
+        write_meta(&tree, &format!("theme{index}"), &format!("T{index}"), &extra);
+        tree.write(
+            &format!("theme{index}"),
+            "Definition.toml",
+            "[colors]\naccent = '#ff0000'\n",
+        );
+    }
+
+    let error = V2Theme::load(&tree.theme("theme0"), "theme0").unwrap_err();
+
+    assert!(error.contains("demasiado profunda"), "{error}");
+}
+
+#[test]
+fn layout_pack_css_is_loaded() {
+    let tree = ThemeTree::new();
+    write_meta(&tree, "pack", "Pack", "");
+    tree.write(
+        "pack",
+        "Definition.toml",
+        "[layout]\nsidebar-width = '260px'\n\n[layout_pack]\npath = 'Layout.css'\n",
+    );
+    tree.write(
+        "pack",
+        "Layout.css",
+        "[data-part='app'] { flex-direction: row-reverse; }\n",
+    );
+
+    let res = V2Theme::load(&tree.theme("pack"), "pack").unwrap();
+
+    let css = res.layout_css.expect("layout css");
+    assert!(css.contains("data-part"));
+    assert_eq!(
+        res.variables.get("--sidebar-width").map(String::as_str),
+        Some("260px")
+    );
+}
+
+#[test]
+fn layout_pack_missing_or_disabled_is_ignored() {
+    let tree = ThemeTree::new();
+    write_meta(&tree, "missing", "Missing", "");
+    tree.write(
+        "missing",
+        "Definition.toml",
+        "[layout_pack]\npath = 'Nope.css'\n",
+    );
+    assert!(
+        V2Theme::load(&tree.theme("missing"), "missing")
+            .unwrap()
+            .layout_css
+            .is_none()
+    );
+
+    write_meta(&tree, "off", "Off", "");
+    tree.write(
+        "off",
+        "Definition.toml",
+        "[layout_pack]\npath = 'Layout.css'\nenabled = false\n",
+    );
+    tree.write("off", "Layout.css", "body { color: red; }");
+    assert!(
+        V2Theme::load(&tree.theme("off"), "off")
+            .unwrap()
+            .layout_css
+            .is_none()
+    );
 }

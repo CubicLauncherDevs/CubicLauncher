@@ -4,8 +4,8 @@ use super::assets::{
 };
 use super::v1::ThemeFile;
 use super::v2::{
-    Icons, ThemeDef, ThemeMeta, flatten_with_diagnostics, is_valid_token_name, read_definition,
-    read_meta,
+    Icons, MAX_EXTENDS_DEPTH, ThemeDef, ThemeMeta, flatten_with_diagnostics, is_valid_token_name,
+    read_definition, read_meta,
 };
 use serde::Serialize;
 use std::path::Path;
@@ -53,11 +53,11 @@ pub(super) fn validate_theme_at(theme_base: &Path, id: &str) -> ThemeValidationR
         (true, true) => {
             report.warning("Existen Meta.toml y theme.json; se usará Meta.toml (V2).");
             report.format = "v2".to_string();
-            validate_v2(theme_base, &mut report);
+            validate_v2(theme_base, id, &mut report);
         }
         (true, false) => {
             report.format = "v2".to_string();
-            validate_v2(theme_base, &mut report);
+            validate_v2(theme_base, id, &mut report);
         }
         (false, true) => {
             report.format = "v1".to_string();
@@ -74,7 +74,7 @@ pub(super) fn validate_theme_at(theme_base: &Path, id: &str) -> ThemeValidationR
     report
 }
 
-fn validate_v2(theme_base: &Path, report: &mut ThemeValidationReport) {
+fn validate_v2(theme_base: &Path, id: &str, report: &mut ThemeValidationReport) {
     let meta = match read_meta(theme_base) {
         Ok(meta) => meta,
         Err(error) => {
@@ -128,6 +128,8 @@ fn validate_v2(theme_base: &Path, report: &mut ThemeValidationReport) {
     validate_fonts(theme_base, &theme.fonts, report);
     validate_icons(theme_base, &theme.icons, report);
     validate_inject(theme_base, &meta, &theme, report);
+    validate_layout_pack(theme_base, &theme, report);
+    validate_extends(theme_base, id, &meta, report);
 }
 
 fn warn_unknown_meta(meta: &ThemeMeta, report: &mut ThemeValidationReport) {
@@ -177,6 +179,123 @@ fn validate_tokens(theme: &ThemeDef, report: &mut ThemeValidationReport) {
             continue;
         }
         report.warning(warning);
+    }
+}
+
+fn validate_layout_pack(
+    theme_base: &Path,
+    theme: &ThemeDef,
+    report: &mut ThemeValidationReport,
+) {
+    let Some(config) = theme.layout_pack.as_ref() else {
+        return;
+    };
+
+    for key in config.extra.keys() {
+        report.warning(format!(
+            "Definition.toml: campo desconocido 'layout_pack.{}'.",
+            key
+        ));
+    }
+    if config.enabled == Some(false) {
+        return;
+    }
+
+    let path = config.path.as_deref().unwrap_or("Layout.css");
+    if path.trim().is_empty() {
+        report.warning("Definition.toml: [layout_pack].path está vacío; no se cargará CSS.");
+        return;
+    }
+    warn_absolute_reference("[layout_pack].path", path, report);
+
+    match resolve_theme_asset(theme_base, path) {
+        Ok(Some(resolved)) => {
+            if !resolved.is_file() {
+                report.warning(format!(
+                    "No se encontró el layout pack '{}'; se ignorará.",
+                    display_relative(theme_base, &resolved)
+                ));
+                return;
+            }
+            validate_css_size(&resolved, report);
+        }
+        Ok(None) => {}
+        Err(error) => {
+            report.error(format!(
+                "[layout_pack].path tiene una ruta inválida: {error}"
+            ));
+        }
+    }
+}
+
+fn validate_extends(
+    theme_base: &Path,
+    id: &str,
+    meta: &ThemeMeta,
+    report: &mut ThemeValidationReport,
+) {
+    let Some(base_id) = meta
+        .extends
+        .as_deref()
+        .map(str::trim)
+        .filter(|base| !base.is_empty())
+    else {
+        return;
+    };
+
+    let Some(themes_root) = theme_base.parent() else {
+        report.error("Meta.toml: no se pudo resolver el directorio de temas para 'extends'.");
+        return;
+    };
+
+    let mut chain = vec![id.to_string()];
+    let mut current = base_id.strip_prefix("user:").unwrap_or(base_id).to_string();
+    let mut depth = 0;
+
+    loop {
+        if chain.iter().any(|seen| seen == &current) {
+            chain.push(current.clone());
+            report.error(format!("Ciclo de herencia: {}.", chain.join(" -> ")));
+            return;
+        }
+        if depth >= MAX_EXTENDS_DEPTH {
+            report.error(format!(
+                "Herencia demasiado profunda: '{}' supera el máximo de {MAX_EXTENDS_DEPTH} niveles.",
+                chain.join(" -> ")
+            ));
+            return;
+        }
+        if let Err(error) = crate::core::validate_identifier(&current) {
+            report.error(format!("Meta.toml: 'extends' inválido: {error}."));
+            return;
+        }
+
+        let base_dir = themes_root.join(&current);
+        if !base_dir.join("Meta.toml").is_file() {
+            report.error(format!(
+                "Meta.toml: el tema base '{current}' no está instalado o no es V2."
+            ));
+            return;
+        }
+        chain.push(current.clone());
+
+        let base_meta = match read_meta(&base_dir) {
+            Ok(base_meta) => base_meta,
+            Err(error) => {
+                report.error(format!("Meta.toml del tema base '{current}' inválido: {error}"));
+                return;
+            }
+        };
+        let Some(next) = base_meta
+            .extends
+            .as_deref()
+            .map(str::trim)
+            .filter(|base| !base.is_empty())
+        else {
+            return;
+        };
+        current = next.strip_prefix("user:").unwrap_or(next).to_string();
+        depth += 1;
     }
 }
 

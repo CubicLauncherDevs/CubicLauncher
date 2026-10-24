@@ -212,7 +212,7 @@
 	}
 </script>
 
-<aside class="sidebar-compact">
+<aside class="sidebar-compact" data-part="sidebar-panel">
 	<div class="sc-header" data-tutorial="sidebar-header">
 		<CubicIcon width="20" height="20" />
 	</div>

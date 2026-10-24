@@ -921,3 +921,31 @@ test("aborting a pending built-in read does not log an error", async () => {
 	await a;
 	expect(errors).not.toHaveBeenCalled();
 });
+
+
+test("layout pack css is applied as its own stylesheet", async () => {
+	const id = "user:Layout";
+	await commit(
+		id,
+		theme("Layout", {
+			layout_css: "[data-part='app'] { flex-direction: row-reverse; }",
+		}),
+	);
+
+	const layout = visuals().styles.find(
+		(node) => node.id === "cubic-theme-layout",
+	);
+	expect(layout?.textContent).toContain("data-part");
+});
+
+test("switching themes drops the previous layout pack", async () => {
+	await commit("user:PackA", theme("A", { layout_css: "a { color: red; }" }));
+	expect(
+		visuals().styles.some((node) => node.id === "cubic-theme-layout"),
+	).toBe(true);
+
+	await commit("user:PackB", theme("B"));
+	expect(
+		visuals().styles.some((node) => node.id === "cubic-theme-layout"),
+	).toBe(false);
+});

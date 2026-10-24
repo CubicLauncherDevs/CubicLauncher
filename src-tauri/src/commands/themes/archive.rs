@@ -3,7 +3,7 @@ use super::v1::ThemeEntry;
 use super::v1::ThemeFile;
 #[cfg(test)]
 use super::v2::ThemeMeta;
-use super::{ZipImportable, load_user_theme};
+use super::{ZipImportable, load_user_theme_at};
 use crate::core::errors::{CoreError, FsError};
 use crate::core::{PathManager, sanitize_path, validate_identifier};
 use std::io::Read;
@@ -231,7 +231,7 @@ pub(super) fn stage_zip<T: ZipImportable>(
         })?;
     }
 
-    load_user_theme(&theme_dir, &theme_id)?;
+    load_user_theme_at(&theme_dir, &theme_id, themes_dir)?;
 
     Ok(Some((
         ThemeEntry {
