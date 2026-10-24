@@ -36,10 +36,13 @@
 		contentType: ContentType;
 	} = $props();
 	const PAGE_SIZE = 12;
+	// Search hits are plain data; keep them out of Svelte's deep proxy and
+	// bound how many stay resident while scrolling.
+	const MAX_HITS = 1000;
 
 	// ESTADOS DEL COMPONENTE
 	let query = $state("");
-	let allHits = $state<ModrinthProject[]>([]);
+	let allHits = $state.raw<ModrinthProject[]>([]);
 	let currentOffset = $state(0);
 	let sortIndex = $state<string>("downloads");
 	let loadingVersions = $state(false);
@@ -103,10 +106,12 @@
 			if (gen !== searchGen) return;
 			if (result) {
 				totalHits = result.total_hits;
+				currentOffset = resetResults
+					? result.hits.length
+					: currentOffset + result.hits.length;
 				allHits = resetResults
-					? result.hits
-					: [...allHits, ...result.hits];
-				currentOffset = allHits.length;
+					? result.hits.slice(0, MAX_HITS)
+					: [...allHits, ...result.hits].slice(0, MAX_HITS);
 			}
 		} finally {
 			searching = false;
@@ -121,7 +126,12 @@
 	}
 
 	function handleNearEnd() {
-		if (!loadingMore && !searching && allHits.length < totalHits) {
+		if (
+			!loadingMore &&
+			!searching &&
+			currentOffset < totalHits &&
+			allHits.length < MAX_HITS
+		) {
 			performSearch(false);
 		}
 	}
@@ -447,11 +457,11 @@
 						<Loading class="rp-spinning" />
 						<span>{t(i18nPrefix + ".loadingMore")}</span>
 					</div>
-				{:else if allHits.length >= totalHits && totalHits > 0}
+				{:else if currentOffset >= totalHits && totalHits > 0}
 					<div class="rp-vlist-end">
 						<span class="rp-end-label">
 							— {t(i18nPrefix + ".endOfResults", {
-								count: allHits.length,
+								count: currentOffset,
 							})} —
 						</span>
 					</div>
