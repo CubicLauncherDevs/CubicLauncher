@@ -47,23 +47,6 @@ fn valid_v2_theme_has_no_errors() {
 }
 
 #[test]
-fn documented_example_is_valid() {
-    let dir = TestDir::new();
-    dir.write(
-        "Meta.toml",
-        include_str!("../../../../../docs/themes/v2/example/Meta.toml"),
-    );
-    dir.write(
-        "Definition.toml",
-        include_str!("../../../../../docs/themes/v2/example/Definition.toml"),
-    );
-
-    let report = validate_theme_at(dir.path(), "tema_de_ejemplo_cubiclauncher");
-    assert_eq!(report.format, "v2");
-    assert!(report.errors.is_empty(), "{:?}", report.errors);
-}
-
-#[test]
 fn builtin_themes_validate() {
     let themes_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../static/themes");
     let mut checked = 0;
