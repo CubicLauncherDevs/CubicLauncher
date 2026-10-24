@@ -2,7 +2,7 @@ use crate::error::DiscordRpcError;
 use crate::models::Activity;
 use serde_json::{Value, json};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::oneshot::error::TryRecvError;
 use tokio::sync::{mpsc, oneshot};
@@ -20,6 +20,72 @@ static NONCE: AtomicU64 = AtomicU64::new(1);
 #[inline]
 fn next_nonce() -> String {
     NONCE.fetch_add(1, Ordering::Relaxed).to_string()
+}
+
+// ── Protocol constants ────────────────────────────────────────────────────────
+
+/// Opcode of the initial handshake frame.
+const OP_HANDSHAKE: u32 = 0;
+/// Opcode of a regular command/response frame.
+const OP_FRAME: u32 = 1;
+/// Opcode Discord uses to close the connection.
+const OP_CLOSE: u32 = 2;
+/// Opcode of a keepalive ping.
+const OP_PING: u32 = 3;
+/// Opcode of the reply to a ping.
+const OP_PONG: u32 = 4;
+
+/// Largest frame we are willing to buffer; Discord payloads are far smaller.
+const MAX_FRAME_BYTES: u32 = 64 * 1024;
+
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+/// Upper bound for queueing a command, so a stalled connection never blocks
+/// the caller (e.g. the game launch flow) indefinitely.
+const COMMAND_TIMEOUT: Duration = Duration::from_secs(2);
+/// Grace period to flush pending frames on shutdown.
+const SHUTDOWN_FLUSH_TIMEOUT: Duration = Duration::from_millis(500);
+
+const RECONNECT_MIN: Duration = Duration::from_secs(1);
+const RECONNECT_MAX: Duration = Duration::from_secs(60);
+
+const MIN_HEARTBEAT_MS: u64 = 5_000;
+const MAX_HEARTBEAT_MS: u64 = 120_000;
+const DEFAULT_HEARTBEAT_MS: u64 = 45_000;
+
+/// Adds up to 20% of the delay as jitter so clients do not reconnect in
+/// lockstep. Avoids pulling in an RNG dependency.
+fn with_jitter(delay: Duration) -> Duration {
+    let spread = (delay.as_millis() as u64 / 5).max(1);
+    let entropy = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|t| u64::from(t.subsec_nanos()))
+        .unwrap_or(0);
+    delay + Duration::from_millis(entropy % spread)
+}
+
+/// Exponential reconnect backoff capped at RECONNECT_MAX.
+struct Backoff {
+    current: Duration,
+}
+
+impl Backoff {
+    fn new() -> Self {
+        Self {
+            current: RECONNECT_MIN,
+        }
+    }
+
+    fn reset(&mut self) {
+        self.current = RECONNECT_MIN;
+    }
+
+    /// Delay before the next attempt; the following one doubles.
+    fn next_delay(&mut self) -> Duration {
+        let delay = with_jitter(self.current);
+        self.current = (self.current * 2).min(RECONNECT_MAX);
+        delay
+    }
 }
 
 enum PlatformStream {
@@ -151,21 +217,34 @@ impl DiscordRpcClient {
     }
 
     pub async fn set_activity(&self, activity: Activity) -> Result<(), DiscordRpcError> {
-        self.command_tx
-            .send(ClientCommand::SetActivity(Box::new(activity)))
+        self.send(ClientCommand::SetActivity(Box::new(activity)))
             .await
-            .map_err(|_| DiscordRpcError::NotConnected)
     }
 
     pub async fn clear_activity(&self) -> Result<(), DiscordRpcError> {
-        self.command_tx
-            .send(ClientCommand::ClearActivity)
-            .await
-            .map_err(|_| DiscordRpcError::NotConnected)
+        self.send(ClientCommand::ClearActivity).await
+    }
+
+    /// Queues a command with a bounded wait. While the background loop is
+    /// reconnecting it stops draining the channel, so an unbounded
+    /// send().await could block the caller for the whole backoff window.
+    async fn send(&self, cmd: ClientCommand) -> Result<(), DiscordRpcError> {
+        match time::timeout(COMMAND_TIMEOUT, self.command_tx.send(cmd)).await {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(_)) => Err(DiscordRpcError::NotConnected),
+            Err(_) => Err(DiscordRpcError::CommandTimeout),
+        }
     }
 
     pub async fn shutdown(self) {
-        self.command_tx.try_send(ClientCommand::Shutdown).ok();
+        // Clear first so Discord does not keep a stale "Playing" card around
+        // after the launcher is gone.
+        let _ = self.clear_activity().await;
+        let _ = time::timeout(
+            COMMAND_TIMEOUT,
+            self.command_tx.send(ClientCommand::Shutdown),
+        )
+        .await;
         drop(self);
     }
 }
@@ -182,6 +261,7 @@ impl DiscordRpcClient {
 
         let mut ready_tx = Some(ready_tx);
         let mut last_activity: Option<Activity> = None;
+        let mut backoff = Backoff::new();
 
         loop {
             match stop_rx.try_recv() {
@@ -192,12 +272,14 @@ impl DiscordRpcClient {
                 Err(TryRecvError::Empty) => {}
             }
 
+            let mut connected = false;
             match Self::session(
                 &client_id,
                 &mut command_rx,
                 &mut stop_rx,
                 &mut ready_tx,
                 &mut last_activity,
+                &mut connected,
             )
             .await
             {
@@ -205,12 +287,24 @@ impl DiscordRpcClient {
                     info!("Shutdown requested, exiting");
                     return;
                 }
-                Ok(false) => debug!("Session ended, reconnecting in 5s"),
-                Err(e) => warn!("Session error: {e}, reconnecting in 5s"),
+                Ok(false) => debug!("Session ended"),
+                Err(e) => warn!("Session error: {e}"),
             }
 
+            // A session that never reached READY means Discord is unavailable
+            // (not running, no socket, handshake refused). Back off so we do
+            // not hammer the IPC socket for the whole run; after a session
+            // that did connect, retry quickly.
+            let delay = if connected {
+                backoff.reset();
+                RECONNECT_MIN
+            } else {
+                backoff.next_delay()
+            };
+            debug!("Reconnecting in {:?}", delay);
+
             tokio::select! {
-                _ = time::sleep(Duration::from_secs(5)) => {}
+                _ = time::sleep(delay) => {}
                 _ = &mut stop_rx => {
                     info!("Stop signal received during reconnect wait");
                     return;
@@ -219,16 +313,25 @@ impl DiscordRpcClient {
         }
     }
 
-    #[instrument(skip(command_rx, stop_rx, ready_tx, last_activity))]
+    #[instrument(skip(command_rx, stop_rx, ready_tx, last_activity, connected))]
     async fn session(
         client_id: &str,
         command_rx: &mut mpsc::Receiver<ClientCommand>,
         stop_rx: &mut oneshot::Receiver<()>,
         ready_tx: &mut Option<oneshot::Sender<()>>,
         last_activity: &mut Option<Activity>,
+        connected: &mut bool,
     ) -> Result<bool, DiscordRpcError> {
-        let mut stream = Self::open_socket().await?;
-        let _heartbeat_ms = Self::handshake(&mut stream, client_id).await?;
+        let mut stream = time::timeout(CONNECT_TIMEOUT, Self::open_socket())
+            .await
+            .map_err(|_| DiscordRpcError::ConnectionFailed("connect timed out".into()))??;
+
+        let heartbeat_ms =
+            time::timeout(HANDSHAKE_TIMEOUT, Self::handshake(&mut stream, client_id))
+                .await
+                .map_err(|_| DiscordRpcError::HandshakeError("handshake timed out".into()))??;
+
+        *connected = true;
 
         if let Some(tx) = ready_tx.take() {
             tx.send(()).ok();
@@ -244,11 +347,12 @@ impl DiscordRpcClient {
                 .ok();
         }
 
-        let mut read_handle = tokio::spawn(Self::read_task(read_half));
+        let mut read_handle = tokio::spawn(Self::read_task(read_half, write_tx.clone()));
         let mut write_handle = tokio::spawn(Self::write_task(
             write_half,
             write_rx,
             client_id.to_string(),
+            heartbeat_ms,
         ));
 
         let mut shutdown = false;
@@ -278,6 +382,12 @@ impl DiscordRpcClient {
                 _ = &mut read_handle => break,
                 _ = &mut write_handle => break,
             }
+        }
+
+        // Let the writer flush anything still queued (typically ClearActivity)
+        // before the socket is dropped.
+        if shutdown && write_tx.send(WriteCmd::Shutdown).await.is_ok() {
+            let _ = time::timeout(SHUTDOWN_FLUSH_TIMEOUT, &mut write_handle).await;
         }
 
         read_handle.abort();
@@ -353,9 +463,9 @@ impl DiscordRpcClient {
         client_id: &str,
     ) -> Result<u64, DiscordRpcError> {
         let payload = json!({ "v": 1, "client_id": client_id });
-        write_frame(stream, 0, &payload).await?;
+        write_frame(stream, OP_HANDSHAKE, &payload).await?;
 
-        let resp = read_frame(stream).await?;
+        let (_, resp) = read_frame(stream).await?;
 
         let is_ready = resp.get("evt").and_then(Value::as_str) == Some("READY")
             || (resp.get("cmd").and_then(Value::as_str) == Some("DISPATCH")
@@ -379,9 +489,10 @@ impl DiscordRpcClient {
             .or_else(|| resp.get("heartbeat_interval"))
             .and_then(Value::as_u64)
             .unwrap_or_else(|| {
-                warn!("heartbeat_interval missing, defaulting to 45 000 ms");
-                45_000
-            });
+                warn!("heartbeat_interval missing, defaulting to {DEFAULT_HEARTBEAT_MS} ms");
+                DEFAULT_HEARTBEAT_MS
+            })
+            .clamp(MIN_HEARTBEAT_MS, MAX_HEARTBEAT_MS);
 
         info!("Handshake OK, heartbeat interval: {interval}ms");
         Ok(interval)
@@ -390,16 +501,39 @@ impl DiscordRpcClient {
     // ── Read task ─────────────────────────────────────────────────────────────
     // Runs on its own task; only job is forwarding ACKs and detecting disconnects.
 
-    async fn read_task(mut stream: tokio::io::ReadHalf<PlatformStream>) {
+    async fn read_task(
+        mut stream: tokio::io::ReadHalf<PlatformStream>,
+        write_tx: mpsc::Sender<WriteCmd>,
+    ) {
         loop {
             match read_frame(&mut stream).await {
-                Ok(msg) => {
-                    // Opcode 1 = heartbeat ACK — silently ignore
-                    if msg.get("op").and_then(Value::as_u64) == Some(1) {
-                        continue;
+                Ok((opcode, msg)) => match opcode {
+                    OP_PING => {
+                        debug!("PING received, replying PONG");
+                        if write_tx.send(WriteCmd::Pong(msg)).await.is_err() {
+                            break;
+                        }
                     }
-                    debug!("Discord response: {msg}");
-                }
+                    OP_PONG => debug!("Heartbeat acknowledged"),
+                    OP_CLOSE => {
+                        warn!("Discord closed the connection: {msg}");
+                        break;
+                    }
+                    _ => {
+                        // Errors are otherwise silent: a rejected SET_ACTIVITY
+                        // only shows up here.
+                        if msg.get("evt").and_then(Value::as_str) == Some("ERROR") {
+                            let code = msg.pointer("/data/code").and_then(Value::as_u64);
+                            let message = msg
+                                .pointer("/data/message")
+                                .and_then(Value::as_str)
+                                .unwrap_or("unknown error");
+                            warn!("Discord rejected a command (code {code:?}): {message}");
+                        } else {
+                            debug!("Discord response: {msg}");
+                        }
+                    }
+                },
                 Err(e) => {
                     error!("Read error: {e}");
                     // Let the session loop detect the task exited and reconnect.
@@ -416,49 +550,73 @@ impl DiscordRpcClient {
         mut stream: tokio::io::WriteHalf<PlatformStream>,
         mut rx: mpsc::Receiver<WriteCmd>,
         client_id: String,
+        heartbeat_ms: u64,
     ) {
-        loop {
-            tokio::select! {
-                Some(cmd) = rx.recv() => {
-                    let result = match &cmd {
-                        WriteCmd::SetActivity(activity) => {
-                            let (activity_json, metadata) = build_activity_payload(activity);
-                            let mut args = json!({
-                                "pid": std::process::id(),
-                                "activity": activity_json,
-                                "client_id": &client_id,
-                            });
-                            if let Some(meta) = metadata {
-                                args["metadata"] = meta;
-                            }
-                            let msg = json!({
-                                "cmd": "SET_ACTIVITY",
-                                "nonce": next_nonce(),
-                                "args": args,
-                            });
-                            debug!("SET_ACTIVITY payload: {}", serde_json::to_string(&msg).unwrap_or_default());
-                            write_frame(&mut stream, 1, &msg).await
-                        }
-                        WriteCmd::ClearActivity => {
-                            let msg = json!({
-                                "cmd": "SET_ACTIVITY",
-                                "nonce": next_nonce(),
-                                "args": {
-                                    "pid": std::process::id(),
-                                    "activity": null,
-                                    "client_id": &client_id,
-                                }
-                            });
-                            write_frame(&mut stream, 1, &msg).await
-                        }
-                    };
+        let mut heartbeat = time::interval(Duration::from_millis(heartbeat_ms));
+        heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+        // interval() fires immediately; consume that tick so the first PING
+        // goes out one full interval after the handshake.
+        heartbeat.tick().await;
 
-                    if let Err(e) = result {
-                        error!("Write error ({cmd:?}): {e}");
+        loop {
+            let cmd = tokio::select! {
+                _ = heartbeat.tick() => {
+                    if let Err(e) = write_frame(&mut stream, OP_PING, &json!({})).await {
+                        error!("Heartbeat write error: {e}");
                         break;
                     }
+                    continue;
                 }
-                else => break,
+                cmd = rx.recv() => match cmd {
+                    Some(cmd) => cmd,
+                    None => break,
+                },
+            };
+
+            let result = match &cmd {
+                WriteCmd::SetActivity(activity) => {
+                    let (activity_json, metadata) = build_activity_payload(activity);
+                    let mut args = json!({
+                        "pid": std::process::id(),
+                        "activity": activity_json,
+                        "client_id": &client_id,
+                    });
+                    if let Some(meta) = metadata {
+                        args["metadata"] = meta;
+                    }
+                    let msg = json!({
+                        "cmd": "SET_ACTIVITY",
+                        "nonce": next_nonce(),
+                        "args": args,
+                    });
+                    debug!(
+                        "SET_ACTIVITY payload: {}",
+                        serde_json::to_string(&msg).unwrap_or_default()
+                    );
+                    write_frame(&mut stream, OP_FRAME, &msg).await
+                }
+                WriteCmd::ClearActivity => {
+                    let msg = json!({
+                        "cmd": "SET_ACTIVITY",
+                        "nonce": next_nonce(),
+                        "args": {
+                            "pid": std::process::id(),
+                            "activity": null,
+                            "client_id": &client_id,
+                        }
+                    });
+                    write_frame(&mut stream, OP_FRAME, &msg).await
+                }
+                WriteCmd::Pong(payload) => write_frame(&mut stream, OP_PONG, payload).await,
+                WriteCmd::Shutdown => {
+                    debug!("Write task shutting down");
+                    break;
+                }
+            };
+
+            if let Err(e) = result {
+                error!("Write error ({cmd:?}): {e}");
+                break;
             }
         }
     }
@@ -484,18 +642,29 @@ async fn write_frame(
     Ok(())
 }
 
-async fn read_frame(r: &mut (impl AsyncRead + Unpin)) -> Result<Value, DiscordRpcError> {
+async fn read_frame(r: &mut (impl AsyncRead + Unpin)) -> Result<(u32, Value), DiscordRpcError> {
     let mut header = [0u8; 8];
     r.read_exact(&mut header).await?;
 
-    let _opcode = u32::from_le_bytes(header[0..4].try_into().unwrap());
+    let opcode = u32::from_le_bytes(header[0..4].try_into().unwrap());
     let length = u32::from_le_bytes(header[4..8].try_into().unwrap());
+
+    if length > MAX_FRAME_BYTES {
+        return Err(DiscordRpcError::Protocol(format!(
+            "frame too large: {length} bytes"
+        )));
+    }
 
     let mut body = vec![0u8; length as usize];
     r.read_exact(&mut body).await?;
 
+    // PING/PONG frames carry no payload.
+    if body.is_empty() {
+        return Ok((opcode, Value::Null));
+    }
+
     let value: Value = serde_json::from_slice(&body)?;
-    Ok(value)
+    Ok((opcode, value))
 }
 
 // ── Internal write commands ───────────────────────────────────────────────────
@@ -504,6 +673,10 @@ async fn read_frame(r: &mut (impl AsyncRead + Unpin)) -> Result<Value, DiscordRp
 enum WriteCmd {
     SetActivity(Box<Activity>),
     ClearActivity,
+    /// Reply to an incoming PING, echoing its payload.
+    Pong(Value),
+    /// Flush and stop the writer.
+    Shutdown,
 }
 
 // ── Activity wire payload builder ─────────────────────────────────────────────

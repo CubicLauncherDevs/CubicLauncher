@@ -23,4 +23,10 @@ pub enum DiscordRpcError {
 
     #[error("Heartbeat failed: {0}")]
     HeartbeatFailed(String),
+
+    #[error("Timed out queueing a command for Discord")]
+    CommandTimeout,
+
+    #[error("Protocol error: {0}")]
+    Protocol(String),
 }

@@ -1,12 +1,16 @@
 use communicator::{Activity, DiscordRpcClient};
 use std::sync::OnceLock;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tracing::{error, info, warn};
 
 use crate::services::SettingsManager;
 
 const CLIENT_ID: &str = "1305247641252397059";
+
+/// How long `init` waits for the first handshake before returning and letting
+/// the background loop keep retrying.
+const INIT_CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
 
 struct DiscordPresence {
     client: Mutex<Option<DiscordRpcClient>>,
@@ -44,12 +48,16 @@ pub async fn init() -> Result<(), &'static str> {
 
     info!("Initializing Discord RPC client");
     let mut client = DiscordRpcClient::new(CLIENT_ID);
-    client.connect().await.map_err(|e| {
-        warn!("Failed to connect to Discord: {e}");
-        "Failed to connect to Discord"
-    })?;
 
-    info!("Connected to Discord");
+    // Discord may not be running yet. Keep the client either way: its
+    // connection loop retries in the background, so presence appears as soon
+    // as the user opens Discord instead of requiring a launcher restart.
+    match tokio::time::timeout(INIT_CONNECT_TIMEOUT, client.connect()).await {
+        Ok(Ok(())) => info!("Connected to Discord"),
+        Ok(Err(e)) => warn!("Discord RPC unavailable, retrying in background: {e}"),
+        Err(_) => warn!("Discord RPC handshake timed out, retrying in background"),
+    }
+
     *presence.client.lock().await = Some(client);
     set_idle().await;
     Ok(())
