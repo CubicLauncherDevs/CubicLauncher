@@ -72,6 +72,7 @@ struct ProfileCache {
 
 impl ProfileCache {
     const TTL: Duration = Duration::from_secs(30);
+    const MAX_ENTRIES: usize = 64;
 
     fn new() -> Self {
         Self {
@@ -138,6 +139,16 @@ impl ProfileCache {
             {
                 let mut state = self.state.lock().await;
                 state.entries.insert(uuid.clone(), cached);
+                if state.entries.len() > Self::MAX_ENTRIES {
+                    let oldest = state
+                        .entries
+                        .iter()
+                        .min_by_key(|(_, entry)| entry.fetched_at)
+                        .map(|(key, _)| key.clone());
+                    if let Some(oldest) = oldest {
+                        state.entries.remove(&oldest);
+                    }
+                }
                 state.in_flight.remove(&uuid);
             }
             our_notify.notify_waiters();

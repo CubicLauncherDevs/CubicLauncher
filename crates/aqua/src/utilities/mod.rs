@@ -18,6 +18,8 @@ pub static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .user_agent("Cubic Proton/2.0")
         .connect_timeout(std::time::Duration::from_secs(15))
         .read_timeout(std::time::Duration::from_secs(30))
+        // Keep idle sockets from pinning buffers across long launcher sessions.
+        .pool_max_idle_per_host(8)
         .build()
         .expect("Failed to build reqwest client")
 });
