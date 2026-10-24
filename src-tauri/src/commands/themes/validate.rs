@@ -3,7 +3,10 @@ use super::assets::{
     BgValidationError, resolve_theme_asset, validate_background_image, validate_theme_icon,
 };
 use super::v1::ThemeFile;
-use super::v2::{Icons, read_definition, read_meta};
+use super::v2::{
+    Icons, ThemeDef, ThemeMeta, flatten_with_diagnostics, is_valid_token_name, read_definition,
+    read_meta,
+};
 use serde::Serialize;
 use std::path::Path;
 
@@ -90,6 +93,22 @@ fn validate_v2(theme_base: &Path, report: &mut ThemeValidationReport) {
     if meta.version.trim().is_empty() {
         report.warning("Meta.toml: 'version' está vacío.");
     }
+    if meta.format != 2 {
+        report.error(format!(
+            "Meta.toml: 'format' {} no soportado; se esperaba 2.",
+            meta.format
+        ));
+    }
+    if let Some(api_version) = meta.api_version.as_deref()
+        && api_version != "2"
+        && !api_version.starts_with("2.")
+    {
+        report.warning(format!(
+            "Meta.toml: 'api_version' '{}' no pertenece a la serie 2.x.",
+            api_version
+        ));
+    }
+    warn_unknown_meta(&meta, report);
 
     let theme = match read_definition(theme_base) {
         Ok(theme) => theme,
@@ -99,6 +118,8 @@ fn validate_v2(theme_base: &Path, report: &mut ThemeValidationReport) {
         }
     };
 
+    warn_unknown_definition(&theme, report);
+    validate_tokens(&theme, report);
     validate_background(
         theme_base,
         theme.background.reference_path.as_deref(),
@@ -106,7 +127,57 @@ fn validate_v2(theme_base: &Path, report: &mut ThemeValidationReport) {
     );
     validate_fonts(theme_base, &theme.fonts, report);
     validate_icons(theme_base, &theme.icons, report);
-    validate_inject(theme_base, meta.injects_css, report);
+    validate_inject(theme_base, &meta, &theme, report);
+}
+
+fn warn_unknown_meta(meta: &ThemeMeta, report: &mut ThemeValidationReport) {
+    for key in meta.extra.keys() {
+        report.warning(format!("Meta.toml: campo desconocido '{}'.", key));
+    }
+}
+
+fn warn_unknown_definition(theme: &ThemeDef, report: &mut ThemeValidationReport) {
+    for key in theme.extra.keys() {
+        report.warning(format!("Definition.toml: campo desconocido '{}'.", key));
+    }
+    for key in theme.background.extra.keys() {
+        report.warning(format!(
+            "Definition.toml: campo desconocido 'background.{}'.",
+            key
+        ));
+    }
+    for key in theme.typography.extra.keys() {
+        report.warning(format!(
+            "Definition.toml: campo desconocido 'typography.{}'.",
+            key
+        ));
+    }
+    if let Some(inject) = theme.inject.as_ref() {
+        for key in inject.extra.keys() {
+            report.warning(format!(
+                "Definition.toml: campo desconocido 'inject.{}'.",
+                key
+            ));
+        }
+    }
+}
+
+fn validate_tokens(theme: &ThemeDef, report: &mut ThemeValidationReport) {
+    for key in theme.tokens.keys() {
+        if !is_valid_token_name(key) {
+            report.error(format!(
+                "Definition.toml: token '{}' inválido; debe empezar por '--' y usar solo letras, números, '_' o '-'.",
+                key
+            ));
+        }
+    }
+
+    for warning in flatten_with_diagnostics(theme).warnings {
+        if warning.starts_with("Token '") {
+            continue;
+        }
+        report.warning(warning);
+    }
 }
 
 fn validate_v1(theme_base: &Path, manifest: &Path, report: &mut ThemeValidationReport) {
@@ -282,27 +353,85 @@ fn validate_icon_path(
     }
 }
 
-fn validate_inject(theme_base: &Path, injects_css: bool, report: &mut ThemeValidationReport) {
+fn validate_inject(
+    theme_base: &Path,
+    meta: &ThemeMeta,
+    theme: &ThemeDef,
+    report: &mut ThemeValidationReport,
+) {
+    if let Some(config) = theme.inject.as_ref() {
+        if let Some(layer) = config.layer.as_deref()
+            && layer != "theme"
+            && layer != "unlayered"
+        {
+            report.warning(format!(
+                "Definition.toml: [inject].layer '{}' inválido; usa 'theme' o 'unlayered'.",
+                layer
+            ));
+        }
+
+        let enabled = config.enabled.or(meta.injects_css).unwrap_or(true);
+        if !enabled {
+            return;
+        }
+
+        let path = config.path.as_deref().unwrap_or("Inject.css");
+        validate_inject_path(theme_base, path, report);
+        return;
+    }
+
     let path = theme_base.join("Inject.css");
     if !path.exists() {
         return;
     }
-    if !injects_css {
-        report.warning(
-            "Meta.toml: 'injects_css' es false pero Inject.css existe; actualmente se carga igual.",
-        );
+    report.warning(
+        "Inject.css se carga por compatibilidad; añade [inject] en Definition.toml para controlar su carga y capa.",
+    );
+    validate_css_size(&path, report);
+}
+
+fn validate_inject_path(theme_base: &Path, reference: &str, report: &mut ThemeValidationReport) {
+    if reference.trim().is_empty() {
+        report.warning("Definition.toml: [inject].path está vacío; no se cargará CSS.");
+        return;
     }
-    match std::fs::metadata(&path) {
+    warn_absolute_reference("[inject].path", reference, report);
+
+    let resolved = match resolve_theme_asset(theme_base, reference) {
+        Ok(Some(path)) => path,
+        Ok(None) => return,
+        Err(error) => {
+            report.error(format!("[inject].path tiene una ruta inválida: {error}"));
+            return;
+        }
+    };
+    if !resolved.is_file() {
+        report.warning(format!(
+            "No se encontró el CSS de [inject]: {}",
+            display_relative(theme_base, &resolved)
+        ));
+        return;
+    }
+    validate_css_size(&resolved, report);
+}
+
+fn validate_css_size(path: &Path, report: &mut ThemeValidationReport) {
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("Inject.css");
+    match std::fs::metadata(path) {
         Ok(metadata) if metadata.len() > MAX_CSS_SIZE => {
             report.warning(format!(
-                "Inject.css ocupa {} KiB; se recomienda no superar {} KiB.",
+                "{} ocupa {} KiB; se recomienda no superar {} KiB.",
+                name,
                 metadata.len() / 1024,
                 MAX_CSS_SIZE / 1024
             ));
         }
         Ok(_) => {}
         Err(error) => {
-            report.warning(format!("No se pudo leer Inject.css: {error}"));
+            report.warning(format!("No se pudo leer {}: {error}", name));
         }
     }
 }

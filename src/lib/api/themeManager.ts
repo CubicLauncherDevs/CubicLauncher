@@ -69,6 +69,12 @@ export interface ThemeResponse {
 	fonts: ThemeFontFace[];
 	icons: Record<string, string>;
 	inject_css?: string | null;
+	format?: number;
+	api_version?: string | null;
+	bg_image_size?: string | null;
+	bg_image_position?: string | null;
+	bg_image_brightness?: number | null;
+	inject_layer?: string | null;
 }
 
 const THEME_VARS_ID = "cubic-theme-vars";
@@ -200,8 +206,34 @@ function buildThemeCSS(theme: ThemeResponse): string {
 	) {
 		css += `  --bg-image-opacity: ${theme.bg_image_opacity};\n`;
 	}
+	if (
+		theme.bg_image_size != null &&
+		!("--bg-image-size" in theme.variables)
+	) {
+		css += `  --bg-image-size: ${theme.bg_image_size};\n`;
+	}
+	if (
+		theme.bg_image_position != null &&
+		!("--bg-image-position" in theme.variables)
+	) {
+		css += `  --bg-image-position: ${theme.bg_image_position};\n`;
+	}
+	if (
+		theme.bg_image_brightness != null &&
+		!("--bg-image-brightness" in theme.variables)
+	) {
+		css += `  --bg-image-brightness: ${theme.bg_image_brightness};\n`;
+	}
 	css += "}\n";
 	return css;
+}
+
+function buildInjectCss(theme: ThemeResponse): string | null {
+	if (!theme.inject_css) return null;
+	if (theme.inject_layer === "theme") {
+		return `@layer cubic.theme {\n${theme.inject_css}\n}\n`;
+	}
+	return theme.inject_css;
 }
 
 function setThemeStyle(css: string) {
@@ -447,8 +479,9 @@ export function applyTheme(
 			});
 		}
 
-		if (theme.inject_css) {
-			const blob = new Blob([theme.inject_css], { type: "text/css" });
+		const injectCss = buildInjectCss(theme);
+		if (injectCss) {
+			const blob = new Blob([injectCss], { type: "text/css" });
 			const url = URL.createObjectURL(blob);
 			currentBlobUrl = url;
 			const link = document.createElement("link");

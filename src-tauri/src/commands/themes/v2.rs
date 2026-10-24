@@ -23,6 +23,10 @@ pub struct V2Theme {
     pub theme: ThemeDef,
 }
 
+fn default_format() -> u32 {
+    2
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 /// Estructura que guarda los metadatos de un theme
 ///
@@ -35,7 +39,13 @@ pub struct ThemeMeta {
     #[serde(default)]
     pub description: CompactString,
     #[serde(default)]
-    pub injects_css: bool,
+    pub injects_css: Option<bool>,
+    #[serde(default = "default_format")]
+    pub format: u32,
+    #[serde(default)]
+    pub api_version: Option<String>,
+    #[serde(default, flatten)]
+    pub extra: HashMap<String, toml::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -64,6 +74,20 @@ pub struct ThemeDef {
     pub backdrop: HashMap<String, f64>,
     #[serde(default)]
     pub others: HashMap<String, String>,
+    #[serde(default)]
+    pub tokens: HashMap<String, String>,
+    #[serde(default)]
+    pub typography: Typography,
+    #[serde(default)]
+    pub spacing: HashMap<String, String>,
+    #[serde(default)]
+    pub motion: HashMap<String, String>,
+    #[serde(default)]
+    pub components: HashMap<String, HashMap<String, String>>,
+    #[serde(default)]
+    pub inject: Option<InjectConfig>,
+    #[serde(default, flatten)]
+    pub extra: HashMap<String, toml::Value>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -74,6 +98,52 @@ pub struct Background {
     pub image_blur: Option<f64>,
     #[serde(default)]
     pub image_opacity: Option<f64>,
+    #[serde(default)]
+    pub mode: Option<String>,
+    #[serde(default)]
+    pub position: Option<String>,
+    #[serde(default)]
+    pub brightness: Option<f64>,
+    #[serde(default, flatten)]
+    pub extra: HashMap<String, toml::Value>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+pub struct Typography {
+    #[serde(default)]
+    pub family: Option<String>,
+    #[serde(default)]
+    pub size_base: Option<String>,
+    #[serde(default)]
+    pub size_sm: Option<String>,
+    #[serde(default)]
+    pub size_lg: Option<String>,
+    #[serde(default)]
+    pub size_control: Option<String>,
+    #[serde(default)]
+    pub size_label: Option<String>,
+    #[serde(default)]
+    pub weight_normal: Option<String>,
+    #[serde(default)]
+    pub weight_medium: Option<String>,
+    #[serde(default)]
+    pub weight_bold: Option<String>,
+    #[serde(default)]
+    pub line_height: Option<String>,
+    #[serde(default, flatten)]
+    pub extra: HashMap<String, toml::Value>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
+pub struct InjectConfig {
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub enabled: Option<bool>,
+    #[serde(default)]
+    pub layer: Option<String>,
+    #[serde(default, flatten)]
+    pub extra: HashMap<String, toml::Value>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -129,7 +199,13 @@ impl Theme for V2Theme {
             bg_image_opacity: self.theme.background.image_opacity,
             fonts: self.theme.fonts.clone(),
             icons,
-            inject_css: None, // Not Implemented
+            inject_css: None,
+            format: self.meta.format,
+            api_version: self.meta.api_version.clone(),
+            bg_image_size: self.theme.background.mode.clone(),
+            bg_image_position: self.theme.background.position.clone(),
+            bg_image_brightness: self.theme.background.brightness,
+            inject_layer: None,
         }
     }
 
@@ -181,24 +257,11 @@ impl Theme for V2Theme {
         });
         resolve_fonts(theme_base, &mut theme.fonts)?;
 
-        let inject_css_path = theme_base.join("Inject.css");
-        let inject_css = if inject_css_path.exists() {
-            let content = std::fs::read_to_string(&inject_css_path).map_err(|e| {
-                FsError::ReadFile {
-                    path: inject_css_path.to_string_lossy().into_owned(),
-                    source: e,
-                }
-                .to_string()
-            })?;
-            info!("Inject.css leido, {} bytes", content.len());
-            Some(content)
-        } else {
-            info!("Inject.css no encontrado en {:?}", inject_css_path);
-            None
-        };
+        let (inject_css, inject_layer) = resolve_inject(theme_base, &meta, &theme, id)?;
 
         let mut response = Self { meta, theme }.to_theme_res();
         response.inject_css = inject_css;
+        response.inject_layer = inject_layer;
         info!("Theme V2 convertido a intermediario correctamente");
         Ok(response)
     }
@@ -257,13 +320,117 @@ pub(super) fn read_definition(theme_base: &Path) -> Result<ThemeDef, String> {
     toml::from_slice(&bytes).map_err(|e| CoreError::Serialize(e.to_string()).to_string())
 }
 
-fn insert_var(vars: &mut HashMap<String, String>, key: String, value: String) {
-    if let Some(old) = vars.insert(key.clone(), value) {
-        warn!(
+fn read_css(path: &Path) -> Result<String, String> {
+    std::fs::read_to_string(path).map_err(|e| {
+        FsError::ReadFile {
+            path: path.to_string_lossy().into_owned(),
+            source: e,
+        }
+        .to_string()
+    })
+}
+
+fn resolve_inject(
+    theme_base: &Path,
+    meta: &ThemeMeta,
+    theme: &ThemeDef,
+    id: &str,
+) -> Result<(Option<String>, Option<String>), String> {
+    if let Some(config) = theme.inject.as_ref() {
+        let enabled = config.enabled.or(meta.injects_css).unwrap_or(true);
+        if !enabled {
+            info!("Theme '{}': [inject] deshabilitado", id);
+            return Ok((None, None));
+        }
+
+        let layer = match config.layer.as_deref() {
+            Some("unlayered") => "unlayered".to_string(),
+            Some("theme") | None => "theme".to_string(),
+            Some(other) => {
+                warn!(
+                    "Theme '{}': [inject].layer '{}' inválido; se usará 'theme'",
+                    id, other
+                );
+                "theme".to_string()
+            }
+        };
+
+        let path = config.path.as_deref().unwrap_or("Inject.css");
+        let Some(resolved) = resolve_theme_asset(theme_base, path)? else {
+            return Ok((None, Some(layer)));
+        };
+        if !resolved.exists() {
+            warn!(
+                "Theme '{}': [inject].path '{}' no existe, ignorando",
+                id, path
+            );
+            return Ok((None, Some(layer)));
+        }
+
+        let content = read_css(&resolved)?;
+        info!("Theme '{}': [inject] leído, {} bytes", id, content.len());
+        return Ok((Some(content), Some(layer)));
+    }
+
+    let path = theme_base.join("Inject.css");
+    if !path.exists() {
+        info!("Inject.css no encontrado en {:?}", path);
+        return Ok((None, None));
+    }
+
+    warn!(
+        "Theme '{}': Inject.css sin [inject]; cargando por compatibilidad. Añade [inject] para controlarlo.",
+        id
+    );
+    let content = read_css(&path)?;
+    info!("Inject.css leido, {} bytes", content.len());
+    Ok((Some(content), None))
+}
+
+pub(super) fn is_valid_token_name(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix("--") else {
+        return false;
+    };
+    !rest.is_empty()
+        && rest
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+#[derive(Debug, Default)]
+pub(super) struct FlattenOutput {
+    pub variables: HashMap<String, String>,
+    pub warnings: Vec<String>,
+}
+
+fn insert_var(out: &mut FlattenOutput, key: String, value: String) {
+    if let Some(old) = out.variables.insert(key.clone(), value) {
+        let warning = format!(
             "Key collision en theme: '{}' fue sobrescrito (anterior: '{}')",
             key, old
         );
+        warn!("{warning}");
+        out.warnings.push(warning);
     }
+}
+
+fn insert_optional(out: &mut FlattenOutput, key: &str, value: &Option<String>) {
+    if let Some(value) = value {
+        insert_var(out, key.to_string(), value.clone());
+    }
+}
+
+fn insert_typography(out: &mut FlattenOutput, typography: &Typography) {
+    insert_optional(out, "--font-family", &typography.family);
+    insert_optional(out, "--font-size-base", &typography.size_base);
+    insert_optional(out, "--font-size-sm", &typography.size_sm);
+    insert_optional(out, "--font-size-lg", &typography.size_lg);
+    insert_optional(out, "--font-size-control", &typography.size_control);
+    insert_optional(out, "--font-size-label", &typography.size_label);
+    insert_optional(out, "--font-weight-normal", &typography.weight_normal);
+    insert_optional(out, "--font-weight-medium", &typography.weight_medium);
+    insert_optional(out, "--font-weight-bold", &typography.weight_bold);
+    insert_optional(out, "--line-height", &typography.line_height);
 }
 
 /// Toma la definición de íconos del theme y la aplana a un mapa de
@@ -285,39 +452,81 @@ pub fn collect_icons(icons: &Icons) -> HashMap<String, String> {
     collected
 }
 
-pub fn flatten_variables(theme: &ThemeDef) -> HashMap<String, String> {
-    let mut vars = HashMap::new();
+pub(super) fn flatten_with_diagnostics(theme: &ThemeDef) -> FlattenOutput {
+    let mut out = FlattenOutput::default();
 
     for (k, v) in &theme.colors {
-        insert_var(&mut vars, format!("--{}", k), v.clone());
+        insert_var(&mut out, format!("--{}", k), v.clone());
     }
     for (k, v) in &theme.text {
-        insert_var(&mut vars, format!("--text-{}", k), v.clone());
+        insert_var(&mut out, format!("--text-{}", k), v.clone());
     }
     for (k, v) in &theme.borders {
-        insert_var(&mut vars, format!("--border-{}", k), v.clone());
+        insert_var(&mut out, format!("--border-{}", k), v.clone());
     }
     for (k, v) in &theme.layout {
-        insert_var(&mut vars, format!("--{}", k), v.clone());
+        insert_var(&mut out, format!("--{}", k), v.clone());
     }
     for (k, v) in &theme.shadows {
-        insert_var(&mut vars, format!("--{}", k), v.clone());
+        insert_var(&mut out, format!("--{}", k), v.clone());
     }
     for (k, v) in &theme.backgrounds {
-        insert_var(&mut vars, format!("--bg-{}", k), v.clone());
+        insert_var(&mut out, format!("--bg-{}", k), v.clone());
     }
     for (k, v) in &theme.backdrop {
         insert_var(
-            &mut vars,
+            &mut out,
             format!("--backdrop-blur-{}", k),
             format!("{}px", v),
         );
     }
     for (k, v) in &theme.others {
-        insert_var(&mut vars, format!("--{}", k), v.clone());
+        insert_var(&mut out, format!("--{}", k), v.clone());
     }
 
-    vars
+    insert_typography(&mut out, &theme.typography);
+
+    for (k, v) in &theme.spacing {
+        insert_var(&mut out, format!("--space-{}", k), v.clone());
+    }
+    for (k, v) in &theme.motion {
+        insert_var(&mut out, format!("--transition-{}", k), v.clone());
+    }
+    for (component, entries) in &theme.components {
+        for (k, v) in entries {
+            insert_var(
+                &mut out,
+                format!("--component-{}-{}", component, k),
+                v.clone(),
+            );
+        }
+    }
+
+    for (k, v) in &theme.tokens {
+        if !is_valid_token_name(k) {
+            let warning = format!(
+                "Token '{}' inválido: debe empezar por '--' y usar solo letras, números, '_' o '-'",
+                k
+            );
+            warn!("{warning}");
+            out.warnings.push(warning);
+            continue;
+        }
+        if let Some(old) = out.variables.insert(k.clone(), v.clone()) {
+            let warning = format!(
+                "El token '{}' colisiona con una variable generada; [tokens] gana (anterior: '{}')",
+                k, old
+            );
+            warn!("{warning}");
+            out.warnings.push(warning);
+        }
+    }
+
+    out
+}
+
+pub fn flatten_variables(theme: &ThemeDef) -> HashMap<String, String> {
+    flatten_with_diagnostics(theme).variables
 }
 
 #[cfg(test)]

@@ -148,6 +148,182 @@ fn injects_css_false_warns_when_css_exists() {
         report
             .warnings
             .iter()
-            .any(|warning| warning.contains("injects_css"))
+            .any(|warning| warning.contains("[inject]"))
+    );
+}
+
+#[test]
+fn unknown_fields_produce_warnings() {
+    let dir = TestDir::new();
+    dir.write(
+        "Meta.toml",
+        "name = 'Valid'\nauthor = 'Author'\nunexpected = 'value'\n",
+    );
+    dir.write(
+        "Definition.toml",
+        "[colors]\naccent = '#ff0000'\n\n[background]\nmystery = 1\n\n[typography]\nsize_xl = '20px'\n\n[inject]\nunknown = true\n",
+    );
+
+    let report = validate_theme_at(dir.path(), "valid_author");
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+    for field in [
+        "unexpected",
+        "background.mystery",
+        "typography.size_xl",
+        "inject.unknown",
+    ] {
+        assert!(
+            report
+                .warnings
+                .iter()
+                .any(|warning| warning.contains(field)),
+            "missing warning for {field}: {:?}",
+            report.warnings
+        );
+    }
+}
+
+#[test]
+fn invalid_token_names_are_errors() {
+    let dir = TestDir::new();
+    dir.write("Meta.toml", META);
+    dir.write(
+        "Definition.toml",
+        "[tokens]\naccent = '#ff0000'\n'--valid' = '1'\n",
+    );
+
+    let report = validate_theme_at(dir.path(), "valid_author");
+    assert!(
+        report
+            .errors
+            .iter()
+            .any(|error| error.contains("token 'accent'"))
+    );
+}
+
+#[test]
+fn token_collisions_produce_warnings() {
+    let dir = TestDir::new();
+    dir.write("Meta.toml", META);
+    dir.write(
+        "Definition.toml",
+        "[colors]\naccent = '#ff0000'\n\n[tokens]\n'--accent' = '#00ff00'\n",
+    );
+
+    let report = validate_theme_at(dir.path(), "valid_author");
+    assert!(
+        report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("colisiona") && warning.contains("--accent"))
+    );
+}
+
+#[test]
+fn unsupported_format_is_an_error() {
+    let dir = TestDir::new();
+    dir.write(
+        "Meta.toml",
+        "name = 'Valid'\nauthor = 'Author'\nformat = 3\n",
+    );
+    dir.write("Definition.toml", DEFINITION);
+
+    let report = validate_theme_at(dir.path(), "valid_author");
+    assert!(report.errors.iter().any(|error| error.contains("format")));
+}
+
+#[test]
+fn inject_disabled_skips_css_validation() {
+    let dir = TestDir::new();
+    dir.write("Meta.toml", META);
+    dir.write(
+        "Definition.toml",
+        "[inject]\npath = 'missing.css'\nenabled = false\n",
+    );
+
+    let report = validate_theme_at(dir.path(), "valid_author");
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+    assert!(
+        !report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("missing.css"))
+    );
+}
+
+#[test]
+fn inject_custom_path_and_layer_are_validated() {
+    let dir = TestDir::new();
+    dir.write("Meta.toml", META);
+    dir.write(
+        "Definition.toml",
+        "[inject]\npath = 'assets/custom.css'\nenabled = true\nlayer = 'unlayered'\n",
+    );
+    dir.write("assets/custom.css", "body { color: red; }");
+
+    let report = validate_theme_at(dir.path(), "valid_author");
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+    assert!(
+        !report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("layer"))
+    );
+}
+
+#[test]
+fn inject_invalid_layer_warns() {
+    let dir = TestDir::new();
+    dir.write("Meta.toml", META);
+    dir.write(
+        "Definition.toml",
+        "[inject]\nenabled = true\nlayer = 'component'\n",
+    );
+
+    let report = validate_theme_at(dir.path(), "valid_author");
+    assert!(
+        report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("layer 'component'"))
+    );
+}
+
+#[test]
+fn injects_css_false_disables_inject_when_enabled_is_absent() {
+    let dir = TestDir::new();
+    dir.write(
+        "Meta.toml",
+        "name = 'Valid'\nauthor = 'Author'\ninjects_css = false\n",
+    );
+    dir.write("Definition.toml", "[inject]\npath = 'missing.css'\n");
+
+    let report = validate_theme_at(dir.path(), "valid_author");
+    assert!(
+        !report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("missing.css"))
+    );
+}
+
+#[test]
+fn inject_enabled_overrides_injects_css_false() {
+    let dir = TestDir::new();
+    dir.write(
+        "Meta.toml",
+        "name = 'Valid'\nauthor = 'Author'\ninjects_css = false\n",
+    );
+    dir.write(
+        "Definition.toml",
+        "[inject]\npath = 'missing.css'\nenabled = true\n",
+    );
+
+    let report = validate_theme_at(dir.path(), "valid_author");
+    assert!(
+        report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("missing.css"))
     );
 }

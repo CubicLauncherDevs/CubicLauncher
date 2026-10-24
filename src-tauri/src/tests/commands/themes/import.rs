@@ -202,8 +202,30 @@ fn runtime_tolerates_missing_assets_and_keeps_inject_css_without_flag() {
     assert!(loaded.icons.is_empty());
     assert_eq!(loaded.fonts.len(), 1);
     assert_eq!(loaded.inject_css.as_deref(), Some("body { color: red; }"));
+    assert!(loaded.inject_layer.is_none());
     staged.install(&themes.join(entry.id.as_str())).unwrap();
     assert!(load_user_theme(&themes.join(entry.id.as_str()), &entry.id).is_ok());
+}
+
+#[test]
+fn imports_v2_with_inject_config() {
+    let dir = TestDir::new();
+    let themes = dir.0.join("themes");
+    let zip = dir.zip(&[
+        (
+            "Meta.toml",
+            "name = 'Test'\nauthor = 'Author'\ninjects_css = true\n",
+        ),
+        (
+            "Definition.toml",
+            "[colors]\naccent = 'red'\n[inject]\npath = 'assets/custom.css'\nenabled = true\nlayer = 'theme'\n",
+        ),
+        ("assets/custom.css", "body { color: red; }"),
+    ]);
+    let (entry, staged) = stage_zip::<ThemeMeta>(&zip, &themes).unwrap().unwrap();
+    let loaded = load_user_theme(&staged.root.join("theme"), &entry.id).unwrap();
+    assert_eq!(loaded.inject_css.as_deref(), Some("body { color: red; }"));
+    assert_eq!(loaded.inject_layer.as_deref(), Some("theme"));
 }
 
 #[test]

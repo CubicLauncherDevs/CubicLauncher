@@ -39,6 +39,12 @@ pub struct ThemeResponse {
     pub fonts: Vec<FontFace>,
     pub icons: HashMap<String, String>,
     pub inject_css: Option<String>,
+    pub format: u32,
+    pub api_version: Option<String>,
+    pub bg_image_size: Option<String>,
+    pub bg_image_position: Option<String>,
+    pub bg_image_brightness: Option<f64>,
+    pub inject_layer: Option<String>,
 }
 
 trait Theme {

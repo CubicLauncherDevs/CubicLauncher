@@ -107,7 +107,13 @@ impl Theme for ThemeFile {
             bg_image_opacity: self.bg_image_opacity,
             fonts: self.fonts.clone(),
             icons: HashMap::new(),
-            inject_css: None, // Not implemented
+            inject_css: None,
+            format: 1,
+            api_version: None,
+            bg_image_size: None,
+            bg_image_position: None,
+            bg_image_brightness: None,
+            inject_layer: None,
         }
     }
 

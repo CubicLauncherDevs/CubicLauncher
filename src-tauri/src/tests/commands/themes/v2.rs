@@ -6,7 +6,10 @@ fn build_theme_meta(name: &str) -> ThemeMeta {
         author: CompactString::new("TestAuthor"),
         version: CompactString::new("1.0"),
         description: CompactString::new("Test description"),
-        injects_css: false,
+        injects_css: None,
+        format: 2,
+        api_version: None,
+        extra: HashMap::new(),
     }
 }
 
@@ -46,6 +49,10 @@ fn build_theme_def() -> ThemeDef {
             reference_path: Some("bg.webp".into()),
             image_blur: Some(10.0),
             image_opacity: Some(0.5),
+            mode: None,
+            position: None,
+            brightness: None,
+            extra: HashMap::new(),
         },
         text,
         fonts: vec![],
@@ -56,6 +63,13 @@ fn build_theme_def() -> ThemeDef {
         backgrounds: HashMap::new(),
         backdrop: HashMap::new(),
         others,
+        tokens: HashMap::new(),
+        typography: Typography::default(),
+        spacing: HashMap::new(),
+        motion: HashMap::new(),
+        components: HashMap::new(),
+        inject: None,
+        extra: HashMap::new(),
     }
 }
 
@@ -90,7 +104,7 @@ fn parse_v2_theme_from_toml() {
     let theme: V2Theme = toml::from_str(toml_str).expect("failed to parse TOML");
     assert_eq!(theme.meta.name.as_str(), "Test Theme");
     assert_eq!(theme.meta.author.as_str(), "Author");
-    assert!(theme.meta.injects_css);
+    assert_eq!(theme.meta.injects_css, Some(true));
     assert_eq!(theme.theme.colors.get("accent").unwrap(), "#abc123");
     assert_eq!(theme.theme.text.get("primary").unwrap(), "#000000");
     assert_eq!(
@@ -123,8 +137,191 @@ fn parse_minimal_theme() {
     assert_eq!(theme.meta.name.as_str(), "Minimal");
     assert!(theme.meta.author.is_empty());
     assert!(theme.meta.version.is_empty());
-    assert!(!theme.meta.injects_css);
+    assert_eq!(theme.meta.injects_css, None);
     assert!(theme.theme.background.reference_path.is_none());
+}
+
+#[test]
+fn parse_additive_fields() {
+    let toml_str = r##"
+            [meta]
+            name = "Additive"
+            format = 2
+            api_version = "2.1"
+            injects_css = true
+
+            [theme.tokens]
+            "--sidebar-width" = "300px"
+
+            [theme.typography]
+            family = "Inter, sans-serif"
+            size_base = "14px"
+            weight_bold = "700"
+            line_height = "1.6"
+
+            [theme.spacing]
+            sm = "8px"
+
+            [theme.motion]
+            fast = "0.15s"
+
+            [theme.components.sidebar]
+            width = "260px"
+
+            [theme.background]
+            mode = "contain"
+            position = "top"
+            brightness = 0.6
+
+            [theme.inject]
+            path = "custom.css"
+            enabled = true
+            layer = "theme"
+        "##;
+
+    let theme: V2Theme = toml::from_str(toml_str).expect("failed to parse additive fields");
+    assert_eq!(theme.meta.format, 2);
+    assert_eq!(theme.meta.api_version.as_deref(), Some("2.1"));
+    assert_eq!(
+        theme
+            .theme
+            .tokens
+            .get("--sidebar-width")
+            .map(String::as_str),
+        Some("300px")
+    );
+    assert_eq!(
+        theme.theme.typography.family.as_deref(),
+        Some("Inter, sans-serif")
+    );
+    assert_eq!(theme.theme.typography.size_base.as_deref(), Some("14px"));
+    assert_eq!(theme.theme.typography.weight_bold.as_deref(), Some("700"));
+    assert_eq!(theme.theme.typography.line_height.as_deref(), Some("1.6"));
+    assert_eq!(
+        theme.theme.spacing.get("sm").map(String::as_str),
+        Some("8px")
+    );
+    assert_eq!(
+        theme.theme.motion.get("fast").map(String::as_str),
+        Some("0.15s")
+    );
+    assert_eq!(
+        theme
+            .theme
+            .components
+            .get("sidebar")
+            .and_then(|values| values.get("width"))
+            .map(String::as_str),
+        Some("260px")
+    );
+    assert_eq!(theme.theme.background.mode.as_deref(), Some("contain"));
+    assert_eq!(theme.theme.background.position.as_deref(), Some("top"));
+    assert_eq!(theme.theme.background.brightness, Some(0.6));
+    let inject = theme.theme.inject.as_ref().expect("inject config");
+    assert_eq!(inject.path.as_deref(), Some("custom.css"));
+    assert_eq!(inject.enabled, Some(true));
+    assert_eq!(inject.layer.as_deref(), Some("theme"));
+}
+
+#[test]
+fn unknown_fields_are_collected_for_validation() {
+    let toml_str = r##"
+            [meta]
+            name = "Unknown"
+            unexpected = "value"
+
+            [theme.background]
+            reference_path = "bg.webp"
+            mystery = 1
+
+            [theme.typography]
+            family = "Inter"
+            size_xl = "20px"
+        "##;
+
+    let theme: V2Theme = toml::from_str(toml_str).expect("unknown fields should not fail");
+    assert!(theme.meta.extra.contains_key("unexpected"));
+    assert!(theme.theme.background.extra.contains_key("mystery"));
+    assert!(theme.theme.typography.extra.contains_key("size_xl"));
+}
+
+#[test]
+fn flatten_additive_sections() {
+    let mut theme = build_theme_def();
+    theme.colors.clear();
+    theme.text.clear();
+    theme.borders.clear();
+    theme.shadows.clear();
+    theme.others.clear();
+    theme.typography = Typography {
+        family: Some("Inter".into()),
+        size_base: Some("14px".into()),
+        size_sm: Some("12px".into()),
+        size_lg: Some("16px".into()),
+        size_control: Some("13px".into()),
+        size_label: Some("11px".into()),
+        weight_normal: Some("400".into()),
+        weight_medium: Some("600".into()),
+        weight_bold: Some("700".into()),
+        line_height: Some("1.5".into()),
+        extra: HashMap::new(),
+    };
+    theme.spacing.insert("md".into(), "12px".into());
+    theme.motion.insert("normal".into(), "0.2s".into());
+    theme.components.insert(
+        "market".into(),
+        HashMap::from([("card_min_width".into(), "280px".into())]),
+    );
+
+    let vars = flatten_variables(&theme);
+    assert_eq!(vars.get("--font-family").unwrap(), "Inter");
+    assert_eq!(vars.get("--font-size-base").unwrap(), "14px");
+    assert_eq!(vars.get("--font-size-sm").unwrap(), "12px");
+    assert_eq!(vars.get("--font-size-lg").unwrap(), "16px");
+    assert_eq!(vars.get("--font-size-control").unwrap(), "13px");
+    assert_eq!(vars.get("--font-size-label").unwrap(), "11px");
+    assert_eq!(vars.get("--font-weight-normal").unwrap(), "400");
+    assert_eq!(vars.get("--font-weight-medium").unwrap(), "600");
+    assert_eq!(vars.get("--font-weight-bold").unwrap(), "700");
+    assert_eq!(vars.get("--line-height").unwrap(), "1.5");
+    assert_eq!(vars.get("--space-md").unwrap(), "12px");
+    assert_eq!(vars.get("--transition-normal").unwrap(), "0.2s");
+    assert_eq!(
+        vars.get("--component-market-card_min_width").unwrap(),
+        "280px"
+    );
+}
+
+#[test]
+fn tokens_win_and_report_collisions() {
+    let mut theme = build_theme_def();
+    theme.tokens.insert("--accent".into(), "#00ff00".into());
+
+    let output = flatten_with_diagnostics(&theme);
+    assert_eq!(output.variables.get("--accent").unwrap(), "#00ff00");
+    assert!(
+        output
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("colisiona") && warning.contains("--accent"))
+    );
+}
+
+#[test]
+fn invalid_token_names_are_skipped() {
+    let mut theme = build_theme_def();
+    theme.tokens.insert("accent".into(), "#00ff00".into());
+    theme.tokens.insert("--valid-token".into(), "1".into());
+
+    let output = flatten_with_diagnostics(&theme);
+    assert!(!output.variables.contains_key("accent"));
+    assert_eq!(output.variables.get("--valid-token").unwrap(), "1");
+    assert!(
+        output
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("inválido"))
+    );
 }
 
 #[test]
@@ -215,6 +412,10 @@ fn flatten_background_none() {
         reference_path: None,
         image_blur: None,
         image_opacity: None,
+        mode: None,
+        position: None,
+        brightness: None,
+        extra: HashMap::new(),
     };
 
     let vars = flatten_variables(&theme);
@@ -263,6 +464,10 @@ fn flatten_empty_sections() {
             reference_path: None,
             image_blur: None,
             image_opacity: None,
+            mode: None,
+            position: None,
+            brightness: None,
+            extra: HashMap::new(),
         },
         text: HashMap::new(),
         fonts: vec![],
@@ -273,6 +478,13 @@ fn flatten_empty_sections() {
         backgrounds: HashMap::new(),
         backdrop: HashMap::new(),
         others: HashMap::new(),
+        tokens: HashMap::new(),
+        typography: Typography::default(),
+        spacing: HashMap::new(),
+        motion: HashMap::new(),
+        components: HashMap::new(),
+        inject: None,
+        extra: HashMap::new(),
     };
 
     let vars = flatten_variables(&theme);
@@ -398,4 +610,10 @@ fn to_theme_res_fields() {
         Some("ui/play.svg")
     );
     assert!(res.inject_css.is_none());
+    assert_eq!(res.format, 2);
+    assert!(res.api_version.is_none());
+    assert!(res.bg_image_size.is_none());
+    assert!(res.bg_image_position.is_none());
+    assert!(res.bg_image_brightness.is_none());
+    assert!(res.inject_layer.is_none());
 }

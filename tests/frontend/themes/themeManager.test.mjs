@@ -773,6 +773,55 @@ for (const id of ["dark", "user:custom"]) {
 	});
 }
 
+test("background mode, position and brightness fall back to variables", async () => {
+	await commit(
+		"user:A",
+		theme("A", {
+			variables: {},
+			bg_image_size: "contain",
+			bg_image_position: "top left",
+			bg_image_brightness: 0,
+		}),
+	);
+	expect(style().textContent).toBe(
+		":root {\n  --bg-image-size: contain;\n  --bg-image-position: top left;\n  --bg-image-brightness: 0;\n}\n",
+	);
+
+	await commit(
+		"user:A",
+		theme("B", {
+			variables: {
+				"--bg-image-size": "cover",
+				"--bg-image-position": "center",
+				"--bg-image-brightness": "1",
+			},
+			bg_image_size: "contain",
+			bg_image_position: "top",
+			bg_image_brightness: 0.4,
+		}),
+		{ force: true },
+	);
+	expect(style().textContent).toBe(
+		":root {\n  --bg-image-size: cover;\n  --bg-image-position: center;\n  --bg-image-brightness: 1;\n}\n",
+	);
+});
+
+test("inject CSS is wrapped in the theme layer when requested", async () => {
+	await commit("user:A", richTheme("A", { inject_layer: "theme" }));
+	expect(await blobs.get(style("cubic-theme-css").href).text()).toBe(
+		"@layer cubic.theme {\n.card { color: A; }\n}\n",
+	);
+
+	await commit(
+		"user:A",
+		richTheme("B", { inject_layer: "unlayered" }),
+		{ force: true },
+	);
+	expect(await blobs.get(style("cubic-theme-css").href).text()).toBe(
+		".card { color: B; }",
+	);
+});
+
 test("diagnostics update on commit and only the current image can add dimensions", async () => {
 	await commit(
 		"user:A",
