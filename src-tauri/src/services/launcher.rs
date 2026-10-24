@@ -33,7 +33,9 @@ use zellkern::{GameVersion, Loader};
 
 use dashmap::DashMap;
 
-const LOG_RING_CAPACITY: usize = 5000;
+// Matches the console's visible history cap in the frontend
+// (DEFAULT_CONSOLE_HISTORY_LIMIT). Anything above it is never rendered.
+const LOG_RING_CAPACITY: usize = 3000;
 
 static LINE_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -381,11 +383,23 @@ fn crash_log_snapshots() -> &'static DashMap<Arc<str>, CrashLogSnapshot> {
 }
 
 const CRASH_LOG_SNAPSHOT_TTL: std::time::Duration = std::time::Duration::from_secs(3600);
+const CRASH_LOG_SNAPSHOT_MAX: usize = 8;
 
 fn cleanup_crash_log_snapshots() {
     let now = std::time::Instant::now();
-    crash_log_snapshots()
-        .retain(|_, snapshot| now.duration_since(snapshot.created) < CRASH_LOG_SNAPSHOT_TTL);
+    let snapshots = crash_log_snapshots();
+    snapshots.retain(|_, snapshot| now.duration_since(snapshot.created) < CRASH_LOG_SNAPSHOT_TTL);
+    // Repeated crashes must not keep full log rings alive indefinitely.
+    while snapshots.len() > CRASH_LOG_SNAPSHOT_MAX {
+        let Some(oldest) = snapshots
+            .iter()
+            .min_by_key(|entry| entry.value().created)
+            .map(|entry| entry.key().clone())
+        else {
+            break;
+        };
+        snapshots.remove(&oldest);
+    }
 }
 
 /// Añade un mensaje del launcher al anillo de logs de una instancia.

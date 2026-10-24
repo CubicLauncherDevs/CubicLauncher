@@ -49,9 +49,13 @@ fn remove_log_window(instance_id: &str) {
     }
 }
 
+/// The console trims its buffer to this many lines anyway, so sending the
+/// whole ring only inflates the IPC payload.
+const LOG_HISTORY_DEFAULT: usize = 3000;
+
 #[tauri::command]
 pub async fn get_log_history_cmd(instance_id: String, limit: Option<usize>) -> Vec<LogLine> {
-    get_log_history(&instance_id, limit).await
+    get_log_history(&instance_id, limit.or(Some(LOG_HISTORY_DEFAULT))).await
 }
 
 /// Abre la ventana de logs de una instancia. Puede llamarse tanto desde
