@@ -486,7 +486,10 @@ fn merge_definitions(mut base: ThemeDef, child: ThemeDef) -> ThemeDef {
     base.spacing.extend(child.spacing);
     base.motion.extend(child.motion);
     for (component, entries) in child.components {
-        base.components.entry(component).or_default().extend(entries);
+        base.components
+            .entry(component)
+            .or_default()
+            .extend(entries);
     }
     base.typography = merge_typography(base.typography, child.typography);
     base.background = merge_background(base.background, child.background);

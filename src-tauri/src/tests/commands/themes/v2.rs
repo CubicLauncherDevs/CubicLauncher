@@ -621,7 +621,6 @@ fn to_theme_res_fields() {
     assert!(res.inject_layer.is_none());
 }
 
-
 // ── Herencia (extends) y layout packs ───────────────────────────────────────
 
 struct ThemeTree(std::path::PathBuf);
@@ -675,16 +674,18 @@ fn extends_merges_tokens_and_child_wins() {
     );
 
     write_meta(&tree, "child", "Child", "extends = 'base'\n");
-    tree.write(
-        "child",
-        "Definition.toml",
-        "[colors]\naccent = '#0000ff'\n",
-    );
+    tree.write("child", "Definition.toml", "[colors]\naccent = '#0000ff'\n");
 
     let res = V2Theme::load(&tree.theme("child"), "child").unwrap();
 
-    assert_eq!(res.variables.get("--accent").map(String::as_str), Some("#0000ff"));
-    assert_eq!(res.variables.get("--bg").map(String::as_str), Some("#101010"));
+    assert_eq!(
+        res.variables.get("--accent").map(String::as_str),
+        Some("#0000ff")
+    );
+    assert_eq!(
+        res.variables.get("--bg").map(String::as_str),
+        Some("#101010")
+    );
     assert_eq!(
         res.variables.get("--text-primary").map(String::as_str),
         Some("#ffffff")
@@ -766,7 +767,12 @@ fn extends_depth_is_limited() {
         } else {
             format!("extends = 'theme{}'\n", index + 1)
         };
-        write_meta(&tree, &format!("theme{index}"), &format!("T{index}"), &extra);
+        write_meta(
+            &tree,
+            &format!("theme{index}"),
+            &format!("T{index}"),
+            &extra,
+        );
         tree.write(
             &format!("theme{index}"),
             "Definition.toml",

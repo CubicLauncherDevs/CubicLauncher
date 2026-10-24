@@ -328,7 +328,6 @@ fn inject_enabled_overrides_injects_css_false() {
     );
 }
 
-
 // ── Herencia (extends) y layout packs ───────────────────────────────────────
 
 fn write_theme(dir: &TestDir, theme: &str, meta: &str, definition: &str) {
@@ -408,10 +407,7 @@ fn extends_missing_base_reports_error() {
 fn layout_pack_missing_reports_warning() {
     let dir = TestDir::new();
     dir.write("Meta.toml", META);
-    dir.write(
-        "Definition.toml",
-        "[layout_pack]\npath = 'Nope.css'\n",
-    );
+    dir.write("Definition.toml", "[layout_pack]\npath = 'Nope.css'\n");
 
     let report = validate_theme_at(dir.path(), "pack_author");
     assert!(report.errors.is_empty(), "{:?}", report.errors);
@@ -429,10 +425,7 @@ fn layout_pack_missing_reports_warning() {
 fn valid_layout_pack_has_no_errors() {
     let dir = TestDir::new();
     dir.write("Meta.toml", META);
-    dir.write(
-        "Definition.toml",
-        "[layout_pack]\npath = 'Layout.css'\n",
-    );
+    dir.write("Definition.toml", "[layout_pack]\npath = 'Layout.css'\n");
     dir.write(
         "Layout.css",
         "[data-part='app'] { flex-direction: row-reverse; }\n",

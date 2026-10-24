@@ -182,11 +182,7 @@ fn validate_tokens(theme: &ThemeDef, report: &mut ThemeValidationReport) {
     }
 }
 
-fn validate_layout_pack(
-    theme_base: &Path,
-    theme: &ThemeDef,
-    report: &mut ThemeValidationReport,
-) {
+fn validate_layout_pack(theme_base: &Path, theme: &ThemeDef, report: &mut ThemeValidationReport) {
     let Some(config) = theme.layout_pack.as_ref() else {
         return;
     };
@@ -282,7 +278,9 @@ fn validate_extends(
         let base_meta = match read_meta(&base_dir) {
             Ok(base_meta) => base_meta,
             Err(error) => {
-                report.error(format!("Meta.toml del tema base '{current}' inválido: {error}"));
+                report.error(format!(
+                    "Meta.toml del tema base '{current}' inválido: {error}"
+                ));
                 return;
             }
         };
