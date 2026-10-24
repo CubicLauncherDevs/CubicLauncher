@@ -518,6 +518,10 @@
 		box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.08);
 	}
 
+	.sc-instance-item img {
+		object-fit: contain;
+	}
+
 	.sc-instance-running {
 		position: absolute;
 		bottom: 3px;

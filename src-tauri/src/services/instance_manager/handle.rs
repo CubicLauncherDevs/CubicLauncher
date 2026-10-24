@@ -1,5 +1,5 @@
 use crate::core::{AppEvent, InstanceError, emit};
-use crate::services::{InstOverrides, SettingsManager};
+use crate::services::{InstOverrides, SettingsManager, image_pipeline};
 use compact_str::ToCompactString;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -29,6 +29,27 @@ fn normalize_icon_path(icon: &str, instance_dir: &Path) -> Arc<str> {
         return rel.to_string_lossy().to_string().into();
     }
     icon.into()
+}
+
+/// Reconoce los iconos que ya pasaron por `image_pipeline` para que la
+/// migración sea idempotente. Solo acepta `icons/icon_<16 hex>.png`.
+fn is_normalized_icon(icon_path: &Path, instance_dir: &Path) -> bool {
+    let Ok(relative) = icon_path.strip_prefix(instance_dir) else {
+        return false;
+    };
+    if relative.parent() != Some(Path::new("icons")) {
+        return false;
+    }
+    let Some(file_name) = relative.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    let Some(hash) = file_name
+        .strip_prefix("icon_")
+        .and_then(|name| name.strip_suffix(".png"))
+    else {
+        return false;
+    };
+    hash.len() == 16 && hash.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 #[derive(Clone)]
@@ -342,6 +363,111 @@ impl InstanceHandle {
         let instance_dir = data.get_instance_dir();
         data.icon = icon.map(|s| normalize_icon_path(&s, &instance_dir));
         data.dirty = true;
+    }
+
+    /// Reescala un icono legacy a un PNG de 256 px con nombre content-addressed.
+    ///
+    /// Es idempotente y best-effort: si el archivo no existe, si el formato no
+    /// se puede decodificar o si el guardado falla, la instancia conserva el
+    /// icono anterior en lugar de quedar rota.
+    pub(crate) async fn migrate_icon_if_needed(&self) -> bool {
+        let Some(current) = self.get_icon().await else {
+            return false;
+        };
+        if is_asset_icon(&current) {
+            return false;
+        }
+
+        let instance_dir = self.get_instance_dir().await;
+        let current_path = {
+            let path = Path::new(current.as_ref());
+            if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                instance_dir.join(path)
+            }
+        };
+        if !current_path.is_file() || is_normalized_icon(&current_path, &instance_dir) {
+            return false;
+        }
+
+        let source = current_path.clone();
+        let normalized =
+            match tokio::task::spawn_blocking(move || image_pipeline::normalize_icon_file(&source))
+                .await
+            {
+                Ok(Ok(icon)) => icon,
+                Ok(Err(error)) => {
+                    warn!("No se pudo migrar el icono de {}: {}", self.uuid, error);
+                    return false;
+                }
+                Err(error) => {
+                    warn!("No se pudo migrar el icono de {}: {}", self.uuid, error);
+                    return false;
+                }
+            };
+
+        let Ok(files_guard) = self.try_lock_files() else {
+            return false;
+        };
+        // Si la instancia se renombró mientras se procesaba, la ruta de destino
+        // ya no es válida: se reintenta en el próximo arranque.
+        if self.get_instance_dir().await != instance_dir {
+            return false;
+        }
+        // Si el usuario cambió el icono mientras se procesaba, no pisarlo.
+        if self.get_icon().await.as_deref() != Some(current.as_ref()) {
+            return false;
+        }
+
+        let icons_dir = instance_dir.join("icons");
+        let store_dir = icons_dir.clone();
+        let destination = match tokio::task::spawn_blocking(move || {
+            image_pipeline::store_normalized_icon(&store_dir, &normalized)
+        })
+        .await
+        {
+            Ok(Ok(path)) => path,
+            Ok(Err(error)) => {
+                warn!(
+                    "No se pudo guardar el icono migrado de {}: {}",
+                    self.uuid, error
+                );
+                return false;
+            }
+            Err(error) => {
+                warn!(
+                    "No se pudo guardar el icono migrado de {}: {}",
+                    self.uuid, error
+                );
+                return false;
+            }
+        };
+
+        self.set_icon(Some(destination.to_string_lossy().to_string()))
+            .await;
+        if let Err(error) = files_guard.save_if_dirty().await {
+            self.set_icon(Some(current.to_string())).await;
+            warn!(
+                "No se pudo guardar el icono migrado de {}: {}",
+                self.uuid, error
+            );
+            return false;
+        }
+
+        // El icono nuevo ya está persistido: borrar el legacy es best-effort.
+        let keep = destination.clone();
+        let cleanup_dir = icons_dir;
+        let _ = tokio::task::spawn_blocking(move || {
+            image_pipeline::remove_icon_files(&cleanup_dir, Some(&keep))
+        })
+        .await;
+
+        emit(AppEvent::InstanceEdited {
+            id: self.uuid.to_compact_string(),
+            dto: None,
+        });
+        true
     }
 
     pub async fn set_cover_image(&self, cover_image: Option<PathBuf>) {

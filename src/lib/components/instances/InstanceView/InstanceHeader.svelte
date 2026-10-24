@@ -168,6 +168,8 @@
 							class="instance-icon"
 							src={getDisplayIconSrc(instance.icon)}
 							alt={instance.name}
+							width="36"
+							height="36"
 						/>
 					{/if}
 					<h1 class="instance-title">{instance.name}</h1>
@@ -327,6 +329,8 @@
 					class="compact-icon"
 					src={getDisplayIconSrc(instance.icon)}
 					alt={instance.name}
+					width="28"
+					height="28"
 				/>
 			{/if}
 			<div class="compact-title-area">

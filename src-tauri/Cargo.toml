@@ -55,7 +55,7 @@ postcard = { version = "1", features = ["use-std"] }
 urlencoding = "2"
 url = "2"
 regex = "1"
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 fastnbt = "2"
 flate2 = "1"
 tempfile = "3"

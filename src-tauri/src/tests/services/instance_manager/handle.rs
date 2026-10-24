@@ -115,3 +115,74 @@ async fn world_operation_lock_survives_cancelled_async_caller() {
     done_rx.await.unwrap();
     assert!(handle.try_lock_files().is_ok());
 }
+
+fn write_png(path: &std::path::Path, width: u32, height: u32) {
+    let image = image::RgbaImage::from_pixel(width, height, image::Rgba([10, 20, 30, 255]));
+    let mut bytes = Vec::new();
+    image
+        .write_to(
+            &mut std::io::Cursor::new(&mut bytes),
+            image::ImageFormat::Png,
+        )
+        .unwrap();
+    std::fs::write(path, bytes).unwrap();
+}
+
+#[tokio::test]
+async fn legacy_icon_is_migrated_to_a_bounded_png() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut data = InstanceData::new(
+        "Pack".into(),
+        "1.21".into(),
+        Some("icons/custom_1.png".into()),
+    );
+    data.instance_root = temp.path().to_path_buf();
+    let dir = data.get_instance_dir();
+    std::fs::create_dir_all(dir.join("icons")).unwrap();
+    let legacy = dir.join("icons/custom_1.png");
+    write_png(&legacy, 512, 512);
+    data.save().await.unwrap();
+    let handle = InstanceHandle::new(data);
+
+    assert!(handle.migrate_icon_if_needed().await);
+
+    let icon = handle.get_icon().await.unwrap();
+    assert!(icon.starts_with("icons/icon_"));
+    assert!(icon.ends_with(".png"));
+    assert!(!legacy.exists());
+
+    let migrated =
+        image::load_from_memory(&std::fs::read(dir.join(icon.as_ref())).unwrap()).unwrap();
+    assert_eq!((migrated.width(), migrated.height()), (256, 256));
+
+    let saved: InstanceData =
+        serde_json::from_slice(&std::fs::read(dir.join("instance.cub")).unwrap()).unwrap();
+    assert_eq!(saved.icon.as_deref(), Some(icon.as_ref()));
+
+    // Idempotente: una segunda pasada no vuelve a tocar nada.
+    assert!(!handle.migrate_icon_if_needed().await);
+}
+
+#[tokio::test]
+async fn a_corrupt_legacy_icon_does_not_break_the_instance() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut data = InstanceData::new(
+        "Pack".into(),
+        "1.21".into(),
+        Some("icons/custom_1.png".into()),
+    );
+    data.instance_root = temp.path().to_path_buf();
+    let dir = data.get_instance_dir();
+    std::fs::create_dir_all(dir.join("icons")).unwrap();
+    let legacy = dir.join("icons/custom_1.png");
+    std::fs::write(&legacy, b"not an image").unwrap();
+    data.save().await.unwrap();
+    let handle = InstanceHandle::new(data);
+
+    assert!(!handle.migrate_icon_if_needed().await);
+    assert_eq!(
+        handle.get_icon().await.as_deref(),
+        Some("icons/custom_1.png")
+    );
+    assert!(legacy.exists());
+}

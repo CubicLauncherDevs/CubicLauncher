@@ -4,6 +4,7 @@ use crate::core::errors::{FsError, InstanceError};
 use crate::core::{AppEvent, PathManager, emit, validate_filename};
 use crate::services::InstOverrides;
 use crate::services::InstanceManager;
+use crate::services::image_pipeline;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tracing::{error, info, warn};
@@ -383,19 +384,6 @@ async fn copy_instance_file(src: &Path, dest: &Path, overwrite: bool) -> std::io
 #[path = "../../tests/commands/instance/manage.rs"]
 mod tests;
 
-async fn remove_custom_icons(icons_dir: &std::path::Path) {
-    if !icons_dir.exists() {
-        return;
-    }
-    if let Ok(mut dir) = tokio::fs::read_dir(icons_dir).await {
-        while let Ok(Some(entry)) = dir.next_entry().await {
-            if entry.file_name().to_string_lossy().starts_with("custom_") {
-                let _ = tokio::fs::remove_file(entry.path()).await;
-            }
-        }
-    }
-}
-
 #[tauri::command]
 pub async fn upload_custom_icon(
     instance_id: String,
@@ -408,7 +396,6 @@ pub async fn upload_custom_icon(
         return Err(InstanceError::NotFound.to_string());
     };
 
-    let files_guard = handle.try_lock_files()?;
     if handle.is_busy() {
         error!(
             "Intento de subir icono en instancia ocupada {}",
@@ -418,57 +405,67 @@ pub async fn upload_custom_icon(
     }
 
     let src = PathBuf::from(&source_path);
-    if !src.exists() {
-        return Err(format!("El archivo '{}' no existe", source_path));
+    let metadata = tokio::fs::metadata(&src).await.map_err(|e| {
+        format!(
+            "El archivo '{}' no existe o no se puede leer: {}",
+            source_path, e
+        )
+    })?;
+    if !metadata.is_file() {
+        return Err(format!("'{}' no es un archivo", source_path));
+    }
+
+    // Decodificar y reescalar fuera del lock: es CPU-bound y puede tardar.
+    let normalized = tokio::task::spawn_blocking(move || image_pipeline::normalize_icon_file(&src))
+        .await
+        .map_err(|e| format!("No se pudo procesar el icono: {e}"))??;
+
+    let files_guard = handle.try_lock_files()?;
+    if handle.is_busy() {
+        error!(
+            "Intento de subir icono en instancia ocupada {}",
+            instance_id
+        );
+        return Err(InstanceError::Busy.to_string());
     }
 
     let instance_dir = handle.get_instance_dir().await;
     let icons_dir = instance_dir.join("icons");
-    tokio::fs::create_dir_all(&icons_dir).await.map_err(|e| {
-        error!("Error creando directorio de iconos {:?}: {}", icons_dir, e);
-        FsError::CreateDir {
-            path: icons_dir.to_string_lossy().to_string(),
-            source: e,
-        }
-        .to_string()
-    })?;
+    let store_dir = icons_dir.clone();
+    let dest_path = tokio::task::spawn_blocking(move || {
+        image_pipeline::store_normalized_icon(&store_dir, &normalized)
+    })
+    .await
+    .map_err(|e| format!("No se pudo guardar el icono: {e}"))??;
 
-    // Remove previous custom icons to avoid cluttering
-    remove_custom_icons(&icons_dir).await;
+    let previous_icon = handle.get_icon().await;
+    handle
+        .set_icon(Some(dest_path.to_string_lossy().to_string()))
+        .await;
+    if let Err(error) = files_guard.save_if_dirty().await {
+        // Dejar la instancia como estaba; el archivo nuevo es inofensivo.
+        handle
+            .set_icon(previous_icon.as_ref().map(|icon| icon.to_string()))
+            .await;
+        error!("Error guardando instancia tras subir icono: {}", error);
+        return Err(error.to_string());
+    }
 
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis();
-    let dest_path = icons_dir.join(format!("custom_{}.png", timestamp));
+    // La escritura ya está confirmada; borrar los anteriores es best-effort.
+    let cleanup_dir = icons_dir;
+    let keep = dest_path.clone();
+    let _ = tokio::task::spawn_blocking(move || {
+        image_pipeline::remove_icon_files(&cleanup_dir, Some(&keep))
+    })
+    .await;
 
-    tokio::fs::copy(&src, &dest_path).await.map_err(|e| {
-        error!("Error copiando icono de {:?} a {:?}: {}", src, dest_path, e);
-        FsError::Copy {
-            from: src.to_string_lossy().to_string(),
-            to: dest_path.to_string_lossy().to_string(),
-            source: e,
-        }
-        .to_string()
-    })?;
-
-    let icon_path_str = dest_path.to_string_lossy().to_string();
-    handle.set_icon(Some(icon_path_str)).await;
-    files_guard.save_if_dirty().await.map_err(|e| {
-        error!("Error guardando instancia tras subir icono: {}", e);
-        e.to_string()
-    })?;
     emit(AppEvent::InstanceEdited {
         id: handle.uuid.to_string().into(),
         dto: None,
     });
     info!("Icono personalizado subido a {:?}", dest_path);
 
-    Ok(handle
-        .get_icon_absolute()
-        .await
-        .map(|s| s.to_string())
-        .unwrap_or_default())
+    Ok(dest_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -492,16 +489,24 @@ pub async fn reset_instance_icon(instance_id: String) -> Result<(), String> {
         return Err(InstanceError::Busy.to_string());
     }
 
-    // Remove custom icon files
+    // Persistir el cambio antes de borrar archivos: si falla el guardado, el
+    // icono actual sigue existiendo y la instancia no queda rota.
+    let previous_icon = handle.get_icon().await;
+    handle.set_icon(None).await;
+    if let Err(error) = files_guard.save_if_dirty().await {
+        handle
+            .set_icon(previous_icon.as_ref().map(|icon| icon.to_string()))
+            .await;
+        error!("Error guardando instancia tras resetear icono: {}", error);
+        return Err(error.to_string());
+    }
+
     let instance_dir = handle.get_instance_dir().await;
     let icons_dir = instance_dir.join("icons");
-    remove_custom_icons(&icons_dir).await;
+    let _ =
+        tokio::task::spawn_blocking(move || image_pipeline::remove_icon_files(&icons_dir, None))
+            .await;
 
-    handle.set_icon(None).await;
-    files_guard.save_if_dirty().await.map_err(|e| {
-        error!("Error guardando instancia tras resetear icono: {}", e);
-        e.to_string()
-    })?;
     emit(AppEvent::InstanceEdited {
         id: handle.uuid.to_string().into(),
         dto: None,

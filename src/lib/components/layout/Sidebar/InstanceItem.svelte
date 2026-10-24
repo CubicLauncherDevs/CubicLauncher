@@ -168,7 +168,7 @@
 		width: 100%;
 		height: 100%;
 		border-radius: inherit;
-		object-fit: cover;
+		object-fit: contain;
 	}
 
 	.pin-badge {

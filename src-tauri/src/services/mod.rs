@@ -4,6 +4,7 @@ pub(crate) mod curseforge_modpack;
 pub mod dependency_resolver;
 pub(crate) mod discord_presence;
 pub(crate) mod download_queue;
+pub(crate) mod image_pipeline;
 pub mod instance_export;
 pub mod instance_import;
 mod instance_manager;

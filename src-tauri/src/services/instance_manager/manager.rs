@@ -107,6 +107,10 @@ impl InstanceManager {
         drop(guard);
 
         let _ = INSTANCE_MANAGER.set(manager.clone());
+        let migration_manager = manager.clone();
+        tokio::spawn(async move {
+            migrate_instance_icons(migration_manager).await;
+        });
         manager
     }
 
@@ -348,6 +352,33 @@ impl InstanceManager {
 
         Ok(())
     }
+}
+
+/// Reescala en background los iconos que quedaron a resolución completa en
+/// versiones anteriores. No bloquea el arranque y cada icono conserva su
+/// archivo anterior si la migración falla.
+async fn migrate_instance_icons(manager: Arc<InstanceManager>) {
+    let handles = manager.get_all_handles().await;
+    if handles.is_empty() {
+        return;
+    }
+
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(3));
+    let mut tasks = Vec::with_capacity(handles.len());
+    for handle in handles {
+        let semaphore = semaphore.clone();
+        tasks.push(tokio::spawn(async move {
+            let Ok(_permit) = semaphore.acquire().await else {
+                return;
+            };
+            // El resultado no importa: la migración es best-effort.
+            let _ = handle.migrate_icon_if_needed().await;
+        }));
+    }
+    for task in tasks {
+        let _ = task.await;
+    }
+    info!("Migración de iconos de instancia completada");
 }
 
 fn trash_dir(instances: &Path) -> PathBuf {
