@@ -19,7 +19,7 @@ export function useModUpdates() {
 		state.updates = [];
 		state.error = null;
 		try {
-			const mods = await getInstanceMods(instanceId);
+			const mods = await getInstanceMods(instanceId, false);
 			if (!mods || mods.length === 0) return [];
 
 			// Collect SHA1s from mods that have a modrinth source

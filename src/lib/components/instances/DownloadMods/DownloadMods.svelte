@@ -252,7 +252,7 @@
 		prevInstanceId = id;
 		pendingInstanceId = id;
 		resetState();
-		getInstanceMods(id)
+		getInstanceMods(id, false)
 			.then((mods) => {
 				if (pendingInstanceId !== id) return;
 				installedMods = mods;
@@ -348,7 +348,7 @@
 		dependencyResult = null;
 
 		try {
-			const mods = await getInstanceMods(id);
+			const mods = await getInstanceMods(id, false);
 			if (pendingInstanceId !== id) return;
 			installedMods = mods;
 			const installedProjectIds = new Set(
