@@ -10,7 +10,7 @@
 		"test:frontend": "bun test --conditions=browser ./tests/frontend",
 		"test:rust": "cargo test --workspace",
 		"test:all": "bun run test:frontend && bun run test:rust",
-		"themes:tokens": "bun scripts/generate-theme-tokens.mjs",
+		"themes:tokens": "bun .github/scripts/generate-theme-tokens.mjs",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"tauri": "tauri",
