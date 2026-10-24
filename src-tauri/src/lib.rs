@@ -147,6 +147,7 @@ pub fn run() {
             commands::themes::install::import_theme_zip,
             commands::themes::install::import_theme_cbth,
             commands::themes::commands::get_themes_dir_path,
+            commands::themes::commands::validate_theme,
             commands::themes::install::remove_theme,
             commands::themes::archive::export_theme,
             commands::market::search_modrinth,

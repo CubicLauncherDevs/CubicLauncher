@@ -8,6 +8,35 @@ use std::collections::HashMap;
 use std::path::Path;
 use tracing::warn;
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum StringOrNumber {
+    Number(f64),
+    String(String),
+}
+
+fn deserialize_optional_f64<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<StringOrNumber>::deserialize(deserializer)?;
+    match value {
+        None => Ok(None),
+        Some(StringOrNumber::Number(value)) => Ok(Some(value)),
+        Some(StringOrNumber::String(value)) => {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                Ok(None)
+            } else {
+                trimmed
+                    .parse::<f64>()
+                    .map(Some)
+                    .map_err(serde::de::Error::custom)
+            }
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 /// Estructura que representa la primera version del sistema de Themes
 /// Implementa el Trait `Theme` el cual es el que lo permite ser parseado
@@ -25,8 +54,8 @@ pub struct ThemeFile {
     pub variables: std::collections::HashMap<String, String>,
     #[serde(default)]
     pub bg_image: Option<String>,
-    #[serde(default)]
-    pub bg_image_blur: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_f64")]
+    pub bg_image_blur: Option<f64>,
     #[serde(default)]
     pub bg_image_opacity: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -74,11 +103,7 @@ impl Theme for ThemeFile {
             r#type: self.r#type.clone().into(),
             variables: self.variables.clone(),
             bg_image: self.bg_image.clone(),
-            bg_image_blur: self
-                .bg_image_blur
-                .as_deref()
-                .filter(|s| !s.is_empty())
-                .and_then(|s| s.parse::<f64>().ok()),
+            bg_image_blur: self.bg_image_blur,
             bg_image_opacity: self.bg_image_opacity,
             fonts: self.fonts.clone(),
             icons: HashMap::new(),

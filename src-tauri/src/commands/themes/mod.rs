@@ -4,6 +4,7 @@ pub(crate) mod commands;
 pub(crate) mod install;
 mod v1;
 mod v2;
+mod validate;
 
 use self::v1::{ThemeEntry, ThemeFile};
 use self::v2::V2Theme;

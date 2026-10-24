@@ -1,8 +1,11 @@
 use super::v1::{ThemeEntry, ThemeFile};
 use super::v2::V2Theme;
+use super::validate::{ThemeValidationReport, validate_theme_at};
 use super::{Theme, ThemeResponse, load_user_theme};
+use crate::core::errors::FsError;
 use crate::core::{PathManager, validate_identifier};
 use crate::services::SettingsManager;
+use std::path::Path;
 use tauri::command;
 use tracing::info;
 
@@ -27,14 +30,7 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
         let Some(id) = path.file_name().map(|name| name.to_string_lossy()) else {
             continue;
         };
-        let theme = if path.join("theme.json").exists() {
-            ThemeFile::list_entry(&path, &id)
-        } else if path.join("Meta.toml").exists() {
-            V2Theme::list_entry(&path, &id)
-        } else {
-            None
-        };
-        if let Some(theme) = theme {
+        if let Some(theme) = list_theme_entry(&path, &id) {
             themes.push(theme);
         }
     }
@@ -43,12 +39,33 @@ pub fn list_themes() -> Result<Vec<ThemeEntry>, String> {
     Ok(themes)
 }
 
+fn list_theme_entry(path: &Path, id: &str) -> Option<ThemeEntry> {
+    if path.join("Meta.toml").is_file() {
+        V2Theme::list_entry(path, id)
+    } else if path.join("theme.json").is_file() {
+        ThemeFile::list_entry(path, id)
+    } else {
+        None
+    }
+}
+
 #[command]
 pub fn get_user_theme(id: String) -> Result<ThemeResponse, String> {
     info!("Leyendo theme '{}'", id);
     validate_identifier(&id)?;
     let theme_base = PathManager::get().get_themes_dir().join(&id);
     load_user_theme(&theme_base, &id)
+}
+
+#[command]
+pub fn validate_theme(id: String) -> Result<ThemeValidationReport, String> {
+    info!("Validando theme '{}'", id);
+    validate_identifier(&id)?;
+    let theme_base = PathManager::get().get_themes_dir().join(&id);
+    if !theme_base.is_dir() {
+        return Err(FsError::NotFound(theme_base.to_string_lossy().to_string()).to_string());
+    }
+    Ok(validate_theme_at(&theme_base, &id))
 }
 
 #[command]
@@ -80,3 +97,7 @@ pub fn get_themes_dir_path() -> Result<String, String> {
     info!("Ruta de directorio de themes: {}", path);
     Ok(path)
 }
+
+#[cfg(test)]
+#[path = "../../tests/commands/themes/list.rs"]
+mod tests;

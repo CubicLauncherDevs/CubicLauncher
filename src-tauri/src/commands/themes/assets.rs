@@ -49,7 +49,7 @@ pub(super) enum BgValidationError {
     Io,
 }
 
-fn validate_background_image(path: &std::path::Path) -> Result<(), BgValidationError> {
+pub(super) fn validate_background_image(path: &std::path::Path) -> Result<(), BgValidationError> {
     let mut file = std::fs::File::open(path).map_err(|_| BgValidationError::Io)?;
     let meta = file.metadata().map_err(|_| BgValidationError::Io)?;
     if meta.len() > MAX_BG_SIZE {

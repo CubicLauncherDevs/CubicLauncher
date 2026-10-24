@@ -49,6 +49,14 @@ export interface ThemeFontFace {
 	style?: string | null;
 }
 
+export interface ThemeValidationReport {
+	id: string;
+	name: string | null;
+	format: string;
+	errors: string[];
+	warnings: string[];
+}
+
 export interface ThemeResponse {
 	name: string;
 	author: string;
@@ -143,6 +151,12 @@ export async function listThemes(): Promise<ThemeEntry[]> {
 		id: `user:${t.id}`,
 	}));
 	return [...builtinThemes, ...prefixed];
+}
+
+export async function validateTheme(
+	id: string,
+): Promise<ThemeValidationReport> {
+	return invoke<ThemeValidationReport>("validate_theme", { id });
 }
 
 export async function importThemeZip(zipPath: string): Promise<ThemeEntry> {

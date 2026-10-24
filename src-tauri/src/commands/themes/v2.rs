@@ -134,20 +134,8 @@ impl Theme for V2Theme {
     }
 
     fn load(theme_base: &Path, id: &str) -> Result<super::ThemeResponse, String> {
-        let read_toml = |name: &str| -> Result<Vec<u8>, String> {
-            let path = theme_base.join(name);
-            std::fs::read(&path).map_err(|e| {
-                FsError::ReadFile {
-                    path: path.to_string_lossy().into_owned(),
-                    source: e,
-                }
-                .to_string()
-            })
-        };
-        let meta: ThemeMeta = toml::from_slice(&read_toml("Meta.toml")?)
-            .map_err(|e| CoreError::Serialize(e.to_string()).to_string())?;
-        let mut theme: ThemeDef = toml::from_slice(&read_toml("Definition.toml")?)
-            .map_err(|e| CoreError::Serialize(e.to_string()).to_string())?;
+        let meta = read_meta(theme_base)?;
+        let mut theme = read_definition(theme_base)?;
 
         match resolve_background(theme_base, &mut theme.background.reference_path)? {
             Some(BgValidationError::TooLarge) => {
@@ -243,6 +231,30 @@ impl V2Theme {
         });
         Some((preview, icon))
     }
+}
+
+pub(super) fn read_meta(theme_base: &Path) -> Result<ThemeMeta, String> {
+    let path = theme_base.join("Meta.toml");
+    let bytes = std::fs::read(&path).map_err(|e| {
+        FsError::ReadFile {
+            path: path.to_string_lossy().into_owned(),
+            source: e,
+        }
+        .to_string()
+    })?;
+    toml::from_slice(&bytes).map_err(|e| CoreError::Serialize(e.to_string()).to_string())
+}
+
+pub(super) fn read_definition(theme_base: &Path) -> Result<ThemeDef, String> {
+    let path = theme_base.join("Definition.toml");
+    let bytes = std::fs::read(&path).map_err(|e| {
+        FsError::ReadFile {
+            path: path.to_string_lossy().into_owned(),
+            source: e,
+        }
+        .to_string()
+    })?;
+    toml::from_slice(&bytes).map_err(|e| CoreError::Serialize(e.to_string()).to_string())
 }
 
 fn insert_var(vars: &mut HashMap<String, String>, key: String, value: String) {
