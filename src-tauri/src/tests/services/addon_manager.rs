@@ -72,3 +72,60 @@ fn cache_is_byte_bounded_and_replacing_an_entry_does_not_flush_half_the_cache() 
     assert!(cache.get(Path::new("oversized")).is_none());
     assert!(cache.get(Path::new("mod-99")).is_some());
 }
+
+#[test]
+fn large_png_icons_are_downscaled_to_the_display_budget() {
+    let source = image::RgbaImage::from_pixel(512, 512, image::Rgba([10, 20, 30, 255]));
+    let mut png = Vec::new();
+    source
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+
+    let encoded = AddonManager::encode_icon("image/png", png);
+    let (_, b64) = encoded.split_once(',').unwrap();
+    let decoded = general_purpose::STANDARD.decode(b64).unwrap();
+    let resized = image::load_from_memory(&decoded).unwrap();
+
+    assert_eq!(resized.width(), MAX_ICON_DIMENSION);
+    assert_eq!(resized.height(), MAX_ICON_DIMENSION);
+}
+
+#[test]
+fn non_square_icons_keep_their_aspect_ratio_when_downscaled() {
+    let source = image::RgbaImage::from_pixel(512, 128, image::Rgba([10, 20, 30, 255]));
+    let mut png = Vec::new();
+    source
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+
+    let resized = AddonManager::downscale_png(&png).unwrap();
+    let img = image::load_from_memory(&resized).unwrap();
+
+    assert_eq!(img.width(), MAX_ICON_DIMENSION);
+    assert_eq!(img.height(), MAX_ICON_DIMENSION / 4);
+}
+
+#[test]
+fn icons_within_the_budget_keep_their_original_bytes() {
+    let source = image::RgbaImage::from_pixel(64, 64, image::Rgba([10, 20, 30, 255]));
+    let mut png = Vec::new();
+    source
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+
+    assert!(AddonManager::downscale_png(&png).is_none());
+}
+
+#[test]
+fn corrupt_png_icons_fall_back_to_the_original_bytes() {
+    let encoded = AddonManager::encode_icon("image/png", b"not a png".to_vec());
+    let (_, b64) = encoded.split_once(',').unwrap();
+
+    assert_eq!(general_purpose::STANDARD.decode(b64).unwrap(), b"not a png");
+}
+
+#[test]
+fn pack_cache_fingerprint_changes_with_the_icon_pipeline_schema() {
+    assert_ne!(pack_cache_fingerprint(0), 0);
+    assert_ne!(pack_cache_fingerprint(42), 42);
+}

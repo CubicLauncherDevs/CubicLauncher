@@ -280,7 +280,9 @@ pub async fn get_instance_resourcepacks(id: String) -> Result<Vec<ModDto>, Strin
     let dir_clone = entries[0].path.parent().unwrap().to_path_buf();
     let cache_path = crate::services::pack_cache_path_custom(&dir_clone);
 
-    let global_fp: u64 = entries.iter().fold(0, |acc, e| acc ^ e.fingerprint);
+    let global_fp: u64 = crate::services::pack_cache_fingerprint(
+        entries.iter().fold(0, |acc, e| acc ^ e.fingerprint),
+    );
 
     if ablage::Repo::check_global_fingerprint(&cache_path, global_fp) {
         let cache = read_all_full_pack_cache(&dir_clone);
@@ -512,7 +514,9 @@ pub async fn get_instance_shaderpacks(id: String) -> Result<Vec<ModDto>, String>
     let dir_clone = entries[0].path.parent().unwrap().to_path_buf();
     let cache_path = crate::services::pack_cache_path_custom(&dir_clone);
 
-    let global_fp: u64 = entries.iter().fold(0, |acc, e| acc ^ e.fingerprint);
+    let global_fp: u64 = crate::services::pack_cache_fingerprint(
+        entries.iter().fold(0, |acc, e| acc ^ e.fingerprint),
+    );
 
     if ablage::Repo::check_global_fingerprint(&cache_path, global_fp) {
         let cache = read_all_full_pack_cache(&dir_clone);

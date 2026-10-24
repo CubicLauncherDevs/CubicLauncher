@@ -16,6 +16,21 @@ use zip::ZipArchive;
 const MAX_CACHE_ENTRIES: usize = 1024;
 const MAX_CACHE_BYTES: usize = 32 * 1024 * 1024;
 
+/// Icons render at 32-80 CSS px, which is up to ~240 physical px on a 3x
+/// display. 256 keeps that headroom while cutting the decoded bitmap 4x.
+const MAX_ICON_DIMENSION: u32 = 256;
+/// Guard against decompression bombs in untrusted mod archives.
+const MAX_ICON_DECODE_BYTES: u64 = 64 * 1024 * 1024;
+/// Mixed into the pack-cache fingerprint so a change to the icon pipeline
+/// rebuilds the on-disk cache exactly once.
+const PACK_CACHE_SCHEMA: u64 = 0x9e37_79b9_7f4a_7c16;
+
+/// Folds the icon-pipeline schema into a pack-cache fingerprint so changing
+/// the icon encoder rebuilds the on-disk pack cache exactly once.
+pub fn pack_cache_fingerprint(fingerprint: u64) -> u64 {
+    fingerprint ^ PACK_CACHE_SCHEMA
+}
+
 type CachedModInfo = (
     (SystemTime, u64),
     Option<AddonMetaNoIcon>,
@@ -266,6 +281,58 @@ impl AddonManager {
         (meta, icon)
     }
 
+    /// Encodes icon bytes as a data URL, downscaling PNGs larger than
+    /// `MAX_ICON_DIMENSION`. Any decode/encode failure keeps the original
+    /// bytes, so a malformed icon can never break mod listing.
+    fn encode_icon(mime: &str, buf: Vec<u8>) -> String {
+        let data = if mime == "image/png" {
+            Self::downscale_png(&buf).unwrap_or(buf)
+        } else {
+            buf
+        };
+        format!(
+            "data:{};base64,{}",
+            mime,
+            general_purpose::STANDARD.encode(data)
+        )
+    }
+
+    fn downscale_png(buf: &[u8]) -> Option<Vec<u8>> {
+        use image::ImageDecoder;
+
+        let mut limits = image::Limits::default();
+        limits.max_image_width = Some(4096);
+        limits.max_image_height = Some(4096);
+        limits.max_alloc = Some(MAX_ICON_DECODE_BYTES);
+        let mut decoder =
+            image::codecs::png::PngDecoder::with_limits(std::io::Cursor::new(buf), limits.clone())
+                .ok()?;
+        limits.reserve(decoder.total_bytes()).ok()?;
+        decoder.set_limits(limits).ok()?;
+        let img = image::DynamicImage::from_decoder(decoder).ok()?;
+        let (width, height) = (img.width(), img.height());
+        if width <= MAX_ICON_DIMENSION && height <= MAX_ICON_DIMENSION {
+            return None;
+        }
+
+        let max = u64::from(MAX_ICON_DIMENSION);
+        let (target_w, target_h) = if width >= height {
+            let h = ((u64::from(height) * max) / u64::from(width)).max(1) as u32;
+            (MAX_ICON_DIMENSION, h)
+        } else {
+            let w = ((u64::from(width) * max) / u64::from(height)).max(1) as u32;
+            (w, MAX_ICON_DIMENSION)
+        };
+
+        let resized = img.resize_exact(target_w, target_h, image::imageops::FilterType::Lanczos3);
+        let mut out = Vec::new();
+        let mut cursor = std::io::Cursor::new(&mut out);
+        resized
+            .write_to(&mut cursor, image::ImageFormat::Png)
+            .ok()?;
+        Some(out)
+    }
+
     /// Extrae icono desde un archive ya abierto (evita re-abrir el ZIP)
     fn extract_icon_from_archive(archive: &mut ZipArchive<File>) -> Option<Arc<String>> {
         for icon_path in &[
@@ -297,11 +364,7 @@ impl AddonManager {
                         } else {
                             "image/png"
                         };
-                        return Some(Arc::new(format!(
-                            "data:{};base64,{}",
-                            mime,
-                            general_purpose::STANDARD.encode(buf)
-                        )));
+                        return Some(Arc::new(Self::encode_icon(mime, buf)));
                     }
                 }
             }
