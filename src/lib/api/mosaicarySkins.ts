@@ -88,6 +88,17 @@ export interface CatalogPage {
 	pages: number;
 }
 
+/**
+ * La dirección del PNG de una skin para mostrarla, no para ponérsela: con `for=view`
+ * Mosaicary no lo cuenta como descarga ni contra el límite diario de descargas por
+ * dirección (50 skins distintas). La descarga es la de `uploadSkinUrl`, al guardar.
+ */
+export function catalogViewUrl(png: string): string {
+	const url = new URL(png);
+	url.searchParams.set("for", "view");
+	return url.toString();
+}
+
 /** Dirección de una página del catálogo. */
 export function catalogUrl(filters: CatalogFilters, page: number): string {
 	const params = new URLSearchParams({

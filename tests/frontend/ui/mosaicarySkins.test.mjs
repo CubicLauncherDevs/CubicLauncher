@@ -3,6 +3,7 @@ import {
 	CATALOG_PAGE_SIZE,
 	NO_CATALOG_FILTERS,
 	catalogUrl,
+	catalogViewUrl,
 	keepLoaded,
 	loadedFor,
 	parseCatalogPage,
@@ -211,4 +212,13 @@ test("un nombre vacío deja el id y unos brazos raros quedan en clásico", () =>
 	}).skins;
 	expect(skin.name).toBe("TTQ9RtVv7jt2");
 	expect(skin.model).toBe("classic");
+});
+
+test("mirar una skin pide el PNG con for=view; ponérsela, sin él", () => {
+	expect(catalogViewUrl(`${SITE}/api/skins/AbCdEf123456.png`)).toBe(
+		`${SITE}/api/skins/AbCdEf123456.png?for=view`,
+	);
+	expect(catalogViewUrl(`${SITE}/api/skins/AbCdEf123456.png?for=view`)).toBe(
+		`${SITE}/api/skins/AbCdEf123456.png?for=view`,
+	);
 });

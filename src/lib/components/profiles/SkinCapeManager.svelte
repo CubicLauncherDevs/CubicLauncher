@@ -23,6 +23,7 @@
 	import CapeList from "./CapeList.svelte";
 	import SkinCatalogModal from "./SkinCatalogModal.svelte";
 	import type { CatalogSkin } from "$lib/api/mosaicarySkins";
+	import { catalogViewUrl } from "$lib/api/mosaicarySkins";
 	import type {
 		MinecraftProfileCape,
 		MinecraftProfileResponse,
@@ -151,15 +152,17 @@
 
 	async function handleCatalogPick(skin: CatalogSkin) {
 		// El catálogo sabe con qué brazos se usa la skin; los píxeles solo pueden
-		// imponer Delgado, igual que con un archivo propio.
-		const detected = await detectSkinModelFromUrl(skin.png);
+		// imponer Delgado, igual que con un archivo propio. Mirarla y leer sus píxeles
+		// no es descargarla: eso va con `for=view`, y solo guardar la cuenta.
+		const view = catalogViewUrl(skin.png);
+		const detected = await detectSkinModelFromUrl(view);
 		skinModel = detected === "slim" ? "slim" : skin.model;
 		pendingDetectedModel = detected;
 		pendingSkin = {
 			filePath: null,
 			sourceUrl: skin.png,
 			variant: skinModel === "slim" ? "SLIM" : "CLASSIC",
-			previewUrl: skin.png,
+			previewUrl: view,
 		};
 	}
 
