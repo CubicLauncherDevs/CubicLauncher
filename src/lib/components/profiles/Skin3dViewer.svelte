@@ -1,7 +1,17 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import type { Render, IdleAnimation } from "skin3d";
+	import { onMount, untrack } from "svelte";
+	import type { Render, IdleAnimation, WalkingAnimation } from "skin3d";
 	import { launcherStore } from "$lib/state/state.svelte";
+	import {
+		EYE_GAP,
+		EYE_STEPS,
+		eyePatchesOf,
+		moveOf,
+		poseAt,
+		poseKeyOf,
+		readEyeCopy,
+		type LiveEyes,
+	} from "$lib/utils/freshEyes";
 
 	const IDLE_MS = 5000;
 
@@ -12,6 +22,14 @@
 		animated?: boolean;
 		interactive?: boolean;
 		quality?: "low" | "high";
+		/** Si la figura gira sola. */
+		rotate?: boolean;
+		/** Si camina en lugar de estar quieta respirando. */
+		walk?: boolean;
+		/** Si mueve los ojos de Fresh Moves, cuando la skin lleva su copia. */
+		eyes?: boolean;
+		/** Avisa, al cargar cada skin, de si lleva ojos de Fresh Moves que se pueden mover. */
+		onEyesFound?: (found: boolean) => void;
 	}
 
 	let {
@@ -21,6 +39,10 @@
 		animated = true,
 		interactive = true,
 		quality = "low",
+		rotate = true,
+		walk = false,
+		eyes = false,
+		onEyesFound,
 	}: Props = $props();
 
 	let container: HTMLElement;
@@ -28,6 +50,7 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let IdleAnimationClass: typeof IdleAnimation | null = null;
+	let WalkingAnimationClass: typeof WalkingAnimation | null = null;
 
 	let isIntersecting = $state(false);
 	let isTabVisible = $state(true);
@@ -96,6 +119,148 @@
 		isTabVisible = !document.hidden;
 	}
 
+	/** Lo más cerca que llega la cámara al punto que mira: no entra en la figura. */
+	const NEAREST = 10;
+
+	/**
+	 * A qué altura gira y hacia dónde acerca la vista: el pecho (en skin3d el torso va de -4 a 8,
+	 * la figura de -16 a 16). El centro de la figura queda a la altura de la cintura.
+	 */
+	const CHEST_Y = 4;
+
+	/* Ojos de Fresh Moves. */
+
+	/** Los ojos de la skin cargada, y la skin tal como llegó, para volver a ella. */
+	let liveEyes = $state<LiveEyes | null>(null);
+	let plainSkin: HTMLCanvasElement | null = null;
+	/** La cara de la skin a `EYE_STEPS` por píxel, sin mover: cada momento se pinta encima. */
+	let restingFace: ImageData | null = null;
+	let eyesTimer: ReturnType<typeof setTimeout> | null = null;
+	let eyesFrame: number | null = null;
+
+	/** Lee la copia de los ojos de la skin recién cargada; sin copia, o sin poder leerla, nada. */
+	function readEyes(v: Render) {
+		stopEyes(v);
+		liveEyes = null;
+		plainSkin = null;
+		try {
+			const canvas = v.skinCanvas;
+			const context = canvas.getContext("2d", {
+				willReadFrequently: true,
+			});
+			if (!context) return;
+			const { data } = context.getImageData(
+				0,
+				0,
+				canvas.width,
+				canvas.height,
+			);
+			const found = readEyeCopy(data, canvas.width, canvas.height);
+			if (found) {
+				plainSkin = document.createElement("canvas");
+				plainSkin.width = canvas.width;
+				plainSkin.height = canvas.height;
+				plainSkin.getContext("2d")!.drawImage(canvas, 0, 0);
+			}
+			liveEyes = found;
+		} catch {
+			// Una imagen de otro origen sin CORS no se deja leer: sin ojos.
+			liveEyes = null;
+		} finally {
+			onEyesFound?.(liveEyes !== null);
+		}
+	}
+
+	/**
+	 * Empieza a mover los ojos: la skin pasa a la vista `EYE_STEPS` veces más grande, para que
+	 * la pupila se deslice por partes de un píxel como en mosaicary.com, y en cada momento de
+	 * un movimiento solo se vuelve a pintar la cara. Entre movimientos no se pinta nada, y
+	 * con la vista en reposo se dibuja un único fotograma por cambio.
+	 */
+	function startEyes(v: Render, found: LiveEyes) {
+		if (!plainSkin || eyesTimer !== null || eyesFrame !== null) return;
+		const big = document.createElement("canvas");
+		big.width = plainSkin.width * EYE_STEPS;
+		big.height = plainSkin.height * EYE_STEPS;
+		const bigContext = big.getContext("2d")!;
+		bigContext.imageSmoothingEnabled = false;
+		bigContext.drawImage(plainSkin, 0, 0, big.width, big.height);
+		v.loadSkin(big, { model });
+		const context = v.skinCanvas.getContext("2d", {
+			willReadFrequently: true,
+		});
+		if (!context) return;
+		const faceAt = 8 * EYE_STEPS;
+		restingFace = context.getImageData(faceAt, faceAt, faceAt, faceAt);
+		const rows = found.rows.length;
+		let shown = poseKeyOf({ look: 0, lid: 0 }, rows);
+
+		const paint = (pose: { look: number; lid: number }) => {
+			const key = poseKeyOf(pose, rows);
+			if (key === shown || !restingFace || v.disposed) return;
+			shown = key;
+			context.putImageData(restingFace, faceAt, faceAt);
+			for (const patch of eyePatchesOf(found, pose)) {
+				const [r, g, b] = patch.colour;
+				context.fillStyle = `rgb(${r}, ${g}, ${b})`;
+				const x0 = Math.round(patch.x * EYE_STEPS);
+				const y0 = Math.round(patch.y * EYE_STEPS);
+				context.fillRect(
+					faceAt + x0,
+					faceAt + y0,
+					Math.round((patch.x + patch.w) * EYE_STEPS) - x0,
+					Math.round((patch.y + patch.h) * EYE_STEPS) - y0,
+				);
+			}
+			// skin3d no expone la textura en sus tipos; es la de skinCanvas.
+			const texture = (
+				v as unknown as { skinTexture: { needsUpdate: boolean } | null }
+			).skinTexture;
+			if (texture) texture.needsUpdate = true;
+			scheduleRender();
+		};
+
+		const next = () => {
+			eyesTimer = setTimeout(
+				() => {
+					eyesTimer = null;
+					// Fuera de la vista, el siguiente movimiento espera.
+					if (!isVisible) return next();
+					const keys = moveOf(rows);
+					const end = keys[keys.length - 1]!.at;
+					let start = -1;
+					const step = (now: number) => {
+						if (start < 0) start = now;
+						const time = now - start;
+						paint(poseAt(keys, Math.min(time, end)));
+						if (time < end) {
+							eyesFrame = requestAnimationFrame(step);
+						} else {
+							eyesFrame = null;
+							next();
+						}
+					};
+					eyesFrame = requestAnimationFrame(step);
+				},
+				EYE_GAP.least + Math.random() * EYE_GAP.more,
+			);
+		};
+		next();
+	}
+
+	/** Deja los ojos quietos y la skin como llegó. */
+	function stopEyes(v: Render | null) {
+		if (eyesTimer !== null) clearTimeout(eyesTimer);
+		if (eyesFrame !== null) cancelAnimationFrame(eyesFrame);
+		eyesTimer = null;
+		eyesFrame = null;
+		if (restingFace && plainSkin && v && !v.disposed) {
+			v.loadSkin(plainSkin, { model });
+			scheduleRender();
+		}
+		restingFace = null;
+	}
+
 	function bustCache(url: string): string {
 		if (url.startsWith("data:")) return url;
 		const sep = url.includes("?") ? "&" : "?";
@@ -114,10 +279,12 @@
 		let activityHandler: (() => void) | null = null;
 
 		async function init() {
-			const { Render, IdleAnimation } = await import("skin3d");
+			const { Render, IdleAnimation, WalkingAnimation } =
+				await import("skin3d");
 			if (!mounted) return;
 
 			IdleAnimationClass = IdleAnimation;
+			WalkingAnimationClass = WalkingAnimation;
 
 			const width = Math.max(1, container.clientWidth);
 			const height = container.clientHeight || width;
@@ -138,6 +305,13 @@
 			if (!interactive) {
 				instance.controls.enabled = false;
 			}
+			instance.controls.minDistance = NEAREST;
+			// Sin desplazar con el botón derecho: el centro de giro se queda en el pecho.
+			instance.controls.enablePan = false;
+			// El centro de giro en el pecho; la cámara sube lo mismo, y la vista no se inclina.
+			instance.controls.target.set(0, CHEST_Y, 0);
+			instance.camera.position.y += CHEST_Y;
+			instance.controls.update();
 
 			// Reducir FPS del loop animado a ~30 cuando no hay interacción
 			const instanceAny = instance as unknown as {
@@ -282,9 +456,12 @@
 				cancelAnimationFrame(pendingRaf);
 				pendingRaf = null;
 			}
+			if (eyesTimer !== null) clearTimeout(eyesTimer);
+			if (eyesFrame !== null) cancelAnimationFrame(eyesFrame);
 			viewer?.dispose();
 			viewer = null;
 			IdleAnimationClass = null;
+			WalkingAnimationClass = null;
 		};
 	});
 
@@ -292,11 +469,26 @@
 		const v = viewer;
 		if (!v || v.disposed) return;
 
-		v.autoRotate = shouldAnimate;
-		v.animation =
-			shouldAnimate && IdleAnimationClass
-				? new IdleAnimationClass()
-				: null;
+		const Animation = walk ? WalkingAnimationClass : IdleAnimationClass;
+		v.animation = shouldAnimate && Animation ? new Animation() : null;
+		// Un interruptor recién tocado se ve en marcha, aunque la vista estuviera en reposo.
+		untrack(() => wakeFromIdle());
+	});
+
+	// Los ojos se mueven si se piden, la skin los lleva y las animaciones 3D están activas.
+	$effect(() => {
+		const v = viewer;
+		const found = liveEyes;
+		if (!v || v.disposed || !found) return;
+		if (eyes && shouldAnimate) untrack(() => startEyes(v, found));
+		else untrack(() => stopEyes(v));
+	});
+
+	// Aparte de la animación, para que pararlo y reanudarlo no la reinicie.
+	$effect(() => {
+		const v = viewer;
+		if (!v || v.disposed) return;
+		v.autoRotate = shouldAnimate && rotate;
 	});
 
 	// Visibility changes should resume the current pose, not recreate animation.
@@ -315,6 +507,10 @@
 		const cape = capeUrl ? bustCache(capeUrl) : null;
 		const m = model;
 
+		untrack(() => {
+			stopEyes(null);
+			liveEyes = null;
+		});
 		// Evita que se vea la textura anterior mientras llega la nueva
 		v.resetSkin();
 		v.resetCape();
@@ -326,6 +522,9 @@
 		const capePromise = cape ? v.loadCape(cape) : Promise.resolve();
 
 		Promise.all([skinPromise, capePromise])
+			.then(() => {
+				if (!v.disposed) untrack(() => readEyes(v));
+			})
 			.catch((e) => {
 				error = String(e);
 			})
