@@ -375,7 +375,7 @@ async fn download_skin(skin_url: &str) -> Result<Vec<u8>, String> {
     if url.scheme() != "https" && url.scheme() != "http" {
         return Err("La URL de la skin debe ser http o https".into());
     }
-    let response = HTTP
+    let mut response = HTTP
         .get(url)
         .timeout(Duration::from_secs(20))
         .send()
@@ -390,17 +390,23 @@ async fn download_skin(skin_url: &str) -> Result<Vec<u8>, String> {
     {
         return Err(too_large());
     }
-    let bytes = response
-        .bytes()
+    // Content-Length puede faltar o mentir: se cuenta lo que llega y se corta al pasar el límite,
+    // sin esperar al resto de la respuesta.
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
         .await
-        .map_err(|e| DownloadError::ReadResponse(e.to_string()).to_string())?;
-    if bytes.len() > SKIN_URL_MAX_BYTES {
-        return Err(too_large());
+        .map_err(|e| DownloadError::ReadResponse(e.to_string()).to_string())?
+    {
+        if chunk.len() > SKIN_URL_MAX_BYTES - bytes.len() {
+            return Err(too_large());
+        }
+        bytes.extend_from_slice(&chunk);
     }
     if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
         return Err(DownloadError::ReadResponse("la skin no es un PNG".into()).to_string());
     }
-    Ok(bytes.to_vec())
+    Ok(bytes)
 }
 
 /// Cambia la skin por la imagen de una URL.
@@ -502,3 +508,7 @@ pub async fn unequip_cape(uuid: String) -> Result<(), String> {
     info!("Capa desequipada correctamente");
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../tests/commands/profile.rs"]
+mod tests;
