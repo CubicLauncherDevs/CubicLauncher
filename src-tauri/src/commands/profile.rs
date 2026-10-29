@@ -1,3 +1,4 @@
+use crate::core::errors::DownloadError;
 use crate::core::http_client::HTTP;
 use crate::services::launcher::refresh_microsoft_token;
 use crate::services::{
@@ -336,6 +337,11 @@ pub(crate) async fn upload_skin_file_impl(
         format!("Error leyendo archivo: {}", e)
     })?;
 
+    upload_skin_bytes_impl(uuid, bytes, model).await
+}
+
+/// Sube un PNG como archivo (multipart), la forma de cambiar la skin que Mojang acepta.
+async fn upload_skin_bytes_impl(uuid: &str, bytes: Vec<u8>, model: &str) -> Result<(), String> {
     let (status, body) = send_msa_request(uuid, |token| {
         let file_part = reqwest::multipart::Part::bytes(bytes.clone())
             .file_name("skin.png")
@@ -359,30 +365,63 @@ pub(crate) async fn upload_skin_file_impl(
     Ok(())
 }
 
+/// Lo más que se descarga de una skin por URL: un PNG de skin pesa unos pocos KB.
+const SKIN_URL_MAX_BYTES: usize = 1024 * 1024;
+
+/// Descarga la imagen de una skin para subirla como archivo.
+async fn download_skin(skin_url: &str) -> Result<Vec<u8>, String> {
+    let url = reqwest::Url::parse(skin_url).map_err(|e| format!("URL de skin no válida: {}", e))?;
+    // http también: el armario guarda las URL de textures.minecraft.net tal como las da Mojang.
+    if url.scheme() != "https" && url.scheme() != "http" {
+        return Err("La URL de la skin debe ser http o https".into());
+    }
+    let mut response = HTTP
+        .get(url)
+        .timeout(Duration::from_secs(20))
+        .send()
+        .await
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?
+        .error_for_status()
+        .map_err(|e| DownloadError::Request(e.to_string()).to_string())?;
+    let too_large = || DownloadError::ReadResponse("la skin pesa demasiado".into()).to_string();
+    if response
+        .content_length()
+        .is_some_and(|length| length > SKIN_URL_MAX_BYTES as u64)
+    {
+        return Err(too_large());
+    }
+    // Content-Length puede faltar o mentir: se cuenta lo que llega y se corta al pasar el límite,
+    // sin esperar al resto de la respuesta.
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| DownloadError::ReadResponse(e.to_string()).to_string())?
+    {
+        if chunk.len() > SKIN_URL_MAX_BYTES - bytes.len() {
+            return Err(too_large());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Err(DownloadError::ReadResponse("la skin no es un PNG".into()).to_string());
+    }
+    Ok(bytes)
+}
+
+/// Cambia la skin por la imagen de una URL.
+///
+/// Mojang dejó de aceptar el cambio por URL (`{"url": ...}` en JSON): desde octubre de 2026 su
+/// cortafuegos lo rechaza con un 403 en HTML, mientras que la subida del PNG como archivo
+/// sigue funcionando. Así que la imagen se descarga aquí y se sube como una del disco.
 pub(crate) async fn upload_skin_url_impl(
     uuid: &str,
     skin_url: &str,
     variant: &str,
 ) -> Result<(), String> {
     info!("Cambiando skin por URL para {}", uuid);
-
-    let body = serde_json::json!({
-        "url": skin_url,
-        "variant": variant.to_uppercase(),
-    });
-
-    let (status, res_body) = send_msa_request(uuid, |token| {
-        HTTP.post(MSA_SKIN_URL).bearer_auth(token).json(&body)
-    })
-    .await?;
-
-    if !status.is_success() {
-        error!("Error cambiando skin por URL: HTTP {}", status);
-        return Err(mojang_error_message(status, res_body));
-    }
-
-    info!("Skin cambiada por URL correctamente");
-    Ok(())
+    let bytes = download_skin(skin_url).await?;
+    upload_skin_bytes_impl(uuid, bytes, variant).await
 }
 
 #[command]
@@ -469,3 +508,7 @@ pub async fn unequip_cape(uuid: String) -> Result<(), String> {
     info!("Capa desequipada correctamente");
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../tests/commands/profile.rs"]
+mod tests;

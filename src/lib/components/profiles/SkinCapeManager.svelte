@@ -21,6 +21,9 @@
 	import Icon from "$lib/icons/Icon.svelte";
 	import SkinPreview from "./SkinPreview.svelte";
 	import CapeList from "./CapeList.svelte";
+	import SkinCatalogModal from "./SkinCatalogModal.svelte";
+	import type { CatalogSkin } from "$lib/api/mosaicarySkins";
+	import { catalogViewUrl } from "$lib/api/mosaicarySkins";
 	import type {
 		MinecraftProfileCape,
 		MinecraftProfileResponse,
@@ -51,12 +54,16 @@
 	let pendingDetectedModel = $state<SkinModel | null>(null);
 
 	interface PendingSkin {
-		filePath: string;
+		/** Archivo elegido en el disco, o `null` si la skin viene del catálogo. */
+		filePath: string | null;
+		/** Dirección del PNG en el catálogo, que Mojang descarga al guardar. */
+		sourceUrl: string | null;
 		variant: "CLASSIC" | "SLIM";
 		previewUrl: string;
 	}
 
 	let pendingSkin = $state<PendingSkin | null>(null);
+	let catalogOpen = $state(false);
 
 	// Manda la skin pendiente; si no hay, la activa.
 	const detectedModel = $derived(
@@ -137,8 +144,25 @@
 		pendingDetectedModel = detected;
 		pendingSkin = {
 			filePath: selected,
+			sourceUrl: null,
 			variant: skinModel === "slim" ? "SLIM" : "CLASSIC",
 			previewUrl,
+		};
+	}
+
+	async function handleCatalogPick(skin: CatalogSkin) {
+		// El catálogo sabe con qué brazos se usa la skin; los píxeles solo pueden
+		// imponer Delgado, igual que con un archivo propio. Mirarla y leer sus píxeles
+		// no es descargarla: eso va con `for=view`, y solo guardar la cuenta.
+		const view = catalogViewUrl(skin.png);
+		const detected = await detectSkinModelFromUrl(view);
+		skinModel = detected === "slim" ? "slim" : skin.model;
+		pendingDetectedModel = detected;
+		pendingSkin = {
+			filePath: null,
+			sourceUrl: skin.png,
+			variant: skinModel === "slim" ? "SLIM" : "CLASSIC",
+			previewUrl: view,
 		};
 	}
 
@@ -192,11 +216,13 @@
 
 			let skinChanged = false;
 			if (pendingSkin) {
-				await uploadSkinFile(
-					uuid,
-					pendingSkin.filePath,
-					pendingSkin.variant === "SLIM" ? "slim" : "classic",
-				);
+				const variant =
+					pendingSkin.variant === "SLIM" ? "slim" : "classic";
+				if (pendingSkin.sourceUrl) {
+					await uploadSkinUrl(uuid, pendingSkin.sourceUrl, variant);
+				} else if (pendingSkin.filePath) {
+					await uploadSkinFile(uuid, pendingSkin.filePath, variant);
+				}
 				skinChanged = true;
 			} else if (skinModel !== originalVariant) {
 				const activeSkin = profile?.skins.find(
@@ -417,21 +443,33 @@
 					</button>
 				</div>
 			{/if}
-			<button
-				type="button"
-				class="upload-cta"
-				class:drop-active={draggingPng && dropTargetActive}
-				onclick={() => handleFileUpload()}
-				disabled={processing}
-				title={t("userMenu.skinCape.uploadSkin")}
-			>
-				<Icon name="ui:upload" size={15} />
-				<span>
-					{draggingPng && dropTargetActive
-						? t("userMenu.skinCape.dropSkinHere")
-						: t("userMenu.skinCape.uploadHint")}
-				</span>
-			</button>
+			<div class="preview-ctas">
+				<button
+					type="button"
+					class="upload-cta"
+					class:drop-active={draggingPng && dropTargetActive}
+					onclick={() => handleFileUpload()}
+					disabled={processing}
+					title={t("userMenu.skinCape.uploadSkin")}
+				>
+					<Icon name="ui:upload" size={15} />
+					<span>
+						{draggingPng && dropTargetActive
+							? t("userMenu.skinCape.dropSkinHere")
+							: t("userMenu.skinCape.uploadHint")}
+					</span>
+				</button>
+				<button
+					type="button"
+					class="upload-cta catalog-cta"
+					onclick={() => (catalogOpen = true)}
+					disabled={processing}
+					title={t("userMenu.skinCape.catalog.title")}
+				>
+					<Icon name="ui:search" size={15} />
+					<span>{t("userMenu.skinCape.catalog.open")}</span>
+				</button>
+			</div>
 		</div>
 
 		{#if classicLocked || (pendingSkin && detectedModel)}
@@ -463,6 +501,8 @@
 			{processing}
 			onSelect={handleSelectCape}
 		/>
+
+		<SkinCatalogModal bind:open={catalogOpen} onPick={handleCatalogPick} />
 	{/if}
 </div>
 
@@ -639,11 +679,18 @@
 		cursor: not-allowed;
 	}
 
-	.upload-cta {
+	.preview-ctas {
 		position: absolute;
 		left: 12px;
 		bottom: 12px;
 		z-index: 5;
+		display: flex;
+		gap: 6px;
+		max-width: calc(100% - 108px);
+	}
+
+	.upload-cta {
+		min-width: 0;
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
@@ -657,7 +704,6 @@
 		backdrop-filter: blur(4px);
 		border: 1px solid var(--border);
 		color: var(--text-primary);
-		max-width: calc(100% - 108px);
 		transition:
 			background 0.15s ease,
 			border-color 0.15s ease,
@@ -668,6 +714,10 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	.catalog-cta {
+		flex-shrink: 0;
 	}
 
 	.upload-cta:hover:not(:disabled) {
@@ -759,7 +809,7 @@
 			right: 8px;
 		}
 
-		.upload-cta {
+		.preview-ctas {
 			left: 8px;
 			bottom: 8px;
 		}

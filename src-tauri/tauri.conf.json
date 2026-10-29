@@ -38,7 +38,7 @@
 				"font-src": "'self' asset: https: http://asset.localhost",
 				"script-src": "'self'",
 				"script-src-attr": "'none'",
-				"connect-src": "'self' tauri://localhost ipc://localhost http://ipc.localhost https://tauri.localhost https://i18n.cubiclauncher.org https://skins.cubiclauncher.org"
+				"connect-src": "'self' tauri://localhost ipc://localhost http://ipc.localhost https://tauri.localhost https://i18n.cubiclauncher.org https://skins.cubiclauncher.org https://mosaicary.com"
 			},
 			"devCsp": {
 				"default-src": "'self' tauri: http://localhost:* https://tauri.localhost",
@@ -49,7 +49,7 @@
 				"font-src": "'self' asset: https: https://asset.localhost http://asset.localhost http://localhost:*",
 				"script-src": "'self' 'unsafe-inline' http://localhost:*",
 				"script-src-attr": "'none'",
-				"connect-src": "'self' tauri://localhost ipc://localhost http://ipc.localhost http://localhost:* ws://localhost:* https://tauri.localhost https://i18n.cubiclauncher.org https://skins.cubiclauncher.org"
+				"connect-src": "'self' tauri://localhost ipc://localhost http://ipc.localhost http://localhost:* ws://localhost:* https://tauri.localhost https://i18n.cubiclauncher.org https://skins.cubiclauncher.org https://mosaicary.com"
 			},
 			"assetProtocol": {
 				"enable": true,

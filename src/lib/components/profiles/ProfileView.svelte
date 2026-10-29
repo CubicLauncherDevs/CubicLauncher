@@ -295,21 +295,26 @@
 									</button>
 								</div>
 							{:else}
-								<h3 class="hero-name">
-									{selectedUser.username}
-								</h3>
+								<!-- El nombre y, a su lado, si es la cuenta en uso. -->
+								<div class="hero-name-row">
+									<h3 class="hero-name">
+										{selectedUser.username}
+									</h3>
+									{#if selectedIdx === activeUserIdx}
+										<span class="hero-status">
+											{t("userMenu.active")}
+										</span>
+									{/if}
+								</div>
 							{/if}
 							<span class="hero-type">
 								{getUserTypeLabel(selectedUser)}
 							</span>
 						</div>
 
+						<!-- Las acciones de la cuenta, al final de la fila del nombre. -->
 						<div class="hero-id-actions">
-							{#if selectedIdx === activeUserIdx}
-								<span class="hero-status">
-									{t("userMenu.active")}
-								</span>
-							{:else}
+							{#if selectedIdx !== activeUserIdx}
 								<button
 									type="button"
 									class="btn-primary"
@@ -590,6 +595,14 @@
 		word-break: break-word;
 	}
 
+	.hero-name-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+		min-width: 0;
+	}
+
 	.hero-edit-row {
 		display: flex;
 		align-items: center;
@@ -667,6 +680,7 @@
 		align-items: center;
 		gap: 8px;
 		flex-wrap: wrap;
+		flex-shrink: 0;
 		margin-left: auto;
 	}
 
@@ -825,11 +839,6 @@
 
 		.hero-identity {
 			gap: 14px;
-		}
-
-		.hero-id-actions {
-			width: 100%;
-			justify-content: flex-end;
 		}
 
 		.profile-list {
