@@ -94,6 +94,7 @@
 		const cached = reset ? loadedFor(asked) : null;
 		if (cached) {
 			blockHeights.clear();
+			nearBlocks.clear();
 			({ skins, page, pages } = cached);
 			searching = false;
 			loadingMore = false;
@@ -114,6 +115,7 @@
 			if (mine !== generation) return;
 			if (reset) {
 				blockHeights.clear();
+				nearBlocks.clear();
 				skins = result.skins;
 			} else {
 				const known = new Set(skins.map((one) => one.id));
@@ -279,24 +281,65 @@
 	/** La altura de cada bloque al alejarse, para que vacío ocupe lo mismo. */
 	const blockHeights = new SvelteMap<number, number>();
 
+	let blockObserver: IntersectionObserver | null = null;
+	let blocksWatched = 0;
+	const blockAt = new WeakMap<Element, number>();
+
+	function observerFor(root: Element): IntersectionObserver {
+		if (!blockObserver) {
+			blockObserver = new IntersectionObserver(
+				(seen) => {
+					for (const one of seen) {
+						const at = blockAt.get(one.target);
+						if (at === undefined) continue;
+						if (one.isIntersecting) {
+							nearBlocks.add(at);
+						} else if (nearBlocks.has(at)) {
+							blockHeights.set(
+								at,
+								(
+									one.target as HTMLElement
+								).getBoundingClientRect().height,
+							);
+							nearBlocks.delete(at);
+						}
+					}
+				},
+				{ root, rootMargin: "100% 0px" },
+			);
+		}
+		return blockObserver;
+	}
+
 	function watchBlock(node: HTMLElement, at: number) {
-		const observer = new IntersectionObserver(
-			(seen) => {
-				if (seen[seen.length - 1]!.isIntersecting) {
-					nearBlocks.add(at);
-				} else if (nearBlocks.has(at)) {
-					blockHeights.set(at, node.getBoundingClientRect().height);
-					nearBlocks.delete(at);
-				}
-			},
-			{ root: node.closest(".modal-body"), rootMargin: "100% 0px" },
-		);
+		const observer = observerFor(node.closest(".modal-body") ?? node);
+		let current = at;
+		blockAt.set(node, at);
+		blocksWatched++;
 		observer.observe(node);
 		return {
+			update(next: number) {
+				current = next;
+				blockAt.set(node, next);
+			},
 			destroy() {
-				observer.disconnect();
-				nearBlocks.delete(at);
-				blockHeights.delete(at);
+				observer.unobserve(node);
+				blockAt.delete(node);
+				nearBlocks.delete(current);
+				blockHeights.delete(current);
+				blocksWatched--;
+				if (blocksWatched <= 0) {
+					observer.disconnect();
+					blockObserver = null;
+				}
+			},
+		};
+	}
+
+	function releaseImage(img: HTMLImageElement) {
+		return {
+			destroy() {
+				img.removeAttribute("src");
 			},
 		};
 	}
@@ -347,6 +390,11 @@
 		generation++;
 		request?.abort();
 		clearTimeout(typing);
+		blockObserver?.disconnect();
+		blockObserver = null;
+		blocksWatched = 0;
+		nearBlocks.clear();
+		blockHeights.clear();
 	});
 
 	const hasMore = $derived(page < pages);
@@ -573,9 +621,10 @@
 											alt={skin.name}
 											width="256"
 											height="256"
-											loading="lazy"
 											decoding="async"
+											fetchpriority="low"
 											draggable="false"
+											use:releaseImage
 										/>
 										<span
 											class="catalog-name"

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+	CATALOG_KEPT_PAGES,
 	CATALOG_PAGE_SIZE,
 	NO_CATALOG_FILTERS,
 	catalogUrl,
@@ -157,6 +158,23 @@ test("lo cargado de unos filtros se recupera sin pedirlo otra vez", () => {
 	expect(loadedFor({ ...slim, arms: "classic" })).toBeNull();
 	// El texto buscado cuenta como lo manda la dirección: sin espacios sobrantes.
 	expect(loadedFor({ ...slim, query: "  " })).toMatchObject(loadedPage);
+});
+
+test("lo cargado se recorta para no guardar miles de skins por filtro", () => {
+	const filters = { ...NO_CATALOG_FILTERS, query: "deep" };
+	const many = Array.from(
+		{ length: CATALOG_KEPT_PAGES * CATALOG_PAGE_SIZE + 100 },
+		(_, at) => ({ id: `skin-${at}` }),
+	);
+	keepLoaded(filters, {
+		skins: many,
+		page: CATALOG_KEPT_PAGES + 5,
+		pages: 190,
+	});
+	const kept = loadedFor(filters);
+	expect(kept.skins).toHaveLength(CATALOG_KEPT_PAGES * CATALOG_PAGE_SIZE);
+	expect(kept.page).toBe(CATALOG_KEPT_PAGES);
+	expect(kept.pages).toBe(190);
 });
 
 test("los ojos vivos solo si la dirección es de Mosaicary", () => {

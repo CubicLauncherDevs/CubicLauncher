@@ -221,7 +221,12 @@ export function parseCatalogPage(data: unknown): CatalogPage {
 /** Cuánto vale lo ya cargado de unos filtros: volver a ellos dentro de este tiempo no pide nada. */
 const KEPT_MS = 5 * 60 * 1000;
 /** Cuántas combinaciones de filtros se guardan como mucho. */
-const KEPT_MOST = 24;
+const KEPT_MOST = 8;
+/**
+ * Cuántas páginas de cada combinación se guardan. Guardar miles de skins por cada filtro
+ * hacía crecer la memoria con el scroll; al volver se retoma desde donde se cortó.
+ */
+export const CATALOG_KEPT_PAGES = 20;
 
 /** Lo cargado de unos filtros: todas sus páginas hasta `page`. */
 export interface CatalogLoaded extends CatalogPage {
@@ -241,8 +246,14 @@ export function loadedFor(filters: CatalogFilters): CatalogPage | null {
 /** Guarda lo cargado de estos filtros, desplazando lo más antiguo. */
 export function keepLoaded(filters: CatalogFilters, page: CatalogPage) {
 	const key = catalogUrl(filters, 1);
+	const kept = Math.min(page.page, CATALOG_KEPT_PAGES);
 	loaded.delete(key);
-	loaded.set(key, { ...page, at: Date.now() });
+	loaded.set(key, {
+		skins: page.skins.slice(0, kept * CATALOG_PAGE_SIZE),
+		page: kept,
+		pages: page.pages,
+		at: Date.now(),
+	});
 	while (loaded.size > KEPT_MOST) loaded.delete(loaded.keys().next().value!);
 }
 
