@@ -98,8 +98,8 @@
 	.cape-btn {
 		position: relative;
 		flex-shrink: 0;
-		width: 60px;
-		height: 90px;
+		width: 56px;
+		height: 86px;
 		padding: 3px;
 		background: var(--bg-input);
 		border: 2px solid var(--border);
@@ -154,7 +154,7 @@
 
 	.cape-thumb img {
 		position: absolute;
-		left: -60px;
+		left: -5px;
 		top: -5px;
 		width: 320px;
 		height: 160px;
@@ -187,12 +187,12 @@
 
 	@media (max-width: 520px) {
 		.cape-btn {
-			width: 50px;
-			height: 74px;
+			width: 46px;
+			height: 70px;
 		}
 
 		.cape-thumb img {
-			left: -48px;
+			left: -4px;
 			top: -4px;
 			width: 256px;
 			height: 128px;
