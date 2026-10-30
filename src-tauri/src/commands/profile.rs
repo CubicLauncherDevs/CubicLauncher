@@ -211,7 +211,9 @@ pub(crate) async fn refresh_msa_token(uuid: &str) -> Result<String, String> {
         return Err("Solo los usuarios de Microsoft pueden gestionar skins/capes".to_string());
     }
 
-    let refreshed = refresh_microsoft_token(user)
+    // Se llega aquí tras un 401: aunque el JWT parezca vigente, hay que forzar
+    // el refresco para reintentar con un token nuevo.
+    let refreshed = refresh_microsoft_token(user, true)
         .await
         .map_err(|e| e.to_string())?;
 

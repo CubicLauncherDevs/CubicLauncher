@@ -94,3 +94,45 @@ fn test_secure_storage_save_load() {
     // Borrar tokens
     user.delete_tokens().unwrap();
 }
+
+/// Token de Minecraft con la forma real: header.payload.signature en base64url.
+fn jwt_with_exp(exp: i64) -> String {
+    use base64::{Engine as _, engine::general_purpose};
+    let header = general_purpose::URL_SAFE_NO_PAD.encode(br#"{"alg":"HS256"}"#);
+    let payload = general_purpose::URL_SAFE_NO_PAD.encode(format!(r#"{{"exp":{exp}}}"#));
+    format!("{header}.{payload}.signature")
+}
+
+fn now_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64
+}
+
+#[test]
+fn access_token_freshness_reads_the_jwt_expiry() {
+    let now = now_unix();
+    let mut user = MinecraftUser::premium(
+        "Steve".into(),
+        "id".into(),
+        jwt_with_exp(now + 3600),
+        Some("refresh".into()),
+    );
+
+    assert_eq!(user.access_token_expiry(), Some(now + 3600));
+    assert!(user.access_token_is_fresh(600));
+
+    // Dentro del margen de seguridad: hay que refrescar.
+    user.access_token = jwt_with_exp(now + 60);
+    assert!(!user.access_token_is_fresh(600));
+
+    // Ya expirado.
+    user.access_token = jwt_with_exp(now - 10);
+    assert!(!user.access_token_is_fresh(0));
+
+    // Tokens opacos (Yggdrasil) no son JWT: se refresca como siempre.
+    user.access_token = "opaque-token".into();
+    assert_eq!(user.access_token_expiry(), None);
+    assert!(!user.access_token_is_fresh(0));
+}

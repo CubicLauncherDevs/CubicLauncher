@@ -639,7 +639,7 @@ impl Launcher {
         }
         info!("Starting with {}", java_path.display());
         // Auto-refresh del token Microsoft — el lock de settings se toma y suelta rápido
-        user = refresh_microsoft_token(user).await?;
+        user = refresh_microsoft_token(user, false).await?;
 
         // Auto-refresh del token Yggdrasil
         user = refresh_yggdrasil_token(user).await?;
@@ -1021,8 +1021,16 @@ impl Launcher {
     }
 }
 
+/// Margen de seguridad antes de la expiración del token de Minecraft: por
+/// debajo de esto se refresca, para no arrancar el juego con una sesión que
+/// caduque mientras carga.
+const TOKEN_REFRESH_MARGIN_SECS: i64 = 10 * 60;
+
+/// Refresca el token de Microsoft. Con `force = false` se salta el refresco
+/// cuando el token guardado todavía es válido (el caso normal al lanzar).
 pub(crate) async fn refresh_microsoft_token(
     mut user: MinecraftUser,
+    force: bool,
 ) -> Result<MinecraftUser, AppError> {
     if user.user_type != AccountType::Microsoft {
         return Ok(user);
@@ -1034,6 +1042,14 @@ pub(crate) async fn refresh_microsoft_token(
         && let Err(e) = user.load_tokens()
     {
         warn!("No se pudieron cargar tokens de Microsoft: {:?}", e);
+    }
+
+    // El token de Minecraft vale ~24 h. Si sigue vigente nos ahorramos las cinco
+    // peticiones HTTP encadenadas del refresco (Microsoft → XBL → XSTS → MC),
+    // que eran el mayor coste antes de arrancar el juego.
+    if !force && user.access_token_is_fresh(TOKEN_REFRESH_MARGIN_SECS) {
+        info!("Token de Microsoft vigente, se omite el refresco");
+        return Ok(user);
     }
 
     let Some(refresh_token) = user.refresh_token.clone() else {

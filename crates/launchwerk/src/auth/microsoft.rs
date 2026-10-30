@@ -14,6 +14,14 @@ pub const WEBVIEW_CLIENT_ID: &str = "cb4acffe-727f-4dd1-ad5e-fd3553d84a7f"; // e
 pub const REDIRECT_URI: &str = "http://localhost/callback";
 const SCOPE: &str = "XboxLive.SignIn XboxLive.offline_access";
 
+/// Cliente HTTP compartido: reutiliza el pool de conexiones (y el handshake
+/// TLS) entre las peticiones encadenadas del login en vez de abrir uno nuevo
+/// por llamada.
+fn http_client() -> reqwest::blocking::Client {
+    static CLIENT: std::sync::OnceLock<reqwest::blocking::Client> = std::sync::OnceLock::new();
+    CLIENT.get_or_init(reqwest::blocking::Client::new).clone()
+}
+
 #[derive(Debug, Deserialize)]
 pub struct DeviceCodeResponse {
     pub user_code: String,
@@ -164,7 +172,7 @@ impl MicrosoftAuth {
         code_verifier: &str,
         redirect_uri: &str,
     ) -> crate::Result<MinecraftUser> {
-        let client = reqwest::blocking::Client::new();
+        let client = http_client();
         let params = [
             ("client_id", self.client_id.as_str()),
             ("code", code),
@@ -192,7 +200,7 @@ impl MicrosoftAuth {
     }
 
     pub fn get_device_code(&self) -> crate::Result<DeviceCodeResponse> {
-        let client = reqwest::blocking::Client::new();
+        let client = http_client();
         let params = [("client_id", self.client_id.as_str()), ("scope", SCOPE)];
 
         let res = client
@@ -222,7 +230,7 @@ impl MicrosoftAuth {
         interval: u64,
         expires_in: u64,
     ) -> crate::Result<MinecraftUser> {
-        let client = reqwest::blocking::Client::new();
+        let client = http_client();
         let start = Instant::now();
         let interval = Duration::from_secs(interval);
         let expires_in = Duration::from_secs(expires_in);
@@ -262,7 +270,7 @@ impl MicrosoftAuth {
     }
 
     pub fn refresh_token(&self, refresh_token: &str) -> crate::Result<MinecraftUser> {
-        let client = reqwest::blocking::Client::new();
+        let client = http_client();
         let params = [
             ("client_id", self.client_id.as_str()),
             ("refresh_token", refresh_token),
@@ -294,7 +302,7 @@ impl MicrosoftAuth {
         ms_token: &str,
         refresh_token: Option<String>,
     ) -> crate::Result<MinecraftUser> {
-        let client = reqwest::blocking::Client::new();
+        let client = http_client();
 
         // 1. XBL
         let xbl_req = XblRequest {

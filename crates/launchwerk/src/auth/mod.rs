@@ -9,6 +9,7 @@ pub mod storage;
 mod tests;
 pub mod yggdrasil;
 
+use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use storage::SecureStorage;
 
@@ -97,6 +98,35 @@ impl MinecraftUser {
             yggdrasil_server_url: Some(server_url),
             client_token: Some(client_token),
         }
+    }
+
+    /// Expiración (epoch en segundos) del token de Minecraft, si es un JWT.
+    ///
+    /// Minecraft entrega un JWT con ~24 h de validez, así que leer su `exp`
+    /// permite saltarse el refresco completo (cinco peticiones HTTP encadenadas)
+    /// cuando el token guardado todavía sirve.
+    pub fn access_token_expiry(&self) -> Option<i64> {
+        let payload = self.access_token.split('.').nth(1)?;
+        let decoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(payload)
+            .or_else(|_| base64::engine::general_purpose::URL_SAFE.decode(payload))
+            .ok()?;
+        let claims: serde_json::Value = serde_json::from_slice(&decoded).ok()?;
+        claims.get("exp").and_then(serde_json::Value::as_i64)
+    }
+
+    /// Indica si el token de acceso guardado sigue siendo utilizable durante
+    /// los próximos `margin_secs` segundos.
+    ///
+    /// Devuelve `false` cuando el token no es un JWT o no declara `exp`: en ese
+    /// caso el llamador debe refrescar como siempre.
+    pub fn access_token_is_fresh(&self, margin_secs: i64) -> bool {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_secs() as i64)
+            .unwrap_or(0);
+        self.access_token_expiry()
+            .is_some_and(|exp| exp.saturating_sub(now) > margin_secs)
     }
 
     /// Save tokens to secure storage
