@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, untrack } from "svelte";
-	import type { Render, IdleAnimation, WalkingAnimation } from "skin3d";
+	import type { Render, IdleAnimation } from "skin3d";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import {
 		EYE_GAP,
@@ -13,7 +13,11 @@
 		type LiveEyes,
 	} from "$lib/utils/freshEyes";
 
-	const IDLE_MS = 5000;
+	const IDLE_MS = 3000;
+	const INTERACTION_FPS = 60;
+	const RESTING_FPS = 24;
+	/** Margen para no perder un frame por la precisión de `requestAnimationFrame`. */
+	const FRAME_TOLERANCE_MS = 1;
 
 	interface Props {
 		skinUrl: string;
@@ -24,8 +28,6 @@
 		quality?: "low" | "high";
 		/** Si la figura gira sola. */
 		rotate?: boolean;
-		/** Si camina en lugar de estar quieta respirando. */
-		walk?: boolean;
 		/** Si mueve los ojos de Fresh Moves, cuando la skin lleva su copia. */
 		eyes?: boolean;
 		/** Avisa, al cargar cada skin, de si lleva ojos de Fresh Moves que se pueden mover. */
@@ -40,7 +42,6 @@
 		interactive = true,
 		quality = "low",
 		rotate = true,
-		walk = false,
 		eyes = false,
 		onEyesFound,
 	}: Props = $props();
@@ -50,7 +51,6 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let IdleAnimationClass: typeof IdleAnimation | null = null;
-	let WalkingAnimationClass: typeof WalkingAnimation | null = null;
 
 	let isIntersecting = $state(false);
 	let isTabVisible = $state(true);
@@ -106,6 +106,7 @@
 			idleTimeout = setTimeout(() => {
 				isIdle = true;
 				syncRenderPause();
+				refreshEyes();
 			}, IDLE_MS);
 		}
 	}
@@ -113,6 +114,7 @@
 	function wakeFromIdle() {
 		resetIdleTimer();
 		syncRenderPause();
+		refreshEyes();
 	}
 
 	function handleVisibilityChange() {
@@ -137,6 +139,9 @@
 	let restingFace: ImageData | null = null;
 	let eyesTimer: ReturnType<typeof setTimeout> | null = null;
 	let eyesFrame: number | null = null;
+	let eyesStarted = false;
+	let resumeEyesSchedule: (() => void) | null = null;
+	let resetEyesPose: (() => void) | null = null;
 
 	/** Lee la copia de los ojos de la skin recién cargada; sin copia, o sin poder leerla, nada. */
 	function readEyes(v: Render) {
@@ -178,7 +183,7 @@
 	 * con la vista en reposo se dibuja un único fotograma por cambio.
 	 */
 	function startEyes(v: Render, found: LiveEyes) {
-		if (!plainSkin || eyesTimer !== null || eyesFrame !== null) return;
+		if (!plainSkin || eyesStarted) return;
 		const big = document.createElement("canvas");
 		big.width = plainSkin.width * EYE_STEPS;
 		big.height = plainSkin.height * EYE_STEPS;
@@ -220,12 +225,16 @@
 			scheduleRender();
 		};
 
-		const next = () => {
+		const scheduleNext = () => {
+			if (!eyesStarted || eyesTimer !== null || eyesFrame !== null)
+				return;
 			eyesTimer = setTimeout(
 				() => {
 					eyesTimer = null;
-					// Fuera de la vista, el siguiente movimiento espera.
-					if (!isVisible) return next();
+					// En reposo o fuera de la vista, el siguiente movimiento espera
+					// a que el visor vuelva a estar activo.
+					if (!eyesStarted || !isVisible || isIdle || !shouldAnimate)
+						return;
 					const keys = moveOf(rows);
 					const end = keys[keys.length - 1]!.at;
 					let start = -1;
@@ -237,7 +246,7 @@
 							eyesFrame = requestAnimationFrame(step);
 						} else {
 							eyesFrame = null;
-							next();
+							scheduleNext();
 						}
 					};
 					eyesFrame = requestAnimationFrame(step);
@@ -245,15 +254,50 @@
 				EYE_GAP.least + Math.random() * EYE_GAP.more,
 			);
 		};
-		next();
+		eyesStarted = true;
+		resumeEyesSchedule = scheduleNext;
+		resetEyesPose = () => paint({ look: 0, lid: 0 });
+		scheduleNext();
 	}
 
-	/** Deja los ojos quietos y la skin como llegó. */
-	function stopEyes(v: Render | null) {
+	function pauseEyes() {
 		if (eyesTimer !== null) clearTimeout(eyesTimer);
 		if (eyesFrame !== null) cancelAnimationFrame(eyesFrame);
 		eyesTimer = null;
 		eyesFrame = null;
+	}
+
+	function syncEyes(v: Render) {
+		const found = liveEyes;
+		if (!found) {
+			pauseEyes();
+			return;
+		}
+		if (!eyes || !shouldAnimate) {
+			stopEyes(v);
+			return;
+		}
+		if (!isVisible || isIdle) {
+			pauseEyes();
+			resetEyesPose?.();
+			return;
+		}
+		if (!eyesStarted) startEyes(v, found);
+		else resumeEyesSchedule?.();
+	}
+
+	function refreshEyes() {
+		const v = viewer;
+		if (!v || v.disposed) return;
+		syncEyes(v);
+	}
+
+	/** Deja los ojos quietos y la skin como llegó. */
+	function stopEyes(v: Render | null) {
+		pauseEyes();
+		eyesStarted = false;
+		resumeEyesSchedule = null;
+		resetEyesPose = null;
 		if (restingFace && plainSkin && v && !v.disposed) {
 			v.loadSkin(plainSkin, { model });
 			scheduleRender();
@@ -271,20 +315,24 @@
 
 	onMount(() => {
 		let mounted = true;
+		let started = false;
 		let resizeObserver: ResizeObserver | null = null;
 		let intersectionObserver: IntersectionObserver | null = null;
 		let controlsStartHandler: (() => void) | null = null;
 		let controlsChangeHandler: (() => void) | null = null;
 		let controlsEndHandler: (() => void) | null = null;
 		let activityHandler: (() => void) | null = null;
+		let visibilityHandler: (() => void) | null = null;
 
 		async function init() {
-			const { Render, IdleAnimation, WalkingAnimation } =
-				await import("skin3d");
+			const { Render, IdleAnimation } = await import("skin3d");
 			if (!mounted) return;
+			if (!isIntersecting || !isTabVisible) {
+				started = false;
+				return;
+			}
 
 			IdleAnimationClass = IdleAnimation;
-			WalkingAnimationClass = WalkingAnimation;
 
 			const width = Math.max(1, container.clientWidth);
 			const height = container.clientHeight || width;
@@ -294,9 +342,8 @@
 				height,
 				enableControls: true,
 				zoom: 0.7,
-				// Keep skin3d's original visual quality in the main preview.
-				enableFXAA: quality === "high",
-				maxPixelRatio: quality === "high" ? 2 : 1,
+				enableFXAA: false,
+				maxPixelRatio: quality === "high" ? 1.5 : 1,
 				pixelRatio: quality === "high" ? "match-device" : 1,
 				// Wait for visibility before starting any animation work.
 				renderPaused: true,
@@ -313,28 +360,27 @@
 			instance.camera.position.y += CHEST_Y;
 			instance.controls.update();
 
-			// Reducir FPS del loop animado a ~30 cuando no hay interacción
+			// Menos FPS en reposo; durante la interacción se mantiene fluido.
 			const instanceAny = instance as unknown as {
 				draw: () => void;
 				animationID: number | null;
 			};
 			const originalDraw = instanceAny.draw.bind(instance);
 			let lastDrawTime = performance.now();
-			const targetFrameInterval = 1000 / 30;
 			instanceAny.draw = function () {
 				if (instance.disposed || instance.renderPaused) return;
 				const now = performance.now();
 				const elapsed = now - lastDrawTime;
-				if (!isInteracting && elapsed < targetFrameInterval) {
+				const targetFrameInterval =
+					1000 / (isInteracting ? INTERACTION_FPS : RESTING_FPS);
+				if (elapsed + FRAME_TOLERANCE_MS < targetFrameInterval) {
 					instanceAny.animationID = requestAnimationFrame(() =>
 						instanceAny.draw(),
 					);
 					return;
 				}
-				// Carry timing remainder forward to avoid drifting below 30 FPS.
-				lastDrawTime = isInteracting
-					? now
-					: now - (elapsed % targetFrameInterval);
+				// Carry timing remainder forward to avoid drifting below the target FPS.
+				lastDrawTime = now - (elapsed % targetFrameInterval);
 				originalDraw();
 			};
 
@@ -393,31 +439,40 @@
 			});
 			resizeObserver.observe(container);
 
-			intersectionObserver = new IntersectionObserver((entries) => {
-				isIntersecting = entries[0]?.isIntersecting ?? false;
-			});
-			intersectionObserver.observe(container);
-
-			document.addEventListener(
-				"visibilitychange",
-				handleVisibilityChange,
-			);
-			isTabVisible = !document.hidden;
-
 			viewer = instance;
 		}
 
-		init().catch((e) => {
-			if (mounted) error = String(e);
+		function maybeInit() {
+			if (!mounted || started || !isIntersecting || !isTabVisible) return;
+			started = true;
+			init().catch((e) => {
+				if (mounted) error = String(e);
+			});
+		}
+
+		intersectionObserver = new IntersectionObserver((entries) => {
+			const visible = entries[0]?.isIntersecting ?? false;
+			isIntersecting = visible;
+			if (visible) maybeInit();
 		});
+		intersectionObserver.observe(container);
+
+		visibilityHandler = () => {
+			handleVisibilityChange();
+			maybeInit();
+		};
+		document.addEventListener("visibilitychange", visibilityHandler);
+		isTabVisible = !document.hidden;
 
 		return () => {
 			mounted = false;
 			stopIdleTimer();
-			document.removeEventListener(
-				"visibilitychange",
-				handleVisibilityChange,
-			);
+			if (visibilityHandler) {
+				document.removeEventListener(
+					"visibilitychange",
+					visibilityHandler,
+				);
+			}
 			if (activityHandler && container) {
 				const activityEvents = [
 					"pointerenter",
@@ -456,12 +511,13 @@
 				cancelAnimationFrame(pendingRaf);
 				pendingRaf = null;
 			}
-			if (eyesTimer !== null) clearTimeout(eyesTimer);
-			if (eyesFrame !== null) cancelAnimationFrame(eyesFrame);
+			pauseEyes();
+			eyesStarted = false;
+			resumeEyesSchedule = null;
+			resetEyesPose = null;
 			viewer?.dispose();
 			viewer = null;
 			IdleAnimationClass = null;
-			WalkingAnimationClass = null;
 		};
 	});
 
@@ -469,19 +525,17 @@
 		const v = viewer;
 		if (!v || v.disposed) return;
 
-		const Animation = walk ? WalkingAnimationClass : IdleAnimationClass;
+		const Animation = IdleAnimationClass;
 		v.animation = shouldAnimate && Animation ? new Animation() : null;
 		// Un interruptor recién tocado se ve en marcha, aunque la vista estuviera en reposo.
 		untrack(() => wakeFromIdle());
 	});
 
-	// Los ojos se mueven si se piden, la skin los lleva y las animaciones 3D están activas.
+	// Los ojos se mueven solo mientras el visor esté visible, activo y fuera del reposo.
 	$effect(() => {
 		const v = viewer;
-		const found = liveEyes;
-		if (!v || v.disposed || !found) return;
-		if (eyes && shouldAnimate) untrack(() => startEyes(v, found));
-		else untrack(() => stopEyes(v));
+		if (!v || v.disposed) return;
+		syncEyes(v);
 	});
 
 	// Aparte de la animación, para que pararlo y reanudarlo no la reinicie.
@@ -495,6 +549,7 @@
 	$effect(() => {
 		resetIdleTimer();
 		syncRenderPause();
+		refreshEyes();
 		// Redraw static previews on return, including textures loaded while hidden.
 		scheduleRender();
 	});

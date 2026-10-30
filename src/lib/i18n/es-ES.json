@@ -631,7 +631,6 @@
 			"classicLocked": "Una skin delgada (Alex) no se puede guardar como Clásico (Steve).",
 			"modelLockedSlim": "Skin delgada (Alex): no se puede cambiar a Clásico para evitar franjas negras en los brazos.",
 			"rotate": "Girar",
-			"walk": "Caminar",
 			"eyesMove": "Mover los ojos (en el juego solo se mueven con el paquete de recursos Fresh Moves)",
 			"catalog": {
 				"open": "Catálogo",

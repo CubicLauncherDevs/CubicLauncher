@@ -631,7 +631,6 @@
 			"classicLocked": "A slim skin (Alex) can't be saved as Classic (Steve).",
 			"modelLockedSlim": "Slim skin (Alex): it can't be changed to Classic to avoid black stripes on the arms.",
 			"rotate": "Rotate",
-			"walk": "Walk",
 			"eyesMove": "Move the eyes (in the game they move only with the Fresh Moves resource pack)",
 			"catalog": {
 				"open": "Catalogue",

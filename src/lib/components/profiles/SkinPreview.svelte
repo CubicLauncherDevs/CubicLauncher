@@ -29,24 +29,23 @@
 		onDrop,
 	}: Props = $props();
 
-	// Girar y caminar, a gusto de quien mira: se recuerda entre aperturas.
+	// Girar y mover los ojos, a gusto de quien mira: se recuerda entre aperturas.
 	const MOTION_KEY = "skin-preview-motion";
-	function storedMotion(): { rotate: boolean; walk: boolean; eyes: boolean } {
+	function storedMotion(): { rotate: boolean; eyes: boolean } {
 		try {
 			const kept = JSON.parse(localStorage.getItem(MOTION_KEY) ?? "{}");
 			return {
 				rotate: kept.rotate !== false,
-				walk: kept.walk === true,
 				eyes: kept.eyes !== false,
 			};
 		} catch {
-			return { rotate: true, walk: false, eyes: true };
+			return { rotate: true, eyes: true };
 		}
 	}
 	const motion = $state(storedMotion());
 	/** Si la skin lleva ojos de Fresh Moves: solo entonces hay botón de ojos. */
 	let hasEyes = $state(false);
-	function toggle(which: "rotate" | "walk" | "eyes") {
+	function toggle(which: "rotate" | "eyes") {
 		motion[which] = !motion[which];
 		try {
 			localStorage.setItem(MOTION_KEY, JSON.stringify(motion));
@@ -77,7 +76,6 @@
 			{model}
 			quality="high"
 			rotate={motion.rotate}
-			walk={motion.walk}
 			eyes={motion.eyes}
 			onEyesFound={(found) => (hasEyes = found)}
 		/>
@@ -94,17 +92,6 @@
 					aria-label={t("userMenu.skinCape.rotate")}
 				>
 					<Icon name="ui:refresh" size={14} />
-				</button>
-				<button
-					type="button"
-					class="motion-btn"
-					class:active={motion.walk}
-					aria-pressed={motion.walk}
-					onclick={() => toggle("walk")}
-					title={t("userMenu.skinCape.walk")}
-					aria-label={t("userMenu.skinCape.walk")}
-				>
-					<Icon name="ui:play" size={14} />
 				</button>
 				{#if hasEyes}
 					<!-- En el juego los ojos solo se mueven con el paquete: lo dice la burbuja. -->
