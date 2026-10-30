@@ -342,7 +342,7 @@
 				height,
 				enableControls: true,
 				zoom: 0.7,
-				enableFXAA: false,
+				enableFXAA: true,
 				maxPixelRatio: quality === "high" ? 1.5 : 1,
 				pixelRatio: quality === "high" ? "match-device" : 1,
 				// Wait for visibility before starting any animation work.
