@@ -174,6 +174,47 @@
 		}
 	}
 
+	const MIN_MEMORY_GB = 0.5;
+	const MAX_MEMORY_GB = 64;
+
+	function clampMemoryGb(value: number, minGb: number, maxGb: number) {
+		return Math.round(Math.min(Math.max(value, minGb), maxGb) * 10) / 10;
+	}
+
+	function setMinMemoryGb(value: number) {
+		const currentMin = launcherStore.settings.min_memory / 1024;
+		const currentMax = launcherStore.settings.max_memory / 1024;
+		const gb = clampMemoryGb(
+			Number.isFinite(value) ? value : currentMin,
+			MIN_MEMORY_GB,
+			Math.min(currentMax, MAX_MEMORY_GB),
+		);
+		launcherStore.settings.min_memory = Math.round(gb * 1024);
+	}
+
+	function setMaxMemoryGb(value: number) {
+		const currentMin = launcherStore.settings.min_memory / 1024;
+		const currentMax = launcherStore.settings.max_memory / 1024;
+		const gb = clampMemoryGb(
+			Number.isFinite(value) ? value : currentMax,
+			Math.max(currentMin, MIN_MEMORY_GB),
+			MAX_MEMORY_GB,
+		);
+		launcherStore.settings.max_memory = Math.round(gb * 1024);
+	}
+
+	function handleMemoryInput(kind: "min" | "max", event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const value = parseFloat(input.value);
+		if (kind === "min") setMinMemoryGb(value);
+		else setMaxMemoryGb(value);
+		input.value = String(
+			kind === "min"
+				? launcherStore.settings.min_memory / 1024
+				: launcherStore.settings.max_memory / 1024,
+		);
+	}
+
 	async function autoDetectJava() {
 		try {
 			const paths: Record<string, string> =
@@ -560,35 +601,35 @@
 								<button
 									type="button"
 									class="qm-stepper-btn"
-									onclick={() => {
-										const gb =
+									onclick={() =>
+										setMinMemoryGb(
 											launcherStore.settings.min_memory /
-											1024;
-										const v = gb - 0.5;
-										if (v >= 0.5)
-											launcherStore.settings.min_memory =
-												Math.round(v * 1024);
-									}}>−</button
+												1024 -
+												0.5,
+										)}>−</button
 								>
-								<span class="qm-ram-value"
-									>{launcherStore.settings.min_memory / 1024} GB</span
-								>
+								<input
+									type="number"
+									id="min-mem"
+									class="qm-ram-value"
+									step="0.5"
+									min="0.5"
+									max={launcherStore.settings.max_memory /
+										1024}
+									value={launcherStore.settings.min_memory /
+										1024}
+									onchange={(event) =>
+										handleMemoryInput("min", event)}
+								/>
 								<button
 									type="button"
 									class="qm-stepper-btn"
-									onclick={() => {
-										const gb =
+									onclick={() =>
+										setMinMemoryGb(
 											launcherStore.settings.min_memory /
-											1024;
-										const v = gb + 0.5;
-										if (
-											v <=
-											launcherStore.settings.max_memory /
-												1024
-										)
-											launcherStore.settings.min_memory =
-												Math.round(v * 1024);
-									}}>+</button
+												1024 +
+												0.5,
+										)}>+</button
 								>
 							</div>
 						</div>
@@ -600,35 +641,35 @@
 								<button
 									type="button"
 									class="qm-stepper-btn"
-									onclick={() => {
-										const gb =
+									onclick={() =>
+										setMaxMemoryGb(
 											launcherStore.settings.max_memory /
-											1024;
-										const v = gb - 0.5;
-										if (
-											v >=
-											launcherStore.settings.min_memory /
-												1024
-										)
-											launcherStore.settings.max_memory =
-												Math.round(v * 1024);
-									}}>−</button
+												1024 -
+												0.5,
+										)}>−</button
 								>
-								<span class="qm-ram-value"
-									>{launcherStore.settings.max_memory / 1024} GB</span
-								>
+								<input
+									type="number"
+									id="max-mem"
+									class="qm-ram-value"
+									step="0.5"
+									min={launcherStore.settings.min_memory /
+										1024}
+									max={MAX_MEMORY_GB}
+									value={launcherStore.settings.max_memory /
+										1024}
+									onchange={(event) =>
+										handleMemoryInput("max", event)}
+								/>
 								<button
 									type="button"
 									class="qm-stepper-btn"
-									onclick={() => {
-										const gb =
+									onclick={() =>
+										setMaxMemoryGb(
 											launcherStore.settings.max_memory /
-											1024;
-										const v = gb + 0.5;
-										if (v <= 64)
-											launcherStore.settings.max_memory =
-												Math.round(v * 1024);
-									}}>+</button
+												1024 +
+												0.5,
+										)}>+</button
 								>
 							</div>
 						</div>
@@ -1031,12 +1072,32 @@
 
 	.qm-ram-value {
 		flex: 1;
+		min-width: 0;
 		text-align: center;
 		font-size: 0.9rem;
 		font-weight: 600;
 		color: var(--text-primary);
 		padding: 8px 4px;
-		user-select: none;
+		background: transparent;
+		border: none;
+		outline: none;
+		font-family: var(--font-family);
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+
+	.qm-ram-value::-webkit-outer-spin-button,
+	.qm-ram-value::-webkit-inner-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+
+	.qm-ram-stepper:focus-within {
+		border-color: var(--text-muted);
+	}
+
+	.qm-ram-stepper .qm-ram-value:focus-visible {
+		outline: none;
 	}
 
 	.qm-recommended-ram-wrapper {

@@ -21,6 +21,37 @@
 		saving: boolean;
 		onJavaChange: () => void;
 	} = $props();
+
+	const MIN_MEMORY_GB = 0.5;
+	const MAX_MEMORY_GB = 64;
+
+	function clampMemoryGb(value: number, minGb: number, maxGb: number) {
+		return Math.round(Math.min(Math.max(value, minGb), maxGb) * 10) / 10;
+	}
+
+	function setMinMem(value: number) {
+		minMem = clampMemoryGb(
+			Number.isFinite(value) ? value : minMem,
+			MIN_MEMORY_GB,
+			maxMem,
+		);
+	}
+
+	function setMaxMem(value: number) {
+		maxMem = clampMemoryGb(
+			Number.isFinite(value) ? value : maxMem,
+			minMem,
+			MAX_MEMORY_GB,
+		);
+	}
+
+	function handleMemoryInput(kind: "min" | "max", event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const value = parseFloat(input.value);
+		if (kind === "min") setMinMem(value);
+		else setMaxMem(value);
+		input.value = String(kind === "min" ? minMem : maxMem);
+	}
 </script>
 
 <div class="qm-field-checkbox">
@@ -51,19 +82,22 @@
 				<button
 					type="button"
 					class="qm-stepper-btn"
-					onclick={() => {
-						const v = minMem - 0.5;
-						if (v >= 0.5) minMem = v;
-					}}>−</button
+					onclick={() => setMinMem(minMem - 0.5)}>−</button
 				>
-				<span class="qm-ram-value">{minMem} GB</span>
+				<input
+					type="number"
+					id="min-mem"
+					class="qm-ram-value"
+					step="0.5"
+					min="0.5"
+					max={maxMem}
+					value={minMem}
+					onchange={(event) => handleMemoryInput("min", event)}
+				/>
 				<button
 					type="button"
 					class="qm-stepper-btn"
-					onclick={() => {
-						const v = minMem + 0.5;
-						if (v <= maxMem) minMem = v;
-					}}>+</button
+					onclick={() => setMinMem(minMem + 0.5)}>+</button
 				>
 			</div>
 		</div>
@@ -73,19 +107,22 @@
 				<button
 					type="button"
 					class="qm-stepper-btn"
-					onclick={() => {
-						const v = maxMem - 0.5;
-						if (v >= minMem) maxMem = v;
-					}}>−</button
+					onclick={() => setMaxMem(maxMem - 0.5)}>−</button
 				>
-				<span class="qm-ram-value">{maxMem} GB</span>
+				<input
+					type="number"
+					id="max-mem"
+					class="qm-ram-value"
+					step="0.5"
+					min={minMem}
+					max={MAX_MEMORY_GB}
+					value={maxMem}
+					onchange={(event) => handleMemoryInput("max", event)}
+				/>
 				<button
 					type="button"
 					class="qm-stepper-btn"
-					onclick={() => {
-						const v = maxMem + 0.5;
-						if (v <= 64) maxMem = v;
-					}}>+</button
+					onclick={() => setMaxMem(maxMem + 0.5)}>+</button
 				>
 			</div>
 		</div>
@@ -217,12 +254,32 @@
 
 	.qm-ram-value {
 		flex: 1;
+		min-width: 0;
 		text-align: center;
 		font-size: 0.9rem;
 		font-weight: 600;
 		color: var(--text-primary);
 		padding: 8px 4px;
-		user-select: none;
+		background: transparent;
+		border: none;
+		outline: none;
+		font-family: var(--font-family);
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+
+	.qm-ram-value::-webkit-outer-spin-button,
+	.qm-ram-value::-webkit-inner-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+
+	.qm-ram-stepper:focus-within {
+		border-color: var(--text-muted);
+	}
+
+	.qm-ram-stepper .qm-ram-value:focus-visible {
+		outline: none;
 	}
 
 	.qm-ram-hint {
