@@ -1,0 +1,82 @@
+// Árbol de dependencias compartido por el modal de dependencias del mercado,
+// el de la cola de descargas y la pantalla de revisión previa.
+//
+// $p  prefijo de clases del componente (p. ej. "dm", "market")
+
+@mixin deps-tree($p) {
+	.#{$p}-dep-list {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.#{$p}-dep-node {
+		display: flex;
+		flex-direction: column;
+
+		&.incompatible {
+			opacity: 0.6;
+		}
+	}
+
+	.#{$p}-dep-icon {
+		width: 22px;
+		height: 22px;
+		border-radius: var(--border-radius-sm);
+		overflow: hidden;
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.9rem;
+
+		img {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			display: block;
+		}
+	}
+
+	.#{$p}-dep-info {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		flex: 1;
+		gap: 1px;
+	}
+
+	.#{$p}-dep-title {
+		font-size: 0.82rem;
+		font-weight: 600;
+		color: var(--text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.#{$p}-dep-filename {
+		font-size: 0.72rem;
+		color: var(--text-secondary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.#{$p}-optional-toggle {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		font-size: 0.7rem;
+		color: var(--text-secondary);
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+
+	.#{$p}-dep-children {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		margin-top: 2px;
+	}
+}

@@ -276,7 +276,9 @@
 	</div>
 {/snippet}
 
-<style>
+<style lang="scss">
+	@use "../../../styles/shared/deps-tree" as *;
+
 	.market-dep-preview {
 		min-height: 220px;
 		max-height: 50vh;
@@ -309,34 +311,27 @@
 		margin-bottom: 16px;
 		color: var(--color-error);
 		font-size: 0.78rem;
-	}
-	.market-conflicts-box strong {
-		display: block;
-		margin-bottom: 6px;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-		font-size: 0.65rem;
-	}
-	.market-conflicts-box ul {
-		margin: 0;
-		padding-left: 16px;
-	}
-	.market-conflicts-box li {
-		margin-bottom: 2px;
+
+		strong {
+			display: block;
+			margin-bottom: 6px;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			font-size: 0.65rem;
+		}
+
+		ul {
+			margin: 0;
+			padding-left: 16px;
+		}
+
+		li {
+			margin-bottom: 2px;
+		}
 	}
 
-	.market-dep-list {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-	}
-	.market-dep-node {
-		display: flex;
-		flex-direction: column;
-	}
-	.market-dep-node.incompatible {
-		opacity: 0.6;
-	}
+	@include deps-tree("market");
+
 	.market-dep-row {
 		display: flex;
 		align-items: center;
@@ -346,50 +341,12 @@
 		border: var(--border-width) solid var(--border);
 		border-radius: var(--border-radius-sm);
 		min-height: 42px;
-	}
-	.market-dep-row:hover {
-		background: var(--surface-hover);
+
+		&:hover {
+			background: var(--surface-hover);
+		}
 	}
 
-	.market-dep-icon {
-		width: 22px;
-		height: 22px;
-		border-radius: var(--border-radius-sm);
-		overflow: hidden;
-		flex-shrink: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 0.9rem;
-	}
-	.market-dep-icon img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		display: block;
-	}
-	.market-dep-info {
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-		flex: 1;
-		gap: 1px;
-	}
-	.market-dep-title {
-		font-size: 0.82rem;
-		font-weight: 600;
-		color: var(--text-primary);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	.market-dep-filename {
-		font-size: 0.72rem;
-		color: var(--text-secondary);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
 	.market-dep-badge {
 		font-size: 0.58rem;
 		font-weight: 700;
@@ -419,24 +376,10 @@
 		background: color-mix(in srgb, var(--color-success) 12%, transparent);
 		color: var(--color-success);
 	}
-	.market-optional-toggle {
-		display: flex;
-		align-items: center;
-		gap: 5px;
-		font-size: 0.7rem;
-		color: var(--text-secondary);
-		cursor: pointer;
-		flex-shrink: 0;
-	}
+
 	.market-optional-toggle input {
 		cursor: pointer;
 		accent-color: var(--accent);
-	}
-	.market-dep-children {
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		margin-top: 2px;
 	}
 
 	.market-dep-footer {
