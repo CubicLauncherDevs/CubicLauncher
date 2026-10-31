@@ -1,23 +1,39 @@
 import { expect, test } from "bun:test";
 import {
+	catalogToGrouped,
 	createCatalogCache,
-	groupLoaderVersions,
 } from "../../../src/lib/components/layout/VersionDownloader/versionCatalog.ts";
 
-test("catalog groups and sorts MC versions, keeping preview-only groups separate", () => {
+test("catalog adapter keeps the grouping and order decided by Rust", () => {
 	const release = (mc, version, stable) => ({
 		game_version: mc,
 		version_id: `${mc}-${version}`,
 		display_version: version,
 		stable,
 	});
-	const catalog = groupLoaderVersions([
-		release("1.9", "HD_U_I6", true),
-		release("1.20.1", "HD_U_I5", true),
-		release("1.21", "HD_U_J1_pre9", false),
-		release("1.20.1", "HD_U_I7_pre1", false),
-		release("1.20.1", "HD_U_I6", true),
-	]);
+	const catalog = catalogToGrouped({
+		games: [
+			{
+				game_version: "1.21",
+				has_stable: false,
+				versions: [release("1.21", "HD_U_J1_pre9", false)],
+			},
+			{
+				game_version: "1.20.1",
+				has_stable: true,
+				versions: [
+					release("1.20.1", "HD_U_I6", true),
+					release("1.20.1", "HD_U_I5", true),
+					release("1.20.1", "HD_U_I7_pre1", false),
+				],
+			},
+			{
+				game_version: "1.9",
+				has_stable: true,
+				versions: [release("1.9", "HD_U_I6", true)],
+			},
+		],
+	});
 	expect(catalog.gameVersions).toEqual(["1.21", "1.20.1", "1.9"]);
 	expect(catalog.stableGameVersions).toEqual(["1.20.1", "1.9"]);
 	expect(catalog.byGame.get("1.20.1").map((v) => v.display_version)).toEqual([

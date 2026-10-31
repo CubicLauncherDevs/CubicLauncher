@@ -258,6 +258,26 @@ export interface NeoForgeGameVersion {
 	stable: boolean;
 }
 
+/** Loader cuyo catálogo agrupa y ordena Rust. */
+export type LoaderCatalogLoader = "forge" | "neoforge" | "optifine";
+
+export interface LoaderDisplayVersion {
+	version_id: string;
+	display_version: string;
+	game_version: string;
+	stable: boolean;
+}
+
+export interface LoaderVersionGroup {
+	game_version: string;
+	has_stable: boolean;
+	versions: LoaderDisplayVersion[];
+}
+
+export interface LoaderVersionCatalog {
+	games: LoaderVersionGroup[];
+}
+
 export type AppEvent =
 	| {
 			type: "InstanceStarted";

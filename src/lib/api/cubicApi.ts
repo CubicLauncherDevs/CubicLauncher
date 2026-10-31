@@ -7,9 +7,8 @@ import {
 	type MinecraftVersion,
 	type FabricGameVersion,
 	type LoaderVersion,
-	type ForgeGameVersion,
-	type OptiFineVersion,
-	type NeoForgeGameVersion,
+	type LoaderCatalogLoader,
+	type LoaderVersionCatalog,
 	type ModrinthSearchResult,
 	type ModrinthVersion,
 	type ModrinthProjectFull,
@@ -398,21 +397,14 @@ export async function downloadFabric(
 	);
 }
 
-export async function getForgeVersions(): Promise<ForgeGameVersion[]> {
-	return (
-		(await invokeWithFallback<ForgeGameVersion[]>(
-			"get_forge_versions",
-			null,
-		)) ?? []
-	);
-}
-
-export async function getOptiFineVersions(
+export async function getLoaderVersionCatalog(
+	loader: LoaderCatalogLoader,
 	refresh = false,
-): Promise<OptiFineVersion[]> {
-	return invoke<OptiFineVersion[]>(
-		refresh ? "refresh_optifine_versions" : "get_optifine_versions",
-	);
+): Promise<LoaderVersionCatalog> {
+	return invoke<LoaderVersionCatalog>("get_loader_version_catalog", {
+		loader,
+		refresh,
+	});
 }
 
 export async function downloadOptiFine(
@@ -425,40 +417,11 @@ export async function downloadOptiFine(
 	});
 }
 
-export async function refreshForgeVersions(): Promise<ForgeGameVersion[]> {
-	return (
-		(await invokeWithFallback<ForgeGameVersion[]>(
-			"refresh_forge_versions",
-			null,
-		)) ?? []
-	);
-}
-
 export async function downloadForge(
 	gameVersion: string,
 	forgeVersion: string,
 ): Promise<void> {
 	return invokeVoid("download_forge", { gameVersion, forgeVersion });
-}
-
-export async function getNeoForgeVersions(): Promise<NeoForgeGameVersion[]> {
-	return (
-		(await invokeWithFallback<NeoForgeGameVersion[]>(
-			"get_neoforge_versions",
-			null,
-		)) ?? []
-	);
-}
-
-export async function refreshNeoForgeVersions(): Promise<
-	NeoForgeGameVersion[]
-> {
-	return (
-		(await invokeWithFallback<NeoForgeGameVersion[]>(
-			"refresh_neoforge_versions",
-			null,
-		)) ?? []
-	);
 }
 
 export async function downloadNeoForge(

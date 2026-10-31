@@ -7,17 +7,13 @@
 		getFabricVersions,
 		getFabricLoaderVersions,
 		downloadFabric,
-		getForgeVersions,
+		getLoaderVersionCatalog,
 		downloadForge,
-		getNeoForgeVersions,
 		downloadNeoForge,
 		getQuiltVersions,
 		getQuiltLoaderVersions,
 		downloadQuilt,
 		refreshAvailableVersions,
-		refreshForgeVersions,
-		refreshNeoForgeVersions,
-		getOptiFineVersions,
 		downloadOptiFine,
 	} from "$lib/api/cubicApi";
 	import {
@@ -25,7 +21,10 @@
 		loadInstalledVersions,
 		invalidateInstalledVersions,
 	} from "$lib/state/versionsState.svelte";
-	import type { MinecraftVersion } from "$lib/types/types";
+	import type {
+		MinecraftVersion,
+		LoaderDisplayVersion,
+	} from "$lib/types/types";
 	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
 	import { launcherStore } from "$lib/state/state.svelte";
 	import { t } from "$lib/i18n";
@@ -35,11 +34,10 @@
 	import VersionDownloaderTabs from "./VersionDownloaderTabs.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
 	import {
+		catalogToGrouped,
 		compareVersions,
 		createCatalogCache,
-		groupLoaderVersions,
 		sortLoaderVersions,
-		type LoaderDisplayItem,
 		type GroupedLoaderVersions,
 	} from "./versionCatalog";
 
@@ -60,7 +58,7 @@
 		badge: string;
 		stable: boolean;
 		searchText: string;
-		loader?: LoaderDisplayItem;
+		loader?: LoaderDisplayVersion;
 	}
 
 	let loaderTab = $state("vanilla");
@@ -84,7 +82,7 @@
 			: allMcVersions,
 	);
 	let selectedMcVersion = $state("");
-	let loaderItems = $state<LoaderDisplayItem[]>([]);
+	let loaderItems = $state<LoaderDisplayVersion[]>([]);
 	let loadingMinecraft = $state(false);
 	let loadingLoader = $state(false);
 	let mcLoadId = 0;
@@ -92,8 +90,8 @@
 	const groupedCache = createCatalogCache<GroupedLoaderVersions>();
 	const gameCache = createCatalogCache<string[]>();
 	const remoteLoaderCache = {
-		fabric: createCatalogCache<LoaderDisplayItem[]>(),
-		quilt: createCatalogCache<LoaderDisplayItem[]>(),
+		fabric: createCatalogCache<LoaderDisplayVersion[]>(),
+		quilt: createCatalogCache<LoaderDisplayVersion[]>(),
 	};
 	const loading = $derived(
 		loaderTab === "vanilla"
@@ -137,37 +135,10 @@
 			if (tab === "forge" || tab === "neoforge" || tab === "optifine") {
 				const catalog = await groupedCache.get(
 					tab,
-					async () => {
-						if (tab === "forge") {
-							const list = await (refresh
-								? refreshForgeVersions()
-								: getForgeVersions());
-							return groupLoaderVersions(
-								list.map((v) => ({
-									...v,
-									display_version: v.forge_version,
-								})),
-							);
-						}
-						if (tab === "neoforge") {
-							const list = await (refresh
-								? refreshNeoForgeVersions()
-								: getNeoForgeVersions());
-							return groupLoaderVersions(
-								list.map((v) => ({
-									...v,
-									display_version: v.neoforge_version,
-								})),
-							);
-						}
-						const list = await getOptiFineVersions(refresh);
-						return groupLoaderVersions(
-							list.map((v) => ({
-								...v,
-								display_version: v.optifine_version,
-							})),
-						);
-					},
+					async () =>
+						catalogToGrouped(
+							await getLoaderVersionCatalog(tab, refresh),
+						),
 					refresh,
 				);
 				if (request !== mcLoadId) return;
@@ -216,7 +187,7 @@
 		loaderItems = [];
 		sourceError = null;
 		try {
-			let items: LoaderDisplayItem[] = [];
+			let items: LoaderDisplayVersion[] = [];
 			if (loader === "fabric" || loader === "quilt") {
 				items = await remoteLoaderCache[loader].get(mc, async () => {
 					const list =

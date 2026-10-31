@@ -174,3 +174,89 @@ async fn request_failure_without_cache_returns_error() {
         assert!(!path.exists());
     }
 }
+
+fn catalog_entry(
+    version_id: &str,
+    game_version: &str,
+    display_version: &str,
+    stable: bool,
+) -> (String, String, String, bool) {
+    (
+        version_id.to_string(),
+        game_version.to_string(),
+        display_version.to_string(),
+        stable,
+    )
+}
+
+#[test]
+fn catalog_groups_and_sorts_versions_like_the_front() {
+    let catalog = build_version_catalog(
+        [
+            catalog_entry("1.9-OptiFine_HD_U_I6", "1.9", "HD_U_I6", true),
+            catalog_entry("1.20.1-OptiFine_HD_U_I5", "1.20.1", "HD_U_I5", true),
+            catalog_entry("1.21-OptiFine_HD_U_J1_pre9", "1.21", "HD_U_J1_pre9", false),
+            catalog_entry(
+                "1.20.1-OptiFine_HD_U_I7_pre1",
+                "1.20.1",
+                "HD_U_I7_pre1",
+                false,
+            ),
+            catalog_entry("1.20.1-OptiFine_HD_U_I6", "1.20.1", "HD_U_I6", true),
+        ]
+        .into_iter(),
+    );
+
+    let games: Vec<&str> = catalog
+        .games
+        .iter()
+        .map(|group| group.game_version.as_str())
+        .collect();
+    assert_eq!(games, ["1.21", "1.20.1", "1.9"]);
+
+    let stable_games: Vec<&str> = catalog
+        .games
+        .iter()
+        .filter(|group| group.has_stable)
+        .map(|group| group.game_version.as_str())
+        .collect();
+    assert_eq!(stable_games, ["1.20.1", "1.9"]);
+
+    let versions: Vec<&str> = catalog.games[1]
+        .versions
+        .iter()
+        .map(|version| version.display_version.as_str())
+        .collect();
+    assert_eq!(versions, ["HD_U_I6", "HD_U_I5", "HD_U_I7_pre1"]);
+    assert_eq!(catalog.games[0].versions.len(), 1);
+    assert!(!catalog.games[0].has_stable);
+}
+
+#[test]
+fn catalog_version_cmp_matches_the_front_ordering() {
+    let mut versions = [
+        "66.1.1",
+        "66.1.2",
+        "66.1.0",
+        "66.1.10",
+        "12.18.0.1992-1.10.0",
+        "12.18.0.1993-1.10.0",
+        "HD_U_J1",
+        "HD_U_J1_pre9",
+    ];
+    versions.sort_by(|a, b| catalog_version_cmp(a, b));
+
+    assert_eq!(
+        versions,
+        [
+            "66.1.10",
+            "66.1.2",
+            "66.1.1",
+            "66.1.0",
+            "12.18.0.1993-1.10.0",
+            "12.18.0.1992-1.10.0",
+            "HD_U_J1_pre9",
+            "HD_U_J1",
+        ]
+    );
+}

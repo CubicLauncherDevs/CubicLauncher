@@ -3,6 +3,8 @@ use crate::core::{HTTP, PathManager};
 use crate::services::DownloadQueue;
 use aqua::{FabricBatch, QuiltBatch};
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{info, warn};
@@ -937,6 +939,212 @@ pub async fn get_quilt_loader_versions(game_version: String) -> Result<Vec<Loade
         game_version
     );
     fetch_quilt_loader_versions(&game_version).await
+}
+
+// ─── Catálogo agrupado ───────────────────────────────────────────────────────
+//
+// El selector de versiones pinta "versión de Minecraft → versiones del loader".
+// Agrupar y ordenar eso en JS costaba decenas de milisegundos de hilo de UI con
+// las listas reales (Forge ronda las 5.000 builds), así que el orden se decide
+// aquí y el front solo recorre el resultado.
+//
+// catalog_version_cmp replica el comparador que usaba el front para que la lista
+// se vea exactamente igual: tramos numéricos separados por puntos y, si empatan,
+// comparación con números dentro del texto.
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LoaderDisplayVersion {
+    pub version_id: String,
+    pub display_version: String,
+    pub game_version: String,
+    pub stable: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LoaderVersionGroup {
+    pub game_version: String,
+    pub has_stable: bool,
+    pub versions: Vec<LoaderDisplayVersion>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LoaderVersionCatalog {
+    pub games: Vec<LoaderVersionGroup>,
+}
+
+/// parseInt(tramo, 10) || 0: signo opcional, dígitos iniciales y 0 si no hay.
+fn parse_js_int(segment: &str) -> i64 {
+    let bytes = segment.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+        index += 1;
+    }
+    let negative = index < bytes.len() && bytes[index] == b'-';
+    if index < bytes.len() && (bytes[index] == b'-' || bytes[index] == b'+') {
+        index += 1;
+    }
+    let start = index;
+    while index < bytes.len() && bytes[index].is_ascii_digit() {
+        index += 1;
+    }
+    if index == start {
+        return 0;
+    }
+    let value = digit_run_value(&bytes[start..index]);
+    if negative { -value } else { value }
+}
+
+fn digit_run_value(bytes: &[u8]) -> i64 {
+    let mut value: i64 = 0;
+    for byte in bytes {
+        value = value
+            .saturating_mul(10)
+            .saturating_add(i64::from(byte - b'0'));
+    }
+    value
+}
+
+/// Compara como localeCompare con numeric: true: los tramos de dígitos cuentan
+/// como números y el resto como texto sin distinguir mayúsculas.
+fn natural_cmp(left: &str, right: &str) -> Ordering {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    let (mut i, mut j) = (0, 0);
+    while i < left.len() && j < right.len() {
+        if left[i].is_ascii_digit() && right[j].is_ascii_digit() {
+            let left_start = i;
+            while i < left.len() && left[i].is_ascii_digit() {
+                i += 1;
+            }
+            let right_start = j;
+            while j < right.len() && right[j].is_ascii_digit() {
+                j += 1;
+            }
+            let ordering =
+                digit_run_value(&left[left_start..i]).cmp(&digit_run_value(&right[right_start..j]));
+            if ordering != Ordering::Equal {
+                return ordering;
+            }
+        } else {
+            let ordering = left[i]
+                .to_ascii_lowercase()
+                .cmp(&right[j].to_ascii_lowercase());
+            if ordering != Ordering::Equal {
+                return ordering;
+            }
+            i += 1;
+            j += 1;
+        }
+    }
+    (left.len() - i).cmp(&(right.len() - j))
+}
+
+fn catalog_version_cmp(a: &str, b: &str) -> Ordering {
+    let a_parts: Vec<i64> = a.split('.').map(parse_js_int).collect();
+    let b_parts: Vec<i64> = b.split('.').map(parse_js_int).collect();
+    for index in 0..a_parts.len().max(b_parts.len()) {
+        let difference =
+            b_parts.get(index).copied().unwrap_or(0) - a_parts.get(index).copied().unwrap_or(0);
+        match difference.cmp(&0) {
+            Ordering::Equal => continue,
+            ordering => return ordering,
+        }
+    }
+    natural_cmp(b, a)
+}
+
+fn build_version_catalog(
+    entries: impl Iterator<Item = (String, String, String, bool)>,
+) -> LoaderVersionCatalog {
+    // El orden de aparición de los grupos es el que decidía el front en caso de
+    // empate, así que se conserva en vez de usar un mapa ordenado.
+    let mut game_order: Vec<String> = Vec::new();
+    let mut groups: HashMap<String, Vec<LoaderDisplayVersion>> = HashMap::new();
+    for (version_id, game_version, display_version, stable) in entries {
+        if game_version.is_empty() {
+            continue;
+        }
+        let version = LoaderDisplayVersion {
+            version_id,
+            display_version,
+            game_version: game_version.clone(),
+            stable,
+        };
+        match groups.get_mut(&game_version) {
+            Some(versions) => versions.push(version),
+            None => {
+                game_order.push(game_version.clone());
+                groups.insert(game_version, vec![version]);
+            }
+        }
+    }
+
+    for versions in groups.values_mut() {
+        versions.sort_by(|a, b| {
+            b.stable
+                .cmp(&a.stable)
+                .then_with(|| catalog_version_cmp(&a.display_version, &b.display_version))
+        });
+    }
+    game_order.sort_by(|a, b| catalog_version_cmp(a, b));
+
+    let games = game_order
+        .into_iter()
+        .map(|game_version| {
+            let versions = groups.remove(&game_version).unwrap_or_default();
+            let has_stable = versions.iter().any(|version| version.stable);
+            LoaderVersionGroup {
+                game_version,
+                has_stable,
+                versions,
+            }
+        })
+        .collect();
+
+    LoaderVersionCatalog { games }
+}
+
+#[tauri::command]
+pub async fn get_loader_version_catalog(
+    loader: String,
+    refresh: Option<bool>,
+) -> Result<LoaderVersionCatalog, String> {
+    let refresh = refresh.unwrap_or(false);
+    match loader.as_str() {
+        "forge" => {
+            let versions = if refresh {
+                refresh_forge_versions().await?
+            } else {
+                get_forge_versions().await?
+            };
+            Ok(build_version_catalog(versions.into_iter().map(|v| {
+                (v.version_id, v.game_version, v.forge_version, v.stable)
+            })))
+        }
+        "neoforge" => {
+            let versions = if refresh {
+                refresh_neoforge_versions().await?
+            } else {
+                get_neoforge_versions().await?
+            };
+            Ok(build_version_catalog(versions.into_iter().map(|v| {
+                (v.version_id, v.game_version, v.neoforge_version, v.stable)
+            })))
+        }
+        "optifine" => {
+            let versions = if refresh {
+                super::optifine::refresh_optifine_versions().await?
+            } else {
+                super::optifine::get_optifine_versions().await?
+            };
+            Ok(build_version_catalog(versions.into_iter().map(|v| {
+                (v.version_id, v.game_version, v.optifine_version, v.stable)
+            })))
+        }
+        other => Err(format!(
+            "El loader \"{other}\" no tiene catálogo de versiones agrupado"
+        )),
+    }
 }
 
 #[cfg(test)]

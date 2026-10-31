@@ -99,6 +99,7 @@ pub fn run() {
             commands::download::refresh_forge_versions,
             commands::download::get_neoforge_versions,
             commands::download::refresh_neoforge_versions,
+            commands::download::get_loader_version_catalog,
             commands::download::download_neoforge,
             commands::download::get_quilt_versions,
             commands::download::get_quilt_loader_versions,

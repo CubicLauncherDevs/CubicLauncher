@@ -1,9 +1,7 @@
-export interface LoaderDisplayItem {
-	version_id: string;
-	display_version: string;
-	game_version: string;
-	stable: boolean;
-}
+import type {
+	LoaderDisplayVersion,
+	LoaderVersionCatalog,
+} from "$lib/types/types";
 
 export function compareVersions(a: string, b: string): number {
 	const aParts = a.split(".").map((n) => parseInt(n, 10) || 0);
@@ -16,8 +14,8 @@ export function compareVersions(a: string, b: string): number {
 }
 
 export function sortLoaderVersions(
-	items: LoaderDisplayItem[],
-): LoaderDisplayItem[] {
+	items: LoaderDisplayVersion[],
+): LoaderDisplayVersion[] {
 	return items.sort(
 		(a, b) =>
 			Number(b.stable) - Number(a.stable) ||
@@ -25,26 +23,31 @@ export function sortLoaderVersions(
 	);
 }
 
-export function groupLoaderVersions(items: LoaderDisplayItem[]) {
-	const byGame = new Map<string, LoaderDisplayItem[]>();
-	for (const item of items) {
-		if (!item.game_version) continue;
-		const group = byGame.get(item.game_version);
-		if (group) group.push(item);
-		else byGame.set(item.game_version, [item]);
-	}
-	for (const group of byGame.values()) sortLoaderVersions(group);
-	const gameVersions = [...byGame.keys()].sort(compareVersions);
-	return {
-		byGame,
-		gameVersions,
-		stableGameVersions: gameVersions.filter((mc) =>
-			byGame.get(mc)!.some((v) => v.stable),
-		),
-	};
+export interface GroupedLoaderVersions {
+	byGame: Map<string, LoaderDisplayVersion[]>;
+	gameVersions: string[];
+	stableGameVersions: string[];
 }
 
-export type GroupedLoaderVersions = ReturnType<typeof groupLoaderVersions>;
+/**
+ * Adapta el catálogo que Rust ya agrupa y ordena. No reordena ni copia versiones:
+ * solo arma el mapa que esperan las vistas.
+ */
+export function catalogToGrouped(
+	catalog: LoaderVersionCatalog,
+): GroupedLoaderVersions {
+	const byGame = new Map<string, LoaderDisplayVersion[]>();
+	const stableGameVersions: string[] = [];
+	for (const game of catalog.games) {
+		byGame.set(game.game_version, game.versions);
+		if (game.has_stable) stableGameVersions.push(game.game_version);
+	}
+	return {
+		byGame,
+		gameVersions: catalog.games.map((game) => game.game_version),
+		stableGameVersions,
+	};
+}
 
 /** Per-modal cache. Share pending requests; failed requests can be retried. */
 export function createCatalogCache<T>() {
