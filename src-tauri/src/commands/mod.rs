@@ -22,3 +22,4 @@ pub mod settings;
 pub mod skin_closet;
 pub mod storage;
 pub mod themes;
+pub mod yggdrasil_profile;

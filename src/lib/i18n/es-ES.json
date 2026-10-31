@@ -774,6 +774,16 @@
 			"unavailable": "Vista previa no disponible",
 			"noSkin": "Esta cuenta todavía no tiene una skin activa."
 		},
+		"cubicAuthSkin": {
+			"title": "Skin de CubicAuth",
+			"change": "Cambiar skin en CubicAuth",
+			"description": "Subí una skin desde el launcher o administrala en tu cuenta de CubicAuth. Los cambios se aplican a esta cuenta.",
+			"refresh": "Actualizar skin y cabeza",
+			"refreshHint": "La vista y la cabeza se actualizan al volver al launcher. Si el cambio tarda en aparecer, pulsa Actualizar.",
+			"loadError": "No se pudo cargar la skin de la cuenta. Revisa tu conexión y vuelve a actualizar.",
+			"unavailable": "Vista previa no disponible",
+			"noSkin": "Esta cuenta todavía no tiene una skin activa."
+		},
 		"yggdrasilModal": {
 			"title": "Ely.by y más",
 			"serverInstruction": "Ingresa la URL del servidor de autenticación Yggdrasil.",

@@ -20,6 +20,7 @@
 	import AccountListItem from "./AccountListItem.svelte";
 	import SkinCapeManager from "./SkinCapeManager.svelte";
 	import ElySkinManager from "./ElySkinManager.svelte";
+	import CubicAuthSkinManager from "./CubicAuthSkinManager.svelte";
 	import {
 		isElyByAccount,
 		getAccountProvider,
@@ -417,6 +418,15 @@
 								in:fly={{ y: 40, duration: flyDuration }}
 							>
 								<ElySkinManager uuid={selectedUser.uuid} />
+							</div>
+						{:else if getAccountProvider(selectedUser) === "cubicAuth"}
+							<div
+								class="hero-skin-cape"
+								in:fly={{ y: 40, duration: flyDuration }}
+							>
+								<CubicAuthSkinManager
+									uuid={selectedUser.uuid}
+								/>
 							</div>
 						{/if}
 					{/key}

@@ -24,6 +24,7 @@ import {
 	type YggdrasilServerInfo,
 	type MinecraftProfileResponse,
 	type ElySkinProfile,
+	type YggdrasilSkinProfile,
 	type SkinClosetEntry,
 } from "../types/types";
 
@@ -1040,6 +1041,34 @@ export async function getSkinPreviewData(filePath: string): Promise<string> {
 
 export async function getElySkinProfile(uuid: string): Promise<ElySkinProfile> {
 	return invoke<ElySkinProfile>("get_ely_skin_profile", { uuid });
+}
+
+export async function getYggdrasilSkinProfile(
+	uuid: string,
+): Promise<YggdrasilSkinProfile> {
+	return invoke<YggdrasilSkinProfile>("get_yggdrasil_skin_profile", {
+		uuid,
+	});
+}
+
+export async function uploadYggdrasilSkin(
+	uuid: string,
+	filePath: string,
+	model: "classic" | "slim",
+): Promise<void> {
+	return invoke<void>("upload_yggdrasil_skin", { uuid, filePath, model });
+}
+
+export async function uploadYggdrasilSkinUrl(
+	uuid: string,
+	skinUrl: string,
+	model: "classic" | "slim",
+): Promise<void> {
+	return invoke<void>("upload_yggdrasil_skin_url", { uuid, skinUrl, model });
+}
+
+export async function deleteYggdrasilSkin(uuid: string): Promise<void> {
+	return invoke<void>("delete_yggdrasil_skin", { uuid });
 }
 
 export async function uploadSkinFile(

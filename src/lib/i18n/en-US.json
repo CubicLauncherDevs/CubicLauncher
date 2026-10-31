@@ -774,6 +774,16 @@
 			"unavailable": "Preview unavailable",
 			"noSkin": "This account does not have an active skin yet."
 		},
+		"cubicAuthSkin": {
+			"title": "CubicAuth skin",
+			"change": "Change skin on CubicAuth",
+			"description": "Upload a skin from the launcher or manage it on your CubicAuth account. Changes apply to this account.",
+			"refresh": "Refresh skin and head",
+			"refreshHint": "The preview and head refresh when you return to the launcher. If the change takes time to appear, press Refresh.",
+			"loadError": "Could not load the account skin. Check your connection and refresh again.",
+			"unavailable": "Preview unavailable",
+			"noSkin": "This account does not have an active skin yet."
+		},
 		"yggdrasilModal": {
 			"title": "Ely.by and more",
 			"serverInstruction": "Enter the Yggdrasil authentication server URL.",

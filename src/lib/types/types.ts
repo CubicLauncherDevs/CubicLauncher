@@ -151,6 +151,11 @@ export interface ElySkinProfile {
 	model: "classic" | "slim";
 }
 
+export interface YggdrasilSkinProfile {
+	skin_url: string | null;
+	model: "classic" | "slim";
+}
+
 export interface MinecraftProfileCape {
 	id: string;
 	url: string;
