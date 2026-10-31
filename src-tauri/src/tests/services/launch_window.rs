@@ -87,6 +87,29 @@ fn concurrent_sessions_keep_backend_alive_in_either_exit_order() {
 }
 
 #[test]
+fn explicit_restore_is_idempotent_and_finish_does_not_repeat_it() {
+    let mut state = WindowLifecycle::default();
+    state.start(1, true);
+    assert!(state.ready(1));
+    assert!(state.request_restore(1));
+    assert!(!state.request_restore(1));
+    state.reopen_pending = false;
+    state.finish(1);
+    assert!(!state.can_restore());
+    assert!(!state.should_keep_alive());
+}
+
+#[test]
+fn explicit_restore_requires_client_readiness() {
+    let mut state = WindowLifecycle::default();
+    state.start(1, true);
+    assert!(!state.request_restore(1));
+    state.finish(1);
+    assert!(!state.can_restore());
+    assert!(!state.should_keep_alive());
+}
+
+#[test]
 fn an_unrelated_exit_does_not_restore_or_release_another_session() {
     let mut state = WindowLifecycle::default();
     state.start(1, true);

@@ -965,6 +965,13 @@ impl Launcher {
                     // Otherwise its broadcast senders (and forwarding tasks) live forever.
                     lw.remove(lw_handle.id());
                     drop(lw_handle);
+                    // Persist the final state before the recreated UI can read it.
+                    h.end_play_session().await;
+                    h.set_status(InstanceStatus::Off);
+                    // Reopen immediately: log draining can take up to two seconds and
+                    // must not delay the launcher. Crash detection still waits for the
+                    // logs below, so `clean_shutdown` is observed before deciding.
+                    session.request_restore();
                     finish_io_forwarding(io_task).await;
                     push_launcher_message(&uuid, format!("El proceso terminó: {:?}", result)).await;
 
@@ -1001,8 +1008,6 @@ impl Launcher {
 
                     discord_presence::on_instance_stop(&inst_name).await;
                     remove_log_ring(&uuid);
-                    h.end_play_session().await;
-                    h.set_status(InstanceStatus::Off);
                     drop(session);
                 });
             }

@@ -31,7 +31,6 @@
 	import { startAutoUpdates } from "$lib/api/updaterServices";
 	import { saveSettings } from "$lib/api/launcherService";
 	import { showSuccess, showError } from "$lib/state/state.svelte";
-	import { loadInstalledVersions } from "$lib/state/versionsState.svelte";
 	import { animDuration } from "$lib/utils/animations";
 	import {
 		applyInterfaceScale,
@@ -242,11 +241,9 @@
 				console.warn("Could not load startup settings", error);
 				if (!destroyed) settingsReady = true;
 			});
-		await Promise.allSettled([
-			settings,
-			getVersions(),
-			loadInstalledVersions(),
-		]);
+		// Installed versions are only needed by the downloader and instance
+		// editor. Loading them here delays reopening after a game exits.
+		await Promise.allSettled([settings, getVersions()]);
 		if (destroyed) return;
 
 		if (!logParams && !selectedInstance) {

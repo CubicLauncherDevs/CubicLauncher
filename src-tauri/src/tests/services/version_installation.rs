@@ -78,6 +78,47 @@ fn legacy_profiles_require_runtime_libraries_and_assets() {
     assert!(!is_complete(shared, "1.21"));
 }
 
+#[test]
+fn installed_versions_cache_refreshes_when_the_directory_changes() {
+    let dir = tempfile::tempdir().unwrap();
+    let shared = dir.path();
+    profile(shared, "1.21", serde_json::json!({}));
+    std::fs::write(version_dir(shared, "1.21").join("1.21.jar"), b"client").unwrap();
+    assert_eq!(installed_versions(shared), vec!["1.21"]);
+
+    // A new incomplete version changes the directory signature but is filtered.
+    profile(shared, "1.22", serde_json::json!({}));
+    assert_eq!(installed_versions(shared), vec!["1.21"]);
+
+    // Completing it without an explicit invalidation also invalidates via mtime.
+    std::fs::write(version_dir(shared, "1.22").join("1.22.jar"), b"client").unwrap();
+    assert_eq!(installed_versions(shared), vec!["1.22", "1.21"]);
+
+    std::fs::remove_dir_all(version_dir(shared, "1.21")).unwrap();
+    assert_eq!(installed_versions(shared), vec!["1.22"]);
+}
+
+#[tokio::test]
+async fn install_begin_and_finish_invalidate_the_installed_versions_cache() {
+    let dir = tempfile::tempdir().unwrap();
+    let shared = dir.path();
+    profile(shared, "1.21", serde_json::json!({}));
+    std::fs::write(version_dir(shared, "1.21").join("1.21.jar"), b"client").unwrap();
+    assert_eq!(installed_versions(shared), vec!["1.21"]);
+
+    begin(shared, "1.22").await.unwrap();
+    profile(shared, "1.22", serde_json::json!({}));
+    std::fs::write(version_dir(shared, "1.22").join("1.22.jar"), b"client").unwrap();
+    assert_eq!(
+        installed_versions(shared),
+        vec!["1.21"],
+        "an interrupted install is not offered"
+    );
+
+    finish(shared, "1.22").await.unwrap();
+    assert_eq!(installed_versions(shared), vec!["1.22", "1.21"]);
+}
+
 #[tokio::test]
 async fn traversal_versions_never_create_or_remove_receipts() {
     let temp = tempfile::tempdir().unwrap();

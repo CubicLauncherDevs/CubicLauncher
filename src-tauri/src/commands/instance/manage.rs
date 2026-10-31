@@ -193,29 +193,12 @@ pub async fn pin_instance(id: String, pinned: bool) -> Result<(), String> {
 pub async fn get_installed_versions() -> Vec<String> {
     let shared_guard = crate::services::shared_storage::acquire().await;
     let shared_dir = PathManager::get().get_shared_dir();
-    let versions_dir = shared_dir.join("versions");
-    let mut versions = tokio::task::spawn_blocking(move || -> Vec<String> {
+    tokio::task::spawn_blocking(move || {
         let _shared_guard = shared_guard;
-        match std::fs::read_dir(&versions_dir) {
-            Ok(entries) => entries
-                .flatten()
-                .filter(|e| e.path().is_dir())
-                .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
-                .filter(|version| {
-                    crate::services::version_installation::missing_dependencies(
-                        &shared_dir,
-                        version,
-                    )
-                    .is_empty()
-                })
-                .collect(),
-            Err(_) => Vec::new(),
-        }
+        crate::services::version_installation::installed_versions(&shared_dir)
     })
     .await
-    .unwrap_or_default();
-    versions.sort_by(|a, b| b.cmp(a));
-    versions
+    .unwrap_or_default()
 }
 
 #[tauri::command]
@@ -616,6 +599,7 @@ pub async fn reinstall_version(version: String) -> Result<(), String> {
                 })?;
             }
         }
+        crate::services::version_installation::invalidate_installed_versions_cache();
 
         drop(exclusive);
         crate::services::DownloadQueue::get()

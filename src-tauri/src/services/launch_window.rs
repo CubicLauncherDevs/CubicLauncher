@@ -18,6 +18,7 @@ struct WindowLifecycle {
 struct Session {
     close_on_ready: bool,
     restore_on_exit: bool,
+    restored: bool,
 }
 
 impl WindowLifecycle {
@@ -27,6 +28,7 @@ impl WindowLifecycle {
             Session {
                 close_on_ready,
                 restore_on_exit: false,
+                restored: false,
             },
         );
     }
@@ -44,8 +46,20 @@ impl WindowLifecycle {
 
     fn finish(&mut self, id: u64) {
         if let Some(session) = self.sessions.remove(&id) {
-            self.reopen_pending |= session.restore_on_exit;
+            self.reopen_pending |= session.restore_on_exit && !session.restored;
         }
+    }
+
+    fn request_restore(&mut self, id: u64) -> bool {
+        let Some(session) = self.sessions.get_mut(&id) else {
+            return false;
+        };
+        if !session.restore_on_exit || session.restored {
+            return false;
+        }
+        session.restored = true;
+        self.reopen_pending = true;
+        true
     }
 
     fn stop_readiness(&mut self, id: u64) {
@@ -166,6 +180,16 @@ impl LaunchSession {
 
     pub(crate) fn process_exited(&self) {
         LIFECYCLE.lock().stop_readiness(self.id);
+    }
+
+    /// Restores the window as soon as the game exits, without waiting for log
+    /// draining or the rest of the post-exit cleanup. The session remains alive
+    /// until cleanup finishes so the backend cannot exit early.
+    pub(crate) fn request_restore(&self) {
+        let Some(app) = &self.app else { return };
+        if LIFECYCLE.lock().request_restore(self.id) {
+            schedule_restore(app);
+        }
     }
 }
 
