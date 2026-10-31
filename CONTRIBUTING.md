@@ -36,6 +36,9 @@ cd ..
 bun run test:rust
 ```
 
+> En NixOS/Nix, ejecutá los comandos Rust dentro de `nix develop` para obtener
+> `pkg-config`, las dependencias de GTK/WebKit y `rustfmt` del proyecto.
+
 Los tests frontend se agrupan por área en `tests/frontend/`. Los tests unitarios
 Rust están en `src/tests/` de cada crate, siguiendo la estructura de los módulos
 que verifican. Consultá [TESTING.md](TESTING.md) para agregar tests, ejecutar una
