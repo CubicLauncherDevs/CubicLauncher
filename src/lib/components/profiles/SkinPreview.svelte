@@ -74,7 +74,9 @@
 			{skinUrl}
 			{capeUrl}
 			{model}
-			quality="high"
+			quality={launcherStore.settings.reduce_skin3d_quality
+				? "low"
+				: "high"}
 			rotate={motion.rotate}
 			eyes={motion.eyes}
 			onEyesFound={(found) => (hasEyes = found)}

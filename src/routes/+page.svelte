@@ -192,6 +192,10 @@
 			"data-no-infinite-animations",
 			s.disable_infinite_animations,
 		);
+		html.toggleAttribute(
+			"data-no-background-image",
+			s.disable_background_image,
+		);
 	});
 
 	let unlistenDragDrop: (() => void) | undefined;

@@ -228,6 +228,8 @@ fn test_default_values() {
     assert!(!s.disable_infinite_animations);
     assert!(!s.disable_skin3d_animations);
     assert!(!s.reduce_log_animations);
+    assert!(!s.disable_background_image);
+    assert!(!s.reduce_skin3d_quality);
 }
 
 /// Valores en GB (min=2, max=4) deben convertirse a MB (2048, 4096)
@@ -324,6 +326,14 @@ fn test_serde_roundtrip() {
         s.disable_skin3d_animations
     );
     assert_eq!(deserialized.reduce_log_animations, s.reduce_log_animations);
+    assert_eq!(
+        deserialized.disable_background_image,
+        s.disable_background_image
+    );
+    assert_eq!(
+        deserialized.reduce_skin3d_quality,
+        s.reduce_skin3d_quality
+    );
     assert!(!deserialized.dirty);
 }
 

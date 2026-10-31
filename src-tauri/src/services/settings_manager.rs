@@ -171,6 +171,10 @@ pub struct SettingsManager {
     pub disable_skin3d_animations: bool,
     #[serde(default)]
     pub reduce_log_animations: bool,
+    #[serde(default)]
+    pub disable_background_image: bool,
+    #[serde(default)]
+    pub reduce_skin3d_quality: bool,
     /// Directorio personalizado para las instancias. Vacío = ubicación por defecto.
     #[serde(default)]
     pub custom_instances_dir: PathBuf,
@@ -271,6 +275,8 @@ impl Default for SettingsManager {
             disable_infinite_animations: false,
             disable_skin3d_animations: false,
             reduce_log_animations: false,
+            disable_background_image: false,
+            reduce_skin3d_quality: false,
             custom_instances_dir: PathBuf::new(),
             custom_shared_dir: PathBuf::new(),
             download_provider: default_download_provider(),

@@ -77,6 +77,8 @@ export const launcherStore = $state<LauncherState>({
 		disable_infinite_animations: false,
 		disable_skin3d_animations: false,
 		reduce_log_animations: false,
+		disable_background_image: false,
+		reduce_skin3d_quality: false,
 		download_provider: "official",
 	},
 });

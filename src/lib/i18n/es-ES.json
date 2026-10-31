@@ -372,6 +372,39 @@
 			"disableInfiniteAnimations": "Desactivar animaciones de carga continuas",
 			"disableSkin3dAnimations": "Desactivar animación del visor 3D de skin",
 			"reduceLogAnimations": "Reducir animaciones de logs",
+			"performance": {
+				"presetsTitle": "Perfil de rendimiento",
+				"presets": {
+					"quality": {
+						"title": "Calidad",
+						"hint": "Máximo detalle visual. Usa animaciones, blur y fondo del tema."
+					},
+					"balanced": {
+						"title": "Equilibrado",
+						"hint": "Menos movimiento y animaciones de carga; conserva blur y fondo."
+					},
+					"performance": {
+						"title": "Rendimiento",
+						"hint": "Desactiva animaciones, blur, fondo y reduce el visor de skins 3D."
+					}
+				},
+				"custom": "Personalizado",
+				"enabledCount": "Optimizaciones activas: {count}",
+				"reset": "Restablecer",
+				"groupMotion": "Movimiento",
+				"groupVisuals": "Efectos visuales",
+				"groupSkin": "Visor de skins 3D",
+				"reduceAnimationsHint": "Acorta o elimina transiciones de la interfaz. También quita el desenfoque de fondo.",
+				"disableInfiniteAnimationsHint": "Detiene spinners y animaciones que se repiten sin fin.",
+				"reduceLogAnimationsHint": "Desactiva la animación de las líneas nuevas en la consola.",
+				"disableBlurEffectsHint": "Quita el cristal esmerilado y los desenfoques que más GPU consumen.",
+				"disableBackgroundImage": "Desactivar imagen de fondo",
+				"disableBackgroundImageHint": "Oculta el fondo del tema para ahorrar memoria y composición gráfica.",
+				"disableSkin3dAnimationsHint": "El visor 3D se queda estático hasta que interactúas con él.",
+				"reduceSkin3dQuality": "Reducir calidad del visor 3D",
+				"reduceSkin3dQualityHint": "Renderiza las skins a menor resolución para aliviar la GPU.",
+				"osMotionNote": "Si tu sistema tiene activada la reducción de movimiento, el launcher también la respeta."
+			},
 			"themesActive": "Tema activo",
 			"themesImport": "Importar tema",
 			"themesImporting": "Importando...",
@@ -395,6 +428,29 @@
 			"recommendedRamButton": "Usar RAM recomendada",
 			"recommendedRamHint": "{min}-{max} GB recomendados · {total} GB detectados",
 			"loadingRecommendedRam": "Detectando RAM del sistema...",
+			"perf": {
+				"ramUsage": "RAM asignada",
+				"ramTotal": "{total} GB en el sistema",
+				"ramTooHigh": "Máxima demasiado alta: deja al menos 1 GB libre para el sistema (tienes {total} GB).",
+				"ramTooLow": "Asigna al menos 1 GB para que Minecraft pueda iniciar sin problemas.",
+				"jvmPresetsTitle": "Perfil de argumentos JVM",
+				"jvmPresetsHint": "Aplica banderas de recolección de basura sin tocar la RAM. Los argumentos de cada instancia se siguen añadiendo después.",
+				"jvmPresets": {
+					"vanilla": {
+						"title": "Vanilla",
+						"hint": "Sin argumentos extra. La opción más compatible."
+					},
+					"recommended": {
+						"title": "Recomendado",
+						"hint": "G1 afinado para el cliente; buen equilibrio."
+					},
+					"aikar": {
+						"title": "Aikar",
+						"hint": "Banderas para servidores y modpacks grandes."
+					}
+				},
+				"jvmCustom": "Argumentos personalizados. Edítalos en Java → Avanzado."
+			},
 			"optionsTitle": "Opciones de Minecraft",
 			"showSnapshots": "Mostrar versiones Snapshots",
 			"showAlpha": "Mostrar versiones Alpha",

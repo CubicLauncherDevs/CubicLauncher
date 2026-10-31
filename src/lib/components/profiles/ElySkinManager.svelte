@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { getElySkinProfile, openUrl } from "$lib/api/cubicApi";
+	import { launcherStore } from "$lib/state/state.svelte";
 	import { bumpAvatarVersion } from "$lib/state/avatarCache.svelte";
 	import type { ElySkinProfile } from "$lib/types/types";
 	import { t } from "$lib/i18n";
@@ -74,7 +75,9 @@
 				skinUrl={profile.skin_url}
 				capeUrl={null}
 				model={profile.model === "slim" ? "slim" : "default"}
-				quality="high"
+				quality={launcherStore.settings.reduce_skin3d_quality
+					? "low"
+					: "high"}
 			/>
 		{:else}
 			<p class="preview-status" role="status">

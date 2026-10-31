@@ -34,6 +34,11 @@ html[data-no-blur] *::after {
 	-webkit-backdrop-filter: none !important;
 }
 
+/* Disable the wallpaper/background image to save GPU memory and compositing. */
+html[data-no-background-image] .background-overlay {
+	display: none;
+}
+
 /* Stop repetition without freezing finite entrances at opacity: 0. */
 html[data-no-infinite-animations] *,
 html[data-no-infinite-animations] *::before,
