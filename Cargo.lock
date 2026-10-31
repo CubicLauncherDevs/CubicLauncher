@@ -921,7 +921,7 @@ dependencies = [
 
 [[package]]
 name = "cubiclauncher"
-version = "36.0.1"
+version = "37.0.0-beta.1"
 dependencies = [
  "ablage",
  "aqua",
