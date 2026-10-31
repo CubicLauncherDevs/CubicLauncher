@@ -8,6 +8,8 @@
 		username = $bindable(""),
 		password = $bindable(""),
 		signupUrl,
+		usernameLabel,
+		passwordLabel,
 		onback,
 		onlogin,
 	}: {
@@ -15,6 +17,8 @@
 		username?: string;
 		password?: string;
 		signupUrl?: string;
+		usernameLabel?: string;
+		passwordLabel?: string;
 		onback: () => void;
 		onlogin: () => void;
 	} = $props();
@@ -35,15 +39,18 @@
 	</p>
 	<div class="form-group">
 		<label class="form-label" for="ygg-username">
-			{serverInfo?.non_email_login
-				? t("userMenu.yggdrasilModal.usernameLabel")
-				: t("userMenu.yggdrasilModal.emailLabel")}
+			{usernameLabel ??
+				(serverInfo?.non_email_login
+					? t("userMenu.yggdrasilModal.usernameLabel")
+					: t("userMenu.yggdrasilModal.emailLabel"))}
 		</label>
 		<input
 			id="ygg-username"
-			type={serverInfo?.non_email_login ? "text" : "email"}
+			type={usernameLabel || serverInfo?.non_email_login
+				? "text"
+				: "email"}
 			class="form-input"
-			placeholder={serverInfo?.non_email_login
+			placeholder={usernameLabel || serverInfo?.non_email_login
 				? t("userMenu.yggdrasilModal.usernamePlaceholder")
 				: t("userMenu.yggdrasilModal.emailPlaceholder")}
 			bind:value={username}
@@ -52,7 +59,8 @@
 	</div>
 	<div class="form-group">
 		<label class="form-label" for="ygg-password"
-			>{t("userMenu.yggdrasilModal.passwordLabel")}</label
+			>{passwordLabel ??
+				t("userMenu.yggdrasilModal.passwordLabel")}</label
 		>
 		<input
 			id="ygg-password"

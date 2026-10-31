@@ -786,6 +786,7 @@
 			"usernamePlaceholder": "Your username",
 			"emailPlaceholder": "email@example.com",
 			"passwordLabel": "Password",
+			"tokenLabel": "Token",
 			"back": "Back",
 			"login": "Log in",
 			"createAccount": "Create account",

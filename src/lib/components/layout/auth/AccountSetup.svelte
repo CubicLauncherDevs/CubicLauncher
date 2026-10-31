@@ -145,6 +145,12 @@
 			signupUrl={provider === "cubicAuth"
 				? "https://accounts.cubiclauncher.org/"
 				: undefined}
+			usernameLabel={provider === "cubicAuth"
+				? t("userMenu.yggdrasilModal.usernameLabel")
+				: undefined}
+			passwordLabel={provider === "cubicAuth"
+				? t("userMenu.yggdrasilModal.tokenLabel")
+				: undefined}
 			{onsuccess}
 		/>
 	{/if}

@@ -786,6 +786,7 @@
 			"usernamePlaceholder": "Tu usuario",
 			"emailPlaceholder": "correo@ejemplo.com",
 			"passwordLabel": "Contraseña",
+			"tokenLabel": "Token",
 			"back": "Atrás",
 			"login": "Iniciar sesión",
 			"createAccount": "Crear cuenta",

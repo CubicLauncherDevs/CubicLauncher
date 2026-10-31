@@ -21,6 +21,8 @@
 		title,
 		serverInstruction,
 		signupUrl,
+		usernameLabel,
+		passwordLabel,
 		autoConnect = false,
 		onsuccess,
 		reauthUsername,
@@ -30,6 +32,8 @@
 		title?: string;
 		serverInstruction?: string;
 		signupUrl?: string;
+		usernameLabel?: string;
+		passwordLabel?: string;
 		autoConnect?: boolean;
 		onsuccess?: () => void;
 		reauthUsername?: string;
@@ -172,6 +176,8 @@
 				bind:username
 				bind:password
 				{signupUrl}
+				{usernameLabel}
+				{passwordLabel}
 				onback={() => {
 					step = "server";
 					serverInfo = null;
