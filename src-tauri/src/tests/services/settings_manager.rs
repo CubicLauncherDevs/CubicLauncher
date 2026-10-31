@@ -330,10 +330,7 @@ fn test_serde_roundtrip() {
         deserialized.disable_background_image,
         s.disable_background_image
     );
-    assert_eq!(
-        deserialized.reduce_skin3d_quality,
-        s.reduce_skin3d_quality
-    );
+    assert_eq!(deserialized.reduce_skin3d_quality, s.reduce_skin3d_quality);
     assert!(!deserialized.dirty);
 }
 
