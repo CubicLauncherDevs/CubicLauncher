@@ -43,7 +43,7 @@ rustPlatform.buildRustPackage rec {
 
   # Hash de las dependencias de Rust gestionadas por Cargo.
   # Debe actualizarse cuando cambie el conjunto de dependencias.
-  cargoHash = "sha256-828onITcfrr0mugYnZdgCM2gHfRzNeltfM8kUa/vorw=";
+  cargoHash = "sha256-BAEZUseRHYnnOzG8os42hie/GJxB1NfWxxoENbySfvA=";
 
   # Derivación independiente para las dependencias del frontend.
   #
