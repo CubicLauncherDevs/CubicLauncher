@@ -159,7 +159,23 @@
 	</div>
 
 	{#if loading && profiles.length === 0}
-		<p class="hint">{t("common.loading")}</p>
+		<div class="profiles-skeleton sk-delayed" aria-hidden="true">
+			{#each { length: 4 } as _, index (index)}
+				<div class="profile-skeleton-row">
+					<div class="sk-stack profile-skeleton-text">
+						<span class="sk-block sk-line" style="width: 42%"
+						></span>
+						<span
+							class="sk-block sk-line sk-line-sm"
+							style="width: 26%"
+						></span>
+					</div>
+					<span class="sk-block" style="width: 92px; height: 28px;"
+					></span>
+				</div>
+			{/each}
+		</div>
+		<span class="sk-sr-only" role="status">{t("common.loading")}</span>
 	{:else if profiles.length === 0 && !editing}
 		<p class="hint">{t("optionsProfiles.empty")}</p>
 	{/if}
@@ -300,6 +316,28 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
+	}
+
+	.profiles-skeleton {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.profile-skeleton-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 10px 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--surface-input);
+	}
+
+	.profile-skeleton-text {
+		flex: 1;
+		gap: 5px;
 	}
 	.item {
 		display: flex;

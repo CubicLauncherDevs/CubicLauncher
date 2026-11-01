@@ -150,10 +150,30 @@
 			</button>
 		</div>
 	</div>
-	{#if loading}
-		<div class="mods-loading">
-			<div class="minimal-spinner"></div>
+	{#if loading && mods.length === 0}
+		<div class="mods-skeleton sk-delayed" aria-hidden="true">
+			{#each { length: 6 } as _, index (index)}
+				<div class="mod-skeleton-card">
+					<span
+						class="sk-block"
+						style="width: 44px; height: 44px; flex-shrink: 0;"
+					></span>
+					<div class="sk-stack mod-skeleton-text">
+						<span class="sk-block sk-line" style="width: 62%"
+						></span>
+						<span
+							class="sk-block sk-line sk-line-sm"
+							style="width: 88%"
+						></span>
+						<span
+							class="sk-block sk-line sk-line-sm"
+							style="width: 42%"
+						></span>
+					</div>
+				</div>
+			{/each}
 		</div>
+		<span class="sk-sr-only" role="status">{t("common.loading")}</span>
 	{:else}
 		<div class="mods-grid">
 			{#each filteredMods as mod (mod.filename)}
@@ -254,34 +274,29 @@
 		border-color: rgba(var(--color-error-rgb), 0.4);
 	}
 
-	.mods-loading {
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		padding: 48px 0;
-	}
-
-	.minimal-spinner {
-		width: 32px;
-		height: 32px;
-		border: 2px solid var(--border);
-		border-top-color: var(--accent);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-		will-change: transform;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	.mods-grid {
+	.mods-grid,
+	.mods-skeleton {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 		gap: 12px;
 		padding: 4px;
+	}
+
+	.mod-skeleton-card {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+		padding: 14px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--surface-selected);
+		min-width: 0;
+	}
+
+	.mod-skeleton-text {
+		flex: 1;
+		gap: 8px;
+		padding-top: 2px;
 	}
 
 	.empty-mods {
@@ -334,20 +349,23 @@
 		opacity: 0.6;
 	}
 	@media (max-width: 700px) {
-		.mods-grid {
+		.mods-grid,
+		.mods-skeleton {
 			grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 		}
 	}
 
 	@media (max-width: 550px) {
-		.mods-grid {
+		.mods-grid,
+		.mods-skeleton {
 			grid-template-columns: 1fr;
 			gap: 8px;
 		}
 	}
 
 	@media (max-width: 400px) {
-		.mods-grid {
+		.mods-grid,
+		.mods-skeleton {
 			grid-template-columns: 1fr;
 			gap: 6px;
 		}

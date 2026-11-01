@@ -401,21 +401,28 @@ export function updateInstanceInStore(dto: InstanceDto): void {
 
 export async function getVersions(): Promise<void> {
 	const request = ++_instancesRequest;
-	while (request === _instancesRequest) {
-		const revision = _instancesRevision;
-		const instances: InstanceDto[] = await invoke("get_instances");
-		if (request !== _instancesRequest) return;
-		// An event changed the registry while this snapshot was being collected.
-		if (revision !== _instancesRevision) continue;
-		const current = instances.filter(
-			(instance) => !_deletedInstances.has(instance.uuid),
-		);
-		sortInstances(current);
-		launcherStore.loadedInstances.splice(
-			0,
-			launcherStore.loadedInstances.length,
-			...current,
-		);
-		return;
+	launcherStore.instancesLoading = true;
+	try {
+		while (request === _instancesRequest) {
+			const revision = _instancesRevision;
+			const instances: InstanceDto[] = await invoke("get_instances");
+			if (request !== _instancesRequest) return;
+			// An event changed the registry while this snapshot was being collected.
+			if (revision !== _instancesRevision) continue;
+			const current = instances.filter(
+				(instance) => !_deletedInstances.has(instance.uuid),
+			);
+			sortInstances(current);
+			launcherStore.loadedInstances.splice(
+				0,
+				launcherStore.loadedInstances.length,
+				...current,
+			);
+			return;
+		}
+	} finally {
+		if (request === _instancesRequest) {
+			launcherStore.instancesLoading = false;
+		}
 	}
 }

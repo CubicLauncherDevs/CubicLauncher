@@ -19,6 +19,7 @@
 	import Icon from "$lib/icons/Icon.svelte";
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import Select from "$lib/components/layout/Select.svelte";
+	import ListSkeleton from "$lib/components/ui/ListSkeleton.svelte";
 
 	let { instance } = $props<{ instance: InstanceDto }>();
 	let list = $state.raw<{ revision: string; servers: ServerRow[] }>({
@@ -324,7 +325,7 @@
 		/>
 	</div>
 	{#if loading && !list.servers.length}
-		<p class="empty" role="status">{t("servers.loading")}</p>
+		<ListSkeleton rows={6} label={t("servers.loading")} />
 	{:else if !filtered.length}
 		<p class="empty">
 			{t(list.servers.length ? "servers.noResults" : "servers.empty")}

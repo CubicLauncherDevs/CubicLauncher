@@ -324,10 +324,15 @@
 			{t("market.detail.backToCatalog")}
 		</button>
 		{#if detail.loading}
-			<span class="market-detail-loading" role="status">
-				<Loading class="detail-version-spinner" />
-				{t("market.detail.loadingDetails")}
+			<span class="market-detail-loading" aria-hidden="true">
+				<span
+					class="sk-block sk-delayed"
+					style="width: 132px; height: 12px;"
+				></span>
 			</span>
+			<span class="sk-sr-only" role="status"
+				>{t("market.detail.loadingDetails")}</span
+			>
 		{/if}
 	</div>
 
@@ -394,14 +399,30 @@
 								{detail.error}
 							</p>
 						{/if}
-						{#if detail.loading || detail.versions.length === 0}
+						{#if detail.loading}
+							<div
+								class="market-detail-version-skeleton sk-delayed"
+								aria-hidden="true"
+							>
+								<span
+									class="sk-block sk-line sk-line-sm"
+									style="width: 42%"
+								></span>
+								<span
+									class="sk-block"
+									style="width: 100%; height: 36px; border-radius: var(--border-radius-sm);"
+								></span>
+								<span
+									class="sk-block"
+									style="width: 100%; height: 30px; border-radius: var(--border-radius-sm);"
+								></span>
+							</div>
+							<span class="sk-sr-only" role="status"
+								>{t("market.detail.loadingVersions")}</span
+							>
+						{:else if detail.versions.length === 0}
 							<span class="market-detail-version-loading">
-								{#if detail.loading}
-									<Loading class="detail-version-spinner" />
-								{/if}
-								{detail.loading
-									? t("market.detail.loadingVersions")
-									: t("market.detail.noVersions")}
+								{t("market.detail.noVersions")}
 							</span>
 						{:else}
 							<div class="market-detail-version-row">
@@ -572,6 +593,17 @@
 								onLinkClick={openUrl}
 							/>
 						{/if}
+					</div>
+				{:else if detail.loading}
+					<div
+						class="market-detail-readme-skeleton sk-delayed"
+						aria-hidden="true"
+					>
+						<span class="sk-block sk-line-lg" style="width: 32%"
+						></span>
+						{#each ["92%", "86%", "96%", "74%", "88%", "60%"] as width, index (index)}
+							<span class="sk-block sk-line" style:width></span>
+						{/each}
 					</div>
 				{/if}
 			</div>
@@ -797,6 +829,20 @@
 		background: var(--surface-input);
 		border: 1px dashed var(--border);
 		border-radius: var(--border-radius-sm);
+	}
+
+	.market-detail-version-skeleton {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.market-detail-readme-skeleton {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding-top: 20px;
+		border-top: 1px solid var(--border);
 	}
 
 	:global(.detail-version-spinner) {

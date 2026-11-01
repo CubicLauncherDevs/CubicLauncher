@@ -222,10 +222,23 @@
 			class="sc-instance-list"
 			role="region"
 			aria-label={t("sidebar.yourInstances")}
+			aria-busy={launcherStore.instancesLoading}
 			data-tutorial="instance-list"
 			oncontextmenu={handleContextMenu}
 		>
-			{#if launcherStore.loadedInstances.length === 0}
+			{#if launcherStore.instancesLoading && launcherStore.loadedInstances.length === 0}
+				<div class="sc-instance-skeleton sk-delayed" aria-hidden="true">
+					{#each { length: 6 } as _, index (index)}
+						<span
+							class="sk-block sk-circle"
+							style="width: 34px; height: 34px;"
+						></span>
+					{/each}
+				</div>
+				<span class="sk-sr-only" role="status"
+					>{t("common.loading")}</span
+				>
+			{:else if launcherStore.loadedInstances.length === 0}
 				<div class="sc-empty" title={t("sidebar.noInstances")}>—</div>
 			{:else}
 				<VirtualList
@@ -462,6 +475,21 @@
 		gap: 4px;
 		padding: 0 6px;
 		overflow: hidden;
+	}
+
+	.sc-instance-skeleton {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8px;
+		padding-top: 2px;
+	}
+
+	.sc-instance-skeleton .sk-circle {
+		height: calc(
+			var(--virtual-row-height, 50px) - var(--sidebar-row-gap, 8px)
+		);
+		flex-shrink: 0;
 	}
 
 	.sc-empty {

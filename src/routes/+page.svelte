@@ -17,6 +17,8 @@
 	import ModalBase from "$lib/components/layout/ModalBase.svelte";
 	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
 	import JreInstallPrompt from "$lib/components/ui/JreInstallPrompt.svelte";
+	import PanelSkeleton from "$lib/components/ui/PanelSkeleton.svelte";
+	import CreateInstanceSkeleton from "$lib/components/instances/CreateInstanceModal/CreateInstanceSkeleton.svelte";
 	import AccountSetup from "$lib/components/layout/auth/AccountSetup.svelte";
 	import { getAccountProvider } from "$lib/utils/accountProviders";
 	import { updaterState } from "$lib/state/updaterState.svelte";
@@ -199,6 +201,7 @@
 
 	let unlistenDragDrop: (() => void) | undefined;
 	let settingsReady = $state(false);
+	let startupReady = $state(false);
 	let editingTimer: ReturnType<typeof setTimeout> | undefined;
 	let destroyed = false;
 
@@ -257,6 +260,7 @@
 				launcherStore.loadedInstances[0] ??
 				null;
 		}
+		startupReady = true;
 
 		if (launcherStore.settings.discord_presence) {
 			initDiscordPresence();
@@ -529,10 +533,44 @@
 				{#if ProfileView}
 					<ProfileView onclose={() => (showProfileView = false)} />
 				{:else}
-					<p role="status">{t("common.loading")}</p>
+					<div class="panel-fallback">
+						<PanelSkeleton rows={6} />
+					</div>
 				{/if}
 			{:else if selectedInstance}
 				<InstanceView {selectedInstance} />
+			{:else if !startupReady || launcherStore.instancesLoading}
+				<div class="main-skeleton sk-delayed" aria-hidden="true">
+					<div class="main-skeleton-banner">
+						<div class="sk-stack main-skeleton-banner-text">
+							<span
+								class="sk-block sk-line sk-line-sm"
+								style="width: 120px;"
+							></span>
+							<span
+								class="sk-block"
+								style="width: 55%; height: 30px;"
+							></span>
+							<span class="sk-block sk-line" style="width: 34%;"
+							></span>
+							<span
+								class="sk-block"
+								style="width: 170px; height: 38px; margin-top: 8px; border-radius: var(--border-radius);"
+							></span>
+						</div>
+					</div>
+					<div class="main-skeleton-content">
+						{#each { length: 3 } as _, index (index)}
+							<span
+								class="sk-block main-skeleton-card"
+								style="height: 96px;"
+							></span>
+						{/each}
+					</div>
+				</div>
+				<span class="sk-sr-only" role="status"
+					>{t("common.loading")}</span
+				>
 			{:else}
 				<div class="empty-state">
 					<div class="empty-logo" aria-label="Cubic"></div>
@@ -547,7 +585,9 @@
 		{#if SettingsComponent}
 			<SettingsComponent onclose={() => (quickMenuOpen = false)} />
 		{:else}
-			<p role="status">{t("common.loading")}</p>
+			<div class="panel-fallback">
+				<PanelSkeleton rows={4} />
+			</div>
 		{/if}
 	</Drawer>
 
@@ -566,7 +606,9 @@
 					instance={editingInstance}
 				/>
 			{:else}
-				<p role="status">{t("common.loading")}</p>
+				<div class="panel-fallback">
+					<PanelSkeleton rows={4} />
+				</div>
 			{/if}
 		</Drawer>
 	{/if}
@@ -579,7 +621,12 @@
 			title={t("versionDownloader.title")}
 			width="800px"
 		>
-			<p role="status">{t("versionDownloader.loading")}</p>
+			<div class="panel-fallback">
+				<PanelSkeleton
+					rows={4}
+					label={t("versionDownloader.loading")}
+				/>
+			</div>
 		</ModalBase>
 	{/if}
 
@@ -597,8 +644,9 @@
 		<ModalBase
 			bind:open={openCreateModal}
 			title={t("createInstance.title")}
+			width="700px"
 		>
-			<p role="status">{t("common.loading")}</p>
+			<CreateInstanceSkeleton />
 		</ModalBase>
 	{/if}
 
@@ -630,7 +678,9 @@
 			title={t("updater.title")}
 			width="560px"
 		>
-			<p role="status">{t("common.loading")}</p>
+			<div class="panel-fallback">
+				<PanelSkeleton rows={2} />
+			</div>
 		</ModalBase>
 	{/if}
 {/if}
@@ -689,6 +739,44 @@
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
+	}
+
+	.main-skeleton {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 0;
+	}
+
+	.main-skeleton-banner {
+		display: flex;
+		align-items: flex-end;
+		min-height: 220px;
+		padding: 24px;
+		box-sizing: border-box;
+	}
+
+	.main-skeleton-banner-text {
+		gap: 12px;
+		width: min(420px, 70%);
+	}
+
+	.main-skeleton-content {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+		padding: 24px;
+	}
+
+	.main-skeleton-card {
+		border-radius: var(--border-radius);
+	}
+
+	.panel-fallback {
+		padding: 16px;
+		min-width: 0;
 	}
 
 	.empty-logo {

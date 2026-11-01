@@ -226,7 +226,14 @@
 		onscroll={handleScroll}
 		style:--screenshot-columns={columns}
 	>
-		{#if loading}<p role="status">{t("common.loading")}</p>{/if}
+		{#if loading && screenshots.length === 0}
+			<div class="screenshots-skeleton sk-delayed" aria-hidden="true">
+				{#each { length: 9 } as _, index (index)}
+					<span class="sk-block screenshots-skeleton-tile"></span>
+				{/each}
+			</div>
+			<span class="sk-sr-only" role="status">{t("common.loading")}</span>
+		{/if}
 		<div
 			class="screenshot-space"
 			style:height={`${Math.max(0, rowCount * rowHeight - metrics.gap)}px`}
@@ -343,6 +350,20 @@
 		overflow-anchor: none;
 		scrollbar-gutter: stable;
 		position: relative;
+	}
+
+	.screenshots-skeleton {
+		display: grid;
+		grid-template-columns: repeat(
+			auto-fill,
+			minmax(var(--screenshot-min-width), 1fr)
+		);
+		gap: var(--screenshot-gap);
+		padding-bottom: var(--screenshot-gap);
+	}
+
+	.screenshots-skeleton-tile {
+		aspect-ratio: 16 / 9;
 	}
 	.screenshot-space {
 		position: relative;

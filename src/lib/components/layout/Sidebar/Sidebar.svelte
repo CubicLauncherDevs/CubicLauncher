@@ -111,11 +111,34 @@
 			class="instances-section"
 			role="region"
 			aria-label={t("sidebar.yourInstances")}
+			aria-busy={launcherStore.instancesLoading}
 			oncontextmenu={(e) => ctxMenu?.openContextMenu(e)}
 		>
 			<span class="section-label">{t("sidebar.yourInstances")}</span>
 			<div class="instance-list" data-tutorial="instance-list">
-				{#if launcherStore.loadedInstances.length === 0}
+				{#if launcherStore.instancesLoading && launcherStore.loadedInstances.length === 0}
+					<div
+						class="instance-skeleton sk-delayed"
+						aria-hidden="true"
+					>
+						{#each { length: 6 } as _, index (index)}
+							<div class="instance-skeleton-row">
+								<span
+									class="sk-block sk-circle"
+									style="width: 24px; height: 24px;"
+								></span>
+								<div class="sk-stack instance-skeleton-text">
+									<span class="sk-block sk-line"></span>
+									<span class="sk-block sk-line sk-line-sm"
+									></span>
+								</div>
+							</div>
+						{/each}
+					</div>
+					<span class="sk-sr-only" role="status"
+						>{t("common.loading")}</span
+					>
+				{:else if launcherStore.loadedInstances.length === 0}
 					<div class="empty-instances">
 						{t("sidebar.noInstances")}
 					</div>
@@ -330,6 +353,32 @@
 		flex-direction: column;
 		padding: 2px;
 		overflow: hidden;
+	}
+
+	.instance-skeleton {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		padding: 2px;
+	}
+
+	.instance-skeleton-row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		height: calc(
+			var(--sidebar-row-height, 52px) - var(--sidebar-row-gap, 8px)
+		);
+		flex-shrink: 0;
+	}
+
+	.instance-skeleton-row .sk-circle {
+		margin-left: 12px;
+	}
+
+	.instance-skeleton-text {
+		flex: 1;
+		padding-right: 10px;
 	}
 
 	.sidebar-sections {

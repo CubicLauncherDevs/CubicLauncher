@@ -1,0 +1,85 @@
+/* ==========================================================================
+   skeleton.css — Shared loading placeholders.
+   Cheap by design: opacity-only animation, no filters, gradients or shadows.
+   ========================================================================== */
+
+.sk-delayed {
+	animation:
+		cubic-sk-appear 0.001s linear 180ms both,
+		cubic-sk-pulse 1.7s ease-in-out 180ms infinite;
+}
+
+.sk-block {
+	display: block;
+	background: color-mix(in srgb, var(--text-secondary) 16%, transparent);
+	border-radius: var(--border-radius-sm);
+}
+
+.sk-line {
+	height: 10px;
+	width: 100%;
+}
+
+.sk-line-sm {
+	height: 8px;
+	width: 60%;
+}
+
+.sk-line-lg {
+	height: 14px;
+	width: 75%;
+}
+
+.sk-circle {
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.sk-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.sk-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+@keyframes cubic-sk-appear {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes cubic-sk-pulse {
+	0%,
+	100% {
+		opacity: 0.7;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
+html[data-reduce-motion] .sk-delayed,
+html[data-no-infinite-animations] .sk-delayed {
+	animation: cubic-sk-appear 0.001s linear 180ms both !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sk-delayed {
+		animation: cubic-sk-appear 0.001s linear 180ms both;
+	}
+}

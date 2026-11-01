@@ -19,6 +19,8 @@
 	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
 	import WorldIcon from "$lib/icons/WorldIcon.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
+	import ListSkeleton from "$lib/components/ui/ListSkeleton.svelte";
+	import PanelSkeleton from "$lib/components/ui/PanelSkeleton.svelte";
 
 	let { selectedInstance } = $props<{ selectedInstance: InstanceDto }>();
 	let activeSection = $state("detalles");
@@ -265,23 +267,52 @@
 								instance={selectedInstance}
 								contentType={marketContentType}
 							/>
+						{:else}
+							<div class="fallback-panel">
+								<PanelSkeleton
+									rows={6}
+									label={t("market.browse.searching")}
+								/>
+							</div>
 						{/if}
 					{/key}
 				{:else if activeSection === "worlds"}
 					{#key selectedInstance.uuid}
 						{#if WorldsTab}<WorldsTab
 								instance={selectedInstance}
-							/>{/if}
+							/>{:else}
+							<div class="fallback-panel">
+								<ListSkeleton
+									rows={6}
+									label={t("worlds.loading")}
+								/>
+							</div>
+						{/if}
 					{/key}
 				{:else if activeSection === "servers"}
 					{#key selectedInstance.uuid}
 						{#if ServersTab}<ServersTab
 								instance={selectedInstance}
-							/>{/if}
+							/>{:else}
+							<div class="fallback-panel">
+								<ListSkeleton
+									rows={6}
+									label={t("servers.loading")}
+								/>
+							</div>
+						{/if}
 					{/key}
 				{:else if activeSection === "screenshots"}
 					{#if ScreenshotsTab}
 						<ScreenshotsTab instance={selectedInstance} />
+					{:else}
+						<div class="fallback-panel">
+							<PanelSkeleton
+								variant="tiles"
+								rows={9}
+								label={t("common.loading")}
+							/>
+						</div>
 					{/if}
 				{/if}
 			</div>
@@ -316,6 +347,13 @@
 		display: flex;
 		flex: 1;
 		min-height: 0;
+	}
+
+	.fallback-panel {
+		flex: 1;
+		min-width: 0;
+		min-height: 0;
+		overflow: hidden;
 	}
 
 	.nav-card {

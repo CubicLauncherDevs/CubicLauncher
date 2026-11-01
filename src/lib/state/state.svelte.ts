@@ -14,6 +14,7 @@ import { DEFAULT_INTERFACE_PREFERENCES } from "$lib/utils/interfacePreferences";
 
 export interface LauncherState {
 	loadedInstances: InstanceDto[];
+	instancesLoading: boolean;
 	currentInstance: InstanceDto | null;
 	runningInstances: string[];
 	settings: Settings;
@@ -28,6 +29,7 @@ export interface LauncherState {
 
 export const launcherStore = $state<LauncherState>({
 	loadedInstances: [],
+	instancesLoading: true,
 	currentInstance: null,
 	runningInstances: [],
 	notifications: [],

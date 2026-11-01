@@ -1,18 +1,18 @@
-<div class="market-skeleton" aria-hidden="true">
+<div class="market-skeleton sk-delayed" aria-hidden="true">
 	<div class="skeleton-header">
-		<span class="skeleton-icon"></span>
+		<span class="sk-block skeleton-icon"></span>
 		<div class="skeleton-identity">
-			<span class="skeleton-line title"></span>
-			<span class="skeleton-line author"></span>
+			<span class="sk-block skeleton-line title"></span>
+			<span class="sk-block skeleton-line author"></span>
 		</div>
 	</div>
 	<div class="skeleton-description">
-		<span class="skeleton-line"></span>
-		<span class="skeleton-line short"></span>
+		<span class="sk-block skeleton-line"></span>
+		<span class="sk-block skeleton-line short"></span>
 	</div>
 	<div class="skeleton-footer">
-		<span class="skeleton-line author"></span>
-		<span class="skeleton-button"></span>
+		<span class="sk-block skeleton-line author"></span>
+		<span class="sk-block skeleton-button"></span>
 	</div>
 </div>
 
@@ -33,13 +33,6 @@
 		display: flex;
 		align-items: center;
 		gap: var(--market-item-gap);
-	}
-	.skeleton-icon,
-	.skeleton-line,
-	.skeleton-button {
-		display: block;
-		background: color-mix(in srgb, var(--text-secondary) 18%, transparent);
-		border-radius: var(--border-radius-sm);
 	}
 	.skeleton-icon {
 		width: var(--market-icon-size);

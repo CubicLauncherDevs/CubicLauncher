@@ -17,6 +17,7 @@
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
 	import Lupa from "$lib/icons/Lupa.svelte";
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
+	import ListSkeleton from "$lib/components/ui/ListSkeleton.svelte";
 
 	let { instance } = $props<{ instance: InstanceDto }>();
 	let worlds = $state<WorldDto[]>([]);
@@ -318,7 +319,7 @@
 		</div>
 	</div>
 	{#if loading && worlds.length === 0}
-		<p class="empty" role="status">{t("worlds.loading")}</p>
+		<ListSkeleton rows={6} label={t("worlds.loading")} />
 	{:else if filtered.length === 0}
 		<p class="empty">
 			{t(worlds.length ? "worlds.noResults" : "worlds.empty")}

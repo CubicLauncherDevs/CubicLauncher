@@ -274,10 +274,19 @@
 					{t("settings.storage.instancesTitle")}
 				</h4>
 			</header>
-			<p class="status-line">
-				<Loading size={14} class="state-spinner" />
-				{t("common.loading")}
-			</p>
+			<div class="storage-skeleton sk-delayed" aria-hidden="true">
+				<div class="field">
+					<span class="sk-block sk-line sk-line-sm" style="width: 30%"
+					></span>
+					<span class="sk-block" style="width: 100%; height: 30px;"
+					></span>
+				</div>
+				<div class="field">
+					<span class="sk-block sk-line sk-line-sm" style="width: 22%"
+					></span>
+				</div>
+			</div>
+			<span class="sk-sr-only" role="status">{t("common.loading")}</span>
 		</section>
 	{:else if info}
 		<section class="storage-group" aria-busy={moving}>
@@ -501,10 +510,15 @@
 		</header>
 
 		{#if sharedLoading}
-			<p class="status-line">
-				<Loading size={14} class="state-spinner" />
-				{t("common.loading")}
-			</p>
+			<div class="storage-skeleton sk-delayed" aria-hidden="true">
+				<div class="field">
+					<span class="sk-block sk-line sk-line-sm" style="width: 30%"
+					></span>
+					<span class="sk-block" style="width: 100%; height: 30px;"
+					></span>
+				</div>
+			</div>
+			<span class="sk-sr-only" role="status">{t("common.loading")}</span>
 		{:else if sharedInfo}
 			<div class="field">
 				<span class="field-label"
@@ -1061,6 +1075,12 @@
 		margin: 0;
 		color: var(--text-muted);
 		font-size: 0.75rem;
+	}
+
+	.storage-skeleton {
+		display: flex;
+		flex-direction: column;
+		gap: calc(11px * var(--cubic-interface-gap-factor, 1));
 	}
 
 	:global(.state-spinner) {
