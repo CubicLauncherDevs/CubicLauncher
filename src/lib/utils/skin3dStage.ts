@@ -21,13 +21,87 @@ export interface StageOptions {
 	maxPixelRatio: number;
 }
 
+/** En Linux la ventana usa WebKitGTK; en Windows, WebView2, que se presenta como Chrome. */
+export function isWebKitGtk(userAgent: string): boolean {
+	return /\bLinux\b/.test(userAgent) && !/\bChrome\//.test(userAgent);
+}
+
+function samplerTypesOf(gl: WebGL2RenderingContext): Set<number> {
+	return new Set([
+		gl.SAMPLER_2D,
+		gl.SAMPLER_CUBE,
+		gl.SAMPLER_3D,
+		gl.SAMPLER_2D_ARRAY,
+		gl.SAMPLER_2D_SHADOW,
+		gl.SAMPLER_CUBE_SHADOW,
+		gl.SAMPLER_2D_ARRAY_SHADOW,
+	]);
+}
+
+/**
+ * En WebKitGTK (Linux, medido con 2.54 y Mesa 26) la unidad de textura 0 puede dejar de leer para
+ * todos los contextos de la página, de forma intermitente y hasta reiniciar: la figura sale vacía
+ * o negra, sin ningún error de WebGL. Las demás unidades siguen bien, y Three empieza siempre por
+ * la 0, así que aquí lo que pide para ella va a la última.
+ */
+export function avoidTextureUnitZero(gl: WebGL2RenderingContext) {
+	const spare = (gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS) as number) - 1;
+	const samplerTypes = samplerTypesOf(gl);
+	const samplerNames = new WeakMap<WebGLProgram, Set<string>>();
+	const samplers = new WeakSet<WebGLUniformLocation>();
+
+	const activeTexture = gl.activeTexture.bind(gl);
+	const uniform1i = gl.uniform1i.bind(gl);
+	const uniform1iv = gl.uniform1iv.bind(gl) as (
+		at: WebGLUniformLocation | null,
+		values: Iterable<number>,
+	) => void;
+	const getUniformLocation = gl.getUniformLocation.bind(gl);
+
+	function namesOf(program: WebGLProgram): Set<string> {
+		let names = samplerNames.get(program);
+		if (names) return names;
+		names = new Set();
+		const count = gl.getProgramParameter(
+			program,
+			gl.ACTIVE_UNIFORMS,
+		) as number;
+		for (let at = 0; at < count; at++) {
+			const info = gl.getActiveUniform(program, at);
+			if (info && samplerTypes.has(info.type)) names.add(info.name);
+		}
+		samplerNames.set(program, names);
+		return names;
+	}
+
+	gl.activeTexture = (unit) =>
+		activeTexture(unit === gl.TEXTURE0 ? gl.TEXTURE0 + spare : unit);
+	gl.getUniformLocation = (program, name) => {
+		const at = getUniformLocation(program, name);
+		if (at && namesOf(program).has(name)) samplers.add(at);
+		return at;
+	};
+	gl.uniform1i = (at, value) =>
+		uniform1i(at, at && samplers.has(at) && value === 0 ? spare : value);
+	gl.uniform1iv = ((
+		at: WebGLUniformLocation | null,
+		values: Iterable<number>,
+	) =>
+		uniform1iv(
+			at,
+			at && samplers.has(at)
+				? Array.from(values, (one) => (one === 0 ? spare : one))
+				: values,
+		)) as typeof gl.uniform1iv;
+}
+
 /**
  * Un lienzo con el contexto creado de antemano: skin3d no deja elegir sus atributos, pero
  * `getContext` devuelve el contexto que ya existe y Three lo adopta.
  */
 function leanCanvas(antialias: boolean): HTMLCanvasElement {
 	const canvas = document.createElement("canvas");
-	canvas.getContext("webgl2", {
+	const gl = canvas.getContext("webgl2", {
 		alpha: true,
 		// Con FXAA la figura se dibuja en el búfer del compositor y aquí solo llega la imagen.
 		depth: !antialias,
@@ -36,6 +110,7 @@ function leanCanvas(antialias: boolean): HTMLCanvasElement {
 		// En portátiles con dos GPU, una vista previa no despierta la dedicada.
 		powerPreference: "low-power",
 	});
+	if (gl && isWebKitGtk(navigator.userAgent)) avoidTextureUnitZero(gl);
 	return canvas;
 }
 
