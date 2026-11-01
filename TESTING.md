@@ -97,7 +97,7 @@ bun run tauri build
 
 ### Migración de launchers
 
-- Abrir **Crear instancia → Local → Migrar** y comprobar detección automática y selección manual para el launcher oficial y **MultiMC (Forks)**.
+- Abrir **Crear instancia → Local → Migrar** y comprobar detección automática y selección manual para el launcher oficial, **MultiMC (Forks)**, **X Minecraft Launcher** y **SKLauncher**.
 - Con carpetas de prueba, migrar perfiles oficiales Vanilla y Fabric/Forge con `gameDir` personalizado; revisar la indicación de carpetas compartidas y la resolución de `latest-release` / `latest-snapshot`.
 - Migrar instancias de Prism/PolyMC con `minecraft` y `.minecraft`, iconos personalizados y memoria sobrescrita explícitamente.
 - Comprobar que las instalaciones de Freesm Launcher (incluida la Flatpak `org.freesmlauncher.FreesmLauncher`) se detectan automáticamente y migran con el mismo formato que Prism.

@@ -77,6 +77,13 @@
 			hint: t("migration.xmclHint"),
 			folder: t("migration.xmclFolder"),
 		},
+		{
+			id: "sklauncher" as MigrationProvider,
+			icon: "instance:folder",
+			label: t("migration.sklauncher"),
+			hint: t("migration.sklauncherHint"),
+			folder: t("migration.sklauncherFolder"),
+		},
 	]);
 
 	function releasePreview() {
@@ -399,7 +406,7 @@
 	}
 	.providers {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 10px;
 	}
 	.provider {

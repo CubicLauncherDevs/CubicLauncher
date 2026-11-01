@@ -21,6 +21,7 @@ pub fn default_roots(provider: Provider) -> Vec<PathBuf> {
             home.join(".var/app/com.mojang.Minecraft/.minecraft"),
         ],
         Provider::Multimc => multimc_candidate_roots(base.data_dir(), home),
+        Provider::Sklauncher => sklauncher_candidate_roots(base.data_dir(), home),
         Provider::Xmcl => vec![
             // Data directory (holds instances.json). Linux ~/.config/xmcl,
             // macOS ~/Library/Application Support/xmcl, Windows %APPDATA%\xmcl.
@@ -78,6 +79,18 @@ fn multimc_candidate_roots(data_dir: &Path, home: &Path) -> Vec<PathBuf> {
     paths
 }
 
+/// Directorios de datos candidatos para SKLauncher 4.
+///
+/// Windows lo guarda en `%APPDATA%\\.sklauncher`, macOS en
+/// `~/Library/Application Support/sklauncher` y Linux en `~/.sklauncher`.
+fn sklauncher_candidate_roots(data_dir: &Path, home: &Path) -> Vec<PathBuf> {
+    vec![
+        home.join(".sklauncher"),
+        data_dir.join(".sklauncher"),
+        data_dir.join("sklauncher"),
+    ]
+}
+
 pub fn scan_root(
     provider: Provider,
     root: &Path,
@@ -88,6 +101,7 @@ pub fn scan_root(
         Provider::Official => official(&root, latest),
         Provider::Multimc => multimc(&root),
         Provider::Xmcl => xmcl(&root),
+        Provider::Sklauncher => sklauncher(&root),
     }
 }
 
@@ -315,6 +329,155 @@ fn xmcl(root: &Path) -> Result<Vec<Candidate>, String> {
         result.push(c);
     }
     Ok(result)
+}
+
+/// Scan a SKLauncher 4 data directory.
+///
+/// SKLauncher 4 keeps its instance registry in `instances.json` at the data
+/// root. Each entry points to its own game directory under `instances/<id>`
+/// and stores the Minecraft version, loader and optional custom icon.
+fn sklauncher(root: &Path) -> Result<Vec<Candidate>, String> {
+    let (base, only) = sklauncher_base(root)?;
+    let json: Value =
+        serde_json::from_slice(&fs::read(base.join("instances.json")).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    let entries = json
+        .get("instances")
+        .and_then(Value::as_array)
+        .ok_or("Invalid instances.json")?;
+    let only = only.and_then(|path| fs::canonicalize(path).ok());
+    let mut result = Vec::new();
+    for entry in entries {
+        let id = entry.get("id").and_then(Value::as_str).unwrap_or_default();
+        let fallback = if id.is_empty() { "Instance" } else { id };
+        let name = entry
+            .get("name")
+            .and_then(Value::as_str)
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or(fallback);
+        let directory = entry
+            .get("directory")
+            .and_then(Value::as_str)
+            .map(PathBuf::from)
+            .map(|path| {
+                if path.is_absolute() {
+                    path
+                } else {
+                    base.join(path)
+                }
+            })
+            .unwrap_or_else(|| base.join("instances").join(id));
+        if let Some(only) = &only
+            && fs::canonicalize(&directory).ok().as_ref() != Some(only)
+        {
+            continue;
+        }
+        let version = sklauncher_version(entry);
+        let mut c = candidate(name, directory.clone(), &base, version);
+        c.reinstalls_components = c
+            .version
+            .as_ref()
+            .is_some_and(|version| !matches!(version.loader, Loader::Vanilla));
+        c.icon = sklauncher_icon(&base, id, entry.get("icon").and_then(Value::as_str));
+        match fs::canonicalize(&directory) {
+            Ok(path) if path.is_dir() => c.source = path,
+            _ if c.error.is_none() => c.error = Some("Game directory not found".into()),
+            _ => {}
+        }
+        result.push(c);
+    }
+    Ok(result)
+}
+
+/// Locate `instances.json` from the data folder, the `instances` folder or a
+/// single instance folder, returning the data root and an optional filter.
+fn sklauncher_base(root: &Path) -> Result<(PathBuf, Option<PathBuf>), String> {
+    if root.join("instances.json").is_file() {
+        return Ok((root.to_path_buf(), None));
+    }
+    if root.file_name().is_some_and(|name| name == "instances")
+        && root
+            .parent()
+            .is_some_and(|parent| parent.join("instances.json").is_file())
+    {
+        return Ok((root.parent().unwrap().to_path_buf(), None));
+    }
+    if root
+        .parent()
+        .and_then(Path::parent)
+        .is_some_and(|base| base.join("instances.json").is_file())
+    {
+        return Ok((
+            root.parent().unwrap().parent().unwrap().to_path_buf(),
+            Some(root.to_path_buf()),
+        ));
+    }
+    Err("instances.json not found".into())
+}
+
+fn sklauncher_version(entry: &Value) -> Result<GameVersion, String> {
+    if entry.get("installComplete").and_then(Value::as_bool) == Some(false) {
+        return Err("Installation is incomplete".into());
+    }
+    let game_type = entry
+        .get("gameType")
+        .and_then(Value::as_str)
+        .unwrap_or("vanilla");
+    let mc_version = entry
+        .get("minecraftVersion")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            (game_type == "vanilla")
+                .then(|| entry.get("versionId").and_then(Value::as_str))
+                .flatten()
+        })
+        .ok_or("Minecraft version not found")?;
+    if !safe_component(mc_version) {
+        return Err("Invalid Minecraft version".into());
+    }
+    let loader = match game_type {
+        "vanilla" => Loader::Vanilla,
+        "fabric" => Loader::Fabric(sklauncher_loader_version(entry, "Fabric", mc_version)?),
+        "quilt" => Loader::Quilt(sklauncher_loader_version(entry, "Quilt", mc_version)?),
+        "forge" => Loader::Forge(sklauncher_loader_version(entry, "Forge", mc_version)?),
+        "neoforge" => Loader::NeoForge(sklauncher_loader_version(entry, "NeoForge", mc_version)?),
+        other => return Err(format!("Unsupported game type: {other}")),
+    };
+    Ok(GameVersion {
+        mc_version: mc_version.to_string(),
+        loader,
+    })
+}
+
+fn sklauncher_loader_version(
+    entry: &Value,
+    label: &str,
+    mc_version: &str,
+) -> Result<String, String> {
+    let version = entry
+        .get("loaderVersion")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| format!("Missing {label} version"))?;
+    let version = version
+        .strip_prefix(&format!("{mc_version}-"))
+        .unwrap_or(version);
+    if !safe_component(version) {
+        return Err(format!("Invalid {label} version"));
+    }
+    Ok(version.to_string())
+}
+
+/// Resolve a custom icon stored as `icon://<instance>/<file>` under `icons/`.
+fn sklauncher_icon(base: &Path, id: &str, icon: Option<&str>) -> Option<PathBuf> {
+    let icon = icon?.strip_prefix("icon://")?;
+    let (instance, filename) = icon.split_once('/')?;
+    if instance != id || !safe_component(instance) || !safe_component(filename) {
+        return None;
+    }
+    let path = base.join("icons").join(instance).join(filename);
+    path.is_file().then_some(path)
 }
 
 /// Build a `GameVersion` from an XMCL instance `runtime` object.

@@ -346,6 +346,92 @@ fn official_loader_version_conflicts_and_unknown_parent_are_not_guessed() {
 }
 
 #[test]
+fn sklauncher_reads_registry_loaders_icons_and_rejects_unsupported_entries() {
+    let root = tempfile::tempdir().unwrap();
+    let dirs = [
+        ("vanilla", "1.21.1"),
+        ("fabric", "1.21.1"),
+        ("forge", "1.20.1"),
+        ("optifine", "1.20.1"),
+        ("incomplete", "1.20.1"),
+        ("missing", "1.20.1"),
+    ];
+    for (id, _) in dirs.iter().filter(|(id, _)| *id != "missing") {
+        fs::create_dir_all(root.path().join("instances").join(id)).unwrap();
+    }
+    let icon = root.path().join("icons/fabric/abc.png");
+    fs::create_dir_all(icon.parent().unwrap()).unwrap();
+    fs::write(&icon, b"png").unwrap();
+    let directory = |id: &str| {
+        root.path()
+            .join("instances")
+            .join(id)
+            .to_str()
+            .unwrap()
+            .to_string()
+    };
+    write_json(
+        &root.path().join("instances.json"),
+        json!({ "instances": [
+            { "id": "vanilla", "name": "Vanilla", "installComplete": true,
+              "gameType": "vanilla", "minecraftVersion": "1.21.1", "directory": directory("vanilla") },
+            { "id": "fabric", "name": "Fabric", "installComplete": true, "icon": "icon://fabric/abc.png",
+              "gameType": "fabric", "minecraftVersion": "1.21.1", "loaderVersion": "0.16.10",
+              "directory": directory("fabric") },
+            { "id": "forge", "name": "Forge", "installComplete": true,
+              "gameType": "forge", "minecraftVersion": "1.20.1", "loaderVersion": "1.20.1-47.3.0",
+              "directory": directory("forge") },
+            { "id": "optifine", "name": "OptiFine", "installComplete": true,
+              "gameType": "optifine", "minecraftVersion": "1.20.1", "directory": directory("optifine") },
+            { "id": "incomplete", "name": "Incomplete", "installComplete": false,
+              "gameType": "vanilla", "minecraftVersion": "1.20.1", "directory": directory("incomplete") },
+            { "id": "missing", "name": "Missing", "installComplete": true,
+              "gameType": "vanilla", "minecraftVersion": "1.20.1", "directory": directory("missing") }
+        ]}),
+    );
+    let candidates = sklauncher(root.path()).unwrap();
+    assert_eq!(candidates.len(), 6);
+    let vanilla = candidates.iter().find(|c| c.name == "Vanilla").unwrap();
+    assert!(vanilla.error.is_none(), "{:?}", vanilla.error);
+    assert_eq!(vanilla.version.as_ref().unwrap().to_version_id(), "1.21.1");
+    assert!(!vanilla.reinstalls_components);
+    let fabric = candidates.iter().find(|c| c.name == "Fabric").unwrap();
+    assert!(fabric.error.is_none(), "{:?}", fabric.error);
+    assert_eq!(
+        fabric.version.as_ref().unwrap().to_version_id(),
+        "fabric-loader-0.16.10-1.21.1"
+    );
+    assert!(fabric.reinstalls_components);
+    assert_eq!(fabric.icon.as_ref(), Some(&icon));
+    let forge = candidates.iter().find(|c| c.name == "Forge").unwrap();
+    assert!(forge.error.is_none(), "{:?}", forge.error);
+    assert_eq!(
+        forge.version.as_ref().unwrap().to_version_id(),
+        "1.20.1-forge-47.3.0"
+    );
+    for name in ["OptiFine", "Incomplete", "Missing"] {
+        assert!(
+            candidates
+                .iter()
+                .find(|c| c.name == name)
+                .unwrap()
+                .error
+                .is_some(),
+            "{name} should be rejected"
+        );
+    }
+    // Selecting the data folder, its instances folder or one instance all work.
+    assert_eq!(sklauncher(&root.path().join("instances")).unwrap().len(), 6);
+    assert_eq!(
+        sklauncher(&root.path().join("instances/fabric"))
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(sklauncher(&root.path().join("nope")).is_err());
+}
+
+#[test]
 fn xmcl_resolves_managed_and_external_instances_with_loaders() {
     let root = tempfile::tempdir().unwrap();
     let managed = root.path().join("instances/Vanilla");

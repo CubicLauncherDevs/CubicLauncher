@@ -23,6 +23,7 @@ pub enum Provider {
     Official,
     Multimc,
     Xmcl,
+    Sklauncher,
 }
 
 #[derive(Clone, Serialize)]

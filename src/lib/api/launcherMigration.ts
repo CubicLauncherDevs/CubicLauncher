@@ -1,6 +1,6 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
-export type MigrationProvider = "official" | "multimc" | "xmcl";
+export type MigrationProvider = "official" | "multimc" | "xmcl" | "sklauncher";
 export interface MigrationCandidate {
 	id: string;
 	name: string;

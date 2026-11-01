@@ -168,7 +168,7 @@ cambia su visibilidad a pública en la configuración del paquete en GitHub.
 
 ## Migrar desde otro launcher
 
-Puedes copiar tus instancias desde el launcher oficial o desde MultiMC y sus forks (PolyMC, Prism Launcher, PineconeMC, Freesm Launcher). Los originales no se tocan.
+Puedes copiar tus instancias desde el launcher oficial, MultiMC y sus forks (PolyMC, Prism Launcher, PineconeMC, Freesm Launcher), X Minecraft Launcher (XMCL) y SKLauncher 4. Los originales no se tocan.
 
 1. Ve a **Crear instancia → Local → Migrar**.
 2. Elige el launcher de origen y pulsa **Buscar instalaciones**. Si usas una instalación portable o una ruta personalizada, usa **Elegir carpeta**.
