@@ -337,6 +337,13 @@
 		};
 	}
 
+	/** La tarjeta cuyos ojos se mueven: como mucho una a la vez. */
+	let livePick = $state<string | null>(null);
+
+	function stopLive(id: string) {
+		if (livePick === id) livePick = null;
+	}
+
 	function releaseImage(img: HTMLImageElement) {
 		return {
 			destroy() {
@@ -606,16 +613,22 @@
 										type="button"
 										class="catalog-pick"
 										onclick={() => pick(skin)}
+										onpointerenter={() =>
+											(livePick = skin.id)}
+										onpointerleave={() => stopLive(skin.id)}
+										onfocus={() => (livePick = skin.id)}
+										onblur={() => stopLive(skin.id)}
 										title={t(
 											"userMenu.skinCape.catalog.use",
 										)}
 									>
 										<!-- La skin puesta y girada, dibujada por Mosaicary como en sus
-							     tarjetas: una imagen en caché, nada de 3D por tarjeta. Con ojos
-							     vivos, un APNG que solo cambia los píxeles de los ojos; el
-							     navegador no lo anima fuera de la vista. -->
+							     tarjetas: una imagen en caché, nada de 3D por tarjeta. Los ojos
+							     vivos, un APNG, solo en la tarjeta bajo el cursor: el navegador
+							     guarda todos los fotogramas de cada APNG en la vista. -->
 										<img
 											src={skin.live &&
+											livePick === skin.id &&
 											!shouldReduceAnimations()
 												? skin.live
 												: skin.picture}
