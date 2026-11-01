@@ -94,7 +94,6 @@
 		const cached = reset ? loadedFor(asked) : null;
 		if (cached) {
 			blockHeights.clear();
-			nearBlocks.clear();
 			({ skins, page, pages } = cached);
 			searching = false;
 			loadingMore = false;
@@ -115,7 +114,6 @@
 			if (mine !== generation) return;
 			if (reset) {
 				blockHeights.clear();
-				nearBlocks.clear();
 				skins = result.skins;
 			} else {
 				const known = new Set(skins.map((one) => one.id));
@@ -277,6 +275,9 @@
 	// quedan vacíos con la altura que tenían, o la que tendrían, y la lista no se mueve.
 	// Con todas puestas, abrir otra vez el catálogo con 1600 tarjetas cargadas las creaba
 	// de golpe: un tercio de segundo con la ventana parada.
+	// Lleva lo que dijo el observador de cada bloque, que sigue vivo cuando la lista cambia: no
+	// se vacía al cambiar de filtro, porque el observador no volvería a avisar de un bloque que
+	// sigue a la vista y este se quedaría en blanco.
 	const nearBlocks = new SvelteSet<number>();
 	/** La altura de cada bloque al alejarse, para que vacío ocupe lo mismo. */
 	const blockHeights = new SvelteMap<number, number>();
