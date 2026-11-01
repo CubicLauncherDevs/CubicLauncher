@@ -12,12 +12,13 @@
 		readEyeCopy,
 		type LiveEyes,
 	} from "$lib/utils/freshEyes";
+	import { createFrameLoop, type FrameLoop } from "$lib/utils/frameLoop";
+	import { createStage, releaseStage } from "$lib/utils/skin3dStage";
 
 	const IDLE_MS = 3000;
-	const INTERACTION_FPS = 60;
-	const RESTING_FPS = 24;
-	/** Margen para no perder un frame por la precisión de `requestAnimationFrame`. */
-	const FRAME_TOLERANCE_MS = 1;
+	const TURNING_FPS = 24;
+	/** Sin girar solo se mecen los brazos, menos de un píxel entre fotogramas. */
+	const SWAYING_FPS = 12;
 
 	interface Props {
 		skinUrl: string;
@@ -54,8 +55,9 @@
 
 	let isIntersecting = $state(false);
 	let isTabVisible = $state(true);
-	let pendingRaf: number | null = null;
+	let frames: FrameLoop | null = null;
 	let idleTimeout: ReturnType<typeof setTimeout> | null = null;
+	let lastActivity = 0;
 	let isInteracting = false;
 	let isIdle = false;
 	let skinLoadGeneration = 0;
@@ -65,31 +67,14 @@
 		animated && !launcherStore.settings.disable_skin3d_animations,
 	);
 
+	/** Un fotograma cuando algo cambia, aunque la animación esté parada. */
 	function scheduleRender() {
-		const v = viewer;
-		if (
-			!v ||
-			v.disposed ||
-			!isVisible ||
-			!v.renderPaused ||
-			pendingRaf !== null
-		)
-			return;
-		pendingRaf = requestAnimationFrame(() => {
-			pendingRaf = null;
-			if (!v.disposed && isVisible && v.renderPaused) v.render();
-		});
+		if (isVisible) frames?.request();
 	}
 
 	function syncRenderPause() {
-		const v = viewer;
-		if (!v || v.disposed) return;
-		const shouldPause = !isVisible || !shouldAnimate || isIdle;
-		v.renderPaused = shouldPause;
-		if ((!isVisible || !shouldPause) && pendingRaf !== null) {
-			cancelAnimationFrame(pendingRaf);
-			pendingRaf = null;
-		}
+		if (!isVisible || !shouldAnimate || isIdle) frames?.setRate(0);
+		else frames?.setRate(rotate ? TURNING_FPS : SWAYING_FPS);
 	}
 
 	function stopIdleTimer() {
@@ -99,15 +84,27 @@
 		}
 	}
 
+	function armIdleTimer(wait: number) {
+		idleTimeout = setTimeout(() => {
+			idleTimeout = null;
+			const left = IDLE_MS - (performance.now() - lastActivity);
+			if (left > 1) {
+				armIdleTimer(left);
+				return;
+			}
+			isIdle = true;
+			syncRenderPause();
+			refreshEyes();
+		}, wait);
+	}
+
 	function resetIdleTimer() {
-		stopIdleTimer();
+		lastActivity = performance.now();
 		isIdle = false;
-		if (shouldAnimate && isVisible && !isInteracting) {
-			idleTimeout = setTimeout(() => {
-				isIdle = true;
-				syncRenderPause();
-				refreshEyes();
-			}, IDLE_MS);
+		if (!shouldAnimate || !isVisible || isInteracting) {
+			stopIdleTimer();
+		} else if (idleTimeout === null) {
+			armIdleTimer(IDLE_MS);
 		}
 	}
 
@@ -120,15 +117,6 @@
 	function handleVisibilityChange() {
 		isTabVisible = !document.hidden;
 	}
-
-	/** Lo más cerca que llega la cámara al punto que mira: no entra en la figura. */
-	const NEAREST = 10;
-
-	/**
-	 * A qué altura gira y hacia dónde acerca la vista: el pecho (en skin3d el torso va de -4 a 8,
-	 * la figura de -16 a 16). El centro de la figura queda a la altura de la cintura.
-	 */
-	const CHEST_Y = 4;
 
 	/* Ojos de Fresh Moves. */
 
@@ -337,57 +325,47 @@
 			const width = Math.max(1, container.clientWidth);
 			const height = container.clientHeight || width;
 
-			const instance = new Render({
+			const high = quality === "high";
+			const instance = createStage({
+				Render,
 				width,
 				height,
-				enableControls: true,
-				zoom: 0.7,
-				enableFXAA: true,
-				maxPixelRatio: quality === "high" ? 1.5 : 1,
-				pixelRatio: quality === "high" ? "match-device" : 1,
-				// Wait for visibility before starting any animation work.
-				renderPaused: true,
+				antialias: high,
+				pixelRatio: high ? "match-device" : 1,
+				maxPixelRatio: high ? 1.5 : 1,
 			});
 
 			if (!interactive) {
 				instance.controls.enabled = false;
 			}
-			instance.controls.minDistance = NEAREST;
-			// Sin desplazar con el botón derecho: el centro de giro se queda en el pecho.
-			instance.controls.enablePan = false;
-			// El centro de giro en el pecho; la cámara sube lo mismo, y la vista no se inclina.
-			instance.controls.target.set(0, CHEST_Y, 0);
-			instance.camera.position.y += CHEST_Y;
-			instance.controls.update();
 
-			// Menos FPS en reposo; durante la interacción se mantiene fluido.
-			const instanceAny = instance as unknown as {
-				draw: () => void;
-				animationID: number | null;
-			};
-			const originalDraw = instanceAny.draw.bind(instance);
-			let lastDrawTime = performance.now();
-			instanceAny.draw = function () {
-				if (instance.disposed || instance.renderPaused) return;
-				const now = performance.now();
-				const elapsed = now - lastDrawTime;
-				const targetFrameInterval =
-					1000 / (isInteracting ? INTERACTION_FPS : RESTING_FPS);
-				if (elapsed + FRAME_TOLERANCE_MS < targetFrameInterval) {
-					instanceAny.animationID = requestAnimationFrame(() =>
-						instanceAny.draw(),
-					);
-					return;
+			// Al girar con el ratón se dibuja cuando la cámara cambia, no a un ritmo fijo.
+			frames = createFrameLoop((step) => {
+				if (instance.disposed) return;
+				if (step > 0) {
+					instance.animation?.update(instance.playerObject, step);
+					if (instance.autoRotate && !isInteracting) {
+						instance.playerWrapper.rotation.y +=
+							step * instance.autoRotateSpeed;
+					}
 				}
-				// Carry timing remainder forward to avoid drifting below the target FPS.
-				lastDrawTime = now - (elapsed % targetFrameInterval);
-				originalDraw();
-			};
+				instance.render();
+			});
 
 			// eslint-disable-next-line svelte/no-dom-manipulating
 			container.appendChild(instance.canvas);
 
-			activityHandler = () => wakeFromIdle();
+			// Si el sistema le quita el contexto y lo devuelve, la figura vuelve sin esperar al ratón.
+			instance.canvas.addEventListener(
+				"webglcontextrestored",
+				scheduleRender,
+			);
+
+			// Llega muchas veces por segundo: despierta, basta con anotarlo.
+			activityHandler = () => {
+				if (isIdle) wakeFromIdle();
+				else lastActivity = performance.now();
+			};
 			const activityEvents = [
 				"pointerenter",
 				"pointerdown",
@@ -507,15 +485,15 @@
 			}
 			resizeObserver?.disconnect();
 			intersectionObserver?.disconnect();
-			if (pendingRaf !== null) {
-				cancelAnimationFrame(pendingRaf);
-				pendingRaf = null;
-			}
+			frames?.dispose();
+			frames = null;
 			pauseEyes();
 			eyesStarted = false;
 			resumeEyesSchedule = null;
 			resetEyesPose = null;
-			viewer?.dispose();
+			plainSkin = null;
+			restingFace = null;
+			if (viewer) releaseStage(viewer);
 			viewer = null;
 			IdleAnimationClass = null;
 		};
