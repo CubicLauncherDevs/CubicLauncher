@@ -2,7 +2,7 @@
 	import { onMount } from "svelte";
 	import { t } from "$lib/i18n";
 	import Icon from "$lib/icons/Icon.svelte";
-	import Skin3dViewer from "./Skin3dViewer.svelte";
+	import SkinThumbnail from "./SkinThumbnail.svelte";
 	import type { SkinClosetEntry } from "$lib/types/types";
 
 	interface Props {
@@ -80,12 +80,7 @@
 <div class="closet-card" class:active={isActive}>
 	<div class="card-preview" bind:this={previewContainer}>
 		{#if visible}
-			<Skin3dViewer
-				skinUrl={entry.url}
-				model={viewerModel}
-				animated={false}
-				interactive={false}
-			/>
+			<SkinThumbnail skinUrl={entry.url} model={viewerModel} />
 		{:else}
 			<div class="preview-placeholder"></div>
 		{/if}
@@ -213,13 +208,6 @@
 		background: var(--bg-card);
 		border-bottom: 1px solid var(--border);
 		overflow: hidden;
-	}
-
-	.card-preview :global(.skin-3d-viewer) {
-		min-width: auto;
-		min-height: auto;
-		width: 100%;
-		height: 100%;
 	}
 
 	.preview-placeholder {
