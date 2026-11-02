@@ -3,6 +3,8 @@ use std::io::{Cursor, Write};
 use std::time::Instant;
 use zip::write::SimpleFileOptions;
 
+const ID: &str = "550e8400-e29b-41d4-a716-446655440000";
+
 fn fixture(dir: &Path, count: usize) {
     let mut png = Cursor::new(Vec::new());
     image::RgbaImage::from_fn(96, 96, |x, y| {
@@ -34,7 +36,7 @@ async fn catalog_performance_50_100_200_mods() {
         let dir = tempfile::tempdir().unwrap();
         fixture(dir.path(), count);
         let start = Instant::now();
-        let cold = snapshot(dir.path(), false);
+        let cold = snapshot(ID, dir.path(), false);
         let cold_ms = start.elapsed().as_secs_f64() * 1000.0;
         assert_eq!(cold.missing.len(), count);
         assert!(cold.items.iter().all(|item| item.icon.is_none()));
@@ -43,7 +45,7 @@ async fn catalog_performance_50_100_200_mods() {
         let enrich_ms = start.elapsed().as_secs_f64() * 1000.0;
         assert_eq!(saved.len(), count);
         let start = Instant::now();
-        let warm = snapshot(dir.path(), false);
+        let warm = snapshot(ID, dir.path(), false);
         let warm_ms = start.elapsed().as_secs_f64() * 1000.0;
         assert!(warm.missing.is_empty());
         assert!(
@@ -61,13 +63,13 @@ async fn catalog_performance_50_100_200_mods() {
             })
             .collect();
         let start = Instant::now();
-        let visible = icons(dir.path(), requests);
+        let visible = icons("550e8400-e29b-41d4-a716-446655440000", dir.path(), requests);
         let visible_ms = start.elapsed().as_secs_f64() * 1000.0;
         assert_eq!(visible.len(), 16);
         assert!(visible.iter().all(|item| item.icon.is_some()));
         let light_bytes = serde_json::to_vec(&warm.items).unwrap().len();
         let start = Instant::now();
-        let eager = snapshot(dir.path(), true);
+        let eager = snapshot("550e8400-e29b-41d4-a716-446655440000", dir.path(), true);
         let eager_ms = start.elapsed().as_secs_f64() * 1000.0;
         let eager_bytes = serde_json::to_vec(&eager.items).unwrap().len();
         assert_eq!(
@@ -79,8 +81,15 @@ async fn catalog_performance_50_100_200_mods() {
             count
         );
         assert!(
-            light_bytes * 5 < eager_bytes,
-            "catalog should not transport every logo"
+            eager.items.iter().all(|item| item
+                .icon
+                .as_deref()
+                .is_some_and(|icon| icon.contains("/mods?file="))),
+            "icons should be protocol URLs, not embedded payloads"
+        );
+        assert!(
+            eager_bytes < light_bytes * 2,
+            "eager catalog should not embed icon bytes"
         );
         println!(
             "[mod catalog] n={count}: cold={cold_ms:.2}ms, metadata={enrich_ms:.2}ms, warm={warm_ms:.2}ms, icons(16)={visible_ms:.2}ms; catalog={light_bytes} bytes, eager={eager_bytes} bytes/{eager_ms:.2}ms"
@@ -92,21 +101,21 @@ async fn catalog_performance_50_100_200_mods() {
 async fn toggling_reuses_metadata_without_hashing_the_pack_again() {
     let dir = tempfile::tempdir().unwrap();
     fixture(dir.path(), 3);
-    let cold = snapshot(dir.path(), false);
+    let cold = snapshot(ID, dir.path(), false);
     enrich_local(dir.path().to_path_buf(), cold.missing).await;
     std::fs::rename(
         dir.path().join("mod-001.jar"),
         dir.path().join("mod-001.jar.disabled"),
     )
     .unwrap();
-    let toggled = snapshot(dir.path(), false);
+    let toggled = snapshot(ID, dir.path(), false);
     assert_eq!(toggled.missing.len(), 1);
     assert!(toggled.missing[0].reusable.is_some());
     let changed = toggled.items.iter().find(|item| !item.enabled).unwrap();
     assert_eq!(changed.name, "Mod 1");
     assert_eq!(changed.version.as_deref(), Some("1.0"));
     enrich_local(dir.path().to_path_buf(), toggled.missing).await;
-    assert!(snapshot(dir.path(), false).missing.is_empty());
+    assert!(snapshot(ID, dir.path(), false).missing.is_empty());
 }
 
 #[tokio::test]
@@ -138,9 +147,9 @@ async fn inventory_annotation_preserves_enriched_catalog_and_leaves_user_mods_un
         .await
         .unwrap();
 
-    let cold = snapshot(&mods_dir, false);
+    let cold = snapshot(ID, &mods_dir, false);
     enrich_local(mods_dir.clone(), cold.missing).await;
-    let mut warm = snapshot(&mods_dir, false).items;
+    let mut warm = snapshot(ID, &mods_dir, false).items;
     let before: Vec<_> = warm
         .iter()
         .map(|item| {
@@ -175,7 +184,7 @@ async fn inventory_annotation_preserves_enriched_catalog_and_leaves_user_mods_un
 async fn deleted_or_replaced_files_cannot_receive_stale_metadata_or_icons() {
     let dir = tempfile::tempdir().unwrap();
     fixture(dir.path(), 2);
-    let cold = snapshot(dir.path(), false);
+    let cold = snapshot(ID, dir.path(), false);
     let requests = cold
         .items
         .iter()
@@ -188,8 +197,8 @@ async fn deleted_or_replaced_files_cannot_receive_stale_metadata_or_icons() {
     std::fs::write(dir.path().join("mod-001.jar"), b"replaced").unwrap();
     let saved = enrich_local(dir.path().to_path_buf(), cold.missing).await;
     assert!(saved.is_empty());
-    assert!(icons(dir.path(), requests).is_empty());
-    assert_eq!(snapshot(dir.path(), false).missing.len(), 1);
+    assert!(icons(ID, dir.path(), requests).is_empty());
+    assert_eq!(snapshot(ID, dir.path(), false).missing.len(), 1);
 }
 
 #[test]

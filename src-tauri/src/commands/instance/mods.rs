@@ -3,7 +3,7 @@ use crate::core::event_bus;
 use crate::core::validate_filename;
 use crate::services::{
     AddonManager, AddonMetaNoIcon, InstanceManager, ModSource, PackCacheEntry, PackFullCacheEntry,
-    compute_file_sha1, file_fingerprint, read_all_full_pack_cache,
+    compute_file_sha1, file_fingerprint, icon_protocol, read_all_full_pack_cache,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -286,9 +286,11 @@ pub async fn get_instance_resourcepacks(id: String) -> Result<Vec<ModDto>, Strin
 
     if ablage::Repo::check_global_fingerprint(&cache_path, global_fp) {
         let cache = read_all_full_pack_cache(&dir_clone);
+        let icon_kind = "resourcepacks";
         let mut resourcepacks: Vec<ModDto> = entries
             .into_iter()
             .map(|e| {
+                let revision = e.fingerprint.to_string();
                 let cached = cache.get(&e.filename);
                 match cached {
                     Some(entry) => {
@@ -297,17 +299,20 @@ pub async fn get_instance_resourcepacks(id: String) -> Result<Vec<ModDto>, Strin
                             .as_ref()
                             .map(|m| (m.name.clone(), m.description.clone()))
                             .unwrap_or_else(|| (e.filename.clone(), None));
+                        let icon = entry.icon.as_ref().map(|_| {
+                            icon_protocol::url(&id, icon_kind, &e.filename, Some(&revision))
+                        });
                         ModDto {
                             pack_name: None,
                             pack_locked: false,
                             pack_modified: false,
-                            icon_revision: None,
+                            icon_revision: Some(revision),
                             name: md_name,
                             filename: e.filename,
                             version: entry.metadata.as_ref().and_then(|m| m.version.clone()),
                             description: md_desc,
                             authors: entry.metadata.as_ref().and_then(|m| m.authors.clone()),
-                            icon: entry.icon.clone(),
+                            icon,
                             enabled: true,
                             sha1: entry.sha1.clone(),
                             file_size: e.size,
@@ -321,7 +326,7 @@ pub async fn get_instance_resourcepacks(id: String) -> Result<Vec<ModDto>, Strin
                         pack_name: None,
                         pack_locked: false,
                         pack_modified: false,
-                        icon_revision: None,
+                        icon_revision: Some(revision),
                         name: e.filename.clone(),
                         filename: e.filename,
                         version: None,
@@ -520,9 +525,11 @@ pub async fn get_instance_shaderpacks(id: String) -> Result<Vec<ModDto>, String>
 
     if ablage::Repo::check_global_fingerprint(&cache_path, global_fp) {
         let cache = read_all_full_pack_cache(&dir_clone);
+        let icon_kind = "shaderpacks";
         let mut shaderpacks: Vec<ModDto> = entries
             .into_iter()
             .map(|e| {
+                let revision = e.fingerprint.to_string();
                 let cached = cache.get(&e.filename);
                 match cached {
                     Some(entry) => {
@@ -531,17 +538,20 @@ pub async fn get_instance_shaderpacks(id: String) -> Result<Vec<ModDto>, String>
                             .as_ref()
                             .map(|m| (m.name.clone(), m.description.clone()))
                             .unwrap_or_else(|| (e.filename.clone(), None));
+                        let icon = entry.icon.as_ref().map(|_| {
+                            icon_protocol::url(&id, icon_kind, &e.filename, Some(&revision))
+                        });
                         ModDto {
                             pack_name: None,
                             pack_locked: false,
                             pack_modified: false,
-                            icon_revision: None,
+                            icon_revision: Some(revision),
                             name: md_name,
                             filename: e.filename,
                             version: entry.metadata.as_ref().and_then(|m| m.version.clone()),
                             description: md_desc,
                             authors: entry.metadata.as_ref().and_then(|m| m.authors.clone()),
-                            icon: entry.icon.clone(),
+                            icon,
                             enabled: true,
                             sha1: entry.sha1.clone(),
                             file_size: e.size,
@@ -555,7 +565,7 @@ pub async fn get_instance_shaderpacks(id: String) -> Result<Vec<ModDto>, String>
                         pack_name: None,
                         pack_locked: false,
                         pack_modified: false,
-                        icon_revision: None,
+                        icon_revision: Some(revision),
                         name: e.filename.clone(),
                         filename: e.filename,
                         version: None,

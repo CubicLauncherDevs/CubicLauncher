@@ -6,6 +6,7 @@ use crate::core::errors::InstanceError;
 use crate::core::{event_bus, validate_filename};
 use crate::services::{
     AddonManager, InstanceHandle, InstanceManager, ModSource, compute_file_sha1, file_fingerprint,
+    icon_protocol,
 };
 use futures::{StreamExt, stream};
 use serde::{Deserialize, Serialize};
@@ -95,7 +96,7 @@ struct Snapshot {
     missing: Vec<Work>,
 }
 
-fn snapshot(dir: &Path, include_icons: bool) -> Snapshot {
+fn snapshot(id: &str, dir: &Path, include_icons: bool) -> Snapshot {
     let mut result = Snapshot {
         items: Vec::new(),
         missing: Vec::new(),
@@ -138,7 +139,14 @@ fn snapshot(dir: &Path, include_icons: bool) -> Snapshot {
             description: meta.and_then(|meta| meta.description.clone()),
             authors: meta.and_then(|meta| meta.authors.clone()),
             icon: if include_icons {
-                AddonManager::get_mod_icon(&file.path).map(|icon| (*icon).clone())
+                AddonManager::get_mod_icon(&file.path).is_some().then(|| {
+                    icon_protocol::url(
+                        id,
+                        "mods",
+                        &file.filename,
+                        Some(&file.fingerprint.to_string()),
+                    )
+                })
             } else {
                 None
             },
@@ -237,8 +245,10 @@ pub(super) async fn list(
     include_icons: bool,
     handle: InstanceHandle,
 ) -> Vec<ModDto> {
+    let scan_id = id.clone();
     let scan_dir = dir.clone();
-    let scan = tokio::task::spawn_blocking(move || snapshot(&scan_dir, include_icons)).await;
+    let scan =
+        tokio::task::spawn_blocking(move || snapshot(&scan_id, &scan_dir, include_icons)).await;
     let Ok(Snapshot { items, missing }) = scan else {
         return Vec::new();
     };
@@ -328,7 +338,7 @@ pub struct ModIcon {
     icon: Option<String>,
 }
 
-fn icons(dir: &Path, files: Vec<IconRequest>) -> Vec<ModIcon> {
+fn icons(id: &str, dir: &Path, files: Vec<IconRequest>) -> Vec<ModIcon> {
     files
         .into_iter()
         .filter_map(|request| {
@@ -336,7 +346,9 @@ fn icons(dir: &Path, files: Vec<IconRequest>) -> Vec<ModIcon> {
             if file.fingerprint.to_string() != request.revision {
                 return None;
             }
-            let icon = AddonManager::get_mod_icon(&file.path).map(|icon| (*icon).clone());
+            let icon = AddonManager::get_mod_icon(&file.path).is_some().then(|| {
+                icon_protocol::url(id, "mods", &request.filename, Some(&request.revision))
+            });
             if !unchanged(&file) {
                 return None;
             }
@@ -369,7 +381,7 @@ pub async fn get_instance_mod_icons(
     let permit = ICON_WORKERS.acquire().await.map_err(icon_error)?;
     tokio::task::spawn_blocking(move || {
         let _permit = permit;
-        icons(&dir, files)
+        icons(&id, &dir, files)
     })
     .await
     .map_err(icon_error)

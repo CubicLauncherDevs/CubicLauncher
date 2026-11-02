@@ -30,6 +30,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .register_asynchronous_uri_scheme_protocol(
+            services::icon_protocol::SCHEME,
+            |_ctx, request, responder| {
+                tauri::async_runtime::spawn(async move {
+                    responder.respond(services::icon_protocol::respond(request).await);
+                });
+            },
+        )
         .invoke_handler(tauri::generate_handler![
             commands::instance::get_instances,
             commands::instance::minecraft_jar::get_instance_minecraft_jar,
