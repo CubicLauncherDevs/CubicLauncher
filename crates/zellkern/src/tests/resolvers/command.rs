@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn custom_minecraft_jar_replaces_original_classpath_and_is_required() {
     let dir = tempfile::tempdir().unwrap();
-    let original_dir = dir.path().join("versions/1.21.1");
+    let original_dir = dir.path().join("versions").join("1.21.1");
     std::fs::create_dir_all(&original_dir).unwrap();
     let original = original_dir.join("1.21.1.jar");
     std::fs::write(&original, b"original").unwrap();
@@ -41,14 +41,20 @@ fn custom_minecraft_jar_replaces_original_classpath_and_is_required() {
 #[test]
 fn custom_jar_uses_inherited_base_and_keeps_loader_libraries() {
     let dir = tempfile::tempdir().unwrap();
-    let base = dir.path().join("versions/1.21.1");
+    let base = dir.path().join("versions").join("1.21.1");
     std::fs::create_dir_all(&base).unwrap();
     std::fs::write(
         base.join("1.21.1.json"),
         br#"{"id":"1.21.1","mainClass":"net.minecraft.client.main.Main"}"#,
     )
     .unwrap();
-    let library = dir.path().join("libraries/example/loader/1/loader-1.jar");
+    let library = dir
+        .path()
+        .join("libraries")
+        .join("example")
+        .join("loader")
+        .join("1")
+        .join("loader-1.jar");
     std::fs::create_dir_all(library.parent().unwrap()).unwrap();
     std::fs::write(&library, b"loader").unwrap();
     let custom = dir.path().join("custom.jar");
@@ -86,7 +92,7 @@ fn modlauncher_rejects_custom_client_instead_of_ignoring_it() {
 
 fn launch_uuid(config: &LaunchConfig, modern: bool) -> String {
     let dir = tempfile::tempdir().unwrap();
-    let version_dir = dir.path().join("versions/1.21.1");
+    let version_dir = dir.path().join("versions").join("1.21.1");
     std::fs::create_dir_all(&version_dir).unwrap();
     std::fs::write(version_dir.join("1.21.1.jar"), []).unwrap();
     let mut config = config.clone();
