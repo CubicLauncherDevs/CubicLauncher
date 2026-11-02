@@ -7,10 +7,12 @@ on:
         branches: [main, develop]
     workflow_dispatch:
 
-# A newer push or pull request update supersedes the previous run for the same ref.
+# A newer pull request update supersedes the previous run for the same PR.
+# Pushes to develop are not cancelled: the Nix and macOS jobs can take long
+# enough that a cancel would keep restarting them without ever finishing.
 concurrency:
     group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-    cancel-in-progress: true
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least privilege: every job only reads the repository.
 permissions:
@@ -156,7 +158,17 @@ jobs:
               run: cargo clippy --workspace --locked -- -D warnings
 
             - name: Tests
+              if: runner.os != 'Windows'
               run: cargo test --workspace --locked
+
+            - name: Tests (Windows)
+              if: runner.os == 'Windows'
+              # tauri#13419: the lib unit-test binary of the Tauri app crate is
+              # linked without an RT_MANIFEST, so comctl32 v5 is loaded and
+              # TaskDialogIndirect is missing (0xc0000139). The remaining crates
+              # still run, and the app crate is covered on Linux and macOS.
+              # Drop --exclude once tauri-build links the manifest into tests.
+              run: cargo test --workspace --locked --exclude cubiclauncher
 
     ci-status:
         name: CI Status

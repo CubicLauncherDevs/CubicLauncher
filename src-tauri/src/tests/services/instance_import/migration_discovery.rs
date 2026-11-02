@@ -37,7 +37,10 @@ fn official_profiles_resolve_loaders_custom_directories_and_shared_data() {
     assert!(profiles[0].shared_directory);
     assert!(profiles[1].shared_directory);
     assert!(!profiles[2].shared_directory);
-    assert_eq!(profiles[2].source, root.path().join("custom-game"));
+    assert_eq!(
+        profiles[2].source,
+        root.path().canonicalize().unwrap().join("custom-game")
+    );
     assert_eq!(
         profiles[2].version.as_ref().unwrap().to_version_id(),
         "fabric-loader-0.16.10-1.20.1"

@@ -2,9 +2,12 @@ use super::*;
 
 fn fixture() -> (tempfile::TempDir, ExportInput, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path().join("instance");
+    // macOS exposes the temp dir through the /var -> /private/var symlink;
+    // canonicalize once so paths returned by write_archive match.
+    let base = dir.path().canonicalize().unwrap();
+    let root = base.join("instance");
     fs::create_dir(&root).unwrap();
-    let dest = dir.path().join("pack.mrpack");
+    let dest = base.join("pack.mrpack");
     let input = ExportInput {
         root,
         name: "Example".into(),

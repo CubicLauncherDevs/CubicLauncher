@@ -74,9 +74,16 @@ hacia `develop` y `main`, y agrupa las validaciones en jobs independientes:
 | --- | --- | --- |
 | Frontend Checks | ubuntu-latest | `bun run lint`, `bun run format:check`, `bun run check`, `bun run test:frontend`, `bun run build` |
 | Rust Format Check | ubuntu-latest | `cargo fmt --all --check` |
-| Rust Checks | ubuntu-latest, windows-latest, macos-latest | `cargo clippy --workspace --locked -- -D warnings`, `cargo test --workspace --locked` |
+| Rust Checks | ubuntu-latest, windows-latest, macos-latest | `cargo clippy --workspace --locked -- -D warnings`, `cargo test --workspace --locked` (en Windows, `--exclude cubiclauncher`) |
 | Nix Hashes | x86_64-linux, aarch64-linux, aarch64-darwin | `nodeModules` y `cargoDeps` del flake |
 | CI Status | ubuntu-latest | Falla si cualquier job anterior no terminó en `success` |
+
+En Windows los tests omiten el crate `cubiclauncher` (`--exclude cubiclauncher`):
+el binario de tests de la lib se enlaza sin `RT_MANIFEST`, así que Windows carga
+comctl32 v5 y falla con `0xc0000139` al importar `TaskDialogIndirect`
+([tauri#13419](https://github.com/tauri-apps/tauri/issues/13419)). Los demás
+crates se ejecutan igual y el crate de la app se valida en Linux y macOS; quitá
+la exclusión cuando `tauri-build` enlace el manifiesto en todos los targets.
 
 Los jobs de Rust instalan las dependencias de WebKitGTK/GTK solo en Linux; los
 runners de Windows y macOS ya incluyen WebView2 y WKWebView. El formato Rust se
