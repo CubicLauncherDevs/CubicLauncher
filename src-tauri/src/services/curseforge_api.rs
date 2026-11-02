@@ -340,7 +340,7 @@ impl CurseForgeClient {
         url: &str,
     ) -> Result<T, CurseForgeError> {
         if let Some(cached) = CACHE.get(url) {
-            return Ok(serde_json::from_value(cached)?);
+            return serde_json::from_slice(&cached).map_err(CurseForgeError::from);
         }
 
         let resp = self.build_request(reqwest::Method::GET, url).send().await?;
@@ -360,22 +360,26 @@ impl CurseForgeClient {
             });
         }
 
-        let raw: serde_json::Value = resp.json().await?;
-        CACHE.set(url.to_string(), &raw);
-        T::deserialize(&raw).map_err(|e| {
-            let full_body = raw.to_string();
-            tracing::error!(
-                url = %url,
-                error = %e,
-                body = %full_body,
-                "Failed to parse CurseForge response"
-            );
-            CurseForgeError::ParseWithContext {
-                source: e,
-                url: url.to_string(),
-                body: full_body.chars().take(1000).collect(),
+        let body = resp.bytes().await?;
+        let value = match serde_json::from_slice::<T>(&body) {
+            Ok(value) => value,
+            Err(e) => {
+                let full_body = String::from_utf8_lossy(&body);
+                tracing::error!(
+                    url = %url,
+                    error = %e,
+                    body = %full_body,
+                    "Failed to parse CurseForge response"
+                );
+                return Err(CurseForgeError::ParseWithContext {
+                    source: e,
+                    url: url.to_string(),
+                    body: full_body.chars().take(1000).collect(),
+                });
             }
-        })
+        };
+        CACHE.set(url.to_string(), Arc::from(body.as_ref()));
+        Ok(value)
     }
 
     fn encode_param(value: &str) -> String {
@@ -523,16 +527,22 @@ impl CurseForgeClient {
 
     pub async fn get_project(&self, mod_id: u32) -> Result<CurseForgeProject, CurseForgeError> {
         let url = format!("{}/mods/{}", CURSEFORGE_API_BASE, mod_id);
-        let resp: serde_json::Value = self.get_json(&url).await?;
-        let data = resp.get("data").cloned().unwrap_or(resp);
+        let mut resp: serde_json::Value = self.get_json(&url).await?;
+        let data = resp
+            .get_mut("data")
+            .map(serde_json::Value::take)
+            .unwrap_or(resp);
         Ok(serde_json::from_value(data)?)
     }
 
     /// Fetches the full HTML description (README) of a project.
     pub async fn get_project_description(&self, mod_id: u32) -> Result<String, CurseForgeError> {
         let url = format!("{}/mods/{}/description", CURSEFORGE_API_BASE, mod_id);
-        let resp: serde_json::Value = self.get_json(&url).await?;
-        let data = resp.get("data").cloned().unwrap_or(resp);
+        let mut resp: serde_json::Value = self.get_json(&url).await?;
+        let data = resp
+            .get_mut("data")
+            .map(serde_json::Value::take)
+            .unwrap_or(resp);
         Ok(serde_json::from_value(data)?)
     }
 
@@ -637,9 +647,9 @@ impl CurseForgeClient {
         );
         let cache_key = format!("download-url-{}-{}", mod_id, file_id);
         if let Some(cached) = CACHE.get(&cache_key)
-            && let Some(s) = cached.as_str()
+            && let Ok(s) = serde_json::from_slice::<String>(&cached)
         {
-            return Ok(s.to_string());
+            return Ok(s);
         }
 
         let resp: serde_json::Value = self.get_json(&url).await?;
@@ -649,8 +659,10 @@ impl CurseForgeClient {
             .map(String::from)
             .ok_or(CurseForgeError::DownloadUrlNotFound)?;
 
-        if !download_url.is_empty() {
-            CACHE.set(cache_key, serde_json::Value::String(download_url.clone()));
+        if !download_url.is_empty()
+            && let Ok(data) = serde_json::to_vec(&download_url)
+        {
+            CACHE.set(cache_key, data.into());
         }
         Ok(download_url)
     }

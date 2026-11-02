@@ -1,7 +1,9 @@
-//! Bounded serialized API payloads. One weak sweeper per live cache also expires
+//! Bounded raw API payloads. One weak sweeper per live cache also expires
 //! entries while the market is idle; no task is created per entry or request.
+//!
+//! Entries keep the response bytes instead of a parsed tree, so typed callers
+//! deserialize once, directly into their DTO, on both cache hits and misses.
 use parking_lot::Mutex;
-use serde_json::Value;
 use std::{
     collections::HashMap,
     sync::{
@@ -53,21 +55,16 @@ impl JsonCache {
             .sum();
     }
 
-    pub(crate) fn get(&self, key: &str) -> Option<Value> {
+    /// Raw payload for `key`, if fresh. Callers deserialize into their own type.
+    pub(crate) fn get(&self, key: &str) -> Option<Arc<[u8]>> {
         self.expire();
-        let data = {
-            let mut entries = self.entries.lock();
-            let entry = entries.map.get_mut(key)?;
-            entry.used = Instant::now();
-            Arc::clone(&entry.data)
-        };
-        serde_json::from_slice(&data).ok()
+        let mut entries = self.entries.lock();
+        let entry = entries.map.get_mut(key)?;
+        entry.used = Instant::now();
+        Some(Arc::clone(&entry.data))
     }
 
-    pub(crate) fn set(self: &Arc<Self>, key: String, value: impl std::borrow::Borrow<Value>) {
-        let Ok(data) = serde_json::to_vec(value.borrow()) else {
-            return;
-        };
+    pub(crate) fn set(self: &Arc<Self>, key: String, data: Arc<[u8]>) {
         let size = key.len() + data.len();
         if size > MAX_ENTRY_BYTES || size > self.max_bytes {
             return;
@@ -95,7 +92,7 @@ impl JsonCache {
             entries.map.insert(
                 key,
                 Entry {
-                    data: data.into(),
+                    data,
                     inserted: now,
                     used: now,
                 },

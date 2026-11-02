@@ -11,7 +11,7 @@ fn build_modrinth_facets(
     game_version: &Option<String>,
     category: &Option<String>,
     project_type: &str,
-) -> serde_json::Value {
+) -> String {
     let mut facets: Vec<Vec<String>> = Vec::new();
 
     let loader_lower = loader.to_lowercase();
@@ -30,7 +30,7 @@ fn build_modrinth_facets(
         facets.push(vec![format!("categories:{}", cat.to_lowercase())]);
     }
 
-    serde_json::to_value(facets).unwrap_or_default()
+    serde_json::to_string(&facets).unwrap_or_default()
 }
 
 pub(crate) async fn get_json(url: &str) -> Result<serde_json::Value, String> {
@@ -40,7 +40,8 @@ pub(crate) async fn get_json(url: &str) -> Result<serde_json::Value, String> {
     use std::sync::{Arc, LazyLock};
     static CACHE: LazyLock<Arc<JsonCache>> = LazyLock::new(|| JsonCache::new(4 * 1024 * 1024));
     if let Some(data) = CACHE.get(url) {
-        return Ok(data);
+        return serde_json::from_slice(&data)
+            .map_err(|e| format!("Failed to parse cached response: {}", e));
     }
 
     let resp = HTTP
@@ -59,12 +60,15 @@ pub(crate) async fn get_json(url: &str) -> Result<serde_json::Value, String> {
         ));
     }
 
-    let data: Value = resp
-        .json()
+    let body = resp
+        .bytes()
         .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
+        .map_err(|e| format!("Failed to read response: {}", e))?;
 
-    CACHE.set(url.to_string(), &data);
+    let data: Value =
+        serde_json::from_slice(&body).map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    CACHE.set(url.to_string(), Arc::from(body.as_ref()));
 
     Ok(data)
 }
@@ -81,9 +85,8 @@ pub async fn search_modrinth(
     offset: u32,
     project_type: String,
 ) -> Result<serde_json::Value, String> {
-    let facets = build_modrinth_facets(&loader, &game_version, &category, &project_type);
+    let facets_str = build_modrinth_facets(&loader, &game_version, &category, &project_type);
 
-    let facets_str = facets.to_string();
     let mut url = format!("{}/search", MODRINTH_API_BASE);
     url.push_str(&format!(
         "?query={}&facets={}&index={}&limit={}&offset={}",
