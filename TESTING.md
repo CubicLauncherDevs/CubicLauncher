@@ -67,8 +67,22 @@ cargo test -p cubiclauncher --lib world_performance_fixture -- --ignored --nocap
 cargo test -p cubiclauncher --lib server_performance_fixture -- --ignored --nocapture --test-threads=1
 ```
 
-CI ejecuta `bun run test:frontend` y `cargo test --workspace --verbose` en sus
-respectivos jobs, además de lint, tipos, formato, Clippy y build frontend.
+El workflow `.github/workflows/ci.yml` se ejecuta en cada push y pull request
+hacia `develop` y `main`, y agrupa las validaciones en jobs independientes:
+
+| Job | Runner | Comandos |
+| --- | --- | --- |
+| Frontend Checks | ubuntu-latest | `bun run lint`, `bun run format:check`, `bun run check`, `bun run test:frontend`, `bun run build` |
+| Rust Format Check | ubuntu-latest | `cargo fmt --all --check` |
+| Rust Checks | ubuntu-latest, windows-latest, macos-latest | `cargo clippy --workspace --locked -- -D warnings`, `cargo test --workspace --locked` |
+| Nix Hashes | x86_64-linux, aarch64-linux, aarch64-darwin | `nodeModules` y `cargoDeps` del flake |
+| CI Status | ubuntu-latest | Falla si cualquier job anterior no terminó en `success` |
+
+Los jobs de Rust instalan las dependencias de WebKitGTK/GTK solo en Linux; los
+runners de Windows y macOS ya incluyen WebView2 y WKWebView. El formato Rust se
+valida una sola vez porque no depende de la plataforma, y cada job de Rust usa
+su propia caché por sistema operativo. Las release y prerelease se construyen en
+`release.yml` y `prerelease.yml`, separadas de esta validación.
 
 ## Checks automáticos (SIEMPRE)
 
@@ -76,13 +90,14 @@ respectivos jobs, además de lint, tipos, formato, Clippy y build frontend.
 # Frontend
 bun install
 bun run lint
+bun run format:check
 bun run check
 bun run test:frontend
 bun run build
 
 # Rust (desde la raíz)
 cargo fmt --all --check
-cargo clippy --workspace -- -D warnings
+cargo clippy --workspace --locked -- -D warnings
 bun run test:rust
 cargo build --workspace --release
 ```

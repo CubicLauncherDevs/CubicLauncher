@@ -5,14 +5,27 @@ on:
         branches: [main, develop]
     pull_request:
         branches: [main, develop]
+    workflow_dispatch:
+
+# A newer push or pull request update supersedes the previous run for the same ref.
+concurrency:
+    group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+# Least privilege: every job only reads the repository.
+permissions:
+    contents: read
 
 env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    CARGO_TERM_COLOR: always
+    RUST_BACKTRACE: 1
 
 jobs:
     nix:
         name: Nix Hashes (${{ matrix.system }})
         runs-on: ${{ matrix.runner }}
+        timeout-minutes: 30
         strategy:
             fail-fast: false
             matrix:
@@ -24,11 +37,8 @@ jobs:
                       runner: ubuntu-24.04-arm
                     - system: aarch64-darwin
                       runner: macos-15
-        timeout-minutes: 30
-        permissions:
-            contents: read
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - name: Install Nix
               uses: cachix/install-nix-action@v31
@@ -52,15 +62,24 @@ jobs:
     frontend:
         name: Frontend Checks
         runs-on: ubuntu-latest
+        timeout-minutes: 20
         env:
             NODE_OPTIONS: --max-old-space-size=6144
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - name: Setup Bun
               uses: oven-sh/setup-bun@v2
               with:
                   bun-version: latest
+
+            - name: Cache Bun packages
+              uses: actions/cache@v6
+              with:
+                  path: ~/.bun/install/cache
+                  key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-bun-
 
             - name: Install dependencies
               run: bun install --frozen-lockfile
@@ -68,42 +87,106 @@ jobs:
             - name: Lint
               run: bun run lint
 
+            - name: Format check
+              run: bun run format:check
+
             - name: Type check
               run: bun run check
 
-            - name: Tests
+            - name: Frontend tests
               run: bun run test:frontend
 
-            - name: Build
+            - name: Production build
               run: bun run build
 
-    rust:
-        name: Rust Checks
+    rustfmt:
+        name: Rust Format Check
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         steps:
-            - uses: actions/checkout@v4
-
-            - name: Install Linux dependencies
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+            - uses: actions/checkout@v7
 
             - name: Install Rust stable
               uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: rustfmt
+
+            # Formatting is platform-independent, so it runs once instead of
+            # inside every job of the Rust matrix.
+            - name: Format check
+              run: cargo fmt --all --check
+
+    rust:
+        name: Rust Checks (${{ matrix.os }})
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 45
+        strategy:
+            fail-fast: false
+            matrix:
+                # Windows and macOS runners already ship the WebView2 runtime and
+                # WKWebView; only Linux needs extra system packages.
+                os: [ubuntu-latest, windows-latest, macos-latest]
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Install Linux dependencies
+              if: runner.os == 'Linux'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y --no-install-recommends \
+                    libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+                    librsvg2-dev patchelf
+
+            - name: Install Rust stable
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: clippy
 
             - name: Rust cache
               uses: Swatinem/rust-cache@v2
               with:
                   workspaces: ". -> target"
-                  # Keep the existing CI namespace; dev/test artifacts differ from release.
-                  shared-key: rust
+                  # One cache per OS; dev/test artifacts differ from release builds.
+                  shared-key: ci-rust-${{ runner.os }}
+                  # Pull request runs never save, so they cannot evict the cache
+                  # seeded by the default branch.
                   save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
-
-            - name: Format check
-              run: cargo fmt --check
 
             - name: Clippy
               run: cargo clippy --workspace --locked -- -D warnings
 
             - name: Tests
-              run: cargo test --workspace --locked --verbose
+              run: cargo test --workspace --locked
+
+    ci-status:
+        name: CI Status
+        # Single required check: fails whenever any validation job did not succeed.
+        if: always()
+        needs: [nix, frontend, rustfmt, rust]
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - name: Check results
+              env:
+                  NIX_RESULT: ${{ needs.nix.result }}
+                  FRONTEND_RESULT: ${{ needs.frontend.result }}
+                  RUSTFMT_RESULT: ${{ needs.rustfmt.result }}
+                  RUST_RESULT: ${{ needs.rust.result }}
+              run: |
+                  failed=0
+                  for entry in \
+                    "nix:$NIX_RESULT" \
+                    "frontend:$FRONTEND_RESULT" \
+                    "rustfmt:$RUSTFMT_RESULT" \
+                    "rust:$RUST_RESULT"; do
+                    name="${entry%%:*}"
+                    result="${entry#*:}"
+                    if [ "$result" != "success" ]; then
+                      echo "::error title=$name::$name finished with result '$result'"
+                      failed=1
+                    fi
+                  done
+                  if [ "$failed" -ne 0 ]; then
+                    exit 1
+                  fi
+                  echo "All CI checks passed."
