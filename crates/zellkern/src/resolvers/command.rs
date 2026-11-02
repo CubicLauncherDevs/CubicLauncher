@@ -139,7 +139,7 @@ impl<'a> CommandBuilder<'a> {
 
     #[cfg(windows)]
     fn is_executable(path: &Path) -> bool {
-        path.exists() && path.extension().map_or(false, |ext| ext == "exe")
+        path.exists() && path.extension().is_some_and(|ext| ext == "exe")
     }
 
     pub fn build(&self) -> Result<Vec<String>, Error> {

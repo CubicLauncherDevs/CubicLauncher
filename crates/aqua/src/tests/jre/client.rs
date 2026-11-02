@@ -7,7 +7,9 @@ impl TempDir {
     fn new() -> Self {
         let path = std::env::temp_dir().join(format!("cubic_jre_test_{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&path).unwrap();
-        Self(path)
+        // macOS exposes the temp dir through the /var -> /private/var symlink;
+        // canonicalize once so read_dir entries and canonicalized expectations match.
+        Self(path.canonicalize().unwrap())
     }
 
     fn path(&self) -> &Path {

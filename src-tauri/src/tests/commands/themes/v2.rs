@@ -632,10 +632,6 @@ impl ThemeTree {
         Self(path)
     }
 
-    fn path(&self) -> &std::path::Path {
-        &self.0
-    }
-
     fn theme(&self, id: &str) -> std::path::PathBuf {
         self.0.join(id)
     }
