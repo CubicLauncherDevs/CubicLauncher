@@ -31,14 +31,6 @@ const builtinThemes: ThemeEntry[] = [
 		type: "builtin",
 		preview: { bg: "#f5f5f5", accent: "#2563eb", text: "#1a1a1a" },
 	},
-	{
-		id: "halloween-2026",
-		name: "Halloween 2026 (u/Ercerus)",
-		author: "CubicLauncher",
-		version: "1.0",
-		type: "builtin",
-		preview: { bg: "#0a0d1a", accent: "#ff8a2b", text: "#f2ece0" },
-	},
 ];
 
 export interface ThemeFontFace {
