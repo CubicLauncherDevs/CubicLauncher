@@ -35,7 +35,7 @@
 rustPlatform.buildRustPackage rec {
   # Identidad y versión del paquete.
   pname = "cubiclauncher";
-  version = "36.0.1";
+  version = "37.0.0";
 
   # Código fuente del proyecto, excluyendo los archivos que Nix
   # considera innecesarios mediante cleanSource.
@@ -43,7 +43,7 @@ rustPlatform.buildRustPackage rec {
 
   # Hash de las dependencias de Rust gestionadas por Cargo.
   # Debe actualizarse cuando cambie el conjunto de dependencias.
-  cargoHash = "sha256-BAEZUseRHYnnOzG8os42hie/GJxB1NfWxxoENbySfvA=";
+  cargoHash = "sha256-EIUArkN0cwgNioECnOxXu3R3c3pMliNEraWbQvYXN/I=";
 
   # Derivación independiente para las dependencias del frontend.
   #
