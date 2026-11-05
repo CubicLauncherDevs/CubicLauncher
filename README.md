@@ -371,6 +371,14 @@ Las traducciones se mantienen en el repositorio [Translations](https://github.co
 
 El proceso de versionado y publicación está explicado en [VERSIONING.md](VERSIONING.md).
 
+# Patrocinadores
+
+<p align="center">
+  <a href="https://vgtopup.com">
+    <img src=".github/logo.webp" width="220" alt="VG Topup" />
+  </a>
+</p>
+
 # Licencia
 
 Todo el código del launcher se distribuye bajo la licencia [GPL-3.0-only](LICENSE).
