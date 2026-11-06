@@ -2,6 +2,7 @@
   lib,
   stdenv,
   rustPlatform,
+  autoPatchelfHook,
   apple-sdk ? null,
   alsa-lib,
   bun,
@@ -125,6 +126,20 @@ rustPlatform.buildRustPackage rec {
     # para que puedan ejecutarse correctamente durante la compilación.
     patchShebangs --build node_modules
 
+    # El Dart embebido por sass-embedded apunta a /lib64/ld-linux-*,
+    # inexistente en el sandbox. Reescribir el intérprete al de Nix
+    # permite que Vite lo ejecute al compilar SCSS.
+    ${lib.optionalString stdenv.hostPlatform.isLinux ''
+      for dart in node_modules/sass-embedded-linux-*/dart-sass/src/dart; do
+        # Las variantes musl no pueden enlazarse contra la glibc de Nix.
+        case "$dart" in
+          *-musl-*) continue ;;
+        esac
+        [ -e "$dart" ] || continue
+        autoPatchelf "$dart"
+      done
+    ''}
+
     # CubicLauncher se actualiza mediante Nix o manualmente.
     # Por ello, no es necesario generar artefactos del actualizador
     # automático durante la compilación del paquete.
@@ -147,6 +162,10 @@ rustPlatform.buildRustPackage rec {
     # Herramientas para integrar la aplicación con el escritorio Linux.
     desktop-file-utils
     wrapGAppsHook4
+
+    # Reescribe el intérprete de binarios ELF precompilados (por ejemplo,
+    # el Dart de sass-embedded) para que apunten al cargador de Nix.
+    autoPatchelfHook
   ];
 
   # Bibliotecas y frameworks necesarios para compilar y enlazar la aplicación.
@@ -184,6 +203,10 @@ rustPlatform.buildRustPackage rec {
   # Se puede habilitar cuando las pruebas sean compatibles y estables
   # dentro del entorno de compilación de Nix.
   doCheck = false;
+
+  # El hook solo debe parchear el Dart de sass-embedded de forma manual.
+  # El binario Rust ya se enlaza correctamente durante la compilación.
+  dontAutoPatchelf = true;
 
   # Minecraft hereda parte del entorno de ejecución del launcher.
   #
