@@ -13,7 +13,7 @@ use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use storage::SecureStorage;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct MinecraftUser {
     pub username: String,
     #[serde(default)]
@@ -34,6 +34,26 @@ pub enum AccountType {
     Cracked,
     Microsoft,
     Yggdrasil,
+}
+
+impl std::fmt::Debug for MinecraftUser {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MinecraftUser")
+            .field("username", &self.username)
+            .field("uuid", &self.uuid)
+            .field("access_token", &"<redacted>")
+            .field(
+                "refresh_token",
+                &self.refresh_token.as_ref().map(|_| "<redacted>"),
+            )
+            .field("user_type", &self.user_type)
+            .field("yggdrasil_server_url", &self.yggdrasil_server_url)
+            .field(
+                "client_token",
+                &self.client_token.as_ref().map(|_| "<redacted>"),
+            )
+            .finish()
+    }
 }
 
 impl MinecraftUser {
@@ -136,13 +156,19 @@ impl MinecraftUser {
                 SecureStorage::save(&self.uuid, "access", &self.access_token)?;
                 if let Some(refresh) = &self.refresh_token {
                     SecureStorage::save(&self.uuid, "refresh", refresh)?;
+                } else {
+                    let _ = SecureStorage::delete(&self.uuid, "refresh");
                 }
+                let _ = SecureStorage::delete(&self.uuid, "client");
             }
             AccountType::Yggdrasil => {
                 SecureStorage::save(&self.uuid, "access", &self.access_token)?;
                 if let Some(client) = &self.client_token {
                     SecureStorage::save(&self.uuid, "client", client)?;
+                } else {
+                    let _ = SecureStorage::delete(&self.uuid, "client");
                 }
+                let _ = SecureStorage::delete(&self.uuid, "refresh");
             }
             AccountType::Cracked => {}
         }
