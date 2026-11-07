@@ -9,10 +9,10 @@ use hkdf::Hkdf;
 use log::warn;
 use rand::{RngCore, rng};
 use sha2::{Digest, Sha256};
-use std::fs;
-use std::io::Write;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use zellkern::path_security::ConfinedDir;
 use zeroize::{Zeroize, Zeroizing};
 
 const SECRET_MAGIC: &[u8; 8] = b"CLSECRET";
@@ -41,6 +41,24 @@ std::thread_local! {
 ///
 /// La clave maestra se guarda aparte de los secretos y nunca se deriva del
 /// UUID ni de información pública de la cuenta.
+///
+/// Todas las operaciones de disco pasan por [`ConfinedDir`], que resuelve cada
+/// componente relativo a un descriptor abierto y rechaza enlaces simbólicos,
+/// junctions y puntos de reanálisis de Windows. Los ficheros temporales se
+/// crean dentro del mismo directorio confinado y se publican con `rename`
+/// relativo al descriptor, de modo que un ataque TOCTOU no puede redirigir la
+/// escritura fuera del almacén.
+///
+/// Limitaciones conocidas:
+/// - En Windows los permisos son ACL heredadas del directorio; este crate no
+///   crea una DACL explícita. En Unix se aplican `0600`/`0700`.
+/// - Los ancestros configurados (por ejemplo las raíces XDG) son de confianza:
+///   un enlace simbólico allí puede reubicar todo el almacén, igual que en
+///   cualquier ruta de datos de la aplicación.
+/// - Los hardlinks dentro del almacén no se rechazan. Las escrituras publican
+///   siempre un inodo nuevo, así que un hardlink nunca se sobrescribe a través
+///   del almacén; un hardlink malicioso solo podría hacer que la lectura
+///   devuelva datos que no descifran.
 pub struct SecureStorage {
     secrets_dir: PathBuf,
     key_path: PathBuf,
@@ -107,9 +125,10 @@ impl SecureStorage {
 
     fn save_secret(&self, uuid: &str, key_name: &str, value: &str) -> crate::Result<()> {
         Self::validate(uuid, key_name)?;
-        self.ensure_secrets_dir()?;
+        let secrets = self.open_secrets(true)?;
+        let (key_dir, key_file) = self.open_key_dir(true)?;
 
-        let master_key = Zeroizing::new(self.load_or_create_master_key()?);
+        let master_key = Zeroizing::new(self.load_or_create_master_key(&key_dir, &key_file)?);
         let mut salt = [0u8; SALT_LEN];
         rng().fill_bytes(&mut salt);
         let mut nonce_bytes = [0u8; NONCE_LEN];
@@ -136,23 +155,27 @@ impl SecureStorage {
         data.extend_from_slice(&nonce_bytes);
         data.extend_from_slice(&ciphertext);
 
-        Self::write_atomic(&self.secret_path(uuid, key_name), &data)
+        secrets.write_private(Path::new(&Self::secret_file_name(uuid, key_name)), &data)?;
+        Ok(())
     }
 
     fn load_secret(&self, uuid: &str, key_name: &str) -> crate::Result<String> {
         Self::validate(uuid, key_name)?;
-        let file_path = self.secret_path(uuid, key_name);
-        let data = match fs::read(&file_path) {
-            Ok(data) => data,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                return Err(crate::Error::AuthError(format!(
-                    "Secret not found for {}:{}",
-                    uuid, key_name
-                )));
+        let secrets = match self.open_secrets_io(false) {
+            Ok(dir) => dir,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                return Err(Self::not_found(uuid, key_name));
             }
             Err(e) => return Err(e.into()),
         };
-        Self::harden_file(&file_path);
+        let file_name = Self::secret_file_name(uuid, key_name);
+        let data = match secrets.read(Path::new(&file_name)) {
+            Ok(data) => data,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                return Err(Self::not_found(uuid, key_name));
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         if data.starts_with(SECRET_MAGIC) {
             return self.decrypt_v2(&data, uuid, key_name);
@@ -172,11 +195,20 @@ impl SecureStorage {
 
     fn delete_secret(&self, uuid: &str, key_name: &str) -> crate::Result<()> {
         Self::validate(uuid, key_name)?;
-        match fs::remove_file(self.secret_path(uuid, key_name)) {
+        let secrets = match self.open_secrets_io(false) {
+            Ok(dir) => dir,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(e.into()),
+        };
+        match secrets.remove_file(Path::new(&Self::secret_file_name(uuid, key_name))) {
             Ok(()) => Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e.into()),
         }
+    }
+
+    fn not_found(uuid: &str, key_name: &str) -> crate::Error {
+        crate::Error::AuthError(format!("Secret not found for {}:{}", uuid, key_name))
     }
 
     fn decrypt_v2(&self, data: &[u8], uuid: &str, key_name: &str) -> crate::Result<String> {
@@ -198,7 +230,16 @@ impl SecureStorage {
         let nonce = Nonce::from_slice(&data[salt_end..nonce_end]);
         let ciphertext = &data[nonce_end..];
 
-        let master_key = Zeroizing::new(self.load_master_key()?);
+        let (key_dir, key_file) = match self.open_key_dir(false) {
+            Ok(location) => location,
+            Err(crate::Error::Io(e)) if e.kind() == io::ErrorKind::NotFound => {
+                return Err(crate::Error::AuthError(
+                    "Vault key not found; the saved tokens cannot be decrypted".into(),
+                ));
+            }
+            Err(e) => return Err(e),
+        };
+        let master_key = Zeroizing::new(self.load_master_key(&key_dir, &key_file)?);
         let key = Zeroizing::new(Self::derive_record_key(&master_key, salt, uuid, key_name)?);
         let cipher = Aes256Gcm::new_from_slice(&*key)
             .map_err(|e| crate::Error::AuthError(format!("Cipher error: {}", e)))?;
@@ -274,41 +315,52 @@ impl SecureStorage {
         aad
     }
 
-    fn load_or_create_master_key(&self) -> crate::Result<[u8; MASTER_KEY_LEN]> {
+    fn load_or_create_master_key(
+        &self,
+        key_dir: &ConfinedDir,
+        key_file: &Path,
+    ) -> crate::Result<[u8; MASTER_KEY_LEN]> {
         let _guard = KEY_LOCK
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
 
-        if let Some(key) = self.try_load_master_key()? {
+        if let Some(key) = self.try_load_master_key(key_dir, key_file)? {
             return Ok(key);
         }
 
         let mut key = [0u8; MASTER_KEY_LEN];
         rng().fill_bytes(&mut key);
-        let result = self.create_master_key(&key);
+        let result = self.create_master_key(key_dir, key_file, &key);
         key.zeroize();
         result?;
 
         // Puede que otra instancia ya hubiera creado la clave; en ese caso se
         // devuelve la que está realmente en disco.
-        self.load_master_key()
+        self.load_master_key(key_dir, key_file)
     }
 
-    fn load_master_key(&self) -> crate::Result<[u8; MASTER_KEY_LEN]> {
-        self.try_load_master_key()?.ok_or_else(|| {
+    fn load_master_key(
+        &self,
+        key_dir: &ConfinedDir,
+        key_file: &Path,
+    ) -> crate::Result<[u8; MASTER_KEY_LEN]> {
+        self.try_load_master_key(key_dir, key_file)?.ok_or_else(|| {
             crate::Error::AuthError(
                 "Vault key not found; the saved tokens cannot be decrypted".into(),
             )
         })
     }
 
-    fn try_load_master_key(&self) -> crate::Result<Option<[u8; MASTER_KEY_LEN]>> {
-        let data = match fs::read(&self.key_path) {
+    fn try_load_master_key(
+        &self,
+        key_dir: &ConfinedDir,
+        key_file: &Path,
+    ) -> crate::Result<Option<[u8; MASTER_KEY_LEN]>> {
+        let data = match key_dir.read(key_file) {
             Ok(data) => Zeroizing::new(data),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
             Err(e) => return Err(e.into()),
         };
-        Self::harden_file(&self.key_path);
 
         if data.len() != KEY_FILE_LEN
             || !data.starts_with(KEY_MAGIC)
@@ -324,41 +376,81 @@ impl SecureStorage {
         Ok(Some(key))
     }
 
-    fn create_master_key(&self, key: &[u8; MASTER_KEY_LEN]) -> crate::Result<()> {
-        self.ensure_key_dir()?;
-
+    fn create_master_key(
+        &self,
+        key_dir: &ConfinedDir,
+        key_file: &Path,
+        key: &[u8; MASTER_KEY_LEN],
+    ) -> crate::Result<()> {
         let mut data = Zeroizing::new(Vec::with_capacity(KEY_FILE_LEN));
         data.extend_from_slice(KEY_MAGIC);
         data.push(KEY_VERSION);
         data.extend_from_slice(key);
 
-        #[allow(unused_mut)]
-        let mut options = fs::OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-
-        let mut file = match options.open(&self.key_path) {
-            Ok(file) => file,
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+        match key_dir.create_new_private(key_file, &data) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
                 // Otra instancia creó la clave entre la lectura y la creación.
                 // El llamador volverá a leer la clave existente.
-                return Ok(());
+                Ok(())
             }
-            Err(e) => return Err(e.into()),
-        };
-
-        file.write_all(&data)?;
-        file.sync_all()?;
-        Self::harden_file(&self.key_path);
-        Ok(())
+            Err(e) => Err(e.into()),
+        }
     }
 
-    fn secret_path(&self, uuid: &str, key_name: &str) -> PathBuf {
-        self.secrets_dir.join(format!("{}_{}.enc", uuid, key_name))
+    fn open_secrets_io(&self, create: bool) -> io::Result<ConfinedDir> {
+        // Use the application directory as the capability root and open the
+        // final "secrets" component relative to it. This rejects a link at
+        // either level instead of trusting the "claunch-rs" ancestor.
+        let parent = self.secrets_dir.parent().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Could not determine secure storage parent",
+            )
+        })?;
+        let name = self.secrets_dir.file_name().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Could not determine secure storage directory name",
+            )
+        })?;
+        let root = if create {
+            ConfinedDir::open_or_create(parent)?
+        } else {
+            ConfinedDir::open_existing(parent)?
+        };
+        if create {
+            root.create_dir_all(Path::new(name))?;
+        }
+        let dir = root.open_dir(Path::new(name))?;
+        dir.restrict();
+        Ok(dir)
+    }
+
+    fn open_secrets(&self, create: bool) -> crate::Result<ConfinedDir> {
+        self.open_secrets_io(create).map_err(|e| {
+            crate::Error::AuthError(format!("Secure storage directory is not safe: {e}"))
+        })
+    }
+
+    fn open_key_dir(&self, create: bool) -> crate::Result<(ConfinedDir, PathBuf)> {
+        let parent = self.key_path.parent().ok_or_else(|| {
+            crate::Error::AuthError("Could not determine vault key directory".into())
+        })?;
+        let name = self
+            .key_path
+            .file_name()
+            .ok_or_else(|| crate::Error::AuthError("Could not determine vault key file".into()))?;
+        let dir = if create {
+            ConfinedDir::open_or_create(parent)
+        } else {
+            ConfinedDir::open_existing(parent)
+        }?;
+        Ok((dir, PathBuf::from(name)))
+    }
+
+    fn secret_file_name(uuid: &str, key_name: &str) -> String {
+        format!("{}_{}.enc", uuid, key_name)
     }
 
     fn validate(uuid: &str, key_name: &str) -> crate::Result<()> {
@@ -382,88 +474,10 @@ impl SecureStorage {
         Ok(())
     }
 
-    fn ensure_secrets_dir(&self) -> crate::Result<()> {
-        if !self.secrets_dir.exists() {
-            fs::create_dir_all(&self.secrets_dir)?;
-        }
-        Self::harden_dir(&self.secrets_dir);
-        Ok(())
-    }
-
-    fn ensure_key_dir(&self) -> crate::Result<()> {
-        let dir = self.key_path.parent().ok_or_else(|| {
-            crate::Error::AuthError("Could not determine vault key directory".into())
-        })?;
-        if !dir.exists() {
-            fs::create_dir_all(dir)?;
-        }
-        Self::harden_dir(dir);
-        Ok(())
-    }
-
-    fn write_atomic(path: &Path, data: &[u8]) -> crate::Result<()> {
-        let dir = path.parent().ok_or_else(|| {
-            crate::Error::AuthError("Could not determine secret directory".into())
-        })?;
-        let tmp = dir.join(format!(".{}.tmp", uuid::Uuid::new_v4()));
-
-        #[allow(unused_mut)]
-        let mut options = fs::OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-
-        let result = (|| -> std::io::Result<()> {
-            let mut file = options.open(&tmp)?;
-            file.write_all(data)?;
-            file.sync_all()?;
-            drop(file);
-            fs::rename(&tmp, path)?;
-            Ok(())
-        })();
-
-        if let Err(e) = result {
-            let _ = fs::remove_file(&tmp);
-            return Err(e.into());
-        }
-
-        Self::harden_file(path);
-        Ok(())
-    }
-
-    #[cfg(unix)]
-    fn harden_dir(path: &Path) {
-        use std::os::unix::fs::PermissionsExt;
-        if let Ok(metadata) = fs::metadata(path) {
-            let mut permissions = metadata.permissions();
-            permissions.set_mode(0o700);
-            let _ = fs::set_permissions(path, permissions);
-        }
-    }
-
-    #[cfg(not(unix))]
-    fn harden_dir(_path: &Path) {}
-
-    #[cfg(unix)]
-    fn harden_file(path: &Path) {
-        use std::os::unix::fs::PermissionsExt;
-        if let Ok(metadata) = fs::metadata(path) {
-            let mut permissions = metadata.permissions();
-            permissions.set_mode(0o600);
-            let _ = fs::set_permissions(path, permissions);
-        }
-    }
-
-    #[cfg(not(unix))]
-    fn harden_file(_path: &Path) {}
-
     #[cfg(test)]
     pub(crate) fn save_legacy(&self, uuid: &str, key_name: &str, value: &str) -> crate::Result<()> {
         Self::validate(uuid, key_name)?;
-        self.ensure_secrets_dir()?;
+        let secrets = self.open_secrets(true)?;
 
         let key = Zeroizing::new(Self::legacy_key(uuid));
         let cipher = Aes256Gcm::new_from_slice(&*key)
@@ -478,6 +492,7 @@ impl SecureStorage {
         data.extend_from_slice(&nonce_bytes);
         data.extend_from_slice(&ciphertext);
 
-        Self::write_atomic(&self.secret_path(uuid, key_name), &data)
+        secrets.write_private(Path::new(&Self::secret_file_name(uuid, key_name)), &data)?;
+        Ok(())
     }
 }

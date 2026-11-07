@@ -305,6 +305,242 @@ fn storage_permissions_are_restrictive() {
     });
 }
 
+#[test]
+fn path_components_cannot_escape_secret_storage() {
+    let dir = tempdir().unwrap();
+    SecureStorage::with_test_root(dir.path(), || {
+        for uuid in [
+            "../escape",
+            "..",
+            "a/b",
+            "a\\b",
+            "/absolute",
+            "C:\\drive",
+            "x/../../y",
+            "a\0b",
+            "",
+        ] {
+            assert!(
+                SecureStorage::save(uuid, "access", "token").is_err(),
+                "save accepted {uuid:?}"
+            );
+            assert!(
+                SecureStorage::load(uuid, "access").is_err(),
+                "load accepted {uuid:?}"
+            );
+            assert!(
+                SecureStorage::delete(uuid, "access").is_err(),
+                "delete accepted {uuid:?}"
+            );
+        }
+        for key_name in ["../access", "access/../refresh", "", "other", "access\0"] {
+            assert!(SecureStorage::save("uuid-key-name", key_name, "token").is_err());
+            assert!(SecureStorage::load("uuid-key-name", key_name).is_err());
+            assert!(SecureStorage::delete("uuid-key-name", key_name).is_err());
+        }
+    });
+    assert!(!dir.path().join("escape_access.enc").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn symlinked_secret_file_is_rejected_and_external_file_is_untouched() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempdir().unwrap();
+    let secrets = dir.path().join("secrets");
+    fs::create_dir_all(&secrets).unwrap();
+    let outside = dir.path().join("outside.txt");
+    fs::write(&outside, b"outside-secret").unwrap();
+    symlink(&outside, secret_path(dir.path(), "uuid-link", "access")).unwrap();
+
+    SecureStorage::with_test_root(dir.path(), || {
+        assert!(SecureStorage::load("uuid-link", "access").is_err());
+        assert!(SecureStorage::save("uuid-link", "access", "new-secret").is_err());
+        assert!(SecureStorage::delete("uuid-link", "access").is_err());
+    });
+
+    assert_eq!(fs::read(&outside).unwrap(), b"outside-secret");
+    assert!(
+        secret_path(dir.path(), "uuid-link", "access")
+            .symlink_metadata()
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn symlinked_directory_at_secret_name_is_rejected() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempdir().unwrap();
+    let secrets = dir.path().join("secrets");
+    let outside = dir.path().join("outside");
+    fs::create_dir_all(&secrets).unwrap();
+    fs::create_dir(&outside).unwrap();
+    symlink(&outside, secret_path(dir.path(), "uuid-dir", "access")).unwrap();
+
+    SecureStorage::with_test_root(dir.path(), || {
+        assert!(SecureStorage::load("uuid-dir", "access").is_err());
+        assert!(SecureStorage::save("uuid-dir", "access", "token").is_err());
+        assert!(SecureStorage::delete("uuid-dir", "access").is_err());
+    });
+
+    assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+}
+
+#[cfg(unix)]
+#[test]
+fn symlinked_secrets_directory_is_rejected() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempdir().unwrap();
+    let outside = dir.path().join("outside");
+    fs::create_dir(&outside).unwrap();
+    symlink(&outside, dir.path().join("secrets")).unwrap();
+
+    SecureStorage::with_test_root(dir.path(), || {
+        assert!(SecureStorage::save("uuid-root", "access", "token").is_err());
+        assert!(SecureStorage::load("uuid-root", "access").is_err());
+        assert!(SecureStorage::delete("uuid-root", "access").is_err());
+    });
+
+    assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+}
+
+#[test]
+fn replaced_secrets_directory_does_not_leak_or_redirect_credentials() {
+    let dir = tempdir().unwrap();
+    SecureStorage::with_test_root(dir.path(), || {
+        SecureStorage::save("uuid-replace", "access", "original-token").unwrap();
+    });
+
+    let secrets = dir.path().join("secrets");
+    let moved = dir.path().join("secrets-old");
+    fs::rename(&secrets, &moved).unwrap();
+    fs::create_dir(&secrets).unwrap();
+
+    SecureStorage::with_test_root(dir.path(), || {
+        assert!(SecureStorage::load("uuid-replace", "access").is_err());
+    });
+
+    #[cfg(unix)]
+    {
+        fs::remove_dir(&secrets).unwrap();
+        let outside = dir.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        std::os::unix::fs::symlink(&outside, &secrets).unwrap();
+
+        SecureStorage::with_test_root(dir.path(), || {
+            assert!(SecureStorage::save("uuid-replace", "access", "token").is_err());
+            assert!(SecureStorage::load("uuid-replace", "access").is_err());
+            assert!(SecureStorage::delete("uuid-replace", "access").is_err());
+        });
+        assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+    }
+}
+
+#[test]
+fn atomic_writes_leave_no_temporary_files() {
+    let dir = tempdir().unwrap();
+    SecureStorage::with_test_root(dir.path(), || {
+        SecureStorage::save("uuid-temp", "access", "token").unwrap();
+    });
+
+    let names: Vec<_> = fs::read_dir(dir.path().join("secrets"))
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(names, vec!["uuid-temp_access.enc"]);
+    assert!(names.iter().all(|name| !name.starts_with(".cubic-write-")));
+}
+
+#[cfg(unix)]
+#[test]
+fn concurrent_secret_symlink_swaps_do_not_escape() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    let dir = tempdir().unwrap();
+    let secrets = dir.path().join("secrets");
+    let outside = dir.path().join("outside.txt");
+    fs::create_dir_all(&secrets).unwrap();
+    fs::write(&outside, b"outside-secret").unwrap();
+
+    SecureStorage::with_test_root(dir.path(), || {
+        SecureStorage::save("uuid-race", "access", "initial").unwrap();
+    });
+
+    let target = secret_path(dir.path(), "uuid-race", "access");
+    let stop = Arc::new(AtomicBool::new(false));
+    let attacker_target = target.clone();
+    let attacker_outside = outside.clone();
+    let attacker_stop = Arc::clone(&stop);
+    let attacker = std::thread::spawn(move || {
+        while !attacker_stop.load(Ordering::Relaxed) {
+            let _ = fs::remove_file(&attacker_target);
+            let _ = std::os::unix::fs::symlink(&attacker_outside, &attacker_target);
+            let _ = fs::remove_file(&attacker_target);
+            let _ = fs::write(&attacker_target, b"inside");
+        }
+    });
+
+    SecureStorage::with_test_root(dir.path(), || {
+        for _ in 0..500 {
+            let _ = SecureStorage::save("uuid-race", "access", "new-token");
+            let _ = SecureStorage::load("uuid-race", "access");
+            let _ = SecureStorage::delete("uuid-race", "access");
+        }
+    });
+
+    stop.store(true, Ordering::Relaxed);
+    attacker.join().unwrap();
+    assert_eq!(fs::read(&outside).unwrap(), b"outside-secret");
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_reparse_secret_file_is_rejected() {
+    let dir = tempdir().unwrap();
+    let secrets = dir.path().join("secrets");
+    fs::create_dir_all(&secrets).unwrap();
+    let outside = dir.path().join("outside.txt");
+    fs::write(&outside, b"outside-secret").unwrap();
+    let target = secret_path(dir.path(), "uuid-reparse", "access");
+    if std::os::windows::fs::symlink_file(&outside, &target).is_err() {
+        eprintln!("skipping Windows reparse test: symlink creation is unavailable");
+        return;
+    }
+
+    SecureStorage::with_test_root(dir.path(), || {
+        assert!(SecureStorage::load("uuid-reparse", "access").is_err());
+        assert!(SecureStorage::save("uuid-reparse", "access", "new").is_err());
+        assert!(SecureStorage::delete("uuid-reparse", "access").is_err());
+    });
+    assert_eq!(fs::read(&outside).unwrap(), b"outside-secret");
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_reparse_secrets_directory_is_rejected() {
+    let dir = tempdir().unwrap();
+    let outside = dir.path().join("outside");
+    fs::create_dir(&outside).unwrap();
+    if std::os::windows::fs::symlink_dir(&outside, dir.path().join("secrets")).is_err() {
+        eprintln!("skipping Windows reparse test: symlink creation is unavailable");
+        return;
+    }
+
+    SecureStorage::with_test_root(dir.path(), || {
+        assert!(SecureStorage::save("uuid-root", "access", "token").is_err());
+        assert!(SecureStorage::load("uuid-root", "access").is_err());
+        assert!(SecureStorage::delete("uuid-root", "access").is_err());
+    });
+    assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+}
+
 /// Token de Minecraft con la forma real: header.payload.signature en base64url.
 fn jwt_with_exp(exp: i64) -> String {
     use base64::{Engine as _, engine::general_purpose};

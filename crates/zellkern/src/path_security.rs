@@ -1,10 +1,74 @@
 //! Portable untrusted paths and handle-relative filesystem publication.
+use cap_primitives::fs::FollowSymlinks;
 use cap_std::fs::{Dir, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 fn invalid(message: impl Into<String>) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, message.into())
+}
+
+/// Symlinks are not the only reparse points Windows can put in a path.
+/// Junctions, mount points and cloud placeholders are reparse points too, so
+/// checking the file attribute is stricter than `is_symlink`.
+fn is_link_or_reparse(meta: &cap_std::fs::Metadata) -> bool {
+    if meta.is_symlink() {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        use cap_std::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
+        if meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+            return true;
+        }
+    }
+    false
+}
+
+/// Ask cap-std to resolve the final component without following links.
+/// This is the hook the upstream `cap-fs-ext` crate uses; it maps to
+/// `O_NOFOLLOW` on Unix and `OBJ_DONT_REPARSE` on Windows.
+fn nofollow(options: &mut OpenOptions) {
+    options._cap_fs_ext_follow(FollowSymlinks::No);
+}
+
+/// Open a child directory relative to an already-open directory, refusing to
+/// traverse a symlink or reparse point. The returned handle remains valid even
+/// if the path is later replaced.
+fn open_dir_nofollow(dir: &Dir, name: &str) -> io::Result<Dir> {
+    let start = dir.try_clone()?.into_std_file();
+    let file = cap_primitives::fs::open_dir_nofollow(&start, Path::new(name))?;
+    Ok(Dir::from_std_file(file))
+}
+
+fn create_dir_private(dir: &Dir, name: &str) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use cap_std::fs::DirBuilderExt;
+        let mut builder = cap_std::fs::DirBuilder::new();
+        builder.mode(0o700);
+        dir.create_dir_with(name, &builder)
+    }
+    #[cfg(not(unix))]
+    {
+        dir.create_dir(name)
+    }
+}
+
+/// Split a trusted root into its (possibly symlinked) parent and a validated
+/// final component. The final component must be a single portable name.
+fn root_parent(root: &Path) -> io::Result<(&Path, String)> {
+    let name = root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| invalid("Storage root has no file name"))?;
+    validate_component(name)?;
+    let parent = match root.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
+    };
+    Ok((parent, name.to_owned()))
 }
 
 /// A single portable filename. Reject Windows aliases even on Unix so an
@@ -84,6 +148,74 @@ impl ConfinedDir {
         )?))
     }
 
+    /// Open an existing root without following a link in its final component.
+    ///
+    /// Configured ancestors are trusted and may be symlinks, but the root
+    /// itself must be a real directory: otherwise a link planted at the
+    /// storage path would redirect every later operation outside the boundary.
+    pub fn open_existing(root: &Path) -> io::Result<Self> {
+        let (parent, name) = root_parent(root)?;
+        let parent_dir = Dir::open_ambient_dir(parent, cap_std::ambient_authority())?;
+        let meta = parent_dir.symlink_metadata(&name)?;
+        if is_link_or_reparse(&meta) {
+            return Err(invalid("Storage root is a symbolic link or reparse point"));
+        }
+        if !meta.is_dir() {
+            return Err(invalid("Storage root is not a directory"));
+        }
+        let dir = open_dir_nofollow(&parent_dir, &name)?;
+        Self::harden_root(&dir);
+        Ok(Self(dir))
+    }
+
+    /// Open an existing root, or create it with owner-only permissions.
+    ///
+    /// Creation is handle-relative: the final component is never created or
+    /// opened through a link, even if another process races the check.
+    pub fn open_or_create(root: &Path) -> io::Result<Self> {
+        let (parent, name) = root_parent(root)?;
+        std::fs::create_dir_all(parent)?;
+        let parent_dir = Dir::open_ambient_dir(parent, cap_std::ambient_authority())?;
+
+        match parent_dir.symlink_metadata(&name) {
+            Ok(meta) if is_link_or_reparse(&meta) => {
+                return Err(invalid("Storage root is a symbolic link or reparse point"));
+            }
+            Ok(meta) if meta.is_dir() => {}
+            Ok(_) => return Err(invalid("Storage root exists and is not a directory")),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                match create_dir_private(&parent_dir, &name) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
+                    Err(e) => return Err(e),
+                }
+            }
+            Err(e) => return Err(e),
+        }
+
+        let dir = open_dir_nofollow(&parent_dir, &name)?;
+        Self::harden_root(&dir);
+        Ok(Self(dir))
+    }
+
+    fn harden_root(dir: &Dir) {
+        #[cfg(unix)]
+        {
+            use cap_std::fs::PermissionsExt;
+            let _ = dir.set_permissions(".", cap_std::fs::Permissions::from_mode(0o700));
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = dir;
+        }
+    }
+
+    /// Apply owner-only permissions to this directory on Unix. Other targets
+    /// keep their inherited ACLs.
+    pub fn restrict(&self) {
+        Self::harden_root(&self.0);
+    }
+
     fn parent(&self, relative: &Path, create: bool) -> io::Result<(Dir, String)> {
         let text = relative.to_str().ok_or_else(|| invalid("Non UTF-8 path"))?;
         let path = archive_path(text)?;
@@ -97,17 +229,17 @@ impl ConfinedDir {
                 return Ok((dir, name.to_owned()));
             }
             if create {
-                match dir.create_dir(name) {
+                match create_dir_private(&dir, name) {
                     Ok(()) => {}
                     Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
                     Err(e) => return Err(e),
                 }
             }
             let meta = dir.symlink_metadata(name)?;
-            if !meta.is_dir() || meta.is_symlink() {
+            if !meta.is_dir() || is_link_or_reparse(&meta) {
                 return Err(invalid("Destination ancestor is not a regular directory"));
             }
-            dir = dir.open_dir(name)?;
+            dir = open_dir_nofollow(&dir, name)?;
         }
         Err(invalid("Empty destination path"))
     }
@@ -125,11 +257,22 @@ impl ConfinedDir {
 
     pub fn read(&self, relative: &Path) -> io::Result<Vec<u8>> {
         let (dir, name) = self.parent(relative, false)?;
-        let meta = dir.symlink_metadata(&name)?;
-        if !meta.is_file() || meta.is_symlink() {
+        let mut options = OpenOptions::new();
+        options.read(true);
+        nofollow(&mut options);
+        let mut file = dir.open_with(&name, &options)?;
+        let meta = file.metadata()?;
+        if !meta.is_file() || is_link_or_reparse(&meta) {
             return Err(invalid("Source is not a regular file"));
         }
-        dir.read(name)
+        #[cfg(unix)]
+        {
+            use cap_std::fs::PermissionsExt;
+            let _ = file.set_permissions(cap_std::fs::Permissions::from_mode(0o600));
+        }
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)?;
+        Ok(bytes)
     }
 
     pub fn file_exists(&self, relative: &Path) -> io::Result<bool> {
@@ -138,8 +281,8 @@ impl ConfinedDir {
             Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(false),
             Err(e) => return Err(e),
         };
-        match dir.symlink_metadata(name) {
-            Ok(meta) if meta.is_file() && !meta.is_symlink() => Ok(true),
+        match dir.symlink_metadata(&name) {
+            Ok(meta) if meta.is_file() && !is_link_or_reparse(&meta) => Ok(true),
             Ok(_) => Err(invalid("Destination is not a regular file")),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
             Err(e) => Err(e),
@@ -149,9 +292,27 @@ impl ConfinedDir {
     /// Write to a new inode and publish by handle-relative rename. This avoids
     /// truncating symlink/hardlink targets, including an existing final file.
     pub fn copy_from(&self, relative: &Path, source: &mut impl Read) -> io::Result<()> {
+        self.copy_from_inner(relative, source, false)
+    }
+
+    /// Like [`Self::copy_from`], but the published file is owner-only on Unix.
+    /// The temporary file is created in the confined directory too, so cleanup
+    /// can only ever unlink an entry below the opened root.
+    pub fn copy_from_private(&self, relative: &Path, source: &mut impl Read) -> io::Result<()> {
+        self.copy_from_inner(relative, source, true)
+    }
+
+    fn copy_from_inner(
+        &self,
+        relative: &Path,
+        source: &mut impl Read,
+        private: bool,
+    ) -> io::Result<()> {
+        #[cfg(not(unix))]
+        let _ = private;
         let (dir, name) = self.parent(relative, true)?;
         match dir.symlink_metadata(&name) {
-            Ok(meta) if !meta.is_file() || meta.is_symlink() => {
+            Ok(meta) if !meta.is_file() || is_link_or_reparse(&meta) => {
                 return Err(invalid("Destination is not a regular file"));
             }
             Ok(_) => {}
@@ -160,11 +321,27 @@ impl ConfinedDir {
         }
         let temporary = format!(".cubic-write-{}", uuid::Uuid::new_v4());
         let result = (|| {
-            let mut file =
-                dir.open_with(&temporary, OpenOptions::new().write(true).create_new(true))?;
+            let mut options = OpenOptions::new();
+            options.write(true).create_new(true);
+            nofollow(&mut options);
+            #[cfg(unix)]
+            {
+                if private {
+                    use cap_std::fs::OpenOptionsExt;
+                    options.mode(0o600);
+                }
+            }
+            let mut file = dir.open_with(&temporary, &options)?;
             io::copy(source, &mut file)?;
             file.flush()?;
             file.sync_all()?;
+            #[cfg(unix)]
+            {
+                if private {
+                    use cap_std::fs::PermissionsExt;
+                    file.set_permissions(cap_std::fs::Permissions::from_mode(0o600))?;
+                }
+            }
             drop(file);
             dir.rename(&temporary, &dir, &name)?;
             // Directory syncing is not supported on every target.
@@ -181,9 +358,48 @@ impl ConfinedDir {
         self.copy_from(relative, &mut &contents[..])
     }
 
+    pub fn write_private(&self, relative: &Path, contents: &[u8]) -> io::Result<()> {
+        self.copy_from_private(relative, &mut &contents[..])
+    }
+
+    /// Create a new file without replacing an existing entry. The kernel
+    /// refuses to follow a link when `create_new` is set, so this is safe even
+    /// if a link appears between the metadata check and the open.
+    pub fn create_new_private(&self, relative: &Path, contents: &[u8]) -> io::Result<()> {
+        let (dir, name) = self.parent(relative, true)?;
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        nofollow(&mut options);
+        #[cfg(unix)]
+        {
+            use cap_std::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = dir.open_with(&name, &options)?;
+        file.write_all(contents)?;
+        file.flush()?;
+        file.sync_all()?;
+        #[cfg(unix)]
+        {
+            use cap_std::fs::PermissionsExt;
+            file.set_permissions(cap_std::fs::Permissions::from_mode(0o600))?;
+        }
+        Ok(())
+    }
+
     pub fn remove_file(&self, relative: &Path) -> io::Result<()> {
         let (dir, name) = self.parent(relative, false)?;
-        dir.remove_file(name)
+        match dir.symlink_metadata(&name) {
+            Ok(meta) if is_link_or_reparse(&meta) => {
+                return Err(invalid(
+                    "Refusing to remove a symbolic link or reparse point",
+                ));
+            }
+            Ok(_) => {}
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e),
+        }
+        dir.remove_file(&name)
     }
 
     pub fn rename(&self, from: &Path, to: &Path) -> io::Result<()> {

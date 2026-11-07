@@ -6569,6 +6569,7 @@ dependencies = [
 name = "zellkern"
 version = "0.1.0"
 dependencies = [
+ "cap-primitives",
  "cap-std",
  "log",
  "md5",
