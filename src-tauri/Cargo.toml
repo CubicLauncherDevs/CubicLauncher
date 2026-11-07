@@ -3,6 +3,8 @@ name = "cubiclauncher"
 version = "37.0.0"
 description = "The open source Minecraft Launcher."
 authors = ["Mitkomm (Santiagolxx)", "Not_staff"]
+license = "GPL-3.0-only"
+repository = "https://github.com/CubicLauncherDevs/CubicLauncher"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

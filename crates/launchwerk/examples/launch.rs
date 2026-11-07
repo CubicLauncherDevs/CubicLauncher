@@ -1,5 +1,5 @@
 // Copyright (C) 2025 Santiagolxx, CubicLauncher contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 //
 // Uso:
 //   BASE_DIR=/home/user/.cubic VERSION=fabric-loader-0.19.2-1.20.1 JAVA=/usr/bin/java cargo run --example launch

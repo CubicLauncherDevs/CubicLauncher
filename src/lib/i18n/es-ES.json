@@ -1194,9 +1194,9 @@
 		},
 		"slide9": {
 			"title": "Licencia",
-			"desc": "CubicLauncher es software libre publicado bajo la GNU General Public License v3."
+			"desc": "CubicLauncher es software libre publicado bajo la GNU General Public License v3.0 únicamente (GPL-3.0-only)."
 		},
-		"licenseName": "GNU General Public License v3",
+		"licenseName": "GNU General Public License v3.0 only (GPL-3.0-only)",
 		"licenseBullet1": "Podés usar, estudiar, compartir y modificar el software libremente.",
 		"licenseBullet2": "Si redistribuís el software, debés mantener la misma licencia.",
 		"licenseBullet3": "El software se proporciona sin garantía de ningún tipo.",

@@ -3,8 +3,9 @@ name = "launchwerk"
 version = "1.0.1"
 edition = "2024"
 authors = ["Santiagolxx", "CubicLauncher contributors"]
-license = "AGPL-3.0-or-later"
+license = "GPL-3.0-only"
 description = "Minecraft launcher library for CubicLauncher"
+repository = "https://github.com/CubicLauncherDevs/CubicLauncher"
 
 [features]
 default = []

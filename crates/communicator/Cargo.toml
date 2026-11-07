@@ -2,6 +2,10 @@
 name = "communicator"
 version = "0.1.0"
 edition = "2024"
+description = "Discord RPC client library for CubicLauncher"
+authors = ["Santiagolxx", "CubicLauncher contributors"]
+license = "GPL-3.0-only"
+repository = "https://github.com/CubicLauncherDevs/CubicLauncher"
 
 [dependencies]
 futures = "0.3.31"

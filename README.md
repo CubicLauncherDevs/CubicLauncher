@@ -11,7 +11,7 @@ Está hecho con Tauri v2, Rust y SvelteKit, y funciona en Windows, Linux y macOS
 [![CI](https://github.com/CubicLauncherDevs/CubicLauncher/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/CubicLauncherDevs/CubicLauncher/actions/workflows/ci.yml)
 [![Última versión](https://img.shields.io/github/v/release/CubicLauncherDevs/CubicLauncher)](https://github.com/CubicLauncherDevs/CubicLauncher/releases/latest)
 [![Descargas](https://img.shields.io/github/downloads/CubicLauncherDevs/CubicLauncher/total)](https://github.com/CubicLauncherDevs/CubicLauncher/releases)
-[![Licencia](https://img.shields.io/badge/Licencia-GPL--3.0-blue)](LICENSE)
+[![Licencia](https://img.shields.io/badge/Licencia-GPL--3.0--only-blue)](LICENSE)
 
 Sitio web: <https://cubiclauncher.org>
 
@@ -307,6 +307,6 @@ El proceso de versionado y publicación está explicado en [VERSIONING.md](VERSI
 
 # Licencia
 
-Todo el código del launcher se distribuye bajo la licencia [GPL-3.0-only](LICENSE).
+Todo el código del launcher, incluidos todos los crates del workspace, se distribuye bajo la licencia [GPL-3.0-only](LICENSE). Es software libre y de código abierto, sin cláusula de versiones posteriores.
 
 La participación en el proyecto se rige por el [Código de conducta](CODE_OF_CONDUCT.md).

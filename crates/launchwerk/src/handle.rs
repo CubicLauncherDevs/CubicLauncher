@@ -1,5 +1,5 @@
 // Copyright (C) 2025 Santiagolxx, CubicLauncher contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::Error;
 use crate::models::{Loader, VersionManifest};

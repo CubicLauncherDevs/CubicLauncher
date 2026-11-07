@@ -1,5 +1,5 @@
 // Copyright (C) 2026 Santiagolxx, Notstaff and CubicLauncher contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 #![cfg(feature = "auth")]
 use aes_gcm::{
     Aes256Gcm, Nonce,

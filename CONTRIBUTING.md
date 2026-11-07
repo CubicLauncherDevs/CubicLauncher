@@ -201,6 +201,10 @@ pero el release se marca como prerelease. Además, cada push a la rama
 `develop` dispara una build de prerelease que deja los binarios como artefactos
 de la ejecución, sin crear un release público.
 
+## Licencia de las contribuciones
+
+Al enviar un cambio aceptás que se distribuya bajo la licencia [GPL-3.0-only](LICENSE), la misma que usa todo el proyecto. No se aceptan contribuciones bajo licencias incompatibles.
+
 ## Flujo de trabajo
 
 1. Abrí un issue primero si el cambio es grande o puede discutirse.
