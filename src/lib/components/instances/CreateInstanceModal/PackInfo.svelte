@@ -1,34 +1,41 @@
 <script lang="ts">
-	import type { MrpackInfo } from "$lib/types/types";
+	import type { CurseForgeModpackInfo, MrpackInfo } from "$lib/types/types";
 	import { t } from "$lib/i18n";
+
+	type PackInfoData = MrpackInfo | CurseForgeModpackInfo;
 
 	let {
 		packInfo,
+		format = "modrinth",
 		onChangeFile,
 	}: {
-		packInfo: MrpackInfo;
+		packInfo: PackInfoData;
+		format?: "modrinth" | "curseforge";
 		onChangeFile: () => void;
 	} = $props();
 
-	function getPackName(info: MrpackInfo): string {
+	function getPackName(info: PackInfoData): string {
 		return info.name;
 	}
-	function getPackVersion(info: MrpackInfo): string {
-		return info.version_id;
+	function getPackVersion(info: PackInfoData): string {
+		return "version_id" in info ? info.version_id : info.version;
 	}
-	function getPackMcVersion(info: MrpackInfo): string | null {
+	function getPackAuthor(info: PackInfoData): string | null {
+		return "author" in info ? (info.author ?? null) : null;
+	}
+	function getPackMcVersion(info: PackInfoData): string | null {
 		return info.minecraft_version;
 	}
-	function getPackLoader(info: MrpackInfo): string | null {
+	function getPackLoader(info: PackInfoData): string | null {
 		return info.loader;
 	}
-	function getPackLoaderVersion(info: MrpackInfo): string | null {
+	function getPackLoaderVersion(info: PackInfoData): string | null {
 		return info.loader_version;
 	}
-	function getPackSummary(info: MrpackInfo): string | null {
+	function getPackSummary(info: PackInfoData): string | null {
 		return info.summary ?? null;
 	}
-	function getPackFileCount(info: MrpackInfo): number {
+	function getPackFileCount(info: PackInfoData): number {
 		return info.file_count;
 	}
 </script>
@@ -47,10 +54,10 @@
 				<span class="info-label">Versión</span>
 				<span class="info-value">{getPackVersion(packInfo)}</span>
 			</div>
-			{#if packInfo.author}
+			{#if getPackAuthor(packInfo)}
 				<div class="info-row">
 					<span class="info-label">{t("mrpackExport.author")}</span>
-					<span class="info-value">{packInfo.author}</span>
+					<span class="info-value">{getPackAuthor(packInfo)}</span>
 				</div>
 			{/if}
 			{#if getPackSummary(packInfo)}
@@ -78,7 +85,9 @@
 			</div>
 			<div class="info-row">
 				<span class="info-label">Formato</span>
-				<span class="info-value">Modrinth</span>
+				<span class="info-value"
+					>{format === "curseforge" ? "CurseForge" : "Modrinth"}</span
+				>
 			</div>
 			<div class="info-row">
 				<span class="info-label">Archivos</span>

@@ -4,7 +4,7 @@
 		getInstanceModpack,
 		setModpackLocked,
 		restoreModpackInventory,
-		type PackState,
+		type PackSummary,
 	} from "$lib/api/modpackApi";
 	import {
 		refreshInstanceMods,
@@ -15,7 +15,7 @@
 	import ModpackUpdateModal from "./ModpackUpdateModal.svelte";
 
 	let { id, busy = false }: { id: string; busy?: boolean } = $props();
-	let pack = $state<Omit<PackState, "files"> | null>(null);
+	let pack = $state<PackSummary | null>(null);
 	let loading = $state(true);
 	let changing = $state(false);
 	let error = $state("");
@@ -27,21 +27,6 @@
 		disposed = true;
 		generation++;
 	});
-
-	function metadata(state: PackState | null) {
-		if (!state) return null;
-		return {
-			schema_version: state.schema_version,
-			source: state.source,
-			project_id: state.project_id,
-			version_id: state.version_id,
-			name: state.name,
-			version: state.version,
-			game_version: state.game_version,
-			locked: state.locked,
-			needs_inventory: state.needs_inventory,
-		};
-	}
 
 	function portal(el: HTMLElement) {
 		document.body.appendChild(el);
@@ -58,7 +43,7 @@
 		error = "";
 		try {
 			const result = await getInstanceModpack(instanceId);
-			if (!disposed && request === generation) pack = metadata(result);
+			if (!disposed && request === generation) pack = result;
 		} catch (e) {
 			if (!disposed && request === generation) error = String(e);
 		} finally {
@@ -91,7 +76,7 @@
 		try {
 			const result = await setModpackLocked(instanceId, !pack.locked);
 			refreshInstanceMods(instanceId);
-			if (!disposed && request === generation) pack = metadata(result);
+			if (!disposed && request === generation) pack = result;
 		} catch (e) {
 			if (!disposed && request === generation) error = String(e);
 		} finally {
@@ -109,7 +94,7 @@
 		try {
 			const result = await restoreModpackInventory(instanceId);
 			refreshInstanceMods(instanceId);
-			if (!disposed && request === generation) pack = metadata(result);
+			if (!disposed && request === generation) pack = result;
 		} catch (e) {
 			if (!disposed && request === generation) error = String(e);
 		} finally {

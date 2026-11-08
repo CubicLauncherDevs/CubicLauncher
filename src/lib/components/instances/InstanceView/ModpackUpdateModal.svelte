@@ -10,7 +10,7 @@
 		previewModpackUpdate,
 		applyModpackUpdate,
 		cancelModpackUpdate,
-		type PackState,
+		type PackSummary,
 		type PackVersion,
 		type PackUpdatePreview,
 		type PackResolutions,
@@ -28,7 +28,7 @@
 	}: {
 		open: boolean;
 		id: string;
-		pack: Omit<PackState, "files">;
+		pack: PackSummary;
 		busy?: boolean;
 		onupdated: () => Promise<void>;
 	} = $props();

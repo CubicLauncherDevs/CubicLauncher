@@ -1,5 +1,6 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::pack_format::{MrpackMetadata, PackFormat};
 use crate::utils::path::safe_join;
@@ -160,6 +161,41 @@ fn override_entries(
     Ok(common)
 }
 
+/// Replace `destination` atomically so an existing hardlink (used to seed
+/// update staging from the live instance) is never truncated in place.
+async fn write_atomic(destination: &Path, bytes: &[u8]) -> Result<(), MrpackError> {
+    static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
+    let parent = destination
+        .parent()
+        .ok_or_else(|| MrpackError::Invalid("Override without parent directory".into()))?;
+    let name = destination
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("override");
+    let temporary = parent.join(format!(
+        ".{name}.cubic-tmp-{}-{}",
+        std::process::id(),
+        NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
+    ));
+    let result = async {
+        use tokio::io::AsyncWriteExt;
+        let mut file = tokio::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+            .await?;
+        file.write_all(bytes).await?;
+        file.sync_all().await?;
+        drop(file);
+        tokio::fs::rename(&temporary, destination).await
+    }
+    .await;
+    if result.is_err() {
+        let _ = tokio::fs::remove_file(&temporary).await;
+    }
+    result.map_err(MrpackError::from)
+}
+
 async fn extract_overrides(
     archive: &mut zip::ZipArchive<std::fs::File>,
     entries: Vec<(usize, PathBuf)>,
@@ -173,7 +209,7 @@ async fn extract_overrides(
 
         let mut buffer = Vec::new();
         archive.by_index(i)?.read_to_end(&mut buffer)?;
-        tokio::fs::write(&dest, &buffer).await?;
+        write_atomic(&dest, &buffer).await?;
     }
     Ok(())
 }
@@ -195,7 +231,7 @@ async fn extract_icon(
         let icon_dest = instance_dir.join("icon.png");
         let mut buffer = Vec::new();
         archive.by_index(i)?.read_to_end(&mut buffer)?;
-        tokio::fs::write(&icon_dest, &buffer).await?;
+        write_atomic(&icon_dest, &buffer).await?;
         break;
     }
     Ok(())

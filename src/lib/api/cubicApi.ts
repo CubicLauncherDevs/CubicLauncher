@@ -17,6 +17,7 @@ import {
 	type CurseForgeProject,
 	type CurseForgeFile,
 	type CurseForgeModpackInfo,
+	type LocalModpackInfo,
 	type JreStatus,
 	type MrpackInfo,
 	type InstanceImportPlan,
@@ -595,6 +596,16 @@ export async function downloadShaderPacks(
 export async function parseMrpack(path: string): Promise<MrpackInfo | null> {
 	return (
 		(await invokeWithFallback<MrpackInfo>("parse_mrpack", { path })) ?? null
+	);
+}
+
+export async function parseLocalModpack(
+	path: string,
+): Promise<LocalModpackInfo | null> {
+	return (
+		(await invokeWithFallback<LocalModpackInfo>("parse_local_modpack", {
+			path,
+		})) ?? null
 	);
 }
 

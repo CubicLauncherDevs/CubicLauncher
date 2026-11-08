@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { onDestroy, untrack } from "svelte";
 	import {
-		parseMrpack,
+		parseLocalModpack,
 		installMrpack,
+		installCurseForgeModpack,
 		searchModrinth,
 	} from "$lib/api/cubicApi";
 	import { t } from "$lib/i18n";
 	import PackInfo from "./PackInfo.svelte";
-	import type { MrpackInfo } from "$lib/types/types";
+	import type { LocalModpackInfo } from "$lib/types/types";
 	import {
 		MAX_INSTANCE_NAME_LEN,
 		isValidInstanceName,
@@ -27,10 +28,10 @@
 		loading?: boolean;
 	} = $props();
 
-	let packInfo = $state<MrpackInfo | null>(null);
+	let packInfo = $state<LocalModpackInfo | null>(null);
 	let parsing = $state(false);
 	let error = $state<string | null>(null);
-	let mrpackPath = $state<string | null>(null);
+	let packPath = $state<string | null>(null);
 	let disposed = false;
 	let parseGeneration = 0;
 	onDestroy(() => {
@@ -44,17 +45,18 @@
 		parsing = true;
 		error = null;
 		packInfo = null;
-		mrpackPath = null;
+		packPath = null;
 		try {
-			const info = await parseMrpack(path);
+			const info = await parseLocalModpack(path);
 			if (disposed || generation !== parseGeneration) return;
 			if (info) {
 				packInfo = info;
-				mrpackPath = path;
+				packPath = path;
+				const packName = info.info.name;
 				if (!name.trim()) {
-					name = isValidInstanceName(info.name)
-						? info.name
-						: sanitizeInstanceName(info.name);
+					name = isValidInstanceName(packName)
+						? packName
+						: sanitizeInstanceName(packName);
 				}
 			} else {
 				error = t("modpack.readError");
@@ -66,12 +68,12 @@
 		}
 	}
 
-	async function selectMrpackFile() {
+	async function selectPackFile() {
 		if (loading || parsing) return;
 		try {
 			const selected = await openDialog({
 				multiple: false,
-				filters: [{ name: "Modpacks", extensions: ["mrpack"] }],
+				filters: [{ name: "Modpacks", extensions: ["mrpack", "zip"] }],
 			});
 			if (!disposed && selected) {
 				await loadPackInfo(selected);
@@ -87,12 +89,13 @@
 			loading ||
 			parsing ||
 			!packInfo ||
-			!mrpackPath ||
+			!packPath ||
 			!name.trim()
 		)
 			return;
-		const importPath = mrpackPath;
+		const importPath = packPath;
 		const importName = name.trim();
+		const format = packInfo.format;
 		loading = true;
 		error = null;
 		try {
@@ -116,19 +119,32 @@
 			}
 
 			if (disposed) return;
-			const result = await installMrpack(
-				importPath,
-				importName,
-				iconUrl,
-				() => {
-					if (disposed) return;
-					reset();
-					onImported?.();
-				},
-				(err: unknown) => {
-					if (!disposed) error = String(err);
-				},
-			);
+			const onDone = () => {
+				if (disposed) return;
+				reset();
+				onImported?.();
+			};
+			const onError = (err: unknown) => {
+				if (!disposed) error = String(err);
+			};
+			const result =
+				format === "modrinth"
+					? await installMrpack(
+							importPath,
+							importName,
+							iconUrl,
+							onDone,
+							onError,
+						)
+					: await installCurseForgeModpack(
+							importPath,
+							importName,
+							undefined,
+							undefined,
+							iconUrl,
+							onDone,
+							onError,
+						);
 			if (!disposed && !result && !error)
 				error = t("createInstance.createErr");
 		} catch (e) {
@@ -143,7 +159,7 @@
 		parsing = false;
 		loading = false;
 		error = null;
-		mrpackPath = null;
+		packPath = null;
 	}
 
 	$effect(() => {
@@ -180,7 +196,11 @@
 						/>
 					</div>
 				</div>
-				<PackInfo {packInfo} onChangeFile={selectMrpackFile} />
+				<PackInfo
+					packInfo={packInfo.info}
+					format={packInfo.format}
+					onChangeFile={selectPackFile}
+				/>
 			{/if}
 		</div>
 
@@ -189,7 +209,7 @@
 				type="button"
 				class="btn-primary"
 				onclick={handleImport}
-				disabled={loading || parsing || !mrpackPath || !name.trim()}
+				disabled={loading || parsing || !packPath || !name.trim()}
 			>
 				{loading
 					? t("createInstance.importingBtn")
@@ -203,7 +223,7 @@
 				<button
 					type="button"
 					class="btn-primary"
-					onclick={selectMrpackFile}
+					onclick={selectPackFile}
 					disabled={parsing}
 				>
 					{t("createInstance.selectMrpackBtn")}

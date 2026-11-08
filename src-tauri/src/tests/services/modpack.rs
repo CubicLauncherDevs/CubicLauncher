@@ -538,3 +538,14 @@ async fn linked_files_and_ancestors_are_rejected_even_when_destination_is_missin
     assert_eq!(fs::read(outside.join("secret")).unwrap(), b"untouched");
     assert!(!outside.join("new").exists());
 }
+
+#[test]
+fn summary_serialization_excludes_the_file_inventory() {
+    let summary = state(&[("mods/example.jar", b"example")]).summary();
+    let value = serde_json::to_value(summary).unwrap();
+    let object = value.as_object().unwrap();
+    assert!(!object.contains_key("files"));
+    assert!(!object.contains_key("identities"));
+    assert_eq!(value["name"], "Inventory fixture");
+    assert_eq!(value["locked"], true);
+}

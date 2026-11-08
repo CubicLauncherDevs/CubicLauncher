@@ -159,6 +159,24 @@ async fn client_overrides_win_in_either_zip_order() {
 }
 
 #[tokio::test]
+async fn overrides_replace_hardlinked_files_without_modifying_the_original() {
+    let fixture = Fixture::new();
+    let source = fixture.0.join("source/config/test.txt");
+    std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+    std::fs::write(&source, "old").unwrap();
+    let instance = fixture.0.join("instance");
+    let destination = instance.join("config/test.txt");
+    std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+    std::fs::hard_link(&source, &destination).unwrap();
+    let path = fixture.archive(&manifest(), &[("overrides/config/test.txt", "new")]);
+    install_mrpack(&path, &instance, &fixture.0.join("shared"), None)
+        .await
+        .unwrap();
+    assert_eq!(std::fs::read_to_string(&source).unwrap(), "old");
+    assert_eq!(std::fs::read_to_string(&destination).unwrap(), "new");
+}
+
+#[tokio::test]
 async fn unsafe_override_aborts_before_extracting_valid_entries() {
     let fixture = Fixture::new();
     let path = fixture.archive(

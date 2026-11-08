@@ -1,5 +1,5 @@
 use crate::core::{AppEvent, emit};
-use crate::services::modpack::{self, PackState};
+use crate::services::modpack::{self, PackSummary};
 use crate::services::modpack_update::{self, PackVersion, Preview};
 use crate::services::{InstanceHandle, InstanceManager};
 use std::collections::BTreeMap;
@@ -13,15 +13,17 @@ async fn instance(id: &str) -> Result<InstanceHandle, String> {
 }
 
 #[tauri::command]
-pub async fn get_instance_modpack(id: String) -> Result<Option<PackState>, String> {
+pub async fn get_instance_modpack(id: String) -> Result<Option<PackSummary>, String> {
     let handle = instance(&id).await?;
     // The inventory is replaced atomically. Read-only catalog queries must not
     // contend with the background mod-enrichment filesystem lease.
-    modpack::read_state(&handle.get_instance_dir().await).await
+    Ok(modpack::read_state(&handle.get_instance_dir().await)
+        .await?
+        .map(|state| state.summary()))
 }
 
 #[tauri::command]
-pub async fn restore_modpack_inventory(id: String) -> Result<PackState, String> {
+pub async fn restore_modpack_inventory(id: String) -> Result<PackSummary, String> {
     tokio::spawn(async move {
         let handle = instance(&id).await?;
         let _guard = handle.try_lock_files()?;
@@ -37,14 +39,14 @@ pub async fn restore_modpack_inventory(id: String) -> Result<PackState, String> 
             id: id.into(),
             dto: Some(handle.to_dto().await),
         });
-        Ok(state)
+        Ok(state.summary())
     })
     .await
     .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub async fn set_modpack_locked(id: String, locked: bool) -> Result<PackState, String> {
+pub async fn set_modpack_locked(id: String, locked: bool) -> Result<PackSummary, String> {
     tokio::spawn(async move {
         let handle = instance(&id).await?;
         let guard = handle.try_lock_files()?;
@@ -67,7 +69,7 @@ pub async fn set_modpack_locked(id: String, locked: bool) -> Result<PackState, S
             id: id.into(),
             dto: Some(handle.to_dto().await),
         });
-        Ok(state)
+        Ok(state.summary())
     })
     .await
     .map_err(|e| e.to_string())?

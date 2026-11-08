@@ -659,3 +659,7 @@ export interface CurseForgeModpackInfo {
 	version_id_for_instance?: string | null;
 	icon: string | null;
 }
+
+export type LocalModpackInfo =
+	| { format: "modrinth"; info: MrpackInfo }
+	| { format: "curseforge"; info: CurseForgeModpackInfo };

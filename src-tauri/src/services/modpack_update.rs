@@ -90,7 +90,7 @@ pub async fn versions(state: &PackState) -> Result<Vec<PackVersion>> {
             .collect()
     } else if state.source == "curseforge" {
         let response = super::curseforge_api::CurseForgeClient::from_settings_or_default()
-            .get_project_files(
+            .get_all_project_files(
                 project
                     .parse()
                     .map_err(|_| "Proyecto CurseForge inválido")?,
@@ -100,7 +100,6 @@ pub async fn versions(state: &PackState) -> Result<Vec<PackVersion>> {
             .await
             .map_err(|e| e.to_string())?;
         Ok(response
-            .data
             .into_iter()
             .filter(|f| f.is_available && !f.is_server_pack)
             .map(|f| PackVersion {

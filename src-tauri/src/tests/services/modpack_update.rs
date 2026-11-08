@@ -371,9 +371,9 @@ fn crash_after_metadata_save_before_commit_restores_exact_original_metadata_and_
     );
     let journal = read_journal(&prepared.root);
     assert!(!journal.committed);
-    assert_eq!(journal.paths[modpack::STATE_FILE], true);
-    assert_eq!(journal.paths["instance.cub"], true);
-    assert_eq!(journal.paths["mods/new.jar"], false);
+    assert!(journal.paths[modpack::STATE_FILE]);
+    assert!(journal.paths["instance.cub"]);
+    assert!(!journal.paths["mods/new.jar"]);
     recover(&prepared.root).unwrap();
     assert_eq!(fs::read(prepared.root.join("config/a")).unwrap(), b"custom");
     assert_eq!(

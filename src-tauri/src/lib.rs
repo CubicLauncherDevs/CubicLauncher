@@ -177,6 +177,7 @@ pub fn run() {
             commands::modrinth::download_shaderpacks,
             commands::modrinth::download_mrpack,
             commands::pack::parse_mrpack,
+            commands::pack::parse_local_modpack,
             commands::pack::install_mrpack,
             commands::pack::download_curseforge_modpack,
             commands::pack::parse_curseforge_modpack,

@@ -33,14 +33,18 @@ pub struct CurseForgeModpackInfo {
     pub icon: Option<String>,
 }
 
-#[tauri::command]
-pub async fn parse_mrpack(path: String) -> Result<MrpackInfo, String> {
-    info!("Parsing mrpack: {}", path);
+#[derive(Debug, Serialize)]
+#[serde(tag = "format", rename_all = "camelCase")]
+pub enum LocalModpackInfo {
+    Modrinth { info: MrpackInfo },
+    Curseforge { info: CurseForgeModpackInfo },
+}
 
-    let metadata = cubrinth::mrpack::parse_mrpack(std::path::Path::new(&path))
+async fn mrpack_info(path: &str) -> Result<MrpackInfo, String> {
+    let metadata = cubrinth::mrpack::parse_mrpack(std::path::Path::new(path))
         .map_err(|e| format!("Failed to parse mrpack: {}", e))?;
 
-    crate::services::modpack::validate_archive_paths(std::path::Path::new(&path)).await?;
+    crate::services::modpack::validate_archive_paths(std::path::Path::new(path)).await?;
 
     let version_id_for_instance = metadata.game_version.as_ref().map(|gv| gv.to_version_id());
 
@@ -68,6 +72,76 @@ pub async fn parse_mrpack(path: String) -> Result<MrpackInfo, String> {
         version_id_for_instance,
         icon: None,
     })
+}
+
+async fn curseforge_modpack_info(path: &str) -> Result<CurseForgeModpackInfo, String> {
+    let metadata =
+        crate::services::curseforge_modpack::parse_curseforge_modpack(std::path::Path::new(path))
+            .map_err(|e| format!("Failed to parse CurseForge modpack: {}", e))?;
+
+    crate::services::modpack::validate_archive_paths(std::path::Path::new(path)).await?;
+
+    let version_id_for_instance = metadata.game_version.as_ref().map(|gv| gv.to_version_id());
+
+    Ok(CurseForgeModpackInfo {
+        name: metadata.name,
+        version: metadata.version,
+        summary: metadata.summary,
+        minecraft_version: metadata
+            .game_version
+            .as_ref()
+            .map(|gv| gv.mc_version.clone()),
+        loader: metadata.game_version.as_ref().and_then(|gv| {
+            if gv.loader.is_vanilla() {
+                None
+            } else {
+                Some(gv.loader.name().to_string())
+            }
+        }),
+        loader_version: metadata
+            .game_version
+            .as_ref()
+            .and_then(|gv| gv.loader.version().map(|s| s.to_string())),
+        file_count: metadata.file_count,
+        version_id_for_instance,
+        icon: None,
+    })
+}
+
+#[tauri::command]
+pub async fn parse_mrpack(path: String) -> Result<MrpackInfo, String> {
+    info!("Parsing mrpack: {}", path);
+    mrpack_info(&path).await
+}
+
+#[tauri::command]
+pub async fn parse_local_modpack(path: String) -> Result<LocalModpackInfo, String> {
+    info!("Detecting local modpack format: {}", path);
+    let file =
+        std::fs::File::open(&path).map_err(|e| format!("No se pudo abrir el archivo: {e}"))?;
+    let archive = zip::ZipArchive::new(file)
+        .map_err(|e| format!("El archivo no es un modpack válido: {e}"))?;
+    let mut is_modrinth = false;
+    let mut is_curseforge = false;
+    for name in archive.file_names() {
+        if name == "modrinth.index.json" {
+            is_modrinth = true;
+        } else if name == "manifest.json" {
+            is_curseforge = true;
+        }
+    }
+    drop(archive);
+    if is_modrinth {
+        Ok(LocalModpackInfo::Modrinth {
+            info: mrpack_info(&path).await?,
+        })
+    } else if is_curseforge {
+        Ok(LocalModpackInfo::Curseforge {
+            info: curseforge_modpack_info(&path).await?,
+        })
+    } else {
+        Err("El archivo no es un modpack de Modrinth ni de CurseForge".into())
+    }
 }
 
 #[tauri::command]
@@ -315,38 +389,7 @@ pub async fn download_curseforge_modpack(url: String, file_id: u32) -> Result<St
 #[tauri::command]
 pub async fn parse_curseforge_modpack(path: String) -> Result<CurseForgeModpackInfo, String> {
     info!("Parsing CurseForge modpack: {}", path);
-
-    let metadata =
-        crate::services::curseforge_modpack::parse_curseforge_modpack(std::path::Path::new(&path))
-            .map_err(|e| format!("Failed to parse CurseForge modpack: {}", e))?;
-
-    crate::services::modpack::validate_archive_paths(std::path::Path::new(&path)).await?;
-
-    let version_id_for_instance = metadata.game_version.as_ref().map(|gv| gv.to_version_id());
-
-    Ok(CurseForgeModpackInfo {
-        name: metadata.name,
-        version: metadata.version,
-        summary: metadata.summary,
-        minecraft_version: metadata
-            .game_version
-            .as_ref()
-            .map(|gv| gv.mc_version.clone()),
-        loader: metadata.game_version.as_ref().and_then(|gv| {
-            if gv.loader.is_vanilla() {
-                None
-            } else {
-                Some(gv.loader.name().to_string())
-            }
-        }),
-        loader_version: metadata
-            .game_version
-            .as_ref()
-            .and_then(|gv| gv.loader.version().map(|s| s.to_string())),
-        file_count: metadata.file_count,
-        version_id_for_instance,
-        icon: None,
-    })
+    curseforge_modpack_info(&path).await
 }
 
 #[tauri::command]

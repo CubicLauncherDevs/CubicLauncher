@@ -1097,7 +1097,7 @@
 		"installBtn": "Install",
 		"loadMore": "Load more",
 		"downloads": "downloads",
-		"selectMrpackBtn": "Select .mrpack file",
+		"selectMrpackBtn": "Select .mrpack or .zip file",
 		"uploadIcon": "Upload logo",
 		"iconFilter": "Images",
 		"customNameNeeded": "This modpack name contains unsupported characters. Please enter a custom name:",

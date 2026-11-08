@@ -579,7 +579,12 @@ impl CurseForgeClient {
         Ok(serde_json::from_value(data)?)
     }
 
-    fn make_files_url(mod_id: u32, loader: Option<&str>, game_version: Option<&str>) -> String {
+    fn make_files_url(
+        mod_id: u32,
+        loader: Option<&str>,
+        game_version: Option<&str>,
+        index: u32,
+    ) -> String {
         let mut url = format!("{}/mods/{}/files", CURSEFORGE_API_BASE, mod_id);
         let mut first = true;
 
@@ -596,6 +601,7 @@ impl CurseForgeClient {
         };
 
         append("pageSize", "100");
+        append("index", &index.to_string());
         if let Some(gv) = game_version
             && !gv.is_empty()
         {
@@ -618,7 +624,18 @@ impl CurseForgeClient {
         loader: Option<&str>,
         game_version: Option<&str>,
     ) -> Result<CurseForgeFilesResponse, CurseForgeError> {
-        let url = Self::make_files_url(mod_id, loader, game_version);
+        self.get_project_files_page(mod_id, loader, game_version, 0)
+            .await
+    }
+
+    async fn get_project_files_page(
+        &self,
+        mod_id: u32,
+        loader: Option<&str>,
+        game_version: Option<&str>,
+        index: u32,
+    ) -> Result<CurseForgeFilesResponse, CurseForgeError> {
+        let url = Self::make_files_url(mod_id, loader, game_version, index);
         let resp: serde_json::Value = self.get_json(&url).await?;
         let data = resp.get("data").cloned().unwrap_or_else(|| resp.clone());
         let pagination = resp.get("pagination").cloned().unwrap_or_else(|| {
@@ -634,6 +651,35 @@ impl CurseForgeClient {
             data: serde_json::from_value(data)?,
             pagination: serde_json::from_value(pagination)?,
         })
+    }
+
+    /// Fetch every published file instead of only the first API page.
+    pub async fn get_all_project_files(
+        &self,
+        mod_id: u32,
+        loader: Option<&str>,
+        game_version: Option<&str>,
+    ) -> Result<Vec<CurseForgeFile>, CurseForgeError> {
+        const PAGE_SIZE: usize = 100;
+        // Bound the loop even if the API returns inconsistent pagination.
+        const MAX_PAGES: u32 = 50;
+        let mut files = Vec::new();
+        let mut index = 0u32;
+        for _ in 0..MAX_PAGES {
+            let page = self
+                .get_project_files_page(mod_id, loader, game_version, index)
+                .await?;
+            let count = page.data.len();
+            files.extend(page.data);
+            if count < PAGE_SIZE {
+                break;
+            }
+            index = index.saturating_add(count as u32);
+            if page.pagination.total_count > 0 && u64::from(index) >= page.pagination.total_count {
+                break;
+            }
+        }
+        Ok(files)
     }
 
     pub async fn get_file_download_url(

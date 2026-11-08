@@ -39,6 +39,40 @@ pub struct PackState {
     pub needs_inventory: bool,
 }
 
+/// Frontend-facing metadata. The per-file inventory can contain thousands of
+/// entries and is never rendered, so it must not cross the IPC boundary.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct PackSummary {
+    pub schema_version: u32,
+    pub source: String,
+    pub project_id: Option<String>,
+    pub version_id: Option<String>,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    pub version: String,
+    pub game_version: String,
+    pub locked: bool,
+    pub needs_inventory: bool,
+}
+
+impl PackState {
+    pub fn summary(&self) -> PackSummary {
+        PackSummary {
+            schema_version: self.schema_version,
+            source: self.source.clone(),
+            project_id: self.project_id.clone(),
+            version_id: self.version_id.clone(),
+            name: self.name.clone(),
+            author: self.author.clone(),
+            version: self.version.clone(),
+            game_version: self.game_version.clone(),
+            locked: self.locked,
+            needs_inventory: self.needs_inventory,
+        }
+    }
+}
+
 pub fn valid_path(relative: &str) -> Result<()> {
     if relative.is_empty()
         || relative.contains(['\\', ':'])
