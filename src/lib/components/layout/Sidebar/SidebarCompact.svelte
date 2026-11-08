@@ -230,8 +230,8 @@
 				<div class="sc-instance-skeleton sk-delayed" aria-hidden="true">
 					{#each { length: 6 } as _, index (index)}
 						<span
-							class="sk-block sk-circle"
-							style="width: 34px; height: 34px;"
+							class="sk-block sc-skeleton-icon"
+							style="width: 42px; height: 42px;"
 						></span>
 					{/each}
 				</div>
@@ -485,10 +485,8 @@
 		padding-top: 2px;
 	}
 
-	.sc-instance-skeleton .sk-circle {
-		height: calc(
-			var(--virtual-row-height, 50px) - var(--sidebar-row-gap, 8px)
-		);
+	.sc-skeleton-icon {
+		border-radius: var(--border-radius-sm);
 		flex-shrink: 0;
 	}
 

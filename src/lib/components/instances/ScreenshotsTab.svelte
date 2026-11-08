@@ -228,7 +228,7 @@
 	>
 		{#if loading && screenshots.length === 0}
 			<div class="screenshots-skeleton sk-delayed" aria-hidden="true">
-				{#each { length: 9 } as _, index (index)}
+				{#each { length: columns * 3 } as _, index (index)}
 					<span class="sk-block screenshots-skeleton-tile"></span>
 				{/each}
 			</div>

@@ -21,6 +21,7 @@
 	import Icon from "$lib/icons/Icon.svelte";
 	import ListSkeleton from "$lib/components/ui/ListSkeleton.svelte";
 	import PanelSkeleton from "$lib/components/ui/PanelSkeleton.svelte";
+	import MarketCatalogSkeleton from "$lib/components/market/MarketCatalogSkeleton.svelte";
 
 	let { selectedInstance } = $props<{ selectedInstance: InstanceDto }>();
 	let activeSection = $state("detalles");
@@ -269,10 +270,7 @@
 							/>
 						{:else}
 							<div class="fallback-panel">
-								<PanelSkeleton
-									rows={6}
-									label={t("market.browse.searching")}
-								/>
+								<MarketCatalogSkeleton />
 							</div>
 						{/if}
 					{/key}
@@ -285,6 +283,7 @@
 								<ListSkeleton
 									rows={6}
 									label={t("worlds.loading")}
+									actionCount={8}
 								/>
 							</div>
 						{/if}
@@ -298,6 +297,8 @@
 								<ListSkeleton
 									rows={6}
 									label={t("servers.loading")}
+									actionCount={5}
+									wideFirstAction
 								/>
 							</div>
 						{/if}

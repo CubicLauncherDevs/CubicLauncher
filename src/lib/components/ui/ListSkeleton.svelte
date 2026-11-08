@@ -7,12 +7,18 @@
 		rowHeight = "84px",
 		iconSize = "54px",
 		showDetails = true,
+		detailRows = 5,
+		actionCount = 2,
+		wideFirstAction = false,
 	}: {
 		rows?: number;
 		label?: string;
 		rowHeight?: string;
 		iconSize?: string;
 		showDetails?: boolean;
+		detailRows?: number;
+		actionCount?: number;
+		wideFirstAction?: boolean;
 	} = $props();
 </script>
 
@@ -39,7 +45,7 @@
 	{#if showDetails}
 		<aside class="list-skeleton-details">
 			<span class="sk-block sk-line-lg" style="width: 50%"></span>
-			{#each { length: 5 } as _, index (index)}
+			{#each { length: detailRows } as _, index (index)}
 				<div class="sk-stack list-skeleton-field">
 					<span class="sk-block sk-line sk-line-sm" style="width: 30%"
 					></span>
@@ -47,8 +53,12 @@
 				</div>
 			{/each}
 			<div class="list-skeleton-actions">
-				<span class="sk-block" style="height: 32px"></span>
-				<span class="sk-block" style="height: 32px"></span>
+				{#each { length: actionCount } as _, index (index)}
+					<span
+						class="sk-block list-skeleton-action"
+						class:wide={wideFirstAction && index === 0}
+					></span>
+				{/each}
 			</div>
 		</aside>
 	{/if}
@@ -102,6 +112,14 @@
 		grid-template-columns: 1fr 1fr;
 		gap: 8px;
 		margin-top: 4px;
+	}
+
+	.list-skeleton-action {
+		height: 32px;
+	}
+
+	.list-skeleton-action.wide {
+		grid-column: 1 / -1;
 	}
 
 	@media (max-width: 700px) {

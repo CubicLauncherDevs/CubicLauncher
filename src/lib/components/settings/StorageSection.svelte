@@ -278,11 +278,14 @@
 				<div class="field">
 					<span class="sk-block sk-line sk-line-sm" style="width: 30%"
 					></span>
-					<span class="sk-block" style="width: 100%; height: 30px;"
-					></span>
+					<div class="path-line">
+						<span class="sk-block path-icon-skeleton"></span>
+						<span class="sk-block path-value-skeleton"></span>
+						<span class="sk-block copy-skeleton"></span>
+					</div>
 				</div>
-				<div class="field">
-					<span class="sk-block sk-line sk-line-sm" style="width: 22%"
+				<div class="meta-line">
+					<span class="sk-block sk-line sk-line-sm" style="width: 26%"
 					></span>
 				</div>
 			</div>
@@ -514,8 +517,28 @@
 				<div class="field">
 					<span class="sk-block sk-line sk-line-sm" style="width: 30%"
 					></span>
-					<span class="sk-block" style="width: 100%; height: 30px;"
+					<div class="path-line">
+						<span class="sk-block path-icon-skeleton"></span>
+						<span class="sk-block path-value-skeleton"></span>
+						<span class="sk-block copy-skeleton"></span>
+					</div>
+				</div>
+				<div class="meta-line">
+					<span class="sk-block sk-line sk-line-sm" style="width: 52%"
 					></span>
+				</div>
+				<div class="breakdown-skeleton">
+					<span class="sk-block sk-line sk-line-sm" style="width: 22%"
+					></span>
+					{#each { length: 3 } as _, index (index)}
+						<div class="breakdown-row-skeleton">
+							<span
+								class="sk-block sk-line sk-line-sm"
+								style="width: 44%"
+							></span>
+							<span class="sk-block usage-bar-skeleton"></span>
+						</div>
+					{/each}
 				</div>
 			</div>
 			<span class="sk-sr-only" role="status">{t("common.loading")}</span>
@@ -1081,6 +1104,42 @@
 		display: flex;
 		flex-direction: column;
 		gap: calc(11px * var(--cubic-interface-gap-factor, 1));
+	}
+
+	.path-icon-skeleton {
+		width: 13px;
+		height: 13px;
+		flex-shrink: 0;
+	}
+
+	.path-value-skeleton {
+		flex: 1;
+		height: 12px;
+		min-width: 0;
+	}
+
+	.copy-skeleton {
+		width: 64px;
+		height: 22px;
+		flex-shrink: 0;
+	}
+
+	.breakdown-skeleton {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.breakdown-row-skeleton {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.usage-bar-skeleton {
+		width: 100%;
+		height: 6px;
+		border-radius: 999px;
 	}
 
 	:global(.state-spinner) {

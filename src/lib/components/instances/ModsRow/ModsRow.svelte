@@ -170,6 +170,7 @@
 							style="width: 42%"
 						></span>
 					</div>
+					<span class="sk-block mod-skeleton-toggle"></span>
 				</div>
 			{/each}
 		</div>
@@ -291,6 +292,14 @@
 		border-radius: var(--border-radius-sm);
 		background: var(--surface-selected);
 		min-width: 0;
+	}
+
+	.mod-skeleton-toggle {
+		width: 32px;
+		height: 18px;
+		margin-left: auto;
+		flex-shrink: 0;
+		border-radius: 999px;
 	}
 
 	.mod-skeleton-text {

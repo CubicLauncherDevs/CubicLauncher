@@ -124,7 +124,7 @@
 						{#each { length: 6 } as _, index (index)}
 							<div class="instance-skeleton-row">
 								<span
-									class="sk-block sk-circle"
+									class="sk-block instance-skeleton-icon"
 									style="width: 24px; height: 24px;"
 								></span>
 								<div class="sk-stack instance-skeleton-text">
@@ -372,8 +372,9 @@
 		flex-shrink: 0;
 	}
 
-	.instance-skeleton-row .sk-circle {
+	.instance-skeleton-icon {
 		margin-left: 12px;
+		border-radius: var(--border-radius-sm);
 	}
 
 	.instance-skeleton-text {

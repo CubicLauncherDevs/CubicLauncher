@@ -170,8 +170,16 @@
 							style="width: 26%"
 						></span>
 					</div>
-					<span class="sk-block" style="width: 92px; height: 28px;"
-					></span>
+					<div class="profile-skeleton-actions">
+						<span
+							class="sk-block"
+							style="width: 72px; height: 28px;"
+						></span>
+						<span
+							class="sk-block"
+							style="width: 84px; height: 28px;"
+						></span>
+					</div>
 				</div>
 			{/each}
 		</div>
@@ -338,6 +346,12 @@
 	.profile-skeleton-text {
 		flex: 1;
 		gap: 5px;
+	}
+
+	.profile-skeleton-actions {
+		display: flex;
+		gap: 6px;
+		flex-shrink: 0;
 	}
 	.item {
 		display: flex;
