@@ -25,6 +25,7 @@ pub fn parse_mrpack(path: &Path) -> Result<MrpackMetadata, MrpackError> {
 
     let manifest_idx = archive
         .file_names()
+        .filter_map(|name| name.ok())
         .position(|name| name == "modrinth.index.json")
         .ok_or_else(|| {
             MrpackError::Invalid("No modrinth.index.json found in mrpack".to_string())
@@ -53,6 +54,7 @@ pub async fn install_mrpack(
 
     let manifest_idx = archive
         .file_names()
+        .filter_map(|name| name.ok())
         .position(|name| name == "modrinth.index.json")
         .ok_or_else(|| {
             MrpackError::Invalid("No modrinth.index.json found in mrpack".to_string())
@@ -145,11 +147,12 @@ fn override_entries(
     let mut client = Vec::new();
     for i in 0..archive.len() {
         let entry = archive.by_index(i)?;
-        install_path(instance_dir, entry.name())?;
+        let name = entry.name()?;
+        install_path(instance_dir, &name)?;
         if entry.is_dir() {
             continue;
         }
-        let name = Path::new(entry.name());
+        let name = Path::new(name.as_ref());
         if let Ok(relative) = name.strip_prefix("overrides") {
             common.push((i, install_path(instance_dir, &relative.to_string_lossy())?));
         } else if let Ok(relative) = name.strip_prefix("client-overrides") {
@@ -221,7 +224,7 @@ async fn extract_icon(
     for i in 0..archive.len() {
         let entry = archive.by_index(i)?;
         let is_dir = entry.is_dir();
-        let name = entry.name().to_string();
+        let name = entry.name()?.to_string();
         drop(entry);
 
         if is_dir || name != "icon.png" {

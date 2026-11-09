@@ -64,14 +64,14 @@ fn open_archive(path: &Path) -> Result<zip::ZipArchive<File>, String> {
 }
 
 fn entry_name(entry: &zip::read::ZipFile<'_, File>) -> Result<String, String> {
-    let name = entry.name();
+    let name = entry.name().map_err(|e| e.to_string())?;
     if entry.enclosed_name().is_none() || name.contains('\\') || name.contains('\0') {
         return Err(format!("Ruta inválida dentro del JAR: {name}"));
     }
     if entry.size() > MAX_ENTRY_SIZE || entry.is_symlink() {
         return Err(format!("Entrada JAR no admitida: {name}"));
     }
-    Ok(name.to_owned())
+    Ok(name.into_owned())
 }
 
 pub fn validate_archive(path: &Path, replacement: bool) -> Result<(), String> {

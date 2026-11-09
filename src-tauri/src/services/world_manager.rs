@@ -502,7 +502,8 @@ pub fn import_world(source: &Path, saves: &Path, progress: &mut Progress<'_>) ->
     let mut roots = std::collections::HashSet::new();
     for index in 0..archive.len() {
         let file = archive.by_index(index).map_err(io)?;
-        let path = zip_path(file.name())?;
+        let name = file.name().map_err(io)?;
+        let path = zip_path(&name)?;
         if file.is_symlink() {
             return Err("El ZIP contiene enlaces simbólicos".into());
         }
@@ -521,7 +522,8 @@ pub fn import_world(source: &Path, saves: &Path, progress: &mut Progress<'_>) ->
     let root = roots.into_iter().next().unwrap();
     for index in 0..archive.len() {
         let mut file = archive.by_index(index).map_err(io)?;
-        let path = zip_path(file.name())?;
+        let name = file.name().map_err(io)?;
+        let path = zip_path(&name)?;
         let Ok(relative) = path.strip_prefix(&root) else {
             continue;
         };

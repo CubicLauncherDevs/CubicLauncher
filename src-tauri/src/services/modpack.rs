@@ -230,7 +230,10 @@ struct ArchiveData {
 fn archive_data(path: &Path) -> Result<ArchiveData> {
     let mut archive = zip::ZipArchive::new(File::open(path).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
-    let mrpack = archive.file_names().any(|n| n == "modrinth.index.json");
+    let mrpack = archive
+        .file_names()
+        .filter_map(|name| name.ok())
+        .any(|n| n == "modrinth.index.json");
     let mut files = BTreeMap::new();
     let mut curseforge_files = Vec::new();
     let (name, version, author, game_version, overrides_prefix) = if mrpack {
@@ -311,7 +314,8 @@ fn archive_data(path: &Path) -> Result<ArchiveData> {
         }
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
-            let Some(relative) = entry.name().strip_prefix(prefix).map(str::to_owned) else {
+            let name = entry.name().map_err(|e| e.to_string())?;
+            let Some(relative) = name.strip_prefix(prefix).map(str::to_owned) else {
                 continue;
             };
             if entry.is_dir() {

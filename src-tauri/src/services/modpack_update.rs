@@ -236,7 +236,10 @@ async fn stage_archive(
     let mrpack = tokio::task::spawn_blocking(move || -> Result<bool> {
         let archive = zip::ZipArchive::new(File::open(archive_path).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?;
-        Ok(archive.file_names().any(|n| n == "modrinth.index.json"))
+        Ok(archive
+            .file_names()
+            .filter_map(|name| name.ok())
+            .any(|n| n == "modrinth.index.json"))
     })
     .await
     .map_err(|e| e.to_string())??;

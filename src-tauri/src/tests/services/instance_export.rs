@@ -99,8 +99,17 @@ async fn exported_minecraft_jar_and_modpack_round_trip_without_external_paths_or
     let output = source.path().join("export.zip");
     export_to_zip(&input, &output).unwrap();
     let mut archive = zip::ZipArchive::new(std::fs::File::open(output).unwrap()).unwrap();
-    assert!(!archive.file_names().any(|n| n.contains("cubic-jar-cache")));
-    let names: Vec<_> = archive.file_names().map(str::to_owned).collect();
+    assert!(
+        !archive
+            .file_names()
+            .filter_map(|name| name.ok())
+            .any(|n| n.contains("cubic-jar-cache"))
+    );
+    let names: Vec<_> = archive
+        .file_names()
+        .filter_map(|name| name.ok())
+        .map(|name| name.into_owned())
+        .collect();
     assert_eq!(
         names.len(),
         names.iter().collect::<std::collections::HashSet<_>>().len()

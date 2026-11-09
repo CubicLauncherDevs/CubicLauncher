@@ -98,6 +98,7 @@ pub fn parse_curseforge_modpack(
 
     let manifest_idx = archive
         .file_names()
+        .filter_map(|name| name.ok())
         .position(|name| name == "manifest.json")
         .ok_or_else(|| {
             CurseForgeModpackError::Invalid(
@@ -187,6 +188,7 @@ pub async fn install_curseforge_modpack(
 
     let manifest_idx = archive
         .file_names()
+        .filter_map(|name| name.ok())
         .position(|name| name == "manifest.json")
         .ok_or_else(|| {
             CurseForgeModpackError::Invalid(
@@ -449,7 +451,8 @@ fn override_entries(
     let mut names = HashSet::new();
     for i in 0..archive.len() {
         let entry = archive.by_index(i)?;
-        let path = archive_path(entry.name())?;
+        let name = entry.name()?;
+        let path = archive_path(&name)?;
         if entry.is_symlink() {
             return Err(CurseForgeModpackError::Invalid(
                 "ZIP symlinks are not allowed".into(),
@@ -497,7 +500,7 @@ async fn extract_icon(
     for i in 0..archive.len() {
         let entry = archive.by_index(i)?;
         let is_dir = entry.is_dir();
-        let name = entry.name().to_string();
+        let name = entry.name()?.to_string();
         drop(entry);
 
         if is_dir || name != "icon.png" {

@@ -20,7 +20,7 @@ thiserror = "2.0.18"
 tokio = { version = "1.52.3", features = ["full"] }
 uuid = { version = "1.23.1", features = ["v4"] }
 zellkern = { path = "../zellkern" }
-zip = "8.6.0"
+zip = "9.0.5"
 reqwest = { version = "0.13", features = ["blocking", "json", "form"], optional = true }
 aes-gcm = { version = "0.10", optional = true }
 rand = { version = "0.9", optional = true }

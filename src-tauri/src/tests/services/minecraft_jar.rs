@@ -70,7 +70,8 @@ fn jar_mods_merge_in_order_preserving_resources_and_shared_original() {
         !open_archive(&result)
             .unwrap()
             .file_names()
-            .any(is_signature)
+            .filter_map(|name| name.ok())
+            .any(|name| is_signature(&name))
     );
     config.mods.swap(0, 1);
     prepare(root.path(), &original, &config).unwrap();

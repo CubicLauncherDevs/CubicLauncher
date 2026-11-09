@@ -139,10 +139,16 @@ fn exports_canonical_zip_names_and_roundtrips() {
     let output = dir.0.join("export.zip");
     export_theme_directory(&theme, &output).unwrap();
     let archive = zip::ZipArchive::new(std::fs::File::open(&output).unwrap()).unwrap();
-    assert!(archive.file_names().all(|name| !name.contains('\\')));
     assert!(
         archive
             .file_names()
+            .filter_map(|name| name.ok())
+            .all(|name| !name.contains('\\'))
+    );
+    assert!(
+        archive
+            .file_names()
+            .filter_map(|name| name.ok())
             .any(|name| name == "assets/nested/font.woff2")
     );
     let (_, staged) = stage_zip::<ThemeFile>(output.to_str().unwrap(), &dir.0.join("themes"))

@@ -108,7 +108,7 @@ pub(super) fn stage_zip<T: ZipImportable>(
         let entry = archive
             .by_index(i)
             .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
-        let name = entry.name().replace('\\', "/");
+        let name = entry.name().map_err(|e| e.to_string())?.replace('\\', "/");
         if name == target || name.ends_with(&format!("/{target}")) {
             if manifest.is_some() {
                 return Err(CoreError::Other(format!(
@@ -176,13 +176,13 @@ pub(super) fn stage_zip<T: ZipImportable>(
             .by_index(i)
             .map_err(|e| CoreError::Other(format!("Error leyendo ZIP: {}", e)).to_string())?;
 
-        let name = entry.name().replace('\\', "/");
+        let name = entry.name().map_err(|e| e.to_string())?.replace('\\', "/");
         if name.contains([':', '\0'])
             || entry
                 .unix_mode()
                 .is_some_and(|mode| mode & 0o170000 == 0o120000)
         {
-            return Err(format!("Entrada ZIP insegura: {}", entry.name()));
+            return Err(format!("Entrada ZIP insegura: {name}"));
         }
         sanitize_path(&theme_dir, Path::new(&name))?;
         let enclosed: PathBuf = Path::new(&name)

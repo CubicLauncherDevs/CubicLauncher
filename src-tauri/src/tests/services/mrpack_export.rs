@@ -156,7 +156,8 @@ fn roundtrip_exact_download_hashes_and_selected_overrides() {
     let mut archive = zip::ZipArchive::new(File::open(&dest).unwrap()).unwrap();
     let names = archive
         .file_names()
-        .map(str::to_owned)
+        .filter_map(|name| name.ok())
+        .map(|name| name.into_owned())
         .collect::<BTreeSet<_>>();
     assert_eq!(
         names,
@@ -346,7 +347,8 @@ fn all_configuration_stays_in_overrides_even_when_hash_is_resolved() {
         assert!(
             archive
                 .file_names()
-                .any(|name| name == format!("overrides/{path}"))
+                .filter_map(|name| name.ok())
+                .any(|name| name.as_ref() == format!("overrides/{path}"))
         );
     }
 }

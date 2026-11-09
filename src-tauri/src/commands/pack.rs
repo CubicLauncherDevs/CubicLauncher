@@ -123,7 +123,7 @@ pub async fn parse_local_modpack(path: String) -> Result<LocalModpackInfo, Strin
         .map_err(|e| format!("El archivo no es un modpack válido: {e}"))?;
     let mut is_modrinth = false;
     let mut is_curseforge = false;
-    for name in archive.file_names() {
+    for name in archive.file_names().filter_map(|name| name.ok()) {
         if name == "modrinth.index.json" {
             is_modrinth = true;
         } else if name == "manifest.json" {

@@ -72,7 +72,10 @@ pub fn extract_jar(jar_path: &Path, dest_dir: &Path) -> Result<(), Error> {
             .by_index(i)
             .map_err(|e| std::io::Error::other(e.to_string()))?;
 
-        let name = entry.name().to_string();
+        let name = entry
+            .name()
+            .map_err(|e| std::io::Error::other(e.to_string()))?
+            .to_string();
 
         if !is_native_file(&name) {
             continue;

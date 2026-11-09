@@ -433,7 +433,8 @@ pub fn extract_zip<R: Read + io::Seek>(
         if entry.is_symlink() {
             return Err(invalid("Archive symlinks are not allowed"));
         }
-        paths.push(archive_path(entry.name())?);
+        let name = entry.name()?;
+        paths.push(archive_path(&name)?);
     }
     let destination = ConfinedDir::open(root)?;
     for (i, path) in paths.iter().enumerate() {

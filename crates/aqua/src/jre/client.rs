@@ -281,7 +281,10 @@ async fn extract_zip(archive: &Path, dest: &Path) -> Result<(), AquaError> {
                 .by_index(i)
                 .map_err(|e| AquaError::Other(format!("Failed to read ZIP entry: {}", e)))?;
 
-            let name = entry.name().to_string();
+            let name = entry
+                .name()
+                .map_err(|e| AquaError::Other(format!("Failed to read ZIP entry name: {e}")))?
+                .to_string();
 
             let Some(enclosed) = entry.enclosed_name() else {
                 log::warn!("JRE ZIP entry with unsafe path ignored: {}", name);

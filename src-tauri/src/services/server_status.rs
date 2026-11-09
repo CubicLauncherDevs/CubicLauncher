@@ -5,7 +5,7 @@ use futures::{
     future::{AbortHandle, Abortable},
     stream,
 };
-use hickory_resolver::TokioResolver;
+use hickory_resolver::{TokioResolver, proto::rr::RData};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -104,12 +104,12 @@ pub async fn resolve_target(address: &ServerAddress) -> ServerAddress {
     }
     static RESOLVER: OnceLock<Option<TokioResolver>> = OnceLock::new();
     let resolver = RESOLVER.get_or_init(|| {
-        TokioResolver::builder_tokio().ok().map(|mut b| {
+        TokioResolver::builder_tokio().ok().and_then(|mut b| {
             // Use one upstream at a time and a small TTL-aware cache.
             b.options_mut().cache_size = 32;
             b.options_mut().num_concurrent_reqs = 1;
             b.options_mut().preserve_intermediates = false;
-            b.build()
+            b.build().ok()
         })
     });
     if let Some(resolver) = resolver
@@ -119,14 +119,20 @@ pub async fn resolve_target(address: &ServerAddress) -> ServerAddress {
         )
         .await
     {
-        let min_priority = records.iter().map(|r| r.priority()).min();
         let records: Vec<_> = records
+            .answers()
             .iter()
-            .filter(|r| {
-                Some(r.priority()) == min_priority && r.port() != 0 && !r.target().is_root()
+            .filter_map(|record| match &record.data {
+                RData::SRV(srv) => Some(srv),
+                _ => None,
             })
             .collect();
-        let sum: u64 = records.iter().map(|r| u64::from(r.weight())).sum();
+        let min_priority = records.iter().map(|r| r.priority).min();
+        let records: Vec<_> = records
+            .into_iter()
+            .filter(|r| Some(r.priority) == min_priority && r.port != 0 && !r.target.is_root())
+            .collect();
+        let sum: u64 = records.iter().map(|r| u64::from(r.weight)).sum();
         let random = uuid::Uuid::new_v4().as_u128() as u64;
         let mut choice = if sum > 0 { random % sum } else { 0 };
         let selected = if sum == 0 {
@@ -135,7 +141,7 @@ pub async fn resolve_target(address: &ServerAddress) -> ServerAddress {
                 .copied()
         } else {
             records.iter().copied().find(|r| {
-                let weight = u64::from(r.weight());
+                let weight = u64::from(r.weight);
                 if choice < weight {
                     true
                 } else {
@@ -146,8 +152,8 @@ pub async fn resolve_target(address: &ServerAddress) -> ServerAddress {
         };
         if let Some(record) = selected {
             return ServerAddress {
-                host: record.target().to_utf8().trim_end_matches('.').into(),
-                port: record.port(),
+                host: record.target.to_utf8().trim_end_matches('.').into(),
+                port: record.port,
             };
         }
     }
