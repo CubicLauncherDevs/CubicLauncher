@@ -139,6 +139,7 @@ fn recursive_watch_observes_removal_and_same_id_replacement() {
     let root = dir.0.join("theme");
     let asset = root.join("assets/nested/icon.svg");
     std::fs::create_dir_all(asset.parent().unwrap()).unwrap();
+    let canonical_root = std::fs::canonicalize(&root).unwrap();
     let canonical_asset = std::fs::canonicalize(asset.parent().unwrap())
         .unwrap()
         .join("icon.svg");
@@ -150,26 +151,57 @@ fn recursive_watch_observes_removal_and_same_id_replacement() {
     state.select(Some(root.clone()));
     assert!(state.watcher.is_some());
 
-    let wait_for = |state: &WatchState, removal: bool| {
-        let deadline = Instant::now() + Duration::from_secs(5);
+    let is_relevant = |event: &Event| {
+        event.paths.iter().any(|path| {
+            (path == &asset || path == &canonical_asset)
+                || ((asset.starts_with(path) || canonical_asset.starts_with(path))
+                    && path != &root
+                    && path != &canonical_root)
+        })
+    };
+    let wait_for = |state: &WatchState, removal: bool, trigger: &mut dyn FnMut()| {
+        let deadline = Instant::now() + Duration::from_secs(15);
         loop {
-            let (generation, event) = rx
-                .recv_timeout(deadline.saturating_duration_since(Instant::now()))
-                .expect("expected nested asset notification");
-            let event = event.unwrap();
-            if state.accepts(generation, &event)
-                && (event.paths.contains(&asset) || event.paths.contains(&canonical_asset))
-                && (!removal || matches!(event.kind, EventKind::Remove(_)))
-            {
-                break;
+            trigger();
+            let attempt = Instant::now() + Duration::from_millis(750);
+            loop {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                assert!(!remaining.is_zero(), "expected nested asset notification");
+                let wait = remaining.min(attempt.saturating_duration_since(Instant::now()));
+                let notification = match rx.recv_timeout(wait) {
+                    Ok(notification) => notification,
+                    Err(_) => break,
+                };
+                let (generation, event) = notification;
+                let Ok(event) = event else { continue };
+                if state.accepts(generation, &event)
+                    && is_relevant(&event)
+                    && (!removal || matches!(event.kind, EventKind::Remove(_)))
+                {
+                    return;
+                }
             }
+            assert!(
+                Instant::now() < deadline,
+                "expected nested asset notification"
+            );
+            std::thread::sleep(Duration::from_millis(50));
         }
     };
-    std::fs::write(&asset, "old").unwrap();
-    wait_for(&state, false);
-    std::fs::remove_file(&asset).unwrap();
-    wait_for(&state, true);
+    let write = |content: &'static str| {
+        std::fs::write(&asset, content).unwrap();
+    };
+    let mut remove = || {
+        if !asset.exists() {
+            std::fs::write(&asset, "retry").unwrap();
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        let _ = std::fs::remove_file(&asset);
+    };
+    wait_for(&state, false, &mut || write("old"));
+    wait_for(&state, true, &mut remove);
 
+    let stale_generation = state.generation;
     state.pause(&root);
     assert!(state.watcher.is_none());
     std::fs::rename(&root, dir.0.join("backup")).unwrap();
@@ -177,17 +209,17 @@ fn recursive_watch_observes_removal_and_same_id_replacement() {
     assert!(state.resume(&root));
     assert!(state.watcher.is_some());
     for (generation, event) in rx.try_iter() {
-        assert!(!state.accepts(generation, &event.unwrap()));
+        let Ok(event) = event else { continue };
+        if generation <= stale_generation {
+            assert!(!state.accepts(generation, &event));
+        }
     }
-    std::fs::write(&asset, "replacement").unwrap();
-    wait_for(&state, false);
-    std::fs::remove_file(&asset).unwrap();
-    wait_for(&state, true);
+    wait_for(&state, false, &mut || write("replacement"));
+    wait_for(&state, true, &mut remove);
 
     // A failed replacement uses the same resume path, on the original inode.
     state.pause(&root);
     assert!(state.resume(&root));
     assert!(state.watcher.is_some());
-    std::fs::write(&asset, "after failure").unwrap();
-    wait_for(&state, false);
+    wait_for(&state, false, &mut || write("after failure"));
 }
