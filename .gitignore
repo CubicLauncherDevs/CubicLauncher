@@ -4,8 +4,8 @@ deno.lock
 build/
 *.snt
 *.lock
-!Cargo.lock
-!bun.lock
+!/Cargo.lock
+!/bun.lock
 result
 result-*
 target/
