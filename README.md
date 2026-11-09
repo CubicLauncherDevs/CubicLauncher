@@ -15,6 +15,25 @@ Está hecho con Tauri v2, Rust y SvelteKit, y funciona en Windows, Linux y macOS
 
 Sitio web: <https://cubiclauncher.org>
 
+# Capturas
+
+<p align="center">
+  <img src=".github/screenshots/instancia.png" alt="Vista de una instancia con Fabric" width="49%" />
+  <img src=".github/screenshots/inicio.png" alt="Pantalla de inicio sin instancia seleccionada" width="49%" />
+</p>
+<p align="center">
+  <img src=".github/screenshots/crear-instancia.png" alt="Crear una instancia desde cero, desde un modpack, importar o migrar" width="49%" />
+  <img src=".github/screenshots/descargar-versiones.png" alt="Descarga de versiones Vanilla, Fabric, Forge, NeoForge, Quilt y OptiFine" width="49%" />
+</p>
+<p align="center">
+  <img src=".github/screenshots/explorar-contenido.png" alt="Explorar mods, resource packs y shaders en Modrinth y CurseForge" width="49%" />
+  <img src=".github/screenshots/mods-instalados.png" alt="Administrar los mods instalados en una instancia" width="49%" />
+</p>
+<p align="center">
+  <img src=".github/screenshots/perfil-cuentas.png" alt="Perfil de usuario, skins, capas y cuentas guardadas" width="49%" />
+  <img src=".github/screenshots/ajustes.png" alt="Ajustes del launcher" width="49%" />
+</p>
+
 # Instalación
 
 - Las versiones estables están en [GitHub Releases](https://github.com/CubicLauncherDevs/CubicLauncher/releases).
