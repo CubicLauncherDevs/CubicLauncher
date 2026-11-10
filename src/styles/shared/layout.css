@@ -24,8 +24,12 @@
 	background-image: var(--bg-image, none);
 	background-size: var(--bg-image-size);
 	background-position: var(--bg-image-position);
-	filter: blur(var(--bg-image-blur, 8px))
-		brightness(var(--bg-image-brightness));
+	/* A theme may ship its background already blurred (see the builtin
+	   themes) and override the filter to skip the full-window blur layer. */
+	filter: var(
+		--bg-image-filter,
+		blur(var(--bg-image-blur, 8px)) brightness(var(--bg-image-brightness))
+	);
 	z-index: 0;
 	opacity: calc(var(--bg-image-loaded, 0) * var(--bg-image-opacity, 0.3));
 	transition: opacity 0.6s ease;

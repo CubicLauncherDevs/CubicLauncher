@@ -370,8 +370,9 @@
 		z-index: -1;
 		pointer-events: none;
 		background: var(--bg-sidebar);
-		-webkit-backdrop-filter: blur(12px);
-		backdrop-filter: blur(12px);
+		/* Themes with an opaque sidebar skip the blur: it can never show. */
+		-webkit-backdrop-filter: var(--header-backdrop-filter, blur(12px));
+		backdrop-filter: var(--header-backdrop-filter, blur(12px));
 		-webkit-mask-image: linear-gradient(
 			black 0%,
 			black 30%,
