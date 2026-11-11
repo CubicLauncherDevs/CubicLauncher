@@ -78,9 +78,10 @@ pub async fn get_all_instance_screenshots(instance_name: String) -> Vec<String> 
 
 const THUMBNAIL_WIDTH: u32 = 400;
 const THUMBNAIL_HEIGHT: u32 = 225;
+const THUMBNAIL_JPEG_QUALITY: u8 = 80;
 const THUMBNAIL_CACHE_BYTES: usize = 4 * 1024 * 1024;
 const THUMBNAIL_CACHE_ENTRIES: usize = 64;
-// PNG decoding needs the source pixels temporarily. Only one decoder may run,
+// Decoding needs the source pixels temporarily. Only one decoder may run,
 // including across windows, and it must never block an async runtime thread.
 static THUMBNAIL_WORKERS: Semaphore = Semaphore::const_new(1);
 static THUMBNAILS: LazyLock<Mutex<ThumbnailCache>> =
@@ -157,13 +158,19 @@ fn make_thumbnail(path: &Path) -> Option<Arc<str>> {
     limits.max_alloc = Some(128 * 1024 * 1024);
     reader.limits(limits);
     let decoded = reader.decode().ok()?;
-    let preview = decoded.thumbnail(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
+    // Screenshots have no meaningful alpha and JPEG is several times smaller
+    // than PNG at this size, so the IPC payload and the cache hold more frames.
+    let preview = decoded
+        .thumbnail(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT)
+        .to_rgb8();
     drop(decoded);
-    let mut png = Cursor::new(Vec::new());
-    preview.write_to(&mut png, image::ImageFormat::Png).ok()?;
+    let mut jpeg = Cursor::new(Vec::new());
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, THUMBNAIL_JPEG_QUALITY)
+        .encode_image(&preview)
+        .ok()?;
     Some(Arc::from(format!(
-        "data:image/png;base64,{}",
-        STANDARD.encode(png.into_inner())
+        "data:image/jpeg;base64,{}",
+        STANDARD.encode(jpeg.into_inner())
     )))
 }
 

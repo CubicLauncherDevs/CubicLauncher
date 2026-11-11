@@ -46,7 +46,7 @@ fn thumbnail_is_small_reused_and_invalidated_without_touching_original() {
     let original = std::fs::read(&path).unwrap();
     let cache = Mutex::new(ThumbnailCache::default());
     let first = cached_thumbnail(dir.path(), "capture.png", &cache).unwrap();
-    let encoded = first.strip_prefix("data:image/png;base64,").unwrap();
+    let encoded = first.strip_prefix("data:image/jpeg;base64,").unwrap();
     let preview = image::load_from_memory(&STANDARD.decode(encoded).unwrap()).unwrap();
     assert_eq!((preview.width(), preview.height()), (400, 225));
     assert_eq!(std::fs::read(&path).unwrap(), original);
@@ -62,6 +62,20 @@ fn thumbnail_is_small_reused_and_invalidated_without_touching_original() {
     assert_eq!(cache.lock().unwrap().entries.len(), 1);
     std::fs::remove_file(&path).unwrap();
     assert!(cached_thumbnail(dir.path(), "capture.png", &cache).is_none());
+}
+
+#[test]
+fn thumbnail_encodes_alpha_screenshots_as_jpeg() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("alpha.png");
+    image::RgbaImage::from_pixel(800, 450, image::Rgba([10, 20, 30, 128]))
+        .save(&path)
+        .unwrap();
+    let cache = Mutex::new(ThumbnailCache::default());
+    let data = cached_thumbnail(dir.path(), "alpha.png", &cache).unwrap();
+    let encoded = data.strip_prefix("data:image/jpeg;base64,").unwrap();
+    let preview = image::load_from_memory(&STANDARD.decode(encoded).unwrap()).unwrap();
+    assert_eq!((preview.width(), preview.height()), (400, 225));
 }
 
 #[test]
