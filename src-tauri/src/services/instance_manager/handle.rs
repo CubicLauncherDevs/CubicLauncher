@@ -222,10 +222,6 @@ impl InstanceHandle {
         self.data.read().await.get_instance_dir()
     }
 
-    pub async fn get_cover_image(&self) -> Option<PathBuf> {
-        self.data.read().await.cover_image.clone()
-    }
-
     pub async fn get_icon(&self) -> Option<Arc<str>> {
         self.data.read().await.icon.clone()
     }

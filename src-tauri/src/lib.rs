@@ -70,7 +70,6 @@ pub fn run() {
             commands::instance::mod_catalog::get_instance_mod_icons,
             commands::instance::toggle_instance_mod,
             commands::instance::get_instance_screenshot,
-            commands::instance::get_instance_banner,
             commands::instance::get_all_instance_screenshots,
             commands::instance::get_screenshot_thumbnail,
             commands::instance::worlds::get_instance_worlds,

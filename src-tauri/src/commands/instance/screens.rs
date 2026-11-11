@@ -299,21 +299,6 @@ pub async fn reset_instance_cover_image(instance_id: String) {
     }
 }
 
-#[tauri::command]
-pub async fn get_instance_banner(instance_id: String) -> Option<String> {
-    if validate_uuid(&instance_id).is_err() {
-        return None;
-    }
-    let manager = InstanceManager::get();
-    let handle = manager.get_handle(&instance_id).await?;
-
-    if let Some(path) = handle.get_cover_image().await {
-        return Some(path.to_string_lossy().to_string());
-    }
-
-    get_instance_screenshot(handle.get_name().await.to_string()).await
-}
-
 #[cfg(test)]
 #[path = "../../tests/commands/instance/screens.rs"]
 mod tests;
