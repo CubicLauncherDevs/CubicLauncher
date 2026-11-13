@@ -139,6 +139,8 @@ pub fn run() {
             commands::storage::purge_shared_dir,
             commands::storage::change_shared_dir,
             commands::storage::reset_shared_dir,
+            commands::storage::get_cache_info,
+            commands::storage::purge_launcher_cache,
             commands::i18n::save_locale,
             commands::i18n::load_locale,
             commands::i18n::refresh_locale,

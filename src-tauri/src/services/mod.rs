@@ -13,6 +13,7 @@ pub(crate) mod interface_preferences;
 pub(crate) mod java_manager;
 pub(crate) mod launch_window;
 pub(crate) mod launcher;
+pub mod launcher_cache;
 pub(crate) mod market_icon_cache;
 pub(crate) mod minecraft_jar;
 pub mod mod_versions;

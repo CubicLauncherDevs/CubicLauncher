@@ -77,3 +77,17 @@ export const changeSharedDir = (newDir: string) =>
 	invoke<DirUsage>("change_shared_dir", { newDir });
 
 export const resetSharedDir = () => invoke<DirUsage>("reset_shared_dir");
+
+// ── Caché del launcher (manifiestos, idiomas, iconos) ────────────────────────
+
+export interface LauncherCacheInfo {
+	dir: string;
+	total: DirUsage;
+	breakdown: Array<[string, DirUsage]>;
+}
+
+export const getLauncherCacheInfo = () =>
+	invoke<LauncherCacheInfo>("get_cache_info");
+
+export const purgeLauncherCache = () =>
+	invoke<DirUsage>("purge_launcher_cache");

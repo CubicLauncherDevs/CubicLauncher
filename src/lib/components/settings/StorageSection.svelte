@@ -13,9 +13,12 @@
 		purgeSharedDir,
 		changeSharedDir,
 		resetSharedDir,
+		getLauncherCacheInfo,
+		purgeLauncherCache,
 		type InstancesDirInfo,
 		type InstancesMoveProgress,
 		type SharedDirInfo,
+		type LauncherCacheInfo,
 	} from "$lib/api/storageLocation";
 
 	let info = $state<InstancesDirInfo | null>(null);
@@ -33,7 +36,13 @@
 	let sharedError = $state("");
 	let sharedResult = $state("");
 
-	let copied = $state<"instances" | "shared" | null>(null);
+	let cacheInfo = $state<LauncherCacheInfo | null>(null);
+	let cacheLoading = $state(true);
+	let cacheBusy = $state(false);
+	let cacheError = $state("");
+	let cacheResult = $state("");
+
+	let copied = $state<"instances" | "shared" | "cache" | null>(null);
 	let copyTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const percent = $derived(
@@ -66,6 +75,17 @@
 			sharedError = String(e);
 		} finally {
 			sharedLoading = false;
+		}
+	}
+
+	async function refreshCache() {
+		if (!cacheInfo) cacheLoading = true;
+		try {
+			cacheInfo = await getLauncherCacheInfo();
+		} catch (e) {
+			cacheError = String(e);
+		} finally {
+			cacheLoading = false;
 		}
 	}
 
@@ -143,14 +163,26 @@
 		return `${size} · ${files}`;
 	}
 
+	function cacheUsage(usage: { bytes: number; files: number }) {
+		if (usage.files === 0) return t("settings.launcherCache.empty");
+		const size = formatBytes(usage.bytes);
+		const files = t("settings.sharedStorage.files", {
+			count: usage.files,
+		});
+		return `${size} · ${files}`;
+	}
+
 	function categoryLabel(name: string) {
-		const key = `settings.sharedStorage.categories.${name}`;
+		const key = `settings.launcherCache.categories.${name}`;
 		const label = t(key);
 		if (label !== key) return label;
 		return name ? name[0].toLocaleUpperCase() + name.slice(1) : name;
 	}
 
-	async function copyPath(kind: "instances" | "shared", path: string) {
+	async function copyPath(
+		kind: "instances" | "shared" | "cache",
+		path: string,
+	) {
 		try {
 			await navigator.clipboard.writeText(path);
 			copied = kind;
@@ -169,6 +201,41 @@
 
 	function copySharedPath() {
 		if (sharedInfo) void copyPath("shared", sharedInfo.current_dir);
+	}
+
+	function copyCachePath() {
+		if (cacheInfo) void copyPath("cache", cacheInfo.dir);
+	}
+
+	async function purgeCache() {
+		if (cacheBusy || !cacheInfo) return;
+		cacheError = "";
+		cacheResult = "";
+		try {
+			const confirmed = await ask(
+				t("settings.launcherCache.purgeConfirmDesc", {
+					size: cacheUsage(cacheInfo.total),
+				}),
+				{
+					title: t("settings.launcherCache.purgeConfirmTitle"),
+					kind: "warning",
+					okLabel: t("settings.launcherCache.purge"),
+					cancelLabel: t("common.cancel"),
+				},
+			);
+			if (!confirmed) return;
+			cacheBusy = true;
+			const usage = await purgeLauncherCache();
+			cacheResult = t("settings.launcherCache.purged", {
+				size: formatBytes(usage.bytes),
+				files: usage.files,
+			});
+			await refreshCache();
+		} catch (e) {
+			cacheError = String(e);
+		} finally {
+			cacheBusy = false;
+		}
 	}
 
 	async function purgeShared() {
@@ -263,6 +330,7 @@
 
 	void refresh();
 	void refreshShared();
+	void refreshCache();
 </script>
 
 <div class="storage">
@@ -680,6 +748,141 @@
 				>
 					<Icon name="ui:trash" size={15} />
 					{t("settings.sharedStorage.purge")}
+				</button>
+			</div>
+		{/if}
+	</section>
+
+	<section class="storage-group" aria-busy={cacheBusy}>
+		<header class="group-header">
+			<h4 class="group-title">
+				<Icon name="instance:box" size={15} />
+				{t("settings.launcherCache.title")}
+			</h4>
+			<p class="hint">{t("settings.launcherCache.description")}</p>
+		</header>
+
+		{#if cacheLoading}
+			<div class="storage-skeleton sk-delayed" aria-hidden="true">
+				<div class="field">
+					<span class="sk-block sk-line sk-line-sm" style="width: 30%"
+					></span>
+					<div class="path-line">
+						<span class="sk-block path-icon-skeleton"></span>
+						<span class="sk-block path-value-skeleton"></span>
+						<span class="sk-block copy-skeleton"></span>
+					</div>
+				</div>
+				<div class="meta-line">
+					<span class="sk-block sk-line sk-line-sm" style="width: 52%"
+					></span>
+				</div>
+			</div>
+			<span class="sk-sr-only" role="status">{t("common.loading")}</span>
+		{:else if cacheInfo}
+			<div class="field">
+				<span class="field-label"
+					>{t("settings.sharedStorage.currentDir")}</span
+				>
+				<div class="path-line">
+					<Icon name="instance:folder" size={13} class="path-icon" />
+					<code class="path" title={cacheInfo.dir}
+						>{cacheInfo.dir}</code
+					>
+					<button
+						type="button"
+						class="copy-btn"
+						class:copied={copied === "cache"}
+						aria-label={copied === "cache"
+							? t("settings.storage.copied")
+							: t("settings.storage.copyPath")}
+						title={copied === "cache"
+							? t("settings.storage.copied")
+							: t("settings.storage.copyPath")}
+						onclick={copyCachePath}
+					>
+						<Icon
+							name={copied === "cache" ? "ui:check" : "ui:copy"}
+							size={13}
+						/>
+						<span
+							>{copied === "cache"
+								? t("settings.storage.copied")
+								: t("settings.storage.copyPath")}</span
+						>
+					</button>
+				</div>
+			</div>
+
+			<div class="meta-line">
+				<span class="meta-value"
+					>{formatBytes(cacheInfo.total.bytes)}</span
+				>
+				<span class="meta-label"
+					>{t("settings.sharedStorage.usage")}</span
+				>
+				<span class="meta-separator">·</span>
+				<span class="meta-label"
+					>{t("settings.sharedStorage.files", {
+						count: cacheInfo.total.files,
+					})}</span
+				>
+			</div>
+
+			{#if cacheInfo.breakdown.length > 0}
+				<div class="breakdown">
+					<span class="field-label"
+						>{t("settings.sharedStorage.breakdownTitle")}</span
+					>
+					<div class="breakdown-list">
+						{#each cacheInfo.breakdown as [name, usage] (name)}
+							<div class="breakdown-row">
+								<div class="breakdown-head">
+									<span class="breakdown-name"
+										>{categoryLabel(name)}</span
+									>
+									<span class="breakdown-value">
+										{formatBytes(usage.bytes)} ·
+										{t("settings.sharedStorage.files", {
+											count: usage.files,
+										})}
+									</span>
+								</div>
+								<progress
+									class="usage-bar"
+									max={Math.max(1, cacheInfo.total.bytes)}
+									value={usage.bytes}
+									aria-label={`${categoryLabel(name)}: ${formatBytes(usage.bytes)}`}
+								></progress>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			{#if cacheResult}
+				<div class="status-message success" role="status">
+					<Icon name="ui:check" size={15} class="status-icon" />
+					<span class="status-body">{cacheResult}</span>
+				</div>
+			{/if}
+
+			{#if cacheError}
+				<div class="status-message error" role="alert">
+					<Icon name="ui:error" size={15} class="status-icon" />
+					<span class="status-body">{cacheError}</span>
+				</div>
+			{/if}
+
+			<div class="actions">
+				<button
+					type="button"
+					class="btn danger"
+					disabled={cacheBusy || cacheInfo.total.files === 0}
+					onclick={purgeCache}
+				>
+					<Icon name="ui:trash" size={15} />
+					{t("settings.launcherCache.purge")}
 				</button>
 			</div>
 		{/if}

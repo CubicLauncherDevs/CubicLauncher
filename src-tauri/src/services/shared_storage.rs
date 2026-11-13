@@ -67,7 +67,7 @@ pub struct SharedDirInfo {
 /// árbol es medible/borrable. Los symlinks (los JRE gestionados traen cientos
 /// en `legal/`) no bloquean nada: borrar el enlace no toca su destino. Errores
 /// de lectura sí marcan el árbol como no borrable.
-fn compute_usage(dir: &Path, usage: &mut DirUsage) {
+pub(crate) fn compute_usage(dir: &Path, usage: &mut DirUsage) {
     compute_usage_inner(dir, usage, 0);
 }
 
@@ -181,7 +181,7 @@ async fn shared_is_busy() -> Option<String> {
 /// Borra el contenido de `dir` (no el propio directorio). Devuelve los nombres
 /// de las entradas que no se pudieron borrar. Los symlinks se eliminan como
 /// enlaces: `remove_file` no sigue el enlace, así que el destino queda intacto.
-fn clear_dir(dir: &Path) -> Result<Vec<String>, std::io::Error> {
+pub(crate) fn clear_dir(dir: &Path) -> Result<Vec<String>, std::io::Error> {
     let mut failures = Vec::new();
     for entry in std::fs::read_dir(dir)?.flatten() {
         let path = entry.path();

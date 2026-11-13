@@ -519,6 +519,20 @@
 				"graalvmHint": "Compilador JIT de Graal, suele ir más rápido con mods. JDK para Java 17 o superior."
 			},
 			"providersCredit": "Runtimes de Java proporcionados por Azul, Eclipse Temurin, BellSoft y GraalVM mediante foojay."
+		},
+		"launcherCache": {
+			"title": "Caché del launcher",
+			"description": "Manifiestos de versiones, idiomas e iconos del market que se descargan para cargar más rápido. No incluye tus instancias, mundos ni ajustes: se puede borrar sin perder nada y se regenera sola.",
+			"empty": "Vacío",
+			"purge": "Borrar caché",
+			"purgeConfirmTitle": "¿Borrar la caché del launcher?",
+			"purgeConfirmDesc": "Se liberará {size}. Los manifiestos, idiomas e iconos se volverán a descargar cuando hagan falta.",
+			"purged": "{size} liberados ({files})",
+			"categories": {
+				"manifests": "Manifiestos de versiones",
+				"i18n": "Idiomas",
+				"market-icons": "Iconos del market"
+			}
 		}
 	},
 	"updater": {

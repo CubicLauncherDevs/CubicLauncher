@@ -305,6 +305,11 @@ impl From<CurseForgeError> for String {
 
 static CACHE: LazyLock<Arc<JsonCache>> = LazyLock::new(|| JsonCache::new(4 * 1024 * 1024));
 
+/// Drops cached API payloads after the launcher caches are purged.
+pub(crate) fn clear_memory_cache() {
+    CACHE.clear();
+}
+
 #[derive(Clone)]
 pub struct CurseForgeClient {
     api_key: String,

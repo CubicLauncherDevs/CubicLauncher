@@ -64,6 +64,14 @@ impl JsonCache {
         Some(Arc::clone(&entry.data))
     }
 
+    /// Drops every payload. Used after purging on-disk caches so stale network
+    /// responses do not survive the purge.
+    pub(crate) fn clear(&self) {
+        let mut entries = self.entries.lock();
+        entries.map.clear();
+        entries.bytes = 0;
+    }
+
     pub(crate) fn set(self: &Arc<Self>, key: String, data: Arc<[u8]>) {
         let size = key.len() + data.len();
         if size > MAX_ENTRY_BYTES || size > self.max_bytes {

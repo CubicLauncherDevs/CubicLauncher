@@ -1,4 +1,5 @@
 use crate::core::{PathManager, default_instances_dir};
+use crate::services::launcher_cache;
 use crate::services::shared_storage::{self, DirUsage, SharedDirInfo};
 use crate::services::storage_migration::{self, InstancesDirInfo, MoveProgress, MoveResult};
 use std::path::PathBuf;
@@ -76,6 +77,19 @@ pub async fn reset_instances_dir(
 #[tauri::command]
 pub async fn get_shared_dir_info() -> Result<SharedDirInfo, String> {
     Ok(shared_storage::get_shared_dir_info().await)
+}
+
+/// Estado y uso de disco de la caché del launcher para la UI de ajustes.
+#[tauri::command]
+pub async fn get_cache_info() -> launcher_cache::CacheInfo {
+    launcher_cache::get_cache_info().await
+}
+
+/// Borra la caché del launcher (manifiestos, idiomas e iconos).
+#[tauri::command]
+pub async fn purge_launcher_cache() -> Result<DirUsage, String> {
+    info!("Purgando caché del launcher");
+    launcher_cache::purge_cache().await
 }
 
 /// Borra todo el contenido de shared; se re-descarga al lanzar.
