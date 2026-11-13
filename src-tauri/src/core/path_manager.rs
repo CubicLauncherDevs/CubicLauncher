@@ -17,6 +17,8 @@ pub struct PathManager {
     settings_dir: Box<Path>,
     themes_dir: Box<Path>,
     skin_closet_dir: Box<Path>,
+    /// Datos descartables (iconos del market); se puede borrar sin perder nada.
+    cache_dir: Box<Path>,
 }
 
 impl PathManager {
@@ -40,6 +42,9 @@ impl PathManager {
     }
     pub fn get_skin_closet_dir(&self) -> &Path {
         &self.skin_closet_dir
+    }
+    pub fn get_cache_dir(&self) -> &Path {
+        &self.cache_dir
     }
 
     /// Reapunta el directorio de instancias en caliente. Solo se usa tras una
@@ -81,6 +86,7 @@ impl PathManager {
             Self::get().get_settings_dir().to_path_buf(),
             Self::get().get_themes_dir().to_path_buf(),
             Self::get().get_skin_closet_dir().to_path_buf(),
+            Self::get().get_cache_dir().to_path_buf(),
         ];
 
         let mut errors = SmallVec::<[String; 4]>::new();
@@ -109,6 +115,7 @@ impl PathManager {
             settings_dir: base_dir.join(".cubic").join("settings").into_boxed_path(),
             themes_dir: base_dir.join(".cubic").join("themes").into_boxed_path(),
             skin_closet_dir: base_dir.join(".cubic").join("skins").into_boxed_path(),
+            cache_dir: base_dir.join(".cubic").join("cache").into_boxed_path(),
         }
     }
 }

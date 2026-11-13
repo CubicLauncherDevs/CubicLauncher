@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { isPackProtected } from "$lib/utils/modpackMods";
+	import { marketIconSrc } from "$lib/utils/marketIcons";
 	import { onDestroy, tick } from "svelte";
 	import { t } from "$lib/i18n";
 	import {
@@ -73,6 +74,7 @@
 	let installing = $state(false);
 	let actionError = $state<string | null>(null);
 	let iconError = $state(false);
+	const iconSrc = $derived(marketIconSrc(icon));
 	$effect(() => {
 		void icon;
 		iconError = false;
@@ -340,9 +342,9 @@
 		<div class="market-detail-columns">
 			<div class="market-detail-hero">
 				<div class="market-detail-icon">
-					{#if icon && !iconError}
+					{#if iconSrc && !iconError}
 						<img
-							src={icon}
+							src={iconSrc}
 							alt={project.title}
 							loading="lazy"
 							decoding="async"

@@ -5,6 +5,7 @@
 	import Icon from "$lib/icons/Icon.svelte";
 	import Loading from "$lib/icons/Loading.svelte";
 	import { isPackProtected } from "$lib/utils/modpackMods";
+	import { marketIconSrc } from "$lib/utils/marketIcons";
 
 	let {
 		project,
@@ -34,6 +35,7 @@
 		updating?: boolean;
 	} = $props();
 	let iconError = $state(false);
+	const iconSrc = $derived(marketIconSrc(icon));
 	$effect(() => {
 		void icon;
 		iconError = false;
@@ -62,9 +64,9 @@
 		title={project.installed?.filename}
 	>
 		<span class="item-icon">
-			{#if icon && !iconError}
+			{#if iconSrc && !iconError}
 				<img
-					src={icon}
+					src={iconSrc}
 					alt=""
 					loading="lazy"
 					decoding="async"

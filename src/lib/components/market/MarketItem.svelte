@@ -4,6 +4,7 @@
 	import Loading from "$lib/icons/Loading.svelte";
 	import Icon from "$lib/icons/Icon.svelte";
 	import CubicLogo from "./CubicLogo.svelte";
+	import { marketIconSrc } from "$lib/utils/marketIcons";
 
 	interface Props {
 		project: MarketProject;
@@ -30,6 +31,7 @@
 	let pending = $state(false);
 	const busy = $derived(installing || pending);
 	let iconError = $state(false);
+	const iconSrc = $derived(marketIconSrc(project.icon));
 
 	function formatNumber(num: number): string {
 		if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
@@ -99,9 +101,9 @@
 		aria-label={project.title}
 	>
 		<span class="market-item-icon">
-			{#if project.icon && !iconError}
+			{#if iconSrc && !iconError}
 				<img
-					src={project.icon}
+					src={iconSrc}
 					alt={project.title}
 					loading="lazy"
 					decoding="async"
