@@ -99,12 +99,7 @@ fn cache_path(remote: &str) -> Option<PathBuf> {
     for byte in &digest[..HASH_BYTES] {
         write!(&mut name, "{byte:02x}").ok()?;
     }
-    Some(
-        PathManager::get()
-            .get_cache_dir()
-            .join("market-icons")
-            .join(name),
-    )
+    Some(PathManager::get().cache_subdir("market-icons").join(name))
 }
 
 async fn read_cached(path: &Path) -> Option<Vec<u8>> {

@@ -12,18 +12,16 @@ fn invalid(message: impl Into<String>) -> io::Error {
 /// Junctions, mount points and cloud placeholders are reparse points too, so
 /// checking the file attribute is stricter than `is_symlink`.
 fn is_link_or_reparse(meta: &cap_std::fs::Metadata) -> bool {
-    if meta.is_symlink() {
-        return true;
-    }
     #[cfg(windows)]
     {
         use cap_std::fs::MetadataExt;
         const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
-        if meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
-            return true;
-        }
+        meta.is_symlink() || meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
     }
-    false
+    #[cfg(not(windows))]
+    {
+        meta.is_symlink()
+    }
 }
 
 /// Ask cap-std to resolve the final component without following links.

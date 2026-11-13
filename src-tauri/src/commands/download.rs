@@ -19,11 +19,15 @@ const NEOFORGE_MAVEN_METADATA_URL: &str =
     "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
 
 fn manifest_cache_path() -> std::path::PathBuf {
-    PathManager::get().get_settings_dir().join("manifest.crep")
+    PathManager::get()
+        .cache_subdir("manifests")
+        .join("manifest.crep")
 }
 
 fn fabric_cache_path() -> std::path::PathBuf {
-    PathManager::get().get_settings_dir().join("fabric.crep")
+    PathManager::get()
+        .cache_subdir("manifests")
+        .join("fabric.crep")
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -440,7 +444,9 @@ async fn fetch_forge_versions_from_maven() -> Result<Vec<ForgeGameVersion>, Stri
 }
 
 fn get_forge_cache_path() -> std::path::PathBuf {
-    PathManager::get().get_settings_dir().join("forge_v3.crep")
+    PathManager::get()
+        .cache_subdir("manifests")
+        .join("forge_v3.crep")
 }
 
 async fn read_forge_cache() -> Option<Vec<ForgeGameVersion>> {
@@ -610,7 +616,7 @@ async fn fetch_neoforge_versions_from_maven() -> Result<Vec<NeoForgeGameVersion>
 
 fn get_neoforge_cache_path() -> std::path::PathBuf {
     PathManager::get()
-        .get_settings_dir()
+        .cache_subdir("manifests")
         .join("neoforge_v3.crep")
 }
 
@@ -712,7 +718,9 @@ pub async fn download_neoforge(
 // ─── Quilt ────────────────────────────────────────────────────────────────────
 
 fn quilt_cache_path() -> std::path::PathBuf {
-    PathManager::get().get_settings_dir().join("quilt.crep")
+    PathManager::get()
+        .cache_subdir("manifests")
+        .join("quilt.crep")
 }
 
 async fn read_quilt_cache() -> Option<Vec<FabricGameVersion>> {

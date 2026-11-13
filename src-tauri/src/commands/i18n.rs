@@ -62,7 +62,7 @@ struct LocaleService {
 static LOCALES: LazyLock<LocaleService> = LazyLock::new(LocaleService::default);
 
 fn locales_dir() -> PathBuf {
-    PathManager::get().get_settings_dir().join("i18n")
+    PathManager::get().cache_subdir("i18n")
 }
 
 struct ParsedLocale {

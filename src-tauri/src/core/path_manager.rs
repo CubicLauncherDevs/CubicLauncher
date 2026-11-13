@@ -47,6 +47,17 @@ impl PathManager {
         &self.cache_dir
     }
 
+    /// Subdirectorio de caché por tipo, creado si falta. Mantiene los archivos
+    /// descartables (manifiestos, idiomas, iconos) agrupados y fuera de
+    /// `settings`.
+    pub fn cache_subdir(&self, kind: &str) -> PathBuf {
+        let dir = self.cache_dir.join(kind);
+        if let Err(error) = std::fs::create_dir_all(&dir) {
+            warn!("No se pudo crear la caché {}: {}", dir.display(), error);
+        }
+        dir
+    }
+
     /// Reapunta el directorio de instancias en caliente. Solo se usa tras una
     /// migración completada; el arranque lo resuelve desde settings.cub.
     pub fn set_instances_dir(dir: PathBuf) {
@@ -97,6 +108,8 @@ impl PathManager {
                 info!("Directorio asegurado: {:?}", dir);
             }
         }
+
+        migrate_legacy_cache(Self::get().get_settings_dir(), Self::get().get_cache_dir());
 
         if errors.is_empty() {
             info!("Todos los directorios necesarios existen");
@@ -190,6 +203,52 @@ fn resolve_instances_dir(base_dir: &Path) -> PathBuf {
     }
 }
 
+/// Cachés que versiones anteriores guardaban junto a `settings.cub`.
+const LEGACY_CACHE_FILES: [&str; 5] = [
+    "manifest.crep",
+    "fabric.crep",
+    "forge_v3.crep",
+    "neoforge_v3.crep",
+    "quilt.crep",
+];
+
+/// Mueve las cachés antiguas al directorio de caché. Es best-effort: si algo
+/// falla se vuelve a descargar, así que nunca bloquea el arranque.
+fn migrate_legacy_cache(settings_dir: &Path, cache_dir: &Path) {
+    let manifests = cache_dir.join("manifests");
+    for name in LEGACY_CACHE_FILES {
+        let from = settings_dir.join(name);
+        if !from.is_file() {
+            continue;
+        }
+        let to = manifests.join(name);
+        if to.exists() {
+            continue;
+        }
+        if let Err(error) = std::fs::create_dir_all(&manifests) {
+            warn!("No se pudo crear la caché de manifiestos: {error}");
+            return;
+        }
+        match std::fs::rename(&from, &to) {
+            Ok(()) => info!("Caché migrada: {} -> {}", from.display(), to.display()),
+            Err(error) => warn!("No se pudo migrar {}: {}", from.display(), error),
+        }
+    }
+
+    let from = settings_dir.join("i18n");
+    let to = cache_dir.join("i18n");
+    if from.is_dir() && !to.exists() {
+        if let Err(error) = std::fs::create_dir_all(cache_dir) {
+            warn!("No se pudo crear la caché: {error}");
+            return;
+        }
+        match std::fs::rename(&from, &to) {
+            Ok(()) => info!("Caché de idiomas migrada a {}", to.display()),
+            Err(error) => warn!("No se pudo migrar {}: {}", from.display(), error),
+        }
+    }
+}
+
 fn resolve_base_dir() -> PathBuf {
     if let Some(home) = std::env::var_os("HOME").map(PathBuf::from)
         && home.is_dir()
@@ -220,3 +279,7 @@ fn resolve_base_dir() -> PathBuf {
     info!("Directorio base resuelto: temp dir {:?}", tmp);
     tmp
 }
+
+#[cfg(test)]
+#[path = "../tests/core/path_manager.rs"]
+mod tests;
