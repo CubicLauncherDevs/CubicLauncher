@@ -806,6 +806,7 @@
 			"serverInstruction": "Enter the Yggdrasil authentication server URL.",
 			"serverLabel": "Server",
 			"serverPlaceholder": "e.g. littlesk.in",
+			"insecureHttpWarning": "HTTP is only allowed for localhost or private networks. Credentials will be sent unencrypted.",
 			"connect": "Connect",
 			"loginInstruction": "Enter your credentials to log in.",
 			"usernameLabel": "Username",

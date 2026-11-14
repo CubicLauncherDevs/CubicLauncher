@@ -1,4 +1,7 @@
-use crate::{core::http_client::HTTP, services::SettingsManager};
+use crate::{
+    core::http_client::{HTTP, YGGDRASIL_HTTP},
+    services::SettingsManager,
+};
 use base64::{Engine as _, engine::general_purpose};
 use image::ImageDecoder;
 use launchwerk::auth::{AccountType, MinecraftUser};
@@ -220,7 +223,7 @@ async fn send_profile_request(
     );
 
     for attempt in 0..2 {
-        let mut request = HTTP
+        let mut request = YGGDRASIL_HTTP
             .request(method.clone(), &url)
             .bearer_auth(&user.access_token);
         if let Some(form) = form() {
@@ -263,7 +266,7 @@ pub async fn get_yggdrasil_skin_profile(uuid: String) -> Result<YggdrasilSkinPro
     );
 
     info!("Obteniendo perfil Yggdrasil para la skin: {profile_url}");
-    let response = HTTP
+    let response = YGGDRASIL_HTTP
         .get(&profile_url)
         .send()
         .await

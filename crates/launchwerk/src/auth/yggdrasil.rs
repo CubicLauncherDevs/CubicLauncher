@@ -5,10 +5,12 @@ use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use url::{Host, Url};
 
 use super::MinecraftUser;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(15);
+const MAX_REDIRECTS: usize = 10;
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -92,11 +94,7 @@ impl Default for YggdrasilAuth {
 
 impl YggdrasilAuth {
     pub fn new() -> Self {
-        let client = Client::builder()
-            .timeout(DEFAULT_TIMEOUT)
-            .user_agent("CubicLauncher/2.0")
-            .build()
-            .expect("Failed to create HTTP client");
+        let client = yggdrasil_client(DEFAULT_TIMEOUT).expect("Failed to create HTTP client");
 
         Self { client }
     }
@@ -104,7 +102,7 @@ impl YggdrasilAuth {
     /// Resolve API Location Indication (ALI) — converts a user-provided URL
     /// into the actual Yggdrasil API root.
     pub async fn resolve_api_url(&self, input: &str) -> Result<String, String> {
-        let url = ensure_https(input);
+        let url = ensure_https(input)?;
 
         let response = self
             .client
@@ -118,7 +116,7 @@ impl YggdrasilAuth {
         if let Some(ali) = headers.get("x-authlib-injector-api-location") {
             let ali_str = ali.to_str().unwrap_or("");
             if !ali_str.is_empty() {
-                let resolved = resolve_relative_url(&url, ali_str);
+                let resolved = resolve_relative_url(&url, ali_str)?;
                 if resolved != url {
                     return Ok(resolved);
                 }
@@ -130,6 +128,7 @@ impl YggdrasilAuth {
 
     /// Fetch API metadata from the Yggdrasil server root.
     pub async fn fetch_metadata(&self, api_root: &str) -> Result<YggdrasilServerInfo, String> {
+        validate_api_root(api_root)?;
         let url = normalize_url(api_root);
 
         let response = self
@@ -172,6 +171,7 @@ impl YggdrasilAuth {
         username: &str,
         password: &str,
     ) -> Result<MinecraftUser, String> {
+        validate_api_root(api_root)?;
         let url = format!("{}authserver/authenticate", normalize_url(api_root));
 
         let body = serde_json::json!({
@@ -217,6 +217,7 @@ impl YggdrasilAuth {
         profile_id: &str,
         profile_name: &str,
     ) -> Result<MinecraftUser, String> {
+        validate_api_root(api_root)?;
         let url = format!("{}authserver/refresh", normalize_url(api_root));
 
         let body = serde_json::json!({
@@ -255,6 +256,10 @@ impl YggdrasilAuth {
 
     /// Validate an access token.
     pub async fn validate(&self, api_root: &str, access_token: &str, client_token: &str) -> bool {
+        if let Err(e) = validate_api_root(api_root) {
+            log::warn!("Rejected Yggdrasil API root: {}", e);
+            return false;
+        }
         let url = format!("{}authserver/validate", normalize_url(api_root));
 
         let body = serde_json::json!({
@@ -274,12 +279,84 @@ impl YggdrasilAuth {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-fn ensure_https(input: &str) -> String {
+fn yggdrasil_client(timeout: Duration) -> reqwest::Result<Client> {
+    Client::builder()
+        .timeout(timeout)
+        .user_agent("CubicLauncher/2.0")
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            if attempt.previous().len() > MAX_REDIRECTS {
+                return attempt.error("too many redirects");
+            }
+            if attempt.url().scheme() == "http"
+                && attempt
+                    .previous()
+                    .last()
+                    .is_some_and(|previous| previous.scheme() == "https")
+            {
+                return attempt.error("refusing HTTPS to HTTP redirect");
+            }
+            if validate_url_policy(attempt.url()).is_err() {
+                return attempt.error("refusing insecure redirect");
+            }
+            attempt.follow()
+        }))
+        .build()
+}
+
+fn ensure_https(input: &str) -> Result<String, String> {
     let trimmed = input.trim();
-    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
-        trimmed.to_string()
-    } else {
-        format!("https://{}", trimmed)
+    if trimmed.is_empty() {
+        return Err("Yggdrasil server URL cannot be empty".to_string());
+    }
+
+    let parsed = Url::parse(trimmed).ok().filter(Url::has_host);
+    let url = match parsed {
+        Some(url) => url,
+        None => Url::parse(&format!("https://{}", trimmed))
+            .map_err(|e| format!("Invalid Yggdrasil server URL '{}': {}", trimmed, e))?,
+    };
+
+    validate_url_policy(&url)?;
+    Ok(url.to_string())
+}
+
+fn validate_api_root(api_root: &str) -> Result<(), String> {
+    let url = Url::parse(api_root)
+        .map_err(|e| format!("Invalid Yggdrasil API root '{}': {}", api_root, e))?;
+    validate_url_policy(&url)
+}
+
+fn validate_url_policy(url: &Url) -> Result<(), String> {
+    match url.scheme() {
+        "https" => Ok(()),
+        "http" if is_allowed_insecure_host(url) => Ok(()),
+        "http" => Err(format!(
+            "Yggdrasil server '{}' uses plain HTTP; use HTTPS or a local/private address",
+            url
+        )),
+        scheme => Err(format!(
+            "Unsupported Yggdrasil server URL scheme '{}'",
+            scheme
+        )),
+    }
+}
+
+fn is_allowed_insecure_host(url: &Url) -> bool {
+    match url.host() {
+        Some(Host::Domain(domain)) => {
+            let domain = domain.trim_end_matches('.').to_ascii_lowercase();
+            domain == "localhost" || domain.ends_with(".localhost")
+        }
+        Some(Host::Ipv4(ip)) => ip.is_loopback() || ip.is_private() || ip.is_link_local(),
+        Some(Host::Ipv6(ip)) => {
+            ip.is_loopback()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local()
+                || ip
+                    .to_ipv4_mapped()
+                    .is_some_and(|ip| ip.is_loopback() || ip.is_private() || ip.is_link_local())
+        }
+        _ => false,
     }
 }
 
@@ -291,24 +368,19 @@ fn normalize_url(url: &str) -> String {
     s
 }
 
-fn resolve_relative_url(base: &str, relative: &str) -> String {
-    if relative.starts_with("http://") || relative.starts_with("https://") {
-        return relative.to_string();
+fn resolve_relative_url(base: &str, relative: &str) -> Result<String, String> {
+    let base =
+        Url::parse(base).map_err(|e| format!("Invalid Yggdrasil API root '{}': {}", base, e))?;
+    let resolved = base
+        .join(relative)
+        .map_err(|e| format!("Invalid Yggdrasil API location '{}': {}", relative, e))?;
+
+    if base.scheme() == "https" && resolved.scheme() == "http" {
+        return Err("Refusing to downgrade Yggdrasil connection from HTTPS to HTTP".to_string());
     }
-    // Relative URL — resolve against base
-    let base_clean = base.trim_end_matches('/');
-    if relative.starts_with('/') {
-        // Absolute path relative to origin
-        if let Some(origin_end) = base_clean.find("://")
-            && let Some(slash_pos) = base_clean[origin_end + 3..].find('/')
-        {
-            let origin = &base_clean[..origin_end + 3 + slash_pos];
-            return format!("{}{}", origin, relative);
-        }
-        format!("{}{}", base_clean, relative)
-    } else {
-        format!("{}/{}", base_clean, relative)
-    }
+
+    validate_url_policy(&resolved)?;
+    Ok(resolved.to_string())
 }
 
 fn parse_yggdrasil_error(body: &str) -> Option<String> {
@@ -458,11 +530,9 @@ pub async fn download_authlib_injector(shared_dir: &Path) -> Result<PathBuf, Str
 /// Fetch the Yggdrasil API metadata and return it as a Base64 string
 /// suitable for the `-Dauthlibinjector.yggdrasil.prefetched` JVM argument.
 pub async fn fetch_metadata_prefetch(api_root: &str) -> Result<String, String> {
+    validate_api_root(api_root)?;
     let url = normalize_url(api_root);
-    let client = Client::builder()
-        .timeout(Duration::from_secs(15))
-        .user_agent("CubicLauncher/2.0")
-        .build()
+    let client = yggdrasil_client(Duration::from_secs(15))
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     let response = client
@@ -479,4 +549,68 @@ pub async fn fetch_metadata_prefetch(api_root: &str) -> Result<String, String> {
     use base64::Engine;
     let encoded = base64::engine::general_purpose::STANDARD.encode(body.as_bytes());
     Ok(encoded)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bare_hosts_default_to_https() {
+        assert_eq!(ensure_https("example.com").unwrap(), "https://example.com/");
+        assert_eq!(
+            ensure_https("HTTPS://example.com").unwrap(),
+            "https://example.com/"
+        );
+    }
+
+    #[test]
+    fn http_is_allowed_for_loopback_and_private_hosts() {
+        for input in [
+            "http://localhost",
+            "http://localhost:8080",
+            "http://auth.localhost",
+            "http://127.0.0.1",
+            "http://10.0.0.5",
+            "http://172.16.4.2",
+            "http://192.168.1.10",
+            "http://169.254.10.20",
+            "http://[::1]",
+            "http://[fd00::1]",
+            "http://[fe80::1]",
+            "http://[::ffff:192.168.1.1]",
+        ] {
+            assert!(ensure_https(input).is_ok(), "{input} should be allowed");
+        }
+    }
+
+    #[test]
+    fn http_is_rejected_for_public_hosts() {
+        for input in [
+            "http://example.com",
+            "http://8.8.8.8",
+            "http://[2001:db8::1]",
+            "ftp://example.com",
+            "",
+        ] {
+            assert!(ensure_https(input).is_err(), "{input} should be rejected");
+        }
+    }
+
+    #[test]
+    fn ali_resolution_rejects_public_http_and_downgrades() {
+        assert!(resolve_relative_url("https://example.com/api/", "v2").is_ok());
+        assert!(resolve_relative_url("https://example.com/api/", "https://other.example/").is_ok());
+        assert!(resolve_relative_url("https://example.com/api/", "http://example.com/").is_err());
+        assert!(resolve_relative_url("https://example.com/api/", "http://127.0.0.1:8080").is_err());
+        assert!(resolve_relative_url("http://127.0.0.1:8080/", "http://127.0.0.1:9090/").is_ok());
+    }
+
+    #[test]
+    fn api_root_validation_rejects_legacy_insecure_urls() {
+        assert!(validate_api_root("https://example.com").is_ok());
+        assert!(validate_api_root("http://192.168.1.2").is_ok());
+        assert!(validate_api_root("http://example.com").is_err());
+        assert!(validate_api_root("not a url").is_err());
+    }
 }
