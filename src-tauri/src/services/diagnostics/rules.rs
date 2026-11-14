@@ -114,6 +114,18 @@ const RULES: &[Rule] = &[
         action: Some(|| DiagnosticAction::OpenMods),
     },
     Rule {
+        code: "java_missing_native_lib",
+        severity: CrashSeverity::Error,
+        // libawt_xawt.so sin libXtst/libXrender/libX11 es un JDK que no puede
+        // cargar AWT; LWJGL lo dispara antes de crear la ventana.
+        needles: &[
+            Needle::All(&["UnsatisfiedLinkError", "libawt"]),
+            Needle::All(&["UnsatisfiedLinkError", "libXtst"]),
+            Needle::All(&["UnsatisfiedLinkError", "libXrender"]),
+        ],
+        action: None,
+    },
+    Rule {
         code: "graphics_opengl",
         severity: CrashSeverity::Error,
         needles: &[Needle::Any(&[

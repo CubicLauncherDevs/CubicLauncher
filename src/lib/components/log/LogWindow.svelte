@@ -35,6 +35,7 @@
 	let analysis = $state<CrashAnalysis | null>(null);
 	let analyzing = $state(false);
 	let analysisRequest = 0;
+	let crashPanel: HTMLDivElement | undefined = $state();
 
 	const log = new LogState();
 	const renderer = new LogRenderer(log);
@@ -216,11 +217,12 @@
 	</LogHeader>
 
 	{#if crashMode}
-		<div class="crash-panel">
+		<div class="crash-panel" bind:this={crashPanel}>
 			<CrashAnalysisView
 				{analysis}
 				loading={analyzing}
 				collapsible
+				onexpand={() => crashPanel?.scrollTo({ top: 0 })}
 				onanalyze={runAnalysis}
 				onevidence={jumpToEvidence}
 			/>

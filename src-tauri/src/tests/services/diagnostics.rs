@@ -57,6 +57,10 @@ fn each_rule_detects_its_signal() {
             "Chunk file at chunk file provided is corrupted (libdeflate)",
         ),
         ("auth_session", "Failed to verify username! Invalid session"),
+        (
+            "java_missing_native_lib",
+            "Exception in thread \"main\" java.lang.UnsatisfiedLinkError: /home/user/.cubic/shared/runtimes/jre8/lib/amd64/libawt_xawt.so: libXtst.so.6: no se puede abrir el fichero del objeto compartido: No existe el fichero o el directorio",
+        ),
     ];
 
     for (code, line) in cases {
@@ -66,6 +70,20 @@ fn each_rule_detects_its_signal() {
             "la regla {code} no detectó: {line}"
         );
     }
+}
+
+#[test]
+fn mod_native_link_errors_are_not_reported_as_missing_desktop_libraries() {
+    let lines = [
+        "java.lang.UnsatisfiedLinkError: no lwjgl in java.library.path",
+        "java.lang.UnsatisfiedLinkError: org/example/Native.foo()V",
+    ];
+    let findings = rules::analyze_lines(&lines);
+    assert!(
+        findings
+            .iter()
+            .all(|finding| finding.code != "java_missing_native_lib")
+    );
 }
 
 #[test]

@@ -1548,6 +1548,7 @@
 		},
 		"crash": {
 			"title": "Crash analysis",
+			"lead": "Most likely cause",
 			"analyzing": "Analyzing the crash…",
 			"idle": "No analysis yet.",
 			"description": "Description",
@@ -1570,6 +1571,7 @@
 				"java_unsupported_class": "The game requires a newer Java version",
 				"memory_out_of_memory": "Minecraft ran out of memory",
 				"java_missing_main": "Java could not start the game's main class",
+				"java_missing_native_lib": "Java could not load its native desktop libraries (libXtst/libXrender)",
 				"mods_mixin_failed": "A mod failed to apply its mixins",
 				"mods_duplicate": "The same mod is installed more than once",
 				"mods_missing_dependency": "A mod is missing a required dependency",

@@ -19,6 +19,7 @@
 		onanalyze,
 		onevidence,
 		onaction,
+		onexpand,
 	}: {
 		analysis: CrashAnalysis | null;
 		loading?: boolean;
@@ -26,17 +27,29 @@
 		onanalyze?: () => void;
 		onevidence?: (evidence: { line: number; text: string }) => void;
 		onaction?: (action: DiagnosticAction) => void;
+		onexpand?: () => void;
 	} = $props();
 
 	let collapsed = $state(false);
 	const findings = $derived(analysis ? sortFindings(analysis.findings) : []);
-	// La causa más probable va en el titular; el resto, como hallazgos debajo.
+	// La causa más probable se destaca en el titular y en su tarjeta.
 	const lead = $derived(
 		findings.find((finding) => finding.code !== "unknown") ??
 			findings[0] ??
 			null,
 	);
-	const rest = $derived(findings.filter((finding) => finding !== lead));
+	const expandable = $derived(collapsible && !!analysis && !loading);
+
+	function toggle() {
+		if (!expandable) return;
+		collapsed = !collapsed;
+		if (!collapsed) onexpand?.();
+	}
+
+	// Al analizar otro crash el panel debe volver a mostrarse entero.
+	$effect(() => {
+		if (analysis) collapsed = false;
+	});
 	const leadAction = $derived(
 		lead?.action && onaction && lead.code !== "unknown"
 			? lead.action
@@ -100,11 +113,10 @@
 		<button
 			type="button"
 			class="heading"
-			class:static={!collapsible}
-			onclick={() => {
-				if (collapsible) collapsed = !collapsed;
-			}}
-			aria-expanded={collapsible ? !collapsed : true}
+			class:static={!expandable}
+			disabled={!expandable}
+			onclick={toggle}
+			aria-expanded={expandable ? !collapsed : true}
 		>
 			<span class="badge" aria-hidden="true">
 				<Icon
@@ -127,7 +139,7 @@
 					{/if}
 				</span>
 			</span>
-			{#if collapsible}
+			{#if expandable}
 				<span class="chevron" class:open={!collapsed}>
 					<ChevronDownIcon size={16} />
 				</span>
@@ -202,17 +214,28 @@
 				</p>
 			{/if}
 
-			{#if rest.length > 0}
+			{#if findings.length > 0}
 				<ul class="findings">
-					{#each rest as finding (finding.code)}
-						<li class="finding" data-severity={finding.severity}>
+					{#each findings as finding (finding.code)}
+						{@const isLead = finding === lead}
+						<li
+							class="finding"
+							class:lead={isLead}
+							data-severity={finding.severity}
+						>
 							<div class="finding-head">
 								<span class="severity-dot" aria-hidden="true"
 								></span>
-								<span class="finding-title"
-									>{findingTitle(finding)}</span
-								>
-								{#if finding.action && onaction}
+								{#if isLead}
+									<span class="finding-title lead-label"
+										>{t("diagnostics.crash.lead")}</span
+									>
+								{:else}
+									<span class="finding-title"
+										>{findingTitle(finding)}</span
+									>
+								{/if}
+								{#if finding.action && onaction && !isLead}
 									<button
 										type="button"
 										class="fix"
@@ -451,6 +474,17 @@
 		border-radius: var(--border-radius-sm);
 		background: var(--surface-card);
 		padding: 9px 11px;
+	}
+	.finding.lead {
+		border-color: color-mix(in srgb, var(--tone) 35%, var(--border));
+		background: color-mix(in srgb, var(--tone) 6%, var(--surface-card));
+	}
+	.finding.lead .finding-title {
+		font-size: 0.7rem;
+		font-weight: 600;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		color: var(--tone);
 	}
 	.finding-head {
 		display: flex;
