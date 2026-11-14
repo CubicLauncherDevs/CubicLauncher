@@ -239,6 +239,60 @@ fn notify(id: &str) {
     });
 }
 
+/// No hashea ni enriquece: los mods fuera de caché salen sin `sha1` ni
+/// `project_id`.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct CachedModEntry {
+    pub filename: String,
+    pub enabled: bool,
+    pub sha1: Option<String>,
+    pub project_id: Option<String>,
+    pub name: Option<String>,
+}
+
+pub(crate) fn list_cached(dir: &Path) -> Vec<CachedModEntry> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let repo = ablage::Repo::open(repo_path(dir));
+    entries
+        .flatten()
+        .filter_map(|entry| mod_file(entry.path()))
+        .map(|file| {
+            let mut cached = cached_entry(&repo, &file.filename, file.fingerprint);
+            if cached.is_none() {
+                let other = if file.enabled {
+                    format!("{}.disabled", file.filename)
+                } else {
+                    file.filename
+                        .strip_suffix(".disabled")
+                        .unwrap_or(&file.filename)
+                        .to_string()
+                };
+                cached = cached_entry(
+                    &repo,
+                    &other,
+                    file_fingerprint(&other, &file.modified, file.size),
+                );
+            }
+            CachedModEntry {
+                enabled: file.enabled,
+                sha1: cached
+                    .as_ref()
+                    .map(|entry| entry.sha1.clone())
+                    .filter(|sha1| !sha1.is_empty()),
+                project_id: cached
+                    .as_ref()
+                    .and_then(|entry| entry.source.project_id().map(str::to_string)),
+                name: cached
+                    .as_ref()
+                    .and_then(|entry| entry.metadata.as_ref().map(|meta| meta.name.clone())),
+                filename: file.filename,
+            }
+        })
+        .collect()
+}
+
 pub(super) async fn list(
     id: String,
     dir: PathBuf,

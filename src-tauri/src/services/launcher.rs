@@ -1,15 +1,16 @@
-use crate::commands::log_window::{open_log_window_for_instance, wants_log_preview};
+use crate::commands::log_window::{
+    open_crash_log_window_for_instance, open_log_window_for_instance, wants_log_preview,
+};
 use crate::core::event_bus::{AppEvent, emit};
 use crate::core::path_manager::PathManager;
 use crate::core::{AppError, AuthError, DownloadError, FsError, InstanceError};
 use crate::services::SettingsManager;
-use crate::services::SettingsSnapshot;
 use crate::services::discord_presence;
 use crate::services::download_queue::DownloadQueue;
 use crate::services::instance_manager::{
     InstanceHandle, InstanceStatus, register_kill_sender, unregister_kill_sender,
 };
-use crate::services::java_manager::JavaManager;
+use crate::services::java_resolution;
 use crate::services::launch_window::LaunchSession;
 use aqua::JavaVersion;
 use compact_str::{CompactString, ToCompactString};
@@ -28,8 +29,8 @@ use std::sync::{Arc, OnceLock};
 use tauri::{Emitter, EventTarget, Manager};
 use tokio::fs;
 use tokio::sync::broadcast;
-use tracing::{debug, error, info, trace, warn};
-use zellkern::{GameVersion, Loader};
+use tracing::{error, info, trace, warn};
+use zellkern::GameVersion;
 
 use dashmap::DashMap;
 
@@ -323,6 +324,8 @@ pub fn remove_log_ring(id: &str) {
 struct CrashLogSnapshot {
     lines: Vec<LogLine>,
     created: std::time::Instant,
+    /// El diagnóstico ignora crash reports anteriores a este instante.
+    crashed_at: std::time::SystemTime,
 }
 
 /// Guarda un snapshot de los logs de una instancia antes de descartar el
@@ -331,9 +334,20 @@ pub async fn save_crash_log_snapshot(id: &str) {
     let snapshot = CrashLogSnapshot {
         lines: get_log_ring(id).snapshot(None).await,
         created: std::time::Instant::now(),
+        crashed_at: std::time::SystemTime::now(),
     };
     crash_log_snapshots().insert(Arc::from(id), snapshot);
     cleanup_crash_log_snapshots();
+}
+
+pub fn crash_log_snapshot_time(id: &str) -> Option<std::time::SystemTime> {
+    crash_log_snapshots()
+        .get(id)
+        .map(|entry| entry.value().crashed_at)
+}
+
+pub async fn crash_log_snapshot_lines(id: &str) -> Option<Vec<LogLine>> {
+    get_crash_log_snapshot(id, None).await
 }
 
 pub fn clear_crash_log_snapshot(id: &str) {
@@ -558,65 +572,29 @@ impl Launcher {
         }
         set_user_filter(&user);
 
-        // Resolve java version through inheritsFrom chain (Forge version.json may omit it)
-        let mut java_version_req = if manifest.java_version.is_some() {
-            manifest.java_version.clone()
-        } else {
-            manifest.inherits_from.as_ref().and_then(|parent_id| {
-                let parent_path = shared_dir.join(format!("versions/{parent_id}/{parent_id}.json"));
-                VersionManifest::from_file(parent_path)
-                    .ok()
-                    .and_then(|p| p.java_version)
-            })
-        };
-
-        // If the manifest does not declare a Java version, infer one from the
-        // Minecraft version string so we do not default unconditionally to Java 25.
-        if java_version_req.is_none() {
-            let game_version = GameVersion::from_version_id(&manifest.id_raw);
-            let inferred = aqua::infer_java_version(&game_version.mc_version);
-            info!(
-                "No explicit java_version for {}; inferred Java {}",
-                manifest.id_raw, inferred
-            );
-            java_version_req = Some(JavaVersion {
-                component: String::new(),
-                major_version: inferred,
-            });
-        }
-
-        // Forge/NeoForge ModLauncher requires Java 16+; bump if manifest says < 16.
-        // But Forge < 36.2.26 bundles ModLauncher 8.0.9 which has a broken
-        // ManifestEntryVerifier constructor — only bump for >= 36.2.26.
-        let loader = Loader::from_version_id(&manifest.id_raw);
-        if let Some(ref mut jv) = java_version_req
-            && matches!(loader, Loader::Forge(_) | Loader::NeoForge(_))
-            && jv.major_version < 16
-        {
-            let should_bump = match &loader {
-                Loader::Forge(id) => is_forge_version_safe(id),
-                Loader::NeoForge(_) => true,
-                _ => false,
-            };
-            if should_bump {
-                info!(
-                    "Forge/NeoForge detected (Java {} requested), upgrading to Java 17",
-                    jv.major_version
-                );
-                debug!("Forge version safe for Java 17 bump, setting major_version to 17");
-                jv.major_version = 17;
-            } else {
-                info!(
-                    "Old Forge detected (Java {} requested), keeping Java 8",
-                    jv.major_version
-                );
-                debug!("Forge version NOT safe for Java 17, staying at Java 8");
-            }
-        }
+        // Forge version.json may omit javaVersion; declared_java also checks
+        // inheritsFrom. The manifest's value is bumped for Forge/NeoForge, but
+        // only that: an inferred value is used as is.
         let overrides = handle.get_overrides().await;
+        let java_version_req = match java_resolution::declared_java(&shared_dir, &manifest) {
+            Some(major) => Some(java_resolution::bump_forge_java(&manifest.id_raw, major)),
+            None => {
+                let game_version = GameVersion::from_version_id(&manifest.id_raw);
+                let inferred = aqua::infer_java_version(&game_version.mc_version);
+                info!(
+                    "No explicit java_version for {}; inferred Java {}",
+                    manifest.id_raw, inferred
+                );
+                Some(inferred)
+            }
+        };
+        let java_version_req = java_version_req.map(|major_version| JavaVersion {
+            component: String::new(),
+            major_version,
+        });
         let (java_version, java_path) = if let Some(ref overrides) = overrides {
             if let Some(java_meta) = overrides.java_version {
-                resolve_java_path(
+                java_resolution::resolve_java_path(
                     &settings_m,
                     Some(&JavaVersion {
                         component: String::new(),
@@ -624,10 +602,10 @@ impl Launcher {
                     }),
                 )
             } else {
-                resolve_java_path(&settings_m, java_version_req.as_ref())
+                java_resolution::resolve_java_path(&settings_m, java_version_req.as_ref())
             }
         } else {
-            resolve_java_path(&settings_m, java_version_req.as_ref())
+            java_resolution::resolve_java_path(&settings_m, java_version_req.as_ref())
         };
 
         if !java_path.exists() {
@@ -995,7 +973,7 @@ impl Launcher {
                             ))),
                         });
                         if let Some(app) = app_for_show
-                            && let Err(err) = open_log_window_for_instance(
+                            && let Err(err) = open_crash_log_window_for_instance(
                                 app,
                                 uuid.to_string(),
                                 inst_name.to_string(),
@@ -1445,58 +1423,10 @@ async fn finish_io_forwarding(mut task: tokio::task::JoinHandle<()>) {
     }
 }
 
-/// Returns true if the Forge version indicates a version >= 36.2.26
-/// (which bundles ModLauncher 8.1.3+ with the fixed ManifestEntryVerifier).
-/// Note: `forge_ver` is just the forge version string (e.g. "14.22.1.2485"),
-/// extracted by `Loader::from_version_id()`.
-fn is_forge_version_safe(forge_ver: &str) -> bool {
-    let parts: Vec<u32> = forge_ver
-        .split('.')
-        .filter_map(|p| p.parse().ok())
-        .collect();
-    let safe = match parts.as_slice() {
-        [major, minor, patch, ..] => (*major, *minor, *patch) >= (36, 2, 26),
-        _ => false,
-    };
-    debug!("Forge version safety check: forge_ver={forge_ver}, parts={parts:?}, safe={safe}");
-    safe
-}
-
-fn resolve_java_path(
-    settings: &SettingsSnapshot,
-    java_version: Option<&launchwerk::models::JavaVersion>,
-) -> (u8, std::path::PathBuf) {
-    let version = match java_version {
-        Some(v) => v.major_version,
-        None => 25,
-    };
-    match version {
-        8 if settings.jre8_managed && JavaManager::is_installed(8) => {
-            (8, JavaManager::get_java_binary(8))
-        }
-        17 if settings.jre17_managed && JavaManager::is_installed(17) => {
-            (17, JavaManager::get_java_binary(17))
-        }
-        21 if settings.jre21_managed && JavaManager::is_installed(21) => {
-            (21, JavaManager::get_java_binary(21))
-        }
-        25 if settings.jre25_managed && JavaManager::is_installed(25) => {
-            (25, JavaManager::get_java_binary(25))
-        }
-        8 => (8, settings.get_jre8_path().to_path_buf()),
-        17 => (17, settings.get_jre17_path().to_path_buf()),
-        21 => (21, settings.get_jre21_path().to_path_buf()),
-        25 => (25, settings.get_jre25_path().to_path_buf()),
-        _ => {
-            if settings.jre21_managed && JavaManager::is_installed(21) {
-                (21, JavaManager::get_java_binary(21))
-            } else {
-                (21, settings.get_jre21_path().to_path_buf())
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 #[path = "../tests/services/launcher.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/services/java_resolution.rs"]
+mod java_resolution_tests;

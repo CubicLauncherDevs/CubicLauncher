@@ -30,10 +30,7 @@ static SECRET_RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
             "${1}***",
         ),
         // Bearer <token> suelto, sin cabecera.
-        (
-            r#"(?i)(\bbearer\s+)[A-Za-z0-9\-._~+/]{8,}=*"#,
-            "${1}***",
-        ),
+        (r#"(?i)(\bbearer\s+)[A-Za-z0-9\-._~+/]{8,}=*"#, "${1}***"),
         // XBL3.0 x=<userhash>;<token>
         (r#"(?i)(\bXBL3\.0\s+x=)[^\s"']+"#, "${1}***"),
         // JWT compacto: header.payload.signature (base64url).
@@ -41,9 +38,10 @@ static SECRET_RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
             r#"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*"#,
             MASK,
         ),
-        // clave=valor, clave: valor, "clave":"valor" y --flag valor.
+        // clave=valor, clave: valor, "clave":"valor" y --flag valor. `token`
+        // a secas cubre `access_token`, `refresh_token`, etc.
         (
-            r#"(?i)((?:access|refresh|client|id|auth|session|xbl)[_-]?token|userhash|ticket)(["']?\s*[:=]\s*["']?|\s+)([^\s"',;&<>]+)"#,
+            r#"(?i)([_-]?(?:token)|\buserhash|\bticket)(["']?\s*[:=]\s*["']?|\s+)([^\s"',;&<>]+)"#,
             "${1}${2}***",
         ),
         // "session id is <id>"

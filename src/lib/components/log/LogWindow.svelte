@@ -16,11 +16,25 @@
 	import LogHeader from "./LogHeader.svelte";
 	import LogControls from "./LogControls.svelte";
 	import LogViewport from "./LogViewport.svelte";
+	import CrashAnalysisView from "$lib/components/instances/InstanceView/CrashAnalysis.svelte";
+	import {
+		analyzeInstanceCrash,
+		type CrashAnalysis,
+	} from "$lib/api/diagnostics";
 
 	let {
 		instanceId,
 		instanceName,
-	}: { instanceId: string; instanceName: string } = $props();
+		crashMode = false,
+	}: {
+		instanceId: string;
+		instanceName: string;
+		crashMode?: boolean;
+	} = $props();
+
+	let analysis = $state<CrashAnalysis | null>(null);
+	let analyzing = $state(false);
+	let analysisRequest = 0;
 
 	const log = new LogState();
 	const renderer = new LogRenderer(log);
@@ -117,8 +131,36 @@
 		renderer.scrollToBottom();
 	}
 
+	async function runAnalysis() {
+		const token = ++analysisRequest;
+		analyzing = true;
+		try {
+			// El crash report puede tardar unos milisegundos en escribirse.
+			let result = await analyzeInstanceCrash(instanceId);
+			if (!result.reportName && result.findings.length === 0) {
+				await new Promise((resolve) => setTimeout(resolve, 150));
+				result = await analyzeInstanceCrash(instanceId);
+			}
+			if (token === analysisRequest) analysis = result;
+		} catch (err) {
+			if (token === analysisRequest)
+				showError(t("errors.title"), String(err));
+		} finally {
+			if (token === analysisRequest) analyzing = false;
+		}
+	}
+
+	function jumpToEvidence(evidence: { text: string }) {
+		const snippet = evidence.text.slice(0, 60).trim();
+		if (!snippet) return;
+		log.inputQuery = snippet;
+		log.flushSearch();
+		renderer.nextMatch();
+	}
+
 	onMount(() => {
 		log.setPrivacyTerms(buildPrivacyTerms(activeUsername));
+		if (crashMode) void runAnalysis();
 		const stop = openLogStream(
 			instanceId,
 			consoleHistoryLimit,
@@ -173,6 +215,18 @@
 		/>
 	</LogHeader>
 
+	{#if crashMode}
+		<div class="crash-panel">
+			<CrashAnalysisView
+				{analysis}
+				loading={analyzing}
+				collapsible
+				onanalyze={runAnalysis}
+				onevidence={jumpToEvidence}
+			/>
+		</div>
+	{/if}
+
 	<LogViewport {renderer} {onScrollState} />
 
 	{#if !isAtBottom}
@@ -197,6 +251,14 @@
 		color: var(--text-primary);
 		font-size: 0.75rem;
 		overflow: hidden;
+	}
+
+	.crash-panel {
+		flex-shrink: 0;
+		padding: 10px 12px;
+		max-height: 50vh;
+		overflow-y: auto;
+		border-bottom: 1px solid var(--border);
 	}
 
 	.jump-bottom {

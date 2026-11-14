@@ -55,6 +55,7 @@
 		return {
 			instanceId: decodeURIComponent(logId),
 			instanceName: decodeURIComponent(params.get("name") || "Logs"),
+			crashMode: params.get("crash") === "1",
 		};
 	});
 
@@ -466,6 +467,7 @@
 		<LogWindow
 			instanceId={logParams.instanceId}
 			instanceName={logParams.instanceName}
+			crashMode={logParams.crashMode}
 		/>
 	{:else if logError}
 		<p role="alert">{t("errors.title")}: {logError}</p>

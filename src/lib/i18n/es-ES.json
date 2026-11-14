@@ -1515,5 +1515,72 @@
 				}
 			}
 		}
+	},
+	"diagnostics": {
+		"title": "Diagnóstico",
+		"run": "Comprobar instancia",
+		"running": "Comprobando instancia…",
+		"loading": "Cargando diagnóstico…",
+		"allGood": "Todo parece correcto.",
+		"issues": "{errors} errores · {warnings} advertencias",
+		"checks": {
+			"version_missing": "Faltan archivos de la versión {version}",
+			"java_missing": "Java {version} no está instalado",
+			"worlds_metadata_error": "{count} mundos tienen un level.dat ilegible",
+			"mods_duplicate_project": "{count} proyectos de mods están instalados dos veces",
+			"mods_duplicate_sha1": "{count} mods están duplicados por contenido",
+			"memory_low": "Los límites de memoria son inusuales (mín. {min} MB / máx. {max} MB)",
+			"instance_busy": "La instancia está ocupada, se omitieron las comprobaciones de archivos",
+			"recovery_pending": "Hay una actualización de modpack pendiente de recuperar"
+		},
+		"actions": {
+			"reinstallVersion": "Reinstalar versión",
+			"reinstallConfirm": "¿Eliminar y volver a descargar la versión {version}?",
+			"installJava": "Instalar Java {version}",
+			"openMods": "Abrir mods",
+			"openWorlds": "Abrir mundos"
+		},
+		"reports": {
+			"title": "Crash reports",
+			"empty": "No hay crash reports guardados para esta instancia.",
+			"analyze": "Analizar",
+			"openFolder": "Abrir carpeta",
+			"unknownDate": "Fecha desconocida"
+		},
+		"crash": {
+			"title": "Análisis del crash",
+			"analyzing": "Analizando el crash…",
+			"idle": "Aún no hay análisis.",
+			"description": "Descripción",
+			"minecraft": "Minecraft",
+			"java": "Java",
+			"exitCode": "Código de salida",
+			"noKnownCause": "No se detectó una causa conocida. El log completo sigue arriba.",
+			"copy": "Copiar diagnóstico",
+			"copied": "Diagnóstico copiado al portapapeles.",
+			"analyzeAgain": "Analizar de nuevo",
+			"jumpToLine": "Buscar esta línea en el log",
+			"truncated": "La fuente se recortó porque supera el límite de lectura.",
+			"unknownCode": "Hallazgo no reconocido ({code})",
+			"source": {
+				"crash_report": "Fuente: crash report",
+				"ring": "Fuente: log de la sesión",
+				"latest_log": "Fuente: latest.log"
+			},
+			"findings": {
+				"java_unsupported_class": "El juego necesita una versión de Java más nueva",
+				"memory_out_of_memory": "Minecraft se quedó sin memoria",
+				"java_missing_main": "Java no pudo iniciar la clase principal del juego",
+				"mods_mixin_failed": "Un mod no pudo aplicar sus mixins",
+				"mods_duplicate": "El mismo mod está instalado más de una vez",
+				"mods_missing_dependency": "A un mod le falta una dependencia obligatoria",
+				"mods_incompatible": "El conjunto de mods no es compatible",
+				"graphics_opengl": "El controlador gráfico no pudo inicializar OpenGL",
+				"network_download": "Falló una descarga de red",
+				"world_corrupt": "Un archivo de mundo parece estar corrupto",
+				"auth_session": "No se pudo verificar la sesión",
+				"unknown": "Crash no reconocido: {description}"
+			}
+		}
 	}
 }

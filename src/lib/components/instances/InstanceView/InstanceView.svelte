@@ -115,6 +115,13 @@
 	);
 	const ScreenshotsTab = $derived(screenshotsPanel.component);
 
+	const diagnosticsPanel = lazyComponent(
+		() => import("./InstanceDiagnostics.svelte"),
+		() => activeSection === "diagnostics",
+		handlePanelError,
+	);
+	const InstanceDiagnostics = $derived(diagnosticsPanel.component);
+
 	function handlePlay() {
 		if (bannerState === "Started") {
 			killInst(selectedInstance.uuid);
@@ -256,6 +263,25 @@
 								><ChevronRightIcon size={14} /></span
 							>
 						</button>
+						<button
+							type="button"
+							class="nav-item"
+							onclick={() => (activeSection = "diagnostics")}
+						>
+							<span class="nav-icon"
+								><Icon
+									name="instance:check-square"
+									fallbackName="instance:grid"
+									size={18}
+								/></span
+							>
+							<span class="nav-label"
+								>{t("diagnostics.title")}</span
+							>
+							<span class="nav-chevron"
+								><ChevronRightIcon size={14} /></span
+							>
+						</button>
 					</div>
 				</div>
 			</div>
@@ -299,6 +325,27 @@
 									label={t("servers.loading")}
 									actionCount={5}
 									wideFirstAction
+								/>
+							</div>
+						{/if}
+					{/key}
+				{:else if activeSection === "diagnostics"}
+					{#key selectedInstance.uuid}
+						{#if InstanceDiagnostics}
+							<InstanceDiagnostics
+								instance={selectedInstance}
+								active={activeSection === "diagnostics"}
+								onopenmods={() =>
+									(activeSection = supportsMods
+										? "market"
+										: "screenshots")}
+								onopenworlds={() => (activeSection = "worlds")}
+							/>
+						{:else}
+							<div class="fallback-panel">
+								<ListSkeleton
+									rows={4}
+									label={t("diagnostics.loading")}
 								/>
 							</div>
 						{/if}

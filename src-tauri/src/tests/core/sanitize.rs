@@ -80,3 +80,22 @@ fn redaction_is_idempotent() {
     let twice = redact_log_line(&once);
     assert_eq!(once, twice);
 }
+
+#[test]
+fn masks_token_names_mid_line_not_only_at_the_start() {
+    // Regresión: `id` dentro de `access_token` impedía enmascarar el valor.
+    for line in [
+        "boom token=super-secret",
+        "xx access_token=abc123",
+        "xx id_token: abc",
+        r#"{"auth_token":"abc"}"#,
+        "xx refresh_token=abc",
+        "xx client_token=abc",
+        "xx session_token=abc",
+        "xx xbl_token=abc",
+    ] {
+        let out = redact_secrets(line);
+        assert!(out.contains("***"), "no se enmascaró: {line} -> {out}");
+        assert!(!out.contains("abc123"), "valor filtrado: {out}");
+    }
+}

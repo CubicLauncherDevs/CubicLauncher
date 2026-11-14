@@ -1514,5 +1514,72 @@
 				}
 			}
 		}
+	},
+	"diagnostics": {
+		"title": "Diagnostics",
+		"run": "Check instance",
+		"running": "Checking instance…",
+		"loading": "Loading diagnostics…",
+		"allGood": "Everything looks correct.",
+		"issues": "{errors} errors · {warnings} warnings",
+		"checks": {
+			"version_missing": "Missing version files for {version}",
+			"java_missing": "Java {version} is not installed",
+			"worlds_metadata_error": "{count} worlds have an unreadable level.dat",
+			"mods_duplicate_project": "{count} mod projects are installed twice",
+			"mods_duplicate_sha1": "{count} mods are duplicated by content",
+			"memory_low": "Memory limits are unusual ({min} MB min / {max} MB max)",
+			"instance_busy": "The instance is busy, so file checks were skipped",
+			"recovery_pending": "A modpack update is pending recovery"
+		},
+		"actions": {
+			"reinstallVersion": "Reinstall version",
+			"reinstallConfirm": "Delete and download version {version} again?",
+			"installJava": "Install Java {version}",
+			"openMods": "Open mods",
+			"openWorlds": "Open worlds"
+		},
+		"reports": {
+			"title": "Crash reports",
+			"empty": "No crash reports have been saved for this instance.",
+			"analyze": "Analyze",
+			"openFolder": "Open folder",
+			"unknownDate": "Unknown date"
+		},
+		"crash": {
+			"title": "Crash analysis",
+			"analyzing": "Analyzing the crash…",
+			"idle": "No analysis yet.",
+			"description": "Description",
+			"minecraft": "Minecraft",
+			"java": "Java",
+			"exitCode": "Exit code",
+			"noKnownCause": "No known cause was detected. The full log is still above.",
+			"copy": "Copy diagnosis",
+			"copied": "Diagnosis copied to the clipboard.",
+			"analyzeAgain": "Analyze again",
+			"jumpToLine": "Search this line in the log",
+			"truncated": "The source was cut because it exceeded the read limit.",
+			"unknownCode": "Unrecognized finding ({code})",
+			"source": {
+				"crash_report": "Source: crash report",
+				"ring": "Source: session log",
+				"latest_log": "Source: latest.log"
+			},
+			"findings": {
+				"java_unsupported_class": "The game requires a newer Java version",
+				"memory_out_of_memory": "Minecraft ran out of memory",
+				"java_missing_main": "Java could not start the game's main class",
+				"mods_mixin_failed": "A mod failed to apply its mixins",
+				"mods_duplicate": "The same mod is installed more than once",
+				"mods_missing_dependency": "A mod is missing a required dependency",
+				"mods_incompatible": "The mod set is not compatible",
+				"graphics_opengl": "The graphics driver could not initialize OpenGL",
+				"network_download": "A network download failed",
+				"world_corrupt": "A world file appears to be corrupted",
+				"auth_session": "The session could not be verified",
+				"unknown": "Unrecognized crash: {description}"
+			}
+		}
 	}
 }

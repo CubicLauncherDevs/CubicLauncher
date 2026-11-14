@@ -1,3 +1,4 @@
+pub mod diagnostics;
 pub mod export;
 pub mod instance_import;
 pub mod launch;

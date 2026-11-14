@@ -66,6 +66,25 @@ pub async fn open_log_window_for_instance(
     instance_id: String,
     instance_name: String,
 ) -> Result<(), String> {
+    open_log_window_with(app, instance_id, instance_name, false).await
+}
+
+/// Como [`open_log_window_for_instance`], pero indica al frontend que pidió el
+/// análisis del crash al montarse.
+pub async fn open_crash_log_window_for_instance(
+    app: AppHandle,
+    instance_id: String,
+    instance_name: String,
+) -> Result<(), String> {
+    open_log_window_with(app, instance_id, instance_name, true).await
+}
+
+async fn open_log_window_with(
+    app: AppHandle,
+    instance_id: String,
+    instance_name: String,
+    crash_mode: bool,
+) -> Result<(), String> {
     let label = format!("log-{}", instance_id);
 
     let map = LOG_WINDOWS.get_or_init(DashMap::new);
@@ -78,7 +97,8 @@ pub async fn open_log_window_for_instance(
 
     let encoded_id = urlencoding::encode(&instance_id);
     let encoded_name = urlencoding::encode(&instance_name);
-    let path = format!("/?log={}&name={}", encoded_id, encoded_name);
+    let crash_flag = if crash_mode { "&crash=1" } else { "" };
+    let path = format!("/?log={}&name={}{}", encoded_id, encoded_name, crash_flag);
 
     let window_config =
         secondary_window_config(app.config(), &label, WebviewUrl::App(path.into()))?;
