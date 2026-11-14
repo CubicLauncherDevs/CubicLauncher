@@ -1,5 +1,5 @@
 use crate::commands::profile::get_minecraft_profile_impl;
-use crate::core::http_client::HTTP;
+use crate::core::http_client::{HTTP, YGGDRASIL_HTTP};
 use crate::services::SettingsManager;
 use base64::Engine as _;
 use base64::engine::general_purpose;
@@ -96,7 +96,7 @@ async fn render_yggdrasil_avatar(uuid: &str, server_url: &str) -> Result<String,
 
     info!("Obteniendo perfil Yggdrasil para avatar: {}", profile_url);
 
-    let response = HTTP
+    let response = YGGDRASIL_HTTP
         .get(&profile_url)
         .send()
         .await

@@ -11,6 +11,10 @@
 		instruction?: string;
 	} = $props();
 
+	let insecureHttp = $derived(
+		serverUrl.trim().toLowerCase().startsWith("http://"),
+	);
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === "Enter") onconnect();
 	}
@@ -32,6 +36,11 @@
 			bind:value={serverUrl}
 			onkeydown={handleKeydown}
 		/>
+		{#if insecureHttp}
+			<p class="warning-text">
+				{t("userMenu.yggdrasilModal.insecureHttpWarning")}
+			</p>
+		{/if}
 	</div>
 	<button
 		type="button"
@@ -99,6 +108,14 @@
 
 	.form-input::placeholder {
 		color: var(--text-muted);
+	}
+
+	.warning-text {
+		margin: 0;
+		color: var(--warning, #f59e0b);
+		font-size: 0.72rem;
+		line-height: 1.4;
+		text-align: left;
 	}
 
 	.action-btn {

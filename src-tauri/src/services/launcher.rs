@@ -670,28 +670,40 @@ impl Launcher {
                         Ok(jar_path) => {
                             // Fetch metadata and base64 encode for prefetch
                             let ygg_auth = YggdrasilAuth::new();
-                            let api_root = ygg_auth
-                                .resolve_api_url(server_url)
-                                .await
-                                .unwrap_or_else(|_| server_url.clone());
-                            match yggdrasil::fetch_metadata_prefetch(&api_root).await {
-                                Ok(metadata_b64) => {
-                                    let agent_arg =
-                                        format!("-javaagent:{}={}", jar_path.display(), api_root);
-                                    builder = builder
-                                        .authlib_injector_path(jar_path)
-                                        .yggdrasil_metadata_b64(metadata_b64);
-                                    extra_jvm_args.push(agent_arg);
+                            match ygg_auth.resolve_api_url(server_url).await {
+                                Ok(api_root) => {
+                                    match yggdrasil::fetch_metadata_prefetch(&api_root).await {
+                                        Ok(metadata_b64) => {
+                                            let agent_arg = format!(
+                                                "-javaagent:{}={}",
+                                                jar_path.display(),
+                                                api_root
+                                            );
+                                            builder = builder
+                                                .authlib_injector_path(jar_path)
+                                                .yggdrasil_metadata_b64(metadata_b64);
+                                            extra_jvm_args.push(agent_arg);
+                                        }
+                                        Err(e) => {
+                                            warn!(
+                                                "Failed to fetch Yggdrasil metadata for prefetch: {}. Launching without prefetch.",
+                                                e
+                                            );
+                                            let agent_arg = format!(
+                                                "-javaagent:{}={}",
+                                                jar_path.display(),
+                                                api_root
+                                            );
+                                            builder = builder.authlib_injector_path(jar_path);
+                                            extra_jvm_args.push(agent_arg);
+                                        }
+                                    }
                                 }
                                 Err(e) => {
                                     warn!(
-                                        "Failed to fetch Yggdrasil metadata for prefetch: {}. Launching without prefetch.",
+                                        "Failed to resolve Yggdrasil server URL: {}. Launching without authlib-injector.",
                                         e
                                     );
-                                    let agent_arg =
-                                        format!("-javaagent:{}={}", jar_path.display(), server_url);
-                                    builder = builder.authlib_injector_path(jar_path);
-                                    extra_jvm_args.push(agent_arg);
                                 }
                             }
                         }
