@@ -98,34 +98,39 @@ jobs:
               with:
                   ref: ${{ matrix.channel.sha }}
 
-            - name: Reuse current Nix packaging
+            - name: Reuse current Nix packaging and lockfile
               # Release tags cut before the packaging fix ship a stale
-              # dist/nix/package.nix. Overlay the current one, but keep the
-              # tag's cargoHash and version: the vendored Cargo.lock must
-              # match the tag's Cargo.lock, even if only the root package
-              # version differs.
+              # dist/nix/package.nix and bun.lock. Overlay both from the
+              # default branch: nodeModules hashes are computed for that
+              # exact pair, and mixing a tag lockfile with current hashes
+              # makes the fixed-output derivation fail. Keep only the tag's
+              # package and cargoHash: the vendored Cargo.lock must match
+              # the tag's Cargo.lock, even if only the root package version
+              # differs.
               run: |
+                  tag_version="$(sed -n 's/^version = "\(.*\)"$/\1/p' src-tauri/Cargo.toml | head -n 1)"
                   tag_cargo_hash="$(sed -n 's/^  cargoHash = "\(.*\)";$/\1/p' dist/nix/package.nix)"
-                  src_version="$(sed -n 's/^version = "\(.*\)"$/\1/p' src-tauri/Cargo.toml | head -n 1)"
 
-                  test -n "$tag_cargo_hash" || {
-                      echo "::error::Could not read cargoHash from the release tag's dist/nix/package.nix"
+                  test -n "$tag_version" || {
+                      echo "::error::Could not read version from the release tag's src-tauri/Cargo.toml"
                       exit 1
                   }
-                  test -n "$src_version" || {
-                      echo "::error::Could not read version from src-tauri/Cargo.toml"
+                  test -n "$tag_cargo_hash" || {
+                      echo "::error::Could not read cargoHash from the release tag's dist/nix/package.nix"
                       exit 1
                   }
 
                   git fetch --no-tags --depth=1 origin \
                     "${{ github.event.repository.default_branch }}"
-                  git checkout FETCH_HEAD -- dist/nix/package.nix
+                  git checkout FETCH_HEAD -- dist/nix/package.nix bun.lock package.json
 
+                  sed -i "s|^  version = \".*\";$|  version = \"$tag_version\";|" package.json
+                  sed -i "s|^  version = \".*\";$|  version = \"$tag_version\";|" dist/nix/package.nix
                   sed -i "s|^  cargoHash = \".*\";$|  cargoHash = \"$tag_cargo_hash\";|" dist/nix/package.nix
-                  sed -i "s|^  version = \".*\";$|  version = \"$src_version\";|" dist/nix/package.nix
 
                   echo "Using cargoHash from ${{ matrix.channel.tag }}: $tag_cargo_hash"
-                  echo "Using version from ${{ matrix.channel.tag }}: $src_version"
+                  echo "Using version from ${{ matrix.channel.tag }}: $tag_version"
+                  echo "Using bun.lock from ${{ github.event.repository.default_branch }}"
 
             - name: Check Cachix credentials
               env:
