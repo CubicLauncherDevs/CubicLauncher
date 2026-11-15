@@ -8,6 +8,7 @@
   bun,
   cargo-tauri,
   darwin ? null,
+  dbus,
   desktop-file-utils,
   glib-networking,
   gtk3,
@@ -210,7 +211,8 @@ rustPlatform.buildRustPackage rec {
 
   # Minecraft hereda parte del entorno de ejecución del launcher.
   #
-  # OpenAL y GLFW pueden cargar bibliotecas de audio y X11 dinámicamente.
+  # OpenAL, GLFW y algunos mods (como ProgressPeek) cargan bibliotecas de
+  # audio, X11 y D-Bus dinámicamente.
   # Estas dependencias no siempre se detectan durante el análisis ELF,
   # por lo que deben estar disponibles mediante LD_LIBRARY_PATH.
   #
@@ -219,6 +221,7 @@ rustPlatform.buildRustPackage rec {
   preFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
     gappsWrapperArgs+=(--prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [
       alsa-lib
+      dbus
       libpulseaudio
       pipewire
       libx11

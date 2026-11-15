@@ -40,6 +40,7 @@
           ]
           ++ lib.optionals stdenv.hostPlatform.isLinux [
             alsa-lib
+            dbus
             glib-networking
             gsettings-desktop-schemas
             gst_all_1.gst-libav
@@ -76,7 +77,7 @@
               # OpenAL and GLFW load audio and X11 libraries with dlopen.
               # GLFW needs libXi for raw mouse input and libXcursor for cursors.
               # Keep them discoverable on NixOS, including NVIDIA systems.
-              export LD_LIBRARY_PATH="${(pkgsFor system).lib.makeLibraryPath (with (pkgsFor system); [ alsa-lib libpulseaudio pipewire libx11 libxcursor libxi libxinerama libxrandr libxxf86vm ])}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+              export LD_LIBRARY_PATH="${(pkgsFor system).lib.makeLibraryPath (with (pkgsFor system); [ alsa-lib dbus libpulseaudio pipewire libx11 libxcursor libxi libxinerama libxrandr libxxf86vm ])}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
               # Use Mesa built against the same glibc as this shell's toolchain.
               # The host driver in /run/opengl-driver may require a newer glibc
               # than the nixpkgs revision pinned in flake.lock.
