@@ -110,8 +110,8 @@ rustPlatform.buildRustPackage rec {
     # El resultado de las dependencias puede variar según la arquitectura.
     # Se define un hash independiente para cada plataforma compatible.
     outputHash = {
-      x86_64-linux = "sha256-iznqcE94oIL7yM8FqX9fO6OHdmR1j8splPOi4fQ3sNI=";
-      aarch64-linux = "sha256-GrQ4QZ0bcrDL4kvapQdfxmMMTCjJvuvC31o7tPBwk/8=";
+      x86_64-linux = "sha256-IA2ddfLJq7n8hvv3aPODHduFB9JyMg2HmSoiD3oSo1I=";
+      aarch64-linux = "sha256-N2s32yhrNKaniF4Ao+6PEHtwc0FFDKMz6vEuWB1OqM0=";
       aarch64-darwin = "sha256-qQGlVXZHthW5PHY+ujPzMST7xuQxikHKshrghoyEbZ4=";
     }.${stdenv.hostPlatform.system}
       or (throw "Unsupported system ${stdenv.hostPlatform.system}");
