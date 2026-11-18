@@ -34,8 +34,6 @@ pub struct NeoForgeBatch {
     _temp_dir: tempfile::TempDir,
     version_id: String,
     game_version: String,
-    #[allow(dead_code)]
-    neoforge_version: String,
     shared_dir: PathBuf,
     staging_dir: PathBuf,
     items: Vec<DownloadItemSpec>,
@@ -215,7 +213,6 @@ impl NeoForgeBatch {
             _temp_dir: temp_dir,
             version_id,
             game_version: game_version.to_string(),
-            neoforge_version: neoforge_version.to_string(),
             shared_dir: shared_dir.to_path_buf(),
             staging_dir,
             items,

@@ -27,15 +27,13 @@ pub struct ForgeVersionInfo {
 /// Internal representation — either modern or legacy Forge.
 enum ProfileKind {
     Modern { profile: Box<InstallProfile> },
-    Legacy { profile: Box<LegacyInstallProfile> }, //puntero el el heap mierda
+    Legacy { profile: Box<LegacyInstallProfile> },
 }
 
 pub struct ForgeBatch {
     _temp_dir: tempfile::TempDir,
     version_id: String,
     game_version: String,
-    #[allow(dead_code)]
-    forge_version: String,
     shared_dir: PathBuf,
     staging_dir: PathBuf,
     items: Vec<DownloadItemSpec>,
@@ -227,7 +225,6 @@ impl ForgeBatch {
             _temp_dir: temp_dir,
             version_id,
             game_version: game_version.to_string(),
-            forge_version: forge_version.to_string(),
             shared_dir: shared_dir.to_path_buf(),
             staging_dir,
             items,
