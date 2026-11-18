@@ -1,5 +1,7 @@
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
+import adapter from "@sveltejs/adapter-static";
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -11,7 +13,23 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-	plugins: [sveltekit()],
+	plugins: [
+		sveltekit({
+			adapter: adapter({ fallback: "index.html" }),
+			preprocess: [
+				vitePreprocess(),
+				{
+					name: "cubic-theme-layer",
+					// Permite que los temas sin capa sobrescriban los estilos de los componentes.
+					style: ({ content }) => ({ code: `@layer cubic {\n${content}\n}` }),
+				},
+			],
+			alias: {
+				"$lib": "./src/lib",
+				"@static": "./static",
+			},
+		}),
+	],
 
 	define: {
 		__APP_VERSION__: JSON.stringify(pkg.version),
