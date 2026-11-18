@@ -330,10 +330,14 @@
 		cursor: not-allowed;
 	}
 	button.primary {
-		background: var(--accent-primary);
-		border-color: var(--accent-primary);
-		color: var(--media-overlay-text, #fff);
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-text);
 		font-weight: 600;
+	}
+	button.primary:hover:not(:disabled) {
+		background: var(--accent-hover);
+		border-color: var(--accent-hover);
 	}
 	.summary {
 		margin: 0;

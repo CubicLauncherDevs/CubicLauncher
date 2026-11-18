@@ -10,6 +10,7 @@
 		title,
 		width,
 		animateResize = false,
+		hideScrollbar = false,
 		closeDisabled = false,
 		scrollBody = false,
 		onclose,
@@ -21,6 +22,7 @@
 		title?: string;
 		width?: string;
 		animateResize?: boolean;
+		hideScrollbar?: boolean;
 		closeDisabled?: boolean;
 		scrollBody?: boolean;
 		onclose?: () => void;
@@ -51,6 +53,7 @@
 		<div
 			class="modal"
 			class:animate-resize={animateResize}
+			class:hide-scrollbar={hideScrollbar}
 			class:scroll-body={scrollBody}
 			use:animateHeight={resizeDuration}
 			style:--resize-duration={`${resizeDuration}ms`}
@@ -126,6 +129,12 @@
 
 	.modal.animate-resize {
 		scrollbar-gutter: stable;
+	}
+	.modal.hide-scrollbar {
+		scrollbar-width: none;
+	}
+	.modal.hide-scrollbar::-webkit-scrollbar {
+		display: none;
 	}
 
 	.modal-content {

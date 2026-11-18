@@ -75,6 +75,7 @@
 
 	let lastLog = $state("");
 	let visible = $state(true);
+	let lockedActions = $state(new Set<string>());
 	onMount(() => {
 		const update = () => {
 			visible = !document.hidden;
@@ -114,6 +115,18 @@
 			instanceId: instance.uuid,
 			instanceName: instance.name,
 		});
+	}
+
+	function runHeaderAction(key: string, action: () => void) {
+		if (lockedActions.has(key)) return;
+
+		lockedActions = new Set(lockedActions).add(key);
+		action();
+		window.setTimeout(() => {
+			const next = new Set(lockedActions);
+			next.delete(key);
+			lockedActions = next;
+		}, 350);
 	}
 </script>
 
@@ -178,7 +191,9 @@
 					<button
 						type="button"
 						class="action-btn"
-						onclick={() => openDir()}
+						disabled={lockedActions.has("folder")}
+						onclick={() =>
+							runHeaderAction("folder", () => openDir())}
 					>
 						<Icon name="instance:folder" size={15} />
 						<span class="action-label"
@@ -188,7 +203,9 @@
 					<button
 						type="button"
 						class="action-btn"
-						onclick={() => openDir("mods")}
+						disabled={lockedActions.has("mods")}
+						onclick={() =>
+							runHeaderAction("mods", () => openDir("mods"))}
 					>
 						<Icon name="instance:grid" size={15} />
 						<span class="action-label"
@@ -198,7 +215,11 @@
 					<button
 						type="button"
 						class="action-btn"
-						onclick={() => openDir("screenshots")}
+						disabled={lockedActions.has("screenshots")}
+						onclick={() =>
+							runHeaderAction("screenshots", () =>
+								openDir("screenshots"),
+							)}
 					>
 						<Icon name="instance:image" size={15} />
 						<span class="action-label"
@@ -208,7 +229,11 @@
 					<button
 						type="button"
 						class="action-btn"
-						onclick={() => openDir("resourcepacks")}
+						disabled={lockedActions.has("resourcepacks")}
+						onclick={() =>
+							runHeaderAction("resourcepacks", () =>
+								openDir("resourcepacks"),
+							)}
 					>
 						<Icon name="instance:resources" size={15} />
 						<span class="action-label"
@@ -218,7 +243,8 @@
 					<button
 						type="button"
 						class="action-btn"
-						onclick={() => openLogs()}
+						disabled={lockedActions.has("logs")}
+						onclick={() => runHeaderAction("logs", openLogs)}
 					>
 						<Icon name="instance:code" size={15} />
 						<span class="action-label"

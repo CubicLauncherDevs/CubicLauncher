@@ -29,6 +29,30 @@
 	let subtitle = $derived(
 		[minecraftVersion, formattedLoader].filter(Boolean).join(" • "),
 	);
+	let nameViewport: HTMLSpanElement | undefined = $state();
+	let nameContent: HTMLSpanElement | undefined = $state();
+	let nameScrollDistance = $state(0);
+	const nameScrollDuration = $derived(
+		Math.min(7000, Math.max(3000, 1500 + nameScrollDistance * 32)),
+	);
+	const canScrollName = $derived(instance.name.length > 12);
+
+	$effect(() => {
+		const viewport = nameViewport;
+		const content = nameContent;
+		if (!viewport || !content) return;
+
+		const update = () => {
+			nameScrollDistance = canScrollName
+				? Math.max(28, content.scrollWidth - viewport.clientWidth)
+				: 0;
+		};
+		const observer = new ResizeObserver(update);
+		observer.observe(viewport);
+		observer.observe(content);
+		update();
+		return () => observer.disconnect();
+	});
 
 	function getMinecraftVersion(version: string): string {
 		const fabricOrQuilt = version.match(
@@ -79,7 +103,19 @@
 	</div>
 
 	<div class="instance-text">
-		<span class="instance-name">{instance.name}</span>
+		<span
+			class="instance-name"
+			class:overflowing={canScrollName}
+			bind:this={nameViewport}
+		>
+			<span
+				class="instance-name-content"
+				bind:this={nameContent}
+				style:--name-scroll-distance={`${nameScrollDistance}px`}
+				style:--name-scroll-duration={`${nameScrollDuration}ms`}
+				>{instance.name}</span
+			>
+		</span>
 		<span class="instance-subtitle">{subtitle}</span>
 	</div>
 
@@ -212,11 +248,61 @@
 	}
 
 	.instance-name {
+		position: relative;
+		display: block;
 		font-weight: 600;
 		font-size: var(--sidebar-item-font-size, var(--font-size-control));
 		white-space: nowrap;
 		overflow: hidden;
-		text-overflow: ellipsis;
+	}
+
+	.instance-name-content {
+		display: inline-block;
+		min-width: max-content;
+		box-sizing: border-box;
+		padding-inline: 8px;
+	}
+
+	.instance-name.overflowing {
+		-webkit-mask-image: linear-gradient(
+			90deg,
+			transparent,
+			#000 8px,
+			#000 calc(100% - 30px),
+			transparent
+		);
+		mask-image: linear-gradient(
+			90deg,
+			transparent,
+			#000 8px,
+			#000 calc(100% - 30px),
+			transparent
+		);
+	}
+
+	.instance-item:hover .instance-name.overflowing .instance-name-content,
+	.instance-item.active .instance-name.overflowing .instance-name-content,
+	.instance-item:focus-visible
+		.instance-name.overflowing
+		.instance-name-content {
+		animation: instance-name-scroll var(--name-scroll-duration) ease-in-out
+			400ms infinite alternate;
+	}
+
+	@keyframes instance-name-scroll {
+		to {
+			transform: translateX(calc(-1 * var(--name-scroll-distance)));
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.instance-item:hover .instance-name.overflowing .instance-name-content,
+		.instance-item.active .instance-name.overflowing .instance-name-content,
+		.instance-item:focus-visible
+			.instance-name.overflowing
+			.instance-name-content {
+			animation: none;
+		}
 	}
 
 	.instance-subtitle {
@@ -234,15 +320,10 @@
 	}
 
 	.instance-actions {
-		position: absolute;
-		top: 50%;
-		right: 4px;
-		transform: translateY(-50%);
 		display: flex;
 		align-items: center;
 		gap: 4px;
-		padding-left: 16px;
-		background: linear-gradient(90deg, transparent, var(--item-bg) 45%);
+		flex-shrink: 0;
 		opacity: 0;
 		pointer-events: none;
 		transition: opacity 0.15s ease;

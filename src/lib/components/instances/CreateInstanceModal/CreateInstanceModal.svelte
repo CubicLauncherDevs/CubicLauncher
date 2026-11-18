@@ -20,6 +20,7 @@
 	import ModalBase from "#lib/components/layout/ModalBase.svelte";
 	import { t } from "#lib/i18n/index.js";
 	import Icon from "#lib/icons/Icon.svelte";
+	import Loading from "#lib/icons/Loading.svelte";
 	import { getIconPath } from "#lib/icons/registry.js";
 	import IconPicker from "./IconPicker.svelte";
 	import VersionSelectorStep from "./VersionSelectorStep.svelte";
@@ -295,7 +296,10 @@
 				!name.trim() ||
 				!finalVersionId}
 		>
-			<Icon name={loading ? "ui:spinner" : "nav:create"} size={16} />
+			{#if loading}<Loading size={16} />{:else}<Icon
+					name="nav:create"
+					size={16}
+				/>{/if}
 			{loading
 				? t("createInstance.creatingBtn")
 				: t("createInstance.createBtn")}

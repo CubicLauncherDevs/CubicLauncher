@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
+	import { fade } from "svelte/transition";
 	import { ask } from "@tauri-apps/plugin-dialog";
 	import { showErrorParsed } from "#lib/state/state.svelte.js";
 	import { t } from "#lib/i18n/index.js";
@@ -19,6 +20,7 @@
 	import MarketLayout from "#lib/components/market/MarketLayout.svelte";
 	import InstalledToolbar from "#lib/components/market/InstalledToolbar.svelte";
 	import InstalledItem from "#lib/components/market/InstalledItem.svelte";
+	import { animDuration } from "#lib/utils/animations.js";
 
 	interface Props {
 		instance: InstanceDto;
@@ -26,6 +28,7 @@
 	}
 
 	let { instance, contentType = "mods" }: Props = $props();
+	const entryDuration = $derived(animDuration(150));
 
 	function init() {
 		return createMarketState(instance, contentType, () => instance.status);
@@ -188,7 +191,7 @@
 	});
 </script>
 
-<div class="market-root">
+<div class="market-root" in:fade={{ duration: entryDuration }}>
 	<MarketLayout
 		listView={market.filters.source === "local" && installedView === "list"}
 		items={market.items}

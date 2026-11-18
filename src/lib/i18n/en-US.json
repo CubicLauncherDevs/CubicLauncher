@@ -45,6 +45,7 @@
 		"lock": "Protect pack",
 		"update": "Update modpack",
 		"updateSource": "Update source",
+		"changeSource": "Change",
 		"publishedVersion": "Published version",
 		"localFile": "Local file (.mrpack / .zip)",
 		"chooseFile": "Choose file",

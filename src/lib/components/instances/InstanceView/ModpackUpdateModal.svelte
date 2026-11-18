@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
+	import { fade } from "svelte/transition";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	import ModalBase from "#lib/components/layout/ModalBase.svelte";
 	import Select from "#lib/components/layout/Select.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
+	import Loading from "#lib/icons/Loading.svelte";
 	import ChevronDownIcon from "#lib/icons/ChevronDownIcon.svelte";
 	import ChevronRightIcon from "#lib/icons/ChevronRightIcon.svelte";
 	import {
@@ -18,6 +21,7 @@
 	import { refreshInstanceMods } from "#lib/api/launcherService.js";
 	import { t } from "#lib/i18n/index.js";
 	import { createModpackUpdateSession } from "#lib/utils/modpackUpdateSession.js";
+	import { animDuration } from "#lib/utils/animations.js";
 
 	let {
 		open = $bindable(),
@@ -48,6 +52,11 @@
 	let applied = $state(false);
 	let preview = $state.raw<PackUpdatePreview | null>(null);
 	let resolutions = $state<PackResolutions>({});
+	const changeKinds = [
+		{ kind: "added", marker: "+" },
+		{ kind: "changed", marker: "~" },
+		{ kind: "removed", marker: "−" },
+	] as const;
 	let disposed = false;
 	let request = 0;
 	// The parent keys this component by instance. Capture staging ownership once.
@@ -82,6 +91,10 @@
 			!busy &&
 			(source === "remote" ? !!versionId && !loadingVersions : !!path),
 	);
+	const remoteSourceIcon = $derived(
+		pack.source === "curseforge" ? "brand:curseforge" : "brand:modrinth",
+	);
+	const contentFadeDuration = $derived(animDuration(150));
 	onDestroy(() => {
 		disposed = true;
 		request++;
@@ -180,90 +193,171 @@
 	bind:open
 	title={t("modpack.update")}
 	width="700px"
+	animateResize={!!preview}
+	hideScrollbar
 	closeDisabled={working}
-	scrollBody
 >
 	{#if applied}
 		<p role="status">{t("modpack.updated")}</p>
 	{:else}
-		<fieldset disabled={working || busy}>
-			<legend>{t("modpack.updateSource")}</legend>
-			{#if pack.source !== "local" && pack.project_id}
-				<label
-					><input
-						type="radio"
-						bind:group={source}
-						value="remote"
-						onchange={clearPreview}
-					/>{t("modpack.publishedVersion")}</label
-				>
-			{/if}
-			<label
-				><input
-					type="radio"
-					bind:group={source}
-					value="local"
-					onchange={clearPreview}
-				/>{t("modpack.localFile")}</label
+		{#if !preview}
+			<fieldset
+				class="source-panel"
+				disabled={working || busy}
+				in:fade={{ duration: contentFadeDuration }}
 			>
-			{#if source === "remote"}
-				<Select
-					bind:value={versionId}
-					options={versionOptions}
-					label={t("modpack.publishedVersion")}
-					placeholder={t("modpack.noVersions")}
-					loading={loadingVersions}
-					loadingPlaceholder={t("createInstance.loading")}
-					disabled={working || busy || !versions.length}
-					onchange={clearPreview}
-				/>
-				{#if loadingVersions}<p role="status">
-						{t("createInstance.loading")}
-					</p>
-				{:else if !versions.length}<p>{t("modpack.noVersions")}</p>{/if}
-				<button
-					type="button"
-					class="btn-secondary"
-					disabled={loadingVersions}
-					onclick={loadVersions}>{t("modpack.retry")}</button
-				>
-			{:else}
-				<button type="button" class="btn-secondary" onclick={chooseFile}
-					>{t("modpack.chooseFile")}</button
-				>
-				{#if path}<p class="path">{path}</p>{/if}
-			{/if}
-		</fieldset>
-		{#if preview}
-			<div class="preview">
-				<div class="preview-head">
-					<span class="preview-name">{preview.name}</span>
-					<span class="preview-meta"
-						>{preview.version} · {t("modpack.installationVersion")}: {preview.game_version}</span
+				<legend>{t("modpack.updateSource")}</legend>
+				<div class="source-options">
+					{#if pack.source !== "local" && pack.project_id}
+						<label
+							class="source-option"
+							class:selected={source === "remote"}
+						>
+							<input
+								type="radio"
+								bind:group={source}
+								value="remote"
+								onchange={clearPreview}
+							/>
+							<Icon name={remoteSourceIcon} size={18} />
+							<span>
+								<strong>{t("modpack.publishedVersion")}</strong>
+								<small>{pack.source}</small>
+							</span>
+						</label>
+					{/if}
+					<label
+						class="source-option"
+						class:selected={source === "local"}
 					>
+						<input
+							type="radio"
+							bind:group={source}
+							value="local"
+							onchange={clearPreview}
+						/>
+						<Icon name="instance:folder" size={18} />
+						<span>
+							<strong>{t("modpack.localFile")}</strong>
+							<small>.mrpack / .zip</small>
+						</span>
+					</label>
 				</div>
-				<div class="file-groups">
-					{#each ["added", "removed", "changed"] as kind (kind)}
+				{#if source === "remote"}
+					<div class="source-control">
+						<Select
+							bind:value={versionId}
+							options={versionOptions}
+							label={t("modpack.publishedVersion")}
+							placeholder={t("modpack.noVersions")}
+							loading={loadingVersions}
+							loadingPlaceholder={t("createInstance.loading")}
+							disabled={working || busy || !versions.length}
+							onchange={clearPreview}
+						/>
+						<button
+							type="button"
+							class="btn-secondary reload-btn"
+							disabled={loadingVersions}
+							onclick={loadVersions}
+						>
+							<Icon name="ui:refresh" size={14} />
+							<span>{t("modpack.retry")}</span>
+						</button>
+					</div>
+					{#if !loadingVersions && !versions.length}<p>
+							{t("modpack.noVersions")}
+						</p>{/if}
+				{:else}
+					<div class="source-control">
+						<button
+							type="button"
+							class="btn-secondary"
+							onclick={chooseFile}
+							>{t("modpack.chooseFile")}</button
+						>
+						{#if path}<p class="path">{path}</p>{/if}
+					</div>
+				{/if}
+			</fieldset>
+		{/if}
+		{#if preview}
+			<div class="preview" in:fade={{ duration: contentFadeDuration }}>
+				<div class="preview-head">
+					<div class="preview-title">
+						<span class="preview-name">{preview.name}</span>
+						<div class="preview-actions">
+							<span class="source-chip">
+								<Icon
+									name={source === "remote"
+										? remoteSourceIcon
+										: "instance:folder"}
+									size={13}
+								/>
+								{source === "remote"
+									? t("modpack.publishedVersion")
+									: t("modpack.localFile")}
+							</span>
+							<button
+								type="button"
+								class="change-source"
+								onclick={clearPreview}
+								disabled={working}
+							>
+								<Icon name="nav:edit" size={13} />
+								{t("modpack.changeSource")}
+							</button>
+						</div>
+					</div>
+					<div class="version-diff">
+						<div class="version-diff-row">
+							<Icon name="brand:vanilla" size={18} />
+							<span class="version-diff-label">Minecraft</span>
+							<strong>{pack.game_version}</strong>
+							<span class="diff-arrow" aria-hidden="true">→</span>
+							<strong>{preview.game_version}</strong>
+						</div>
+						<div class="version-diff-row">
+							<Icon name="instance:puzzle" size={18} />
+							<span class="version-diff-label"
+								>{t("modpack.title")}</span
+							>
+							<strong>{pack.version}</strong>
+							<span class="diff-arrow" aria-hidden="true">→</span>
+							<strong>{preview.version}</strong>
+						</div>
+					</div>
+				</div>
+				<div class="diff-summary">
+					{#each changeKinds as { kind, marker } (kind)}
 						{@const files =
 							preview[kind as "added" | "removed" | "changed"]}
 						<details
-							class="file-group"
+							class="diff-group"
+							class:added={kind === "added"}
+							class:changed={kind === "changed"}
+							class:removed={kind === "removed"}
 							class:empty={files.length === 0}
 						>
 							<summary>
-								<span class="summary-chevron" aria-hidden="true"
-									><ChevronRightIcon size={12} /></span
+								<span class="diff-marker" aria-hidden="true"
+									>{marker}</span
 								>
 								<span class="group-label"
 									>{t(`modpack.${kind}`)}</span
 								>
 								<span class="count">{files.length}</span>
+								<span class="summary-chevron" aria-hidden="true"
+									><ChevronRightIcon size={12} /></span
+								>
 							</summary>
-							<ul>
-								{#each files as file (file)}<li>
-										{file}
-									</li>{/each}
-							</ul>
+							{#if files.length}
+								<ul>
+									{#each files as file (file)}<li>
+											{file}
+										</li>{/each}
+								</ul>
+							{/if}
 						</details>
 					{/each}
 				</div>
@@ -316,12 +410,6 @@
 			</div>
 		{/if}
 	{/if}
-	{#if working && !applied}
-		<div class="processing" role="status" aria-live="polite">
-			<span class="spinner" aria-hidden="true"></span>
-			<span>{t("modpack.working")}</span>
-		</div>
-	{/if}
 	{#if error}<p role="alert" class="error">{error}</p>{/if}
 	{#snippet footer()}
 		<button
@@ -339,9 +427,15 @@
 					(preview ? !canApply : !canPrepare)}
 				onclick={preview ? apply : prepare}
 			>
-				{#if working}<span class="spinner" aria-hidden="true"
-					></span>{/if}
-				<span>{t(preview ? "modpack.apply" : "modpack.process")}</span>
+				{#if working}
+					<Loading size={14} />
+				{:else}
+					<span
+						>{t(
+							preview ? "modpack.apply" : "modpack.process",
+						)}</span
+					>
+				{/if}
 			</button>{/if}
 	{/snippet}
 </ModalBase>
@@ -363,6 +457,70 @@
 		text-transform: uppercase;
 		letter-spacing: 1px;
 		color: var(--text-secondary);
+	}
+	.source-panel {
+		gap: 10px;
+	}
+	.source-options {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+	}
+	.source-option {
+		min-width: 0;
+		padding: 10px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--bg-card);
+		transition:
+			background var(--transition-fast) ease,
+			border-color var(--transition-fast) ease;
+	}
+	.source-option:hover:not(.selected) {
+		background: var(--surface-hover);
+	}
+	.source-option.selected {
+		border-color: var(--accent);
+		background: rgba(var(--accent-rgb), 0.08);
+		color: var(--text-primary);
+	}
+	.source-option span {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.source-option strong,
+	.source-option small {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.source-option strong {
+		font-size: var(--font-size-control);
+		font-weight: var(--font-weight-medium);
+	}
+	.source-option small {
+		color: var(--text-muted);
+		font-size: var(--font-size-sm);
+		text-transform: capitalize;
+	}
+	.source-control {
+		display: flex;
+		align-items: end;
+		gap: 8px;
+		min-width: 0;
+	}
+	.source-control :global(.custom-select-container) {
+		flex: 1;
+		min-width: 0;
+	}
+	.reload-btn {
+		height: var(--control-min-height, 38px);
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		white-space: nowrap;
 	}
 	label {
 		display: flex;
@@ -466,48 +624,117 @@
 	.preview-head {
 		display: flex;
 		flex-direction: column;
-		gap: 2px;
+		gap: 10px;
+		padding: 12px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius-sm);
+		background: var(--bg-card);
+	}
+	.preview-title {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+	}
+	.preview-actions {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex-shrink: 0;
 	}
 	.preview-name {
 		color: var(--text-primary);
 		font-size: var(--font-size-lg);
 		font-weight: var(--font-weight-medium);
 	}
-	.preview-meta {
+	.source-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		flex-shrink: 0;
+		padding: 3px 7px;
+		border-radius: 999px;
+		background: var(--surface-hover);
 		color: var(--text-secondary);
 		font-size: var(--font-size-sm);
 	}
+	.change-source {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		border: none;
+		border-radius: var(--border-radius-sm);
+		padding: 4px 6px;
+		background: transparent;
+		color: var(--text-secondary);
+		font: inherit;
+		font-size: var(--font-size-sm);
+		cursor: pointer;
+	}
+	.change-source:hover:not(:disabled) {
+		background: var(--surface-hover);
+		color: var(--text-primary);
+	}
+	.version-diff {
+		display: grid;
+		gap: 6px;
+	}
+	.version-diff-row {
+		display: grid;
+		grid-template-columns: 18px minmax(80px, 1fr) auto auto auto;
+		align-items: center;
+		gap: 7px;
+		min-width: 0;
+		color: var(--text-secondary);
+		font-size: var(--font-size-sm);
+	}
+	.version-diff-label {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.version-diff-row strong {
+		color: var(--text-primary);
+		font-variant-numeric: tabular-nums;
+	}
+	.diff-arrow {
+		color: var(--text-muted);
+	}
 
-	.file-groups {
+	.diff-summary {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
-	}
-	details.file-group {
-		border: var(--border-width) solid var(--border);
+		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
+		overflow: hidden;
 		background: var(--bg-card);
-		padding: 0 12px;
 	}
-	details.file-group.empty {
+	details.diff-group {
+		border-bottom: 1px solid var(--border);
+	}
+	details.diff-group:last-child {
+		border-bottom: none;
+	}
+	details.diff-group.empty {
 		opacity: 0.6;
 	}
 	summary {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		padding: 10px 0;
+		gap: 6px;
+		padding: 10px;
 		list-style: none;
 		cursor: pointer;
 		color: var(--text-primary);
-		font-size: var(--font-size-control);
+		font-size: var(--font-size-sm);
 		font-weight: var(--font-weight-medium);
 	}
 	summary::-webkit-details-marker {
 		display: none;
 	}
-	summary:hover {
-		color: var(--accent);
+	summary:hover .group-label {
+		color: var(--text-primary);
 	}
 	.summary-chevron {
 		display: flex;
@@ -517,8 +744,33 @@
 	details[open] .summary-chevron {
 		transform: rotate(90deg);
 	}
+	.diff-marker {
+		width: 18px;
+		height: 18px;
+		display: grid;
+		place-items: center;
+		border-radius: 50%;
+		font-size: 0.82rem;
+		font-weight: 700;
+	}
+	.diff-group.added .diff-marker {
+		background: rgba(var(--color-success-rgb), 0.14);
+		color: var(--color-success);
+	}
+	.diff-group.changed .diff-marker {
+		background: rgba(var(--accent-rgb), 0.14);
+		color: var(--accent);
+	}
+	.diff-group.removed .diff-marker {
+		background: rgba(var(--color-error-rgb), 0.14);
+		color: var(--color-error);
+	}
 	.group-label {
 		min-width: 0;
+		color: var(--text-secondary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.count {
 		margin-left: auto;
@@ -530,18 +782,35 @@
 		font-weight: 600;
 		font-variant-numeric: tabular-nums;
 	}
-	.file-group ul {
+	.diff-group ul {
 		max-height: 200px;
 		overflow-y: auto;
-		margin: 0 0 10px;
-		padding: 0;
+		margin: 0;
+		padding: 0 10px 10px;
 		list-style: none;
 	}
-	.file-group li {
+	.diff-group li {
 		padding: 5px 0;
 		border-top: 1px solid var(--border);
 		color: var(--text-secondary);
 		font-size: var(--font-size-sm);
+	}
+	@media (max-width: 540px) {
+		.source-options {
+			grid-template-columns: 1fr;
+		}
+		.source-control {
+			align-items: stretch;
+			flex-direction: column;
+		}
+		.preview-title {
+			align-items: flex-start;
+			flex-direction: column;
+		}
+		.preview-actions {
+			width: 100%;
+			justify-content: space-between;
+		}
 	}
 
 	.conflicts-block {
@@ -582,20 +851,6 @@
 		color: var(--text-secondary);
 		font-size: var(--font-size-sm);
 	}
-	.processing {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		padding: 12px 14px;
-		border: var(--border-width) solid var(--border);
-		border-radius: var(--border-radius-sm);
-		background: var(--surface-card);
-		color: var(--text-secondary);
-		font-size: var(--font-size-control);
-	}
-	.processing .spinner {
-		color: var(--accent);
-	}
 	.btn-primary {
 		display: inline-flex;
 		align-items: center;
@@ -606,25 +861,6 @@
 	.btn-secondary:disabled {
 		opacity: var(--disabled-opacity, 0.5);
 		cursor: not-allowed;
-	}
-	.spinner {
-		width: 14px;
-		height: 14px;
-		flex-shrink: 0;
-		border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
-		border-top-color: currentColor;
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.spinner {
-			animation: none;
-		}
 	}
 	.error {
 		color: var(--color-error);
