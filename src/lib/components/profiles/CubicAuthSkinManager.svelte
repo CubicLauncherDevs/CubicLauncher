@@ -9,7 +9,10 @@
 		uploadYggdrasilSkin,
 		uploadYggdrasilSkinUrl,
 	} from "#lib/api/cubicApi.js";
-	import { catalogViewUrl, type CatalogSkin } from "#lib/api/mosaicarySkins.js";
+	import {
+		catalogViewUrl,
+		type CatalogSkin,
+	} from "#lib/api/mosaicarySkins.js";
 	import {
 		launcherStore,
 		showError,
