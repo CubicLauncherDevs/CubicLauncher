@@ -45,7 +45,7 @@ rustPlatform.buildRustPackage rec {
 
   # Hash de las dependencias de Rust gestionadas por Cargo.
   # Debe actualizarse cuando cambie el conjunto de dependencias.
-  cargoHash = "sha256-iolVJ/45Jgx85EGGAkn87vWBTir/nUH++cDiBNI2Mag=";
+  cargoHash = "sha256-RFABwa7M2cCpoXRbfqwvXYaUnSysMqu10egdVKuoF1s=";
 
   # Derivación independiente para las dependencias del frontend.
   #
@@ -110,9 +110,9 @@ rustPlatform.buildRustPackage rec {
     # El resultado de las dependencias puede variar según la arquitectura.
     # Se define un hash independiente para cada plataforma compatible.
     outputHash = {
-      x86_64-linux = "sha256-IA2ddfLJq7n8hvv3aPODHduFB9JyMg2HmSoiD3oSo1I=";
-      aarch64-linux = "sha256-N2s32yhrNKaniF4Ao+6PEHtwc0FFDKMz6vEuWB1OqM0=";
-      aarch64-darwin = "sha256-qQGlVXZHthW5PHY+ujPzMST7xuQxikHKshrghoyEbZ4=";
+      x86_64-linux = "sha256-f1LzJj4Pm9eCLKx8qYghZJs+TFSYYBcuh247dd06iwI=";
+      aarch64-linux = "sha256-6G83vlsOwQ7G/RswgpiXV34kYb5AMAiIwtU3TldBng8=";
+      aarch64-darwin = "sha256-U9n3MXhXgcB0MjQmb0ZiE+EAbARUI2kpMFy9ca7k1hU=";
     }.${stdenv.hostPlatform.system}
       or (throw "Unsupported system ${stdenv.hostPlatform.system}");
   };

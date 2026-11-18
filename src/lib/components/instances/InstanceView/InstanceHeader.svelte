@@ -2,6 +2,7 @@
 	import { t } from "#lib/i18n/index.js";
 	import { invoke } from "@tauri-apps/api/core";
 	import { onMount } from "svelte";
+	import { SvelteSet } from "svelte/reactivity";
 	import type { Snippet } from "svelte";
 	import { subscribeLogPreview } from "#lib/api/logStream.js";
 	import type { InstanceDto } from "#lib/types/types.js";
@@ -75,7 +76,7 @@
 
 	let lastLog = $state("");
 	let visible = $state(true);
-	let lockedActions = $state(new Set<string>());
+	const lockedActions = new SvelteSet<string>();
 	onMount(() => {
 		const update = () => {
 			visible = !document.hidden;
@@ -120,12 +121,10 @@
 	function runHeaderAction(key: string, action: () => void) {
 		if (lockedActions.has(key)) return;
 
-		lockedActions = new Set(lockedActions).add(key);
+		lockedActions.add(key);
 		action();
 		window.setTimeout(() => {
-			const next = new Set(lockedActions);
-			next.delete(key);
-			lockedActions = next;
+			lockedActions.delete(key);
 		}, 350);
 	}
 </script>
