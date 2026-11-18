@@ -28,6 +28,20 @@ struct Entries {
     bytes: usize,
 }
 
+impl Entries {
+    fn expire(&mut self) {
+        let now = Instant::now();
+        self.map.retain(|key, entry| {
+            if now.duration_since(entry.inserted) < TTL {
+                true
+            } else {
+                self.bytes -= key.len() + entry.data.len();
+                false
+            }
+        });
+    }
+}
+
 pub(crate) struct JsonCache {
     entries: Mutex<Entries>,
     max_bytes: usize,
@@ -44,21 +58,13 @@ impl JsonCache {
     }
 
     fn expire(&self) {
-        let mut entries = self.entries.lock();
-        entries
-            .map
-            .retain(|_, entry| entry.inserted.elapsed() < TTL);
-        entries.bytes = entries
-            .map
-            .iter()
-            .map(|(key, entry)| key.len() + entry.data.len())
-            .sum();
+        self.entries.lock().expire();
     }
 
     /// Raw payload for `key`, if fresh. Callers deserialize into their own type.
     pub(crate) fn get(&self, key: &str) -> Option<Arc<[u8]>> {
-        self.expire();
         let mut entries = self.entries.lock();
+        entries.expire();
         let entry = entries.map.get_mut(key)?;
         entry.used = Instant::now();
         Some(Arc::clone(&entry.data))
@@ -77,9 +83,9 @@ impl JsonCache {
         if size > MAX_ENTRY_BYTES || size > self.max_bytes {
             return;
         }
-        self.expire();
         {
             let mut entries = self.entries.lock();
+            entries.expire();
             if let Some(old) = entries.map.remove(&key) {
                 entries.bytes -= key.len() + old.data.len();
             }

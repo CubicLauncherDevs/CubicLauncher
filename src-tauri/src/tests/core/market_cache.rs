@@ -30,6 +30,25 @@ fn market_cache_expires_without_revisiting_the_same_url() {
 }
 
 #[test]
+fn market_cache_expiration_preserves_live_entry_accounting() {
+    let cache = JsonCache::new(100);
+    cache.set("old".into(), payload("null"));
+    cache.set("live".into(), payload("true"));
+    cache.entries.lock().map.get_mut("old").unwrap().inserted = Instant::now() - TTL;
+
+    assert_eq!(cache.get("live").as_deref(), Some(b"true".as_slice()));
+    assert_eq!(cache.entries.lock().bytes, 8);
+    assert!(cache.get("old").is_none());
+    cache.expire();
+    assert_eq!(cache.entries.lock().bytes, 8);
+
+    cache.set("live".into(), payload("0"));
+    assert_eq!(cache.entries.lock().bytes, 5);
+    cache.clear();
+    assert_eq!(cache.entries.lock().bytes, 0);
+}
+
+#[test]
 fn market_cache_evicts_least_recently_used_payload() {
     let cache = JsonCache::new(12);
     cache.set("a".into(), payload("null"));
