@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { fade } from "svelte/transition";
 	import { t } from "#lib/i18n/index.js";
 	import Icon from "#lib/icons/Icon.svelte";
 	import Loading from "#lib/icons/Loading.svelte";
@@ -279,65 +280,145 @@
 						use:animateHeight={resizeDuration}
 					>
 						<div class="install-card-content">
-							<div class="detail-actions">
-								<div class="version-select">
-									<span class="version-label">
-										{t("createInstance.versionLabel")}
-									</span>
-									<Select
-										bind:value={selectedVersion}
-										options={versionOptions}
-										placeholder={t(
-											"createInstance.versionLabel",
-										)}
-										loading={loadingVersions}
-										disabled={versionOptions.length === 0 ||
-											installing}
-									/>
-								</div>
-
-								<div class="install-action">
+							{#key needsCustomName}
+								<div
+									class="detail-actions"
+									in:fade={{ duration: detailDuration }}
+								>
 									{#if needsCustomName}
-										<button
-											type="button"
-											class="install-btn"
-											onclick={onCancelCustomName}
-											disabled={installing}
-										>
-											{t("createInstance.cancel")}
-										</button>
-									{:else}
-										<button
-											type="button"
-											class="install-btn"
-											onclick={onInstall}
-											aria-label={installing
-												? t(
-														"createInstance.installingModpack",
-													)
-												: t(
-														"createInstance.installBtn",
+										<div class="version-select">
+											<label
+												class="version-label"
+												for={nameInputId}
+											>
+												{t("createInstance.nameLabel")}
+											</label>
+											<div class="name-input-row">
+												<input
+													id={nameInputId}
+													type="text"
+													class="text-input"
+													class:error={customNameError}
+													bind:value={customName}
+													maxlength={MAX_INSTANCE_NAME_LEN}
+													required
+													aria-invalid={!!customNameError}
+													aria-describedby={customNameError
+														? `${nameInputId}-error`
+														: undefined}
+													disabled={installing}
+													oninput={() =>
+														(customNameError =
+															null)}
+													onkeydown={(e) =>
+														e.key === "Enter" &&
+														onConfirmCustomName?.()}
+													placeholder={t(
+														"createInstance.customNamePlaceholder",
 													)}
-											aria-busy={installing}
-											disabled={installing ||
-												loadingVersions ||
-												!selectedVersion ||
-												versionOptions.length === 0}
-										>
-											{#if installing}
-												<Loading />
-											{:else}
-												<DownloadIcon size={16} />
+												/>
+											</div>
+											{#if customNameError}
 												<span
-													>{t(
-														"createInstance.installBtn",
-													)}</span
+													id={`${nameInputId}-error`}
+													class="input-error"
+													role="alert"
+													>{customNameError}</span
 												>
 											{/if}
-										</button>
+										</div>
+									{:else}
+										<div class="version-select">
+											<span class="version-label">
+												{t(
+													"createInstance.versionLabel",
+												)}
+											</span>
+											<Select
+												bind:value={selectedVersion}
+												options={versionOptions}
+												placeholder={t(
+													"createInstance.versionLabel",
+												)}
+												loading={loadingVersions}
+												disabled={versionOptions.length ===
+													0 || installing}
+											/>
+										</div>
 									{/if}
+
+									<div
+										class="install-action"
+										class:name-actions={needsCustomName}
+									>
+										{#if needsCustomName}
+											<button
+												type="button"
+												class="install-btn cancel-btn"
+												onclick={onCancelCustomName}
+												disabled={installing}
+											>
+												<Icon
+													name="ui:close"
+													size={14}
+												/>
+											</button>
+											<button
+												type="button"
+												class="install-btn"
+												onclick={onConfirmCustomName}
+												aria-label={t(
+													"createInstance.installBtn",
+												)}
+												disabled={installing ||
+													loadingVersions ||
+													!selectedVersion ||
+													versionOptions.length ===
+														0 ||
+													!customName.trim()}
+											>
+												{#if installing}<Loading
+													/>{:else}<DownloadIcon
+														size={16}
+													/><span
+														>{t(
+															"createInstance.installBtn",
+														)}</span
+													>{/if}
+											</button>
+										{:else}
+											<button
+												type="button"
+												class="install-btn"
+												onclick={onInstall}
+												aria-label={installing
+													? t(
+															"createInstance.installingModpack",
+														)
+													: t(
+															"createInstance.installBtn",
+														)}
+												aria-busy={installing}
+												disabled={installing ||
+													loadingVersions ||
+													!selectedVersion ||
+													versionOptions.length === 0}
+											>
+												{#if installing}
+													<Loading />
+												{:else}
+													<DownloadIcon size={16} />
+													<span
+														>{t(
+															"createInstance.installBtn",
+														)}</span
+													>
+												{/if}
+											</button>
+										{/if}
+									</div>
 								</div>
-							</div>
+							{/key}
 							{#if installing}
 								<div class="install-status" role="status">
 									{installStep ||
@@ -353,57 +434,6 @@
 					</div>
 				</div>
 			</div>
-
-			{#if needsCustomName}
-				<div class="custom-name-section">
-					<label class="custom-name-hint" for={nameInputId}>
-						{t("createInstance.nameLabel")}
-					</label>
-					<div class="custom-name-input-row">
-						<input
-							id={nameInputId}
-							type="text"
-							class="text-input"
-							class:error={customNameError}
-							bind:value={customName}
-							maxlength={MAX_INSTANCE_NAME_LEN}
-							required
-							aria-invalid={!!customNameError}
-							aria-describedby={customNameError
-								? `${nameInputId}-error`
-								: undefined}
-							disabled={installing}
-							oninput={() => (customNameError = null)}
-							onkeydown={(e) =>
-								e.key === "Enter" && onConfirmCustomName?.()}
-							placeholder={t(
-								"createInstance.customNamePlaceholder",
-							)}
-						/>
-						<button
-							type="button"
-							class="btn-primary"
-							onclick={onConfirmCustomName}
-							disabled={installing ||
-								loadingVersions ||
-								!selectedVersion ||
-								versionOptions.length === 0 ||
-								!customName.trim()}
-						>
-							{installing
-								? t("createInstance.installingModpack")
-								: t("createInstance.installBtn")}
-						</button>
-					</div>
-					{#if customNameError}
-						<span
-							id={`${nameInputId}-error`}
-							class="input-error"
-							role="alert">{customNameError}</span
-						>
-					{/if}
-				</div>
-			{/if}
 
 			<h4 class="detail-separator">{t("createInstance.detailsTitle")}</h4>
 
@@ -883,6 +913,10 @@
 		width: 96px;
 	}
 
+	.install-action.name-actions {
+		width: 138px;
+	}
+
 	.install-btn {
 		background: transparent;
 		border: none;
@@ -902,6 +936,12 @@
 			background 0.15s;
 	}
 
+	.cancel-btn {
+		width: 42px;
+		flex: 0 0 42px;
+		border-right: 1px solid var(--border-color);
+	}
+
 	.install-btn:hover:not(:disabled) {
 		color: var(--text-primary);
 		background: var(--surface-selected);
@@ -918,47 +958,33 @@
 		outline-offset: -2px;
 	}
 
-	.custom-name-section {
-		border: 1px solid var(--border);
-		border-radius: var(--border-radius-sm);
-		padding: 12px;
-		background: rgba(var(--accent-rgb, 255, 255, 255), 0.03);
+	.name-input-row {
 		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
-	.custom-name-hint {
-		font-size: 0.78rem;
-		color: var(--text-secondary);
-		margin: 0;
-		line-height: 1.4;
-	}
-
-	.custom-name-input-row {
-		display: flex;
-		gap: 8px;
 		align-items: center;
+		gap: 6px;
+		min-width: 0;
 	}
 
-	.custom-name-input-row :global(.text-input) {
+	.name-input-row :global(.text-input) {
 		flex: 1;
 		min-width: 0;
-		padding: 8px 12px;
+		height: 28px;
+		box-sizing: border-box;
+		padding: 5px 8px;
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius-sm);
 		background: var(--bg-input);
 		color: var(--text-primary);
-		font-size: 0.82rem;
-		font-family: inherit;
+		font: inherit;
+		font-size: 0.75rem;
 		outline: none;
 	}
 
-	.custom-name-input-row :global(.text-input:focus) {
+	.name-input-row :global(.text-input:focus) {
 		border-color: var(--accent);
 	}
 
-	.custom-name-input-row :global(.text-input.error) {
+	.name-input-row :global(.text-input.error) {
 		border-color: var(--color-error) !important;
 		box-shadow: 0 0 0 1px var(--color-error) !important;
 	}
@@ -993,9 +1019,8 @@
 			align-self: stretch;
 		}
 
-		.custom-name-input-row {
-			flex-direction: column;
-			align-items: stretch;
+		.name-input-row {
+			flex-wrap: wrap;
 		}
 	}
 </style>

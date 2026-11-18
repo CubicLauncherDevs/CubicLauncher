@@ -25,9 +25,24 @@
 	let formattedLoader = $derived(
 		instance.loader.charAt(0).toUpperCase() + instance.loader.slice(1),
 	);
+	let minecraftVersion = $derived(getMinecraftVersion(instance.version));
 	let subtitle = $derived(
-		[instance.version, formattedLoader].filter(Boolean).join(" • "),
+		[minecraftVersion, formattedLoader].filter(Boolean).join(" • "),
 	);
+
+	function getMinecraftVersion(version: string): string {
+		const fabricOrQuilt = version.match(
+			/^(?:fabric|quilt)-loader-[\d.]+-(.+?)(?:-(?:fabric|quilt))?$/,
+		);
+		if (fabricOrQuilt) return fabricOrQuilt[1];
+
+		for (const separator of ["-neoforge-", "-forge-", "-OptiFine_"]) {
+			const index = version.indexOf(separator);
+			if (index >= 0) return version.slice(0, index);
+		}
+
+		return version;
+	}
 </script>
 
 <div

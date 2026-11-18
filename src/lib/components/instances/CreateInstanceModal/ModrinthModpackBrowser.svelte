@@ -200,6 +200,7 @@
 
 	async function handleSelect(item: ModpackItem) {
 		handleBack();
+		customName = "";
 		installError = null;
 		selectedItem = item;
 		selectedVersion = "";
@@ -264,7 +265,7 @@
 		if (!selectedPack || !selectedVersion || loadingVersions || installing)
 			return;
 
-		customName = sanitizeInstanceName(selectedPack.title);
+		if (!customName) customName = sanitizeInstanceName(selectedPack.title);
 		customNameError = isNameTaken(customName)
 			? t("createInstance.nameExists")
 			: null;
@@ -340,7 +341,6 @@
 
 	function handleCancelCustomName() {
 		needsCustomName = false;
-		customName = "";
 		customNameError = null;
 	}
 

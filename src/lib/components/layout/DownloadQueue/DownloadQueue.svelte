@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { slide } from "svelte/transition";
 	import { t } from "#lib/i18n/index.js";
+	import { animateHeight } from "#lib/utils/animateHeight.js";
+	import { animDuration } from "#lib/utils/animations.js";
 	import {
 		downloads,
 		getActiveDownloadCount,
@@ -14,6 +15,7 @@
 	let open = $state(false);
 	let activeCount = $derived(getActiveDownloadCount());
 	let doneCount = $derived(getDoneDownloadCount());
+	const resizeDuration = $derived(animDuration(180));
 
 	$effect(() => {
 		if (activeCount > 0 && !open) {
@@ -22,30 +24,32 @@
 	});
 </script>
 
-<div class="sd-root">
-	<DownloadQueueHeader bind:open {activeCount} {doneCount} />
-	{#if open}
-		<div class="sd-body" transition:slide={{ duration: 150 }}>
-			{#if downloads.size === 0}
-				<div class="sd-empty">{t("sidebar.noDownloadDesc")}</div>
-			{:else}
-				{#each [...downloads.values()] as item (item.version)}
-					{@const overall = getOverallPct(item)}
-					{@const label =
-						!item.done && !item.error && item.activeType
-							? getStatusLabel(item.activeType)
-							: null}
-					<DownloadQueueItem
-						version={item.version}
-						{overall}
-						done={item.done}
-						error={item.error}
-						statusLabel={label}
-					/>
-				{/each}
-			{/if}
-		</div>
-	{/if}
+<div class="sd-root" use:animateHeight={resizeDuration}>
+	<div class="sd-content">
+		<DownloadQueueHeader bind:open {activeCount} {doneCount} />
+		{#if open}
+			<div class="sd-body">
+				{#if downloads.size === 0}
+					<div class="sd-empty">{t("sidebar.noDownloadDesc")}</div>
+				{:else}
+					{#each [...downloads.values()] as item (item.version)}
+						{@const overall = getOverallPct(item)}
+						{@const label =
+							!item.done && !item.error && item.activeType
+								? getStatusLabel(item.activeType)
+								: null}
+						<DownloadQueueItem
+							version={item.version}
+							{overall}
+							done={item.done}
+							error={item.error}
+							statusLabel={label}
+						/>
+					{/each}
+				{/if}
+			</div>
+		{/if}
+	</div>
 </div>
 
 <style>
