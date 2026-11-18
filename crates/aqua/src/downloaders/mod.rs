@@ -66,12 +66,10 @@ impl DownloadManager {
         let name = batch.name();
         let total = batch.items().len();
         let version = Some(batch.version().clone());
-        let version_id = batch.version().id.clone();
 
         Ok(DownloadHandle {
             inner: Arc::new(DownloadInner {
                 name,
-                _version_id: version_id,
                 version,
                 batch: Box::new(batch),
                 handle_sem: Arc::clone(&self.handle_semaphore),
@@ -95,7 +93,6 @@ impl DownloadManager {
         Ok(DownloadHandle {
             inner: Arc::new(DownloadInner {
                 name,
-                _version_id: String::new(),
                 version: None,
                 batch,
                 handle_sem: Arc::clone(&self.handle_semaphore),
@@ -113,7 +110,6 @@ impl DownloadManager {
 
 struct DownloadInner {
     name: String,
-    _version_id: String,
     version: Option<NormalizedVersion>,
     batch: Box<dyn DownloadBatch>,
     handle_sem: Arc<Semaphore>,
