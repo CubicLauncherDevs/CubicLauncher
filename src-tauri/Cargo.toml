@@ -62,5 +62,3 @@ fastnbt = "2"
 flate2 = "1"
 tempfile = "3"
 hickory-resolver = "0.26.3"
-[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-tauri-plugin-updater = "=2.14.1"
