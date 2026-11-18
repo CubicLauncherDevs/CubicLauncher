@@ -92,10 +92,10 @@ impl InstanceHandle {
         let base_id = inner
             .manifest
             .inherits_from
-            .clone()
-            .unwrap_or_else(|| inner.manifest.id_raw.clone());
+            .as_deref()
+            .unwrap_or(&inner.manifest.id_raw);
         let sub = natives_subdir(&inner.manifest.id);
-        let natives_dir = inner.shared_dir.join("natives").join(&base_id).join(sub);
+        let natives_dir = inner.shared_dir.join("natives").join(base_id).join(sub);
         debug!("Natives dir (base_id={base_id}): {}", natives_dir.display());
 
         extract_natives(&inner.manifest, &lib_dir, &natives_dir)?;
