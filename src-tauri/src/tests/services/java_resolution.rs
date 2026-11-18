@@ -102,3 +102,47 @@ fn instance_override_wins_over_the_manifest() {
     assert_eq!(resolution.requested, 21);
     assert_eq!(resolution.major, 17);
 }
+
+#[test]
+fn java4shell_versions_below_the_fix_are_flagged() {
+    // Advisory de OpenJDK del 2026-11-17: afecta a 8u512, 11.0.33,
+    // 17.0.21.0.3, 21.0.13.0.3, 25.0.5.0.3 y 27.0.1.0.3 y anteriores. Las
+    // series 22-24 no recibieron actualización, así que siguen afectadas.
+    for version in [
+        "1.8.0_412",
+        "1.8.0_512",
+        "8u512",
+        "11.0.33",
+        "17.0.21",
+        "17.0.21+9",
+        "21.0.13",
+        "22.0.2",
+        "23.0.2",
+        "24.0.2",
+        "25.0.5",
+        "27.0.1",
+    ] {
+        assert!(is_java_known_vulnerable(version), "{version}");
+    }
+    for version in [
+        "1.8.0_522",
+        "11.0.34",
+        "17.0.22",
+        "21.0.14",
+        "25.0.6",
+        "27.0.2",
+    ] {
+        assert!(!is_java_known_vulnerable(version), "{version}");
+    }
+    // Texto no reconocible no se marca como vulnerable.
+    assert!(!is_java_known_vulnerable(""));
+    assert!(!is_java_known_vulnerable("error: failed"));
+}
+
+#[test]
+fn java_major_parses_oracle_and_openjdk_schemes() {
+    assert_eq!(java_major_and_update("1.8.0_522"), Some((8, 522)));
+    assert_eq!(java_major_and_update("8u522"), Some((8, 522)));
+    assert_eq!(java_major_and_update("21.0.14+12-LTS"), Some((21, 14)));
+    assert_eq!(java_major_and_update("openjdk"), None);
+}

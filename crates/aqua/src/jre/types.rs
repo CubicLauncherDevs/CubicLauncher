@@ -51,4 +51,7 @@ pub struct JreStatus {
     /// puede reconocerse a partir de `java -version`.
     #[serde(default)]
     pub vendor: Option<String>,
+    /// Runtime de una serie anterior al arreglo de CVE-2026-114938.
+    #[serde(default)]
+    pub vulnerable: bool,
 }

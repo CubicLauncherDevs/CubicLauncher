@@ -36,6 +36,8 @@ pub async fn install_jre(version: u8, vendor: Option<String>) -> Result<(), Stri
     DownloadQueue::get()
         .enqueue_batch(format!("jre-{}", version), Box::new(batch), shared_guard)
         .await;
+    // La versión detectada por `java -version` cambia con la reinstalación.
+    crate::services::java_resolution::invalidate_managed_java(version);
 
     Ok(())
 }
@@ -78,6 +80,7 @@ pub async fn get_jre_versions() -> Result<Vec<JreStatus>, String> {
                 installed: false,
                 java_version: Some(format!("error: {}", e)),
                 vendor: None,
+                vulnerable: false,
             },
         }
     }))

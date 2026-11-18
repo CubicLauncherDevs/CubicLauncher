@@ -499,6 +499,7 @@
 			"uninstalling": "Uninstalling...",
 			"installedVersion": "Installed version: {version}",
 			"notInstalled": "Not installed",
+			"java4shellWarning": "Affected by CVE-2026-114938. Uninstall and install again to get a fixed build.",
 			"installError": "Error installing JRE {version}: {error}",
 			"jvmArgs": "JVM Arguments",
 			"envVars": "Environment Variables",

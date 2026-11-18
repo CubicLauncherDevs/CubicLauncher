@@ -133,6 +133,11 @@
 								: t("settings.java.uninstall")}
 						</button>
 					</div>
+					{#if status.vulnerable}
+						<span class="qm-jre-warning"
+							>{t("settings.java.java4shellWarning")}</span
+						>
+					{/if}
 					{#if vendorMismatch}
 						<span class="qm-jre-hint"
 							>{t("settings.java.providerMismatch", {
@@ -238,6 +243,13 @@
 		margin-top: 6px;
 		font-size: 0.75rem;
 		color: var(--text-muted);
+	}
+
+	.qm-jre-warning {
+		display: block;
+		margin-top: 6px;
+		font-size: 0.75rem;
+		color: var(--color-error);
 	}
 
 	.qm-jre-installed,

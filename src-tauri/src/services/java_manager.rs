@@ -1,4 +1,5 @@
 use crate::core::{AppError, FsError, PathManager};
+use crate::services::java_resolution;
 use aqua::{JrePackage, JreProviderChain, JreStatus, JreVendor};
 use std::path::PathBuf;
 use tokio::fs;
@@ -36,12 +37,18 @@ impl JavaManager {
         } else {
             (None, None)
         };
+        // Sin versión legible el runtime no se marca como vulnerable: solo se
+        // avisa cuando `java -version` confirma una serie sin el arreglo.
+        let vulnerable = java_version
+            .as_deref()
+            .is_some_and(java_resolution::is_java_known_vulnerable);
 
         Ok(JreStatus {
             version,
             installed,
             java_version,
             vendor,
+            vulnerable,
         })
     }
 
@@ -76,6 +83,7 @@ impl JavaManager {
                 })?;
                 info!("JRE {} uninstalled", version);
             }
+            java_resolution::invalidate_managed_java(version);
             Ok(())
         })
         .await
@@ -124,7 +132,7 @@ impl JavaManager {
 }
 
 /// Extrae la versión de un texto como `openjdk version "21.0.11" 2025-...`.
-fn parse_java_version(version_output: &str) -> Option<String> {
+pub(crate) fn parse_java_version(version_output: &str) -> Option<String> {
     let version_line = version_output.lines().next()?;
     version_line
         .split('"')

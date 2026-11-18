@@ -119,6 +119,8 @@ export interface JreStatus {
 	java_version: string | null;
 	/** Identificador del proveedor detectado en el runtime instalado. */
 	vendor?: string | null;
+	/** Runtime anterior al arreglo de CVE-2026-114938. */
+	vulnerable?: boolean;
 }
 
 export type AccountType = "Cracked" | "Microsoft" | "Yggdrasil";

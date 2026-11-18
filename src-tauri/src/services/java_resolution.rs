@@ -1,9 +1,12 @@
 //! Resolución de la versión de Java que necesita una instancia.
 
 use super::SettingsSnapshot;
-use super::java_manager::JavaManager;
+use super::java_manager::{JavaManager, parse_java_version};
 use launchwerk::models::{JavaVersion, VersionManifest};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::sync::{LazyLock, Mutex, PoisonError};
 use tracing::{debug, info};
 use zellkern::{GameVersion, Loader};
 
@@ -82,6 +85,114 @@ pub fn is_forge_version_safe(forge_ver: &str) -> bool {
     safe
 }
 
+/// Primera versión mayor que el launcher gestiona en `runtimes/jre{N}`.
+const FIRST_MANAGED_JAVA: u8 = 8;
+
+/// Serie mayor y build de una versión de `java -version`, comparables dentro
+/// de la misma serie: `1.8.0_412` y `8u412` → (8, 412); `21.0.14+12` → (21, 14).
+pub fn java_major_and_update(java_version: &str) -> Option<(u8, u32)> {
+    let digits = java_version
+        .trim()
+        .split(|c: char| !(c.is_ascii_digit() || c == '.' || c == '_' || c == 'u'))
+        .find(|segment| !segment.is_empty())?;
+    let (major, rest) = digits.split_once(['.', '_', 'u'])?;
+    let major: u32 = major.parse().ok()?;
+
+    if major == 1 {
+        // `1.8.0_412`: el build va tras `_`; `1.8.0` sin build es 0.
+        let update = digits.split('_').nth(1).unwrap_or("0");
+        return update.parse().ok().map(|update| (8, update));
+    }
+
+    // `17.0.21` / `21.0.14+12`: la actualización es la última cifra punteada.
+    let update = rest
+        .split(['.', 'u'])
+        .next_back()
+        .unwrap_or("0")
+        .split(|c: char| !c.is_ascii_digit())
+        .next()
+        .unwrap_or("0");
+    ((FIRST_MANAGED_JAVA as u32..=99).contains(&major))
+        .then_some((major as u8, update.parse().ok()?))
+}
+
+/// Indica si `java -version` corresponde a una versión anterior al arreglo de
+/// CVE-2026-114938, cuyo advisory lista 8u512, 11.0.33, 17.0.21, 21.0.13,
+/// 25.0.5 y 27.0.1 como últimos builds afectados de cada serie.
+pub fn is_java_known_vulnerable(java_version: &str) -> bool {
+    let Some((major, update)) = java_major_and_update(java_version) else {
+        return false;
+    };
+    match major {
+        8 => update <= 512,
+        11 => update <= 33,
+        17 => update <= 21,
+        21 => update <= 13,
+        25 => update <= 5,
+        27 => update <= 1,
+        // 22-24 quedaron fuera de soporte antes del arreglo; el resto no se
+        // usa en el launcher.
+        22..=24 => true,
+        _ => false,
+    }
+}
+
+/// True si el runtime administrado para la serie `major` está seguro.
+fn managed_runtime_is_secure(major: u8) -> bool {
+    match managed_java_version(major) {
+        Some(version) => !is_java_known_vulnerable(&version),
+        // Sin `java -version` legible no se puede afirmar que esté al día.
+        None => false,
+    }
+}
+
+/// Caché por serie mayor de la versión que imprime el `java -version` del
+/// runtime administrado. Se vacía tras instalar o desinstalar.
+static MANAGED_JAVA_VERSIONS: LazyLock<Mutex<HashMap<u8, Option<String>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Olvida la versión detectada de un runtime administrado (instalación o
+/// desinstalación).
+pub fn invalidate_managed_java(version: u8) {
+    MANAGED_JAVA_VERSIONS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .remove(&version);
+}
+
+fn managed_java_version(major: u8) -> Option<String> {
+    if let Some(cached) = MANAGED_JAVA_VERSIONS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get(&major)
+    {
+        return cached.clone();
+    }
+
+    let binary = JavaManager::get_java_binary(major);
+    let output = binary.exists().then(|| {
+        Command::new(&binary)
+            .arg("-version")
+            .stdin(Stdio::null())
+            .output()
+            .ok()
+    });
+    let detected = output.flatten().and_then(|output| {
+        let raw = if output.stderr.is_empty() {
+            &output.stdout
+        } else {
+            &output.stderr
+        };
+        parse_java_version(&String::from_utf8_lossy(raw))
+    });
+
+    MANAGED_JAVA_VERSIONS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .insert(major, detected.clone());
+    detected
+}
+
 pub fn resolve_java_path(
     settings: &SettingsSnapshot,
     java_version: Option<&JavaVersion>,
@@ -90,25 +201,23 @@ pub fn resolve_java_path(
         Some(v) => v.major_version,
         None => 25,
     };
+    // Un runtime administrado de una serie anterior al arreglo de
+    // CVE-2026-114938 no se usa: se trata como si no estuviera instalado para
+    // que el lanzamiento pida reinstalarlo desde la cadena de proveedores.
+    let managed = |major: u8, enabled: bool| {
+        enabled && JavaManager::is_installed(major) && managed_runtime_is_secure(major)
+    };
     match version {
-        8 if settings.jre8_managed && JavaManager::is_installed(8) => {
-            (8, JavaManager::get_java_binary(8))
-        }
-        17 if settings.jre17_managed && JavaManager::is_installed(17) => {
-            (17, JavaManager::get_java_binary(17))
-        }
-        21 if settings.jre21_managed && JavaManager::is_installed(21) => {
-            (21, JavaManager::get_java_binary(21))
-        }
-        25 if settings.jre25_managed && JavaManager::is_installed(25) => {
-            (25, JavaManager::get_java_binary(25))
-        }
+        8 if managed(8, settings.jre8_managed) => (8, JavaManager::get_java_binary(8)),
+        17 if managed(17, settings.jre17_managed) => (17, JavaManager::get_java_binary(17)),
+        21 if managed(21, settings.jre21_managed) => (21, JavaManager::get_java_binary(21)),
+        25 if managed(25, settings.jre25_managed) => (25, JavaManager::get_java_binary(25)),
         8 => (8, settings.get_jre8_path().to_path_buf()),
         17 => (17, settings.get_jre17_path().to_path_buf()),
         21 => (21, settings.get_jre21_path().to_path_buf()),
         25 => (25, settings.get_jre25_path().to_path_buf()),
         _ => {
-            if settings.jre21_managed && JavaManager::is_installed(21) {
+            if managed(21, settings.jre21_managed) {
                 (21, JavaManager::get_java_binary(21))
             } else {
                 (21, settings.get_jre21_path().to_path_buf())
