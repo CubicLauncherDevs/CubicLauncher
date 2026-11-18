@@ -8,6 +8,4 @@ license = "GPL-3.0-only"
 repository = "https://github.com/CubicLauncherDevs/CubicLauncher"
 
 [dependencies]
-postcard = { version = "1", default-features = false, features = ["alloc"] }
-serde = { version = "1", features = ["derive"] }
 crc32fast = "1"
