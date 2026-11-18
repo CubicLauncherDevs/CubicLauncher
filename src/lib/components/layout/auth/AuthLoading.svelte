@@ -2,10 +2,10 @@
 	let {
 		title = "Conectando...",
 		subtitle = undefined as string | undefined,
-	} = $props<{
+	}: {
 		title?: string;
 		subtitle?: string;
-	}>();
+	} = $props();
 </script>
 
 <div class="state-container">

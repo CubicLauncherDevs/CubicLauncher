@@ -14,7 +14,7 @@
 	import Lupa from "$lib/icons/Lupa.svelte";
 	import ModCard from "./ModCard.svelte";
 
-	let { instanceId } = $props<{ instanceId: string }>();
+	let { instanceId }: { instanceId: string } = $props();
 	let mods = $state<ModDto[]>([]);
 	let selected = new SvelteSet<string>();
 	let searchQuery = $state("");

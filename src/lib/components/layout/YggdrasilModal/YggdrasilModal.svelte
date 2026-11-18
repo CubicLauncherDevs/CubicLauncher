@@ -26,7 +26,7 @@
 		autoConnect = false,
 		onsuccess,
 		reauthUsername,
-	} = $props<{
+	}: {
 		open: boolean;
 		initialServerUrl?: string;
 		title?: string;
@@ -37,7 +37,7 @@
 		autoConnect?: boolean;
 		onsuccess?: () => void;
 		reauthUsername?: string;
-	}>();
+	} = $props();
 
 	type Step = "server" | "login" | "loading" | "success" | "error";
 

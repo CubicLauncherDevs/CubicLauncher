@@ -8,7 +8,7 @@
 	import { createScreenshotThumbnails } from "$lib/state/screenshotThumbnails";
 	import { observeThemeMetrics } from "$lib/utils/themeMetrics";
 
-	let { instance } = $props<{ instance: InstanceDto }>();
+	let { instance }: { instance: InstanceDto } = $props();
 	let screenshots = $state<string[]>([]);
 	let selectedImage = $state<string | null>(null);
 	let loading = $state(true);

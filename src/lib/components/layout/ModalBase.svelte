@@ -16,7 +16,7 @@
 		children,
 		footer,
 		headerActions,
-	} = $props<{
+	}: {
 		open: boolean;
 		title?: string;
 		width?: string;
@@ -27,7 +27,7 @@
 		children?: Snippet;
 		footer?: Snippet;
 		headerActions?: Snippet;
-	}>();
+	} = $props();
 
 	function close() {
 		if (closeDisabled) return;

@@ -23,7 +23,7 @@
 	import PanelSkeleton from "$lib/components/ui/PanelSkeleton.svelte";
 	import MarketCatalogSkeleton from "$lib/components/market/MarketCatalogSkeleton.svelte";
 
-	let { selectedInstance } = $props<{ selectedInstance: InstanceDto }>();
+	let { selectedInstance }: { selectedInstance: InstanceDto } = $props();
 	let activeSection = $state("detalles");
 	let tabContentEl: HTMLDivElement | undefined = $state();
 

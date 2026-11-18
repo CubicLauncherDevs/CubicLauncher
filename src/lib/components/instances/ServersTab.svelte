@@ -21,7 +21,7 @@
 	import Select from "$lib/components/layout/Select.svelte";
 	import ListSkeleton from "$lib/components/ui/ListSkeleton.svelte";
 
-	let { instance } = $props<{ instance: InstanceDto }>();
+	let { instance }: { instance: InstanceDto } = $props();
 	let list = $state.raw<{ revision: string; servers: ServerRow[] }>({
 		revision: "",
 		servers: [],

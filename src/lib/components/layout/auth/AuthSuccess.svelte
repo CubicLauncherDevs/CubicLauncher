@@ -4,10 +4,10 @@
 	let {
 		title = "¡Conectado!",
 		subtitle = "Tu cuenta ha sido vinculada." as string | undefined,
-	} = $props<{
+	}: {
 		title?: string;
 		subtitle?: string;
-	}>();
+	} = $props();
 </script>
 
 <div class="state-container">

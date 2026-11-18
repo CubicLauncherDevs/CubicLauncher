@@ -19,7 +19,7 @@
 		label,
 		id,
 		onchange,
-	} = $props<{
+	}: {
 		value: string;
 		options: Option[];
 		placeholder?: string;
@@ -27,7 +27,7 @@
 		label?: string;
 		id?: string;
 		onchange?: (value: string) => void;
-	}>();
+	} = $props();
 
 	let isOpen = $state(false);
 	let container: HTMLDivElement;

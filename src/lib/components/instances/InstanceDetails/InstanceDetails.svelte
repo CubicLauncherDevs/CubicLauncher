@@ -7,7 +7,7 @@
 	import Icon from "$lib/icons/Icon.svelte";
 	import { formatPlaytime, hasPlaytime } from "$lib/utils/playtime";
 
-	let { instance } = $props<{ instance: InstanceDto }>();
+	let { instance }: { instance: InstanceDto } = $props();
 
 	const loaderColors: Record<string, string> = {
 		Vanilla: "var(--clr-loader-vanilla, #78909c)",

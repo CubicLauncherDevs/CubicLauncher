@@ -19,7 +19,7 @@
 	import CloseIcon from "$lib/icons/CloseIcon.svelte";
 	import ListSkeleton from "$lib/components/ui/ListSkeleton.svelte";
 
-	let { instance } = $props<{ instance: InstanceDto }>();
+	let { instance }: { instance: InstanceDto } = $props();
 	let worlds = $state<WorldDto[]>([]);
 	let loading = $state(true);
 	let operation = $state<string | null>(null);

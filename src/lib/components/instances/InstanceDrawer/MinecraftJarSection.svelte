@@ -12,7 +12,7 @@
 	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
 	import Trash from "$lib/icons/Trash.svelte";
 
-	let { instance } = $props<{ instance: InstanceDto }>();
+	let { instance }: { instance: InstanceDto } = $props();
 	let config = $state<MinecraftJarConfig | null>(null);
 	let loading = $state(true);
 	let working = $state(false);

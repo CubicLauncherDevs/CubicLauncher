@@ -18,11 +18,11 @@
 		open = $bindable(false),
 		onsuccess,
 		reauthUsername,
-	} = $props<{
+	}: {
 		open: boolean;
 		onsuccess?: () => void;
 		reauthUsername?: string;
-	}>();
+	} = $props();
 
 	type AuthMethod = "launcher" | "code";
 	let method = $state<AuthMethod | null>(null);

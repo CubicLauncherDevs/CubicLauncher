@@ -40,14 +40,14 @@
 		oncreated,
 		oninstallstarted,
 		oninstallfailed,
-	} = $props<{
+	}: {
 		open: boolean;
 		mrpackPath?: string | null;
 		instanceZipPath?: string | null;
 		oncreated?: () => void;
 		oninstallstarted?: (name: string) => void;
 		oninstallfailed?: (name: string) => void;
-	}>();
+	} = $props();
 
 	type Tab = "manual" | "modrinth" | "curseforge" | "local";
 	let tab = $state<Tab>("manual");
