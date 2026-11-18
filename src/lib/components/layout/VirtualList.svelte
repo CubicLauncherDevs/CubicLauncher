@@ -1,11 +1,11 @@
 <script lang="ts" generics="T">
 	import { onMount, onDestroy, untrack } from "svelte";
 	import type { Snippet } from "svelte";
-	import { observeThemeMetrics } from "$lib/utils/themeMetrics";
+	import { observeThemeMetrics } from "#lib/utils/themeMetrics.js";
 	import {
 		densityGap,
 		densityRowHeight,
-	} from "$lib/utils/interfacePreferences";
+	} from "#lib/utils/interfacePreferences.js";
 
 	interface Props {
 		items: T[];

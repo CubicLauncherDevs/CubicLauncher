@@ -5,7 +5,7 @@ import {
 	type LogLine,
 } from "./logHelpers";
 import type { LogState } from "./logState.svelte";
-import { launcherStore } from "$lib/state/state.svelte";
+import { launcherStore } from "#lib/state/state.svelte.js";
 
 export class LogRenderer {
 	private viewport?: HTMLDivElement;

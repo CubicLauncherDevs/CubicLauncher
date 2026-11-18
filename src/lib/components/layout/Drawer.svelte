@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import type { Snippet } from "svelte";
-	import { shouldReduceAnimations } from "$lib/utils/animations";
+	import { shouldReduceAnimations } from "#lib/utils/animations.js";
 
 	type Direction = "bottom" | "top" | "left" | "right";
 

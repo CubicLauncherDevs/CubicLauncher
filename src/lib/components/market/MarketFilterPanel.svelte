@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
-	import Select from "$lib/components/layout/Select.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import Select from "#lib/components/layout/Select.svelte";
 	import type {
 		MarketFilters,
 		MarketSort,
 		LocalSort,
 		LocalSourceFilter,
-	} from "$lib/state/marketState.svelte";
-	import type { MarketSource, ContentType } from "$lib/types/market";
+	} from "#lib/state/marketState.svelte.js";
+	import type { MarketSource, ContentType } from "#lib/types/market.js";
 
 	interface Props {
 		filters: MarketFilters;

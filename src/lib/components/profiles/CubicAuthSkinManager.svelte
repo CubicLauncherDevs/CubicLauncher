@@ -8,22 +8,22 @@
 		openUrl,
 		uploadYggdrasilSkin,
 		uploadYggdrasilSkinUrl,
-	} from "$lib/api/cubicApi";
-	import { catalogViewUrl, type CatalogSkin } from "$lib/api/mosaicarySkins";
+	} from "#lib/api/cubicApi.js";
+	import { catalogViewUrl, type CatalogSkin } from "#lib/api/mosaicarySkins.js";
 	import {
 		launcherStore,
 		showError,
 		showSuccess,
-	} from "$lib/state/state.svelte";
-	import { bumpAvatarVersion } from "$lib/state/avatarCache.svelte";
-	import type { YggdrasilSkinProfile } from "$lib/types/types";
-	import { t } from "$lib/i18n";
+	} from "#lib/state/state.svelte.js";
+	import { bumpAvatarVersion } from "#lib/state/avatarCache.svelte.js";
+	import type { YggdrasilSkinProfile } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
 	import {
 		canUseSkinModel,
 		detectSkinModelFromUrl,
 		type SkinModel,
-	} from "$lib/utils/skinModel";
-	import Icon from "$lib/icons/Icon.svelte";
+	} from "#lib/utils/skinModel.js";
+	import Icon from "#lib/icons/Icon.svelte";
 	import Skin3dViewer from "./Skin3dViewer.svelte";
 	import SkinCatalogModal from "./SkinCatalogModal.svelte";
 

@@ -1,6 +1,6 @@
 import { SvelteMap } from "svelte/reactivity";
-import type { ModIconRequest, ModIconResult } from "$lib/api/cubicApi";
-import type { MarketProject } from "$lib/types/market";
+import type { ModIconRequest, ModIconResult } from "#lib/api/cubicApi.js";
+import type { MarketProject } from "#lib/types/market.js";
 
 const MAX_ENTRIES = 160;
 const MAX_BYTES = 8 * 1024 * 1024;

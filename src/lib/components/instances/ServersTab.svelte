@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onDestroy, onMount, untrack } from "svelte";
-	import { t } from "$lib/i18n";
-	import { InstState, type InstanceDto } from "$lib/types/types";
-	import { launchInstance } from "$lib/api/cubicApi";
-	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import { InstState, type InstanceDto } from "#lib/types/types.js";
+	import { launchInstance } from "#lib/api/cubicApi.js";
+	import { isVersionDownloading } from "#lib/state/downloadState.svelte.js";
 	import {
 		getInstanceServers,
 		serverAction,
@@ -11,15 +11,15 @@
 		type ServerStatus,
 		type ServerAction,
 		type ResourcePolicy,
-	} from "$lib/api/servers";
+	} from "#lib/api/servers.js";
 	import {
 		ServerResources,
 		type ServerRow,
-	} from "$lib/state/serverResources";
-	import Icon from "$lib/icons/Icon.svelte";
-	import ModalBase from "$lib/components/layout/ModalBase.svelte";
-	import Select from "$lib/components/layout/Select.svelte";
-	import ListSkeleton from "$lib/components/ui/ListSkeleton.svelte";
+	} from "#lib/state/serverResources.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import ModalBase from "#lib/components/layout/ModalBase.svelte";
+	import Select from "#lib/components/layout/Select.svelte";
+	import ListSkeleton from "#lib/components/ui/ListSkeleton.svelte";
 
 	let { instance }: { instance: InstanceDto } = $props();
 	let list = $state.raw<{ revision: string; servers: ServerRow[] }>({

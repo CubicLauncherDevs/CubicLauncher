@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { fly } from "svelte/transition";
-	import { t } from "$lib/i18n";
-	import CheckIcon from "$lib/icons/CheckIcon.svelte";
-	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
-	import { animDuration } from "$lib/utils/animations";
-	import type { CatalogTag } from "$lib/api/mosaicarySkins";
+	import { t } from "#lib/i18n/index.js";
+	import CheckIcon from "#lib/icons/CheckIcon.svelte";
+	import ChevronDownIcon from "#lib/icons/ChevronDownIcon.svelte";
+	import { animDuration } from "#lib/utils/animations.js";
+	import type { CatalogTag } from "#lib/api/mosaicarySkins.js";
 
 	interface Props {
 		/** Las etiquetas que se ofrecen, las más usadas primero. */

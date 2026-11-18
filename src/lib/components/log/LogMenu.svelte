@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from "svelte";
-	import Icon from "$lib/icons/Icon.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
 
 	interface Props {
 		label: string;

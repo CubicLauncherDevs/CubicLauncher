@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import { animDuration } from "$lib/utils/animations";
+	import { t } from "#lib/i18n/index.js";
+	import { animDuration } from "#lib/utils/animations.js";
 	import ModpackImportStep from "./ModpackImportStep.svelte";
 	import InstanceImportStep from "./InstanceImportStep.svelte";
 	import LauncherMigrationStep from "./LauncherMigrationStep.svelte";

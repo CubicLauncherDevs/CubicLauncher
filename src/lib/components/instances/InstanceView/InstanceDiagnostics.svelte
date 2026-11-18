@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
-	import type { InstanceDto } from "$lib/types/types";
+	import type { InstanceDto } from "#lib/types/types.js";
 	import {
 		analyzeInstanceCrash,
 		diagnoseInstance,
@@ -11,12 +11,12 @@
 		type DiagnosticAction,
 		type DiagnosticCheck,
 		type DiagnosticReport,
-	} from "$lib/api/diagnostics";
-	import { summarize, sortChecks } from "$lib/api/diagnostics";
-	import { t } from "$lib/i18n";
-	import { showError } from "$lib/state/state.svelte";
-	import { openInstanceDir } from "$lib/api/cubicApi";
-	import Icon from "$lib/icons/Icon.svelte";
+	} from "#lib/api/diagnostics.js";
+	import { summarize, sortChecks } from "#lib/api/diagnostics.js";
+	import { t } from "#lib/i18n/index.js";
+	import { showError } from "#lib/state/state.svelte.js";
+	import { openInstanceDir } from "#lib/api/cubicApi.js";
+	import Icon from "#lib/icons/Icon.svelte";
 	import CrashAnalysisView from "./CrashAnalysis.svelte";
 
 	let {

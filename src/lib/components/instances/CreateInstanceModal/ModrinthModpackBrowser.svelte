@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from "svelte";
-	import { t } from "$lib/i18n";
+	import { t } from "#lib/i18n/index.js";
 	import {
 		searchModrinth,
 		getModrinthProjectVersions,
@@ -9,20 +9,20 @@
 		downloadMrpack,
 		installMrpackWithUpstream,
 		openUrl,
-	} from "$lib/api/cubicApi";
+	} from "#lib/api/cubicApi.js";
 	import type {
 		ModrinthProject,
 		ModrinthVersion,
 		MinecraftVersion,
-	} from "$lib/types/types";
-	import MarkdownRenderer from "$lib/components/ui/MarkdownRenderer.svelte";
+	} from "#lib/types/types.js";
+	import MarkdownRenderer from "#lib/components/ui/MarkdownRenderer.svelte";
 	import {
 		MAX_INSTANCE_NAME_LEN,
 		isValidInstanceName,
 		sanitizeInstanceName,
-	} from "$lib/utils/instanceName";
-	import { launcherStore, showErrorParsed } from "$lib/state/state.svelte";
-	import Loading from "$lib/icons/Loading.svelte";
+	} from "#lib/utils/instanceName.js";
+	import { launcherStore, showErrorParsed } from "#lib/state/state.svelte.js";
+	import Loading from "#lib/icons/Loading.svelte";
 	import ModpackBrowser, {
 		type ModpackItem,
 		type ModpackFilters,

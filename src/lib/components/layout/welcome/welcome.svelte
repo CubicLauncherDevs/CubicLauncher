@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from "svelte";
-	import { t } from "$lib/i18n";
-	import { launcherStore } from "$lib/state/state.svelte";
-	import { saveSettings } from "$lib/api/launcherService";
-	import CloseIcon from "$lib/icons/CloseIcon.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
+	import { saveSettings } from "#lib/api/launcherService.js";
+	import CloseIcon from "#lib/icons/CloseIcon.svelte";
 	import TutorialTipContent from "./TutorialTipContent.svelte";
 	import TutorialTipFooter from "./TutorialTipFooter.svelte";
 	import ModalBase from "../ModalBase.svelte";
@@ -11,7 +11,7 @@
 	import {
 		ACCOUNT_PROVIDERS,
 		type AccountProvider,
-	} from "$lib/utils/accountProviders";
+	} from "#lib/utils/accountProviders.js";
 
 	interface Step {
 		sel: string;

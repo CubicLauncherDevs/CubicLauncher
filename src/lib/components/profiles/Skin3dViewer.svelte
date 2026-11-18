@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from "svelte";
 	import type { Render, IdleAnimation } from "skin3d";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { launcherStore } from "#lib/state/state.svelte.js";
 	import {
 		EYE_GAP,
 		EYE_STEPS,
@@ -11,9 +11,9 @@
 		poseKeyOf,
 		readEyeCopy,
 		type LiveEyes,
-	} from "$lib/utils/freshEyes";
-	import { createFrameLoop, type FrameLoop } from "$lib/utils/frameLoop";
-	import { createStage, releaseStage } from "$lib/utils/skin3dStage";
+	} from "#lib/utils/freshEyes.js";
+	import { createFrameLoop, type FrameLoop } from "#lib/utils/frameLoop.js";
+	import { createStage, releaseStage } from "#lib/utils/skin3dStage.js";
 
 	const IDLE_MS = 3000;
 	const TURNING_FPS = 24;

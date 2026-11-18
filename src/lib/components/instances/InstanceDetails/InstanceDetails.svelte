@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { InstanceDto } from "$lib/types/types";
-	import { t } from "$lib/i18n";
+	import type { InstanceDto } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
 	import { invoke } from "@tauri-apps/api/core";
 	import InfoHeader from "./InfoHeader.svelte";
 	import ActionChips from "./ActionChips.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { formatPlaytime, hasPlaytime } from "$lib/utils/playtime";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { formatPlaytime, hasPlaytime } from "#lib/utils/playtime.js";
 
 	let { instance }: { instance: InstanceDto } = $props();
 

@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
-	import { t } from "$lib/i18n";
-	import { openUrl } from "$lib/api/cubicApi";
-	import Icon from "$lib/icons/Icon.svelte";
-	import type { MarketDetailState } from "$lib/state/marketState.svelte";
-	import type { ContentType, MarketProject } from "$lib/types/market";
+	import { t } from "#lib/i18n/index.js";
+	import { openUrl } from "#lib/api/cubicApi.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import type { MarketDetailState } from "#lib/state/marketState.svelte.js";
+	import type { ContentType, MarketProject } from "#lib/types/market.js";
 	import type {
 		CurseForgeProject,
 		ModrinthProjectFull,
-	} from "$lib/types/types";
+	} from "#lib/types/types.js";
 
 	let {
 		project,

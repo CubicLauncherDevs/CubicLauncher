@@ -65,18 +65,18 @@ import {
 	launchInstance,
 } from "./cubicApi";
 import { applyTheme } from "./themeManager";
-import { createSaveQueue } from "$lib/utils/saveQueue";
+import { createSaveQueue } from "#lib/utils/saveQueue.js";
 import {
 	initDownloadState,
 	destroyDownloadState,
-} from "$lib/state/downloadState.svelte";
+} from "#lib/state/downloadState.svelte.js";
 import {
 	initDownloadQueueState,
 	destroyDownloadQueueState,
-} from "$lib/state/downloadQueueState.svelte";
+} from "#lib/state/downloadQueueState.svelte.js";
 
 import { invoke } from "@tauri-apps/api/core";
-import { loadInstalledVersions } from "$lib/state/versionsState.svelte";
+import { loadInstalledVersions } from "#lib/state/versionsState.svelte.js";
 
 export function getActiveUser(): MinecraftUser | null {
 	const users = launcherStore.settings.user;

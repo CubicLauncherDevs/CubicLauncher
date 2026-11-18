@@ -3,11 +3,11 @@
  * Una tarjeta no gira ni se anima, así que no necesita un contexto WebGL propio.
  */
 
-import { createStage, releaseStage } from "$lib/utils/skin3dStage";
+import { createStage, releaseStage } from "#lib/utils/skin3dStage.js";
 import {
 	createThumbnailQueue,
 	type ThumbnailPainter,
-} from "$lib/utils/thumbnailQueue";
+} from "#lib/utils/thumbnailQueue.js";
 
 /** Doble de la altura de la tarjeta: al reducirla, el navegador suaviza los bordes. */
 const THUMBNAIL_SIZE = 280;

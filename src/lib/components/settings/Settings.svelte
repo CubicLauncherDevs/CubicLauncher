@@ -5,27 +5,27 @@
 		launcherStore,
 		jreVendorFor,
 		setJreVendor,
-	} from "$lib/state/state.svelte";
+	} from "#lib/state/state.svelte.js";
 	import {
 		saveSettings,
 		scheduleSettingsSave,
 		flushSettingsSaves,
 		onAppEvent,
-	} from "$lib/api/launcherService";
-	import { openUrl } from "$lib/api/cubicApi";
-	import { t } from "$lib/i18n";
-	import LanguageSelect from "$lib/components/layout/LanguageSelect.svelte";
-	import Select from "$lib/components/layout/Select.svelte";
-	import { listThemes } from "$lib/api/themeManager";
+	} from "#lib/api/launcherService.js";
+	import { openUrl } from "#lib/api/cubicApi.js";
+	import { t } from "#lib/i18n/index.js";
+	import LanguageSelect from "#lib/components/layout/LanguageSelect.svelte";
+	import Select from "#lib/components/layout/Select.svelte";
+	import { listThemes } from "#lib/api/themeManager.js";
 	import ThemeSelector from "./ThemeSelector.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
 	import {
 		getJreVersions,
 		installJre,
 		uninstallJre,
 		getAvailableJreVendors,
-	} from "$lib/api/cubicApi";
-	import type { JreStatus, ThemeEntry } from "$lib/types/types";
+	} from "#lib/api/cubicApi.js";
+	import type { JreStatus, ThemeEntry } from "#lib/types/types.js";
 	import UpdateSection from "./UpdateSection.svelte";
 	import CollapsibleSection from "./CollapsibleSection.svelte";
 	import JreCard from "./JreCard.svelte";

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import type { MinecraftProfileCape } from "$lib/types/types";
+	import { t } from "#lib/i18n/index.js";
+	import type { MinecraftProfileCape } from "#lib/types/types.js";
 	import { fly } from "svelte/transition";
 
 	interface Props {

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { fly } from "svelte/transition";
 	import { onMount } from "svelte";
-	import CheckIcon from "$lib/icons/CheckIcon.svelte";
-	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
-	import { animDuration } from "$lib/utils/animations";
+	import CheckIcon from "#lib/icons/CheckIcon.svelte";
+	import ChevronDownIcon from "#lib/icons/ChevronDownIcon.svelte";
+	import { animDuration } from "#lib/utils/animations.js";
 
 	interface Option {
 		value: string;

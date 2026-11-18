@@ -1,18 +1,18 @@
 <script lang="ts">
-	import { launcherStore, showError } from "$lib/state/state.svelte";
-	import { t } from "$lib/i18n";
-	import { applyInterfaceScale } from "$lib/api/interfaceAppearance";
-	import { patchPreferences } from "$lib/utils/preferencePatch";
+	import { launcherStore, showError } from "#lib/state/state.svelte.js";
+	import { t } from "#lib/i18n/index.js";
+	import { applyInterfaceScale } from "#lib/api/interfaceAppearance.js";
+	import { patchPreferences } from "#lib/utils/preferencePatch.js";
 	import SegmentedControl from "./SegmentedControl.svelte";
-	import Select from "$lib/components/layout/Select.svelte";
-	import { FONT_THEME, PROJECT_FONTS } from "$lib/fonts/projectFonts";
+	import Select from "#lib/components/layout/Select.svelte";
+	import { FONT_THEME, PROJECT_FONTS } from "#lib/fonts/projectFonts.js";
 	import {
 		DEFAULT_INTERFACE_PREFERENCES,
 		INTERFACE_SCALES,
 		INTERFACE_DENSITIES,
 		interfacePreferences,
 		type InterfacePreferences,
-	} from "$lib/utils/interfacePreferences";
+	} from "#lib/utils/interfacePreferences.js";
 	import "./controls.css";
 
 	let { onsave }: { onsave: () => Promise<void> } = $props();

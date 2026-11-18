@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { fade, fly } from "svelte/transition";
 	import type { Snippet } from "svelte";
-	import CloseIcon from "$lib/icons/CloseIcon.svelte";
-	import { animDuration } from "$lib/utils/animations";
-	import { animateHeight } from "$lib/utils/animateHeight";
+	import CloseIcon from "#lib/icons/CloseIcon.svelte";
+	import { animDuration } from "#lib/utils/animations.js";
+	import { animateHeight } from "#lib/utils/animateHeight.js";
 
 	let {
 		open = $bindable(),

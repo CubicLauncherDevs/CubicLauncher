@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { convertFileSrc } from "@tauri-apps/api/core";
-	import { t } from "$lib/i18n";
+	import { t } from "#lib/i18n/index.js";
 
 	let {
 		showPicker = $bindable(false),

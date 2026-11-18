@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
-	import { pinInstance } from "$lib/api/cubicApi";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { deleteInst, getActiveUser } from "#lib/api/launcherService.js";
+	import { pinInstance } from "#lib/api/cubicApi.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
 	import {
 		fetchAvatarSvg,
 		DEFAULT_AVATAR_SVG,
-	} from "$lib/state/avatarCache.svelte";
-	import type { InstanceDto } from "$lib/types/types";
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
-	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
+	} from "#lib/state/avatarCache.svelte.js";
+	import type { InstanceDto } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import CollapsibleSection from "#lib/components/settings/CollapsibleSection.svelte";
 	import DownloadQueue from "../DownloadQueue/DownloadQueue.svelte";
-	import VirtualList from "$lib/components/layout/VirtualList.svelte";
+	import VirtualList from "#lib/components/layout/VirtualList.svelte";
 	import InstanceItem from "./InstanceItem.svelte";
 	import UserProfile from "./UserProfile.svelte";
 	import DeleteInstanceModal from "./DeleteInstanceModal.svelte";

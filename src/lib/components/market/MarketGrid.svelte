@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount, onDestroy, untrack, type Snippet } from "svelte";
-	import type { MarketProject } from "$lib/types/market";
+	import type { MarketProject } from "#lib/types/market.js";
 	import MarketSkeleton from "./MarketSkeleton.svelte";
-	import { observeThemeMetrics } from "$lib/utils/themeMetrics";
+	import { observeThemeMetrics } from "#lib/utils/themeMetrics.js";
 	import {
 		densityGap,
 		densityRowHeight,
-	} from "$lib/utils/interfacePreferences";
+	} from "#lib/utils/interfacePreferences.js";
 
 	let {
 		count,

@@ -1,4 +1,4 @@
-import type { ModDto } from "$lib/types/types";
+import type { ModDto } from "#lib/types/types.js";
 
 export type ModOwnership = "own" | "pack" | "all";
 

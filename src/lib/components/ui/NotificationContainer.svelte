@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { launcherStore } from "#lib/state/state.svelte.js";
 	import NotificationToast from "./NotificationToast.svelte";
 	import { notificationPreferences } from "./notificationPreferences";
 	const preferences = $derived(

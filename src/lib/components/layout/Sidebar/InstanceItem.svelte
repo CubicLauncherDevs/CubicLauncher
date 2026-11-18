@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { InstanceDto } from "$lib/types/types";
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
-	import Trash from "$lib/icons/Trash.svelte";
-	import { getDisplayIconSrc } from "$lib/icons/logos";
+	import type { InstanceDto } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import Trash from "#lib/icons/Trash.svelte";
+	import { getDisplayIconSrc } from "#lib/icons/logos.js";
 
 	let {
 		instance,

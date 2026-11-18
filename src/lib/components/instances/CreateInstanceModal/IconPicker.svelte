@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { INSTANCE_LOGOS, getPreviewIconSrc } from "$lib/icons/logos";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { t } from "$lib/i18n";
+	import { INSTANCE_LOGOS, getPreviewIconSrc } from "#lib/icons/logos.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { t } from "#lib/i18n/index.js";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 	let {

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import type { ModDto } from "$lib/types/types";
+	import { t } from "#lib/i18n/index.js";
+	import type { ModDto } from "#lib/types/types.js";
 
 	let {
 		mod,

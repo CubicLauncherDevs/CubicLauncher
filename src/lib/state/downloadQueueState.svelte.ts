@@ -1,7 +1,7 @@
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
-import { getDownloadQueue } from "$lib/api/cubicApi";
-import { onAppEvent } from "$lib/api/launcherService";
-import { t } from "$lib/i18n";
+import { getDownloadQueue } from "#lib/api/cubicApi.js";
+import { onAppEvent } from "#lib/api/launcherService.js";
+import { t } from "#lib/i18n/index.js";
 
 type SegKey =
 	| "Library"

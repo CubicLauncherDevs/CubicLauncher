@@ -6,8 +6,8 @@
 		localeBadge,
 		downloadLocale,
 		loadAvailableLocales,
-	} from "$lib/i18n";
-	import { i18nLoader } from "$lib/i18n/loader.svelte";
+	} from "#lib/i18n/index.js";
+	import { i18nLoader } from "#lib/i18n/loader.svelte.js";
 	import Select from "./Select.svelte";
 
 	let {

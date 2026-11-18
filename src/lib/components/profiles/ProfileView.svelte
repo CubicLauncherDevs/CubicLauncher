@@ -1,22 +1,22 @@
 <script lang="ts">
 	import { tick } from "svelte";
-	import type { MinecraftUser } from "$lib/types/types";
-	import { launcherStore, showError } from "$lib/state/state.svelte";
+	import type { MinecraftUser } from "#lib/types/types.js";
+	import { launcherStore, showError } from "#lib/state/state.svelte.js";
 	import {
 		fetchAvatarSvg,
 		DEFAULT_AVATAR_SVG,
-	} from "$lib/state/avatarCache.svelte";
+	} from "#lib/state/avatarCache.svelte.js";
 	import { SvelteMap } from "svelte/reactivity";
 	import { fly } from "svelte/transition";
-	import { animDuration } from "$lib/utils/animations";
+	import { animDuration } from "#lib/utils/animations.js";
 	import {
 		saveSettings,
 		markLocalSettingsChange,
-	} from "$lib/api/launcherService";
-	import { t } from "$lib/i18n";
-	import { logout, switchUser, removeUser } from "$lib/api/cubicApi";
-	import AccountSetup from "$lib/components/layout/auth/AccountSetup.svelte";
-	import AddAccountCard from "$lib/components/layout/UserMenu/AddAccountCard.svelte";
+	} from "#lib/api/launcherService.js";
+	import { t } from "#lib/i18n/index.js";
+	import { logout, switchUser, removeUser } from "#lib/api/cubicApi.js";
+	import AccountSetup from "#lib/components/layout/auth/AccountSetup.svelte";
+	import AddAccountCard from "#lib/components/layout/UserMenu/AddAccountCard.svelte";
 	import AccountListItem from "./AccountListItem.svelte";
 	import SkinCapeManager from "./SkinCapeManager.svelte";
 	import ElySkinManager from "./ElySkinManager.svelte";
@@ -25,9 +25,9 @@
 		isElyByAccount,
 		getAccountProvider,
 		type AccountProvider,
-	} from "$lib/utils/accountProviders";
-	import CloseIcon from "$lib/icons/CloseIcon.svelte";
-	import Lupa from "$lib/icons/Lupa.svelte";
+	} from "#lib/utils/accountProviders.js";
+	import CloseIcon from "#lib/icons/CloseIcon.svelte";
+	import Lupa from "#lib/icons/Lupa.svelte";
 
 	interface Props {
 		onclose: () => void;

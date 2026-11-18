@@ -5,15 +5,15 @@
 		installMrpack,
 		installCurseForgeModpack,
 		searchModrinth,
-	} from "$lib/api/cubicApi";
-	import { t } from "$lib/i18n";
+	} from "#lib/api/cubicApi.js";
+	import { t } from "#lib/i18n/index.js";
 	import PackInfo from "./PackInfo.svelte";
-	import type { LocalModpackInfo } from "$lib/types/types";
+	import type { LocalModpackInfo } from "#lib/types/types.js";
 	import {
 		MAX_INSTANCE_NAME_LEN,
 		isValidInstanceName,
 		sanitizeInstanceName,
-	} from "$lib/utils/instanceName";
+	} from "#lib/utils/instanceName.js";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
 	let {

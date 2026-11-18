@@ -3,11 +3,11 @@
 	import { MediaQuery } from "svelte/reactivity";
 	import { fly } from "svelte/transition";
 	import { cubicOut } from "svelte/easing";
-	import { animDuration } from "$lib/utils/animations";
-	import type { MarketProject } from "$lib/types/market";
+	import { animDuration } from "#lib/utils/animations.js";
+	import type { MarketProject } from "#lib/types/market.js";
 	import MarketGrid from "./MarketGrid.svelte";
-	import VirtualList from "$lib/components/layout/VirtualList.svelte";
-	import { t } from "$lib/i18n";
+	import VirtualList from "#lib/components/layout/VirtualList.svelte";
+	import { t } from "#lib/i18n/index.js";
 
 	interface Props {
 		items: MarketProject[];

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { JreStatus } from "$lib/types/types";
-	import { t } from "$lib/i18n";
-	import Select from "$lib/components/layout/Select.svelte";
+	import type { JreStatus } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
+	import Select from "#lib/components/layout/Select.svelte";
 
 	interface Props {
 		version: number;

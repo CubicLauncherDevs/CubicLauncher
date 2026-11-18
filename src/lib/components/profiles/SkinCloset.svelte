@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import { showError, showSuccess } from "$lib/state/state.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import { showError, showSuccess } from "#lib/state/state.svelte.js";
 	import {
 		syncSkinCloset,
 		removeSkinFromCloset,
 		renameSkinInCloset,
 		equipSkinFromCloset,
-	} from "$lib/api/cubicApi";
-	import type { SkinClosetEntry } from "$lib/types/types";
+	} from "#lib/api/cubicApi.js";
+	import type { SkinClosetEntry } from "#lib/types/types.js";
 	import SkinClosetItem from "./SkinClosetItem.svelte";
 
 	interface Props {

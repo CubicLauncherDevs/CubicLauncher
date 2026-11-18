@@ -5,13 +5,13 @@
 		setModpackLocked,
 		restoreModpackInventory,
 		type PackSummary,
-	} from "$lib/api/modpackApi";
+	} from "#lib/api/modpackApi.js";
 	import {
 		refreshInstanceMods,
 		registerModsRefreshCallback,
-	} from "$lib/api/launcherService";
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
+	} from "#lib/api/launcherService.js";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
 	import ModpackUpdateModal from "./ModpackUpdateModal.svelte";
 
 	let { id, busy = false }: { id: string; busy?: boolean } = $props();

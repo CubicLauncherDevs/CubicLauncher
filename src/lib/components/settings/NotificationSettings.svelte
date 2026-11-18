@@ -5,11 +5,11 @@
 		launcherStore,
 		showInfo,
 		removeNotification,
-	} from "$lib/state/state.svelte";
-	import { t } from "$lib/i18n";
-	import { patchPreferences } from "$lib/utils/preferencePatch";
-	import { animDuration } from "$lib/utils/animations";
-	import NotificationPreview from "$lib/components/ui/NotificationPreview.svelte";
+	} from "#lib/state/state.svelte.js";
+	import { t } from "#lib/i18n/index.js";
+	import { patchPreferences } from "#lib/utils/preferencePatch.js";
+	import { animDuration } from "#lib/utils/animations.js";
+	import NotificationPreview from "#lib/components/ui/NotificationPreview.svelte";
 	import SegmentedControl from "./SegmentedControl.svelte";
 	import "./controls.css";
 	import {
@@ -18,7 +18,7 @@
 		NOTIFICATION_SIZES,
 		notificationPreferences,
 		type NotificationPreferences,
-	} from "$lib/components/ui/notificationPreferences";
+	} from "#lib/components/ui/notificationPreferences.js";
 
 	let { onsave }: { onsave: () => Promise<void> } = $props();
 	const preferences = $derived(

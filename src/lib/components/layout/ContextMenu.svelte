@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { fly } from "svelte/transition";
 	import { onMount } from "svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { animDuration } from "$lib/utils/animations";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { animDuration } from "#lib/utils/animations.js";
 
 	export interface ContextMenuItem {
 		label: string;

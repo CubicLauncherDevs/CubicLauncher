@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import CheckIcon from "$lib/icons/CheckIcon.svelte";
-	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
-	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import CheckIcon from "#lib/icons/CheckIcon.svelte";
+	import DownloadIcon from "#lib/icons/DownloadIcon.svelte";
+	import ChevronDownIcon from "#lib/icons/ChevronDownIcon.svelte";
 
 	let {
 		open = $bindable(false),

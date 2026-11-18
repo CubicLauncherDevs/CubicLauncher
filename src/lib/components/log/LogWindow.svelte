@@ -1,26 +1,26 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
-	import { openLogStream } from "$lib/api/logStream";
+	import { openLogStream } from "#lib/api/logStream.js";
 	import {
 		showSuccess,
 		showError,
 		launcherStore,
-	} from "$lib/state/state.svelte";
-	import { t } from "$lib/i18n";
-	import { openUrl } from "$lib/api/cubicApi";
+	} from "#lib/state/state.svelte.js";
+	import { t } from "#lib/i18n/index.js";
+	import { openUrl } from "#lib/api/cubicApi.js";
 	import { LogState } from "./logState.svelte";
 	import { LogRenderer } from "./LogRenderer";
 	import { CONSOLE_HISTORY_MAX } from "./logHelpers";
-	import Icon from "$lib/icons/Icon.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
 	import LogHeader from "./LogHeader.svelte";
 	import LogControls from "./LogControls.svelte";
 	import LogViewport from "./LogViewport.svelte";
-	import CrashAnalysisView from "$lib/components/instances/InstanceView/CrashAnalysis.svelte";
+	import CrashAnalysisView from "#lib/components/instances/InstanceView/CrashAnalysis.svelte";
 	import {
 		analyzeInstanceCrash,
 		type CrashAnalysis,
-	} from "$lib/api/diagnostics";
+	} from "#lib/api/diagnostics.js";
 
 	let {
 		instanceId,

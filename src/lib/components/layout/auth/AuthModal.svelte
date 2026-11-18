@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { onDestroy, tick } from "svelte";
-	import { t } from "$lib/i18n";
+	import { t } from "#lib/i18n/index.js";
 	import {
 		startWebviewAuth,
 		getDeviceCode,
 		authenticateWithDeviceCode,
-	} from "$lib/api/cubicApi";
-	import type { DeviceCode, MinecraftUser } from "$lib/types/types";
-	import { saveSettings } from "$lib/api/launcherService";
-	import { launcherStore } from "$lib/state/state.svelte";
+	} from "#lib/api/cubicApi.js";
+	import type { DeviceCode, MinecraftUser } from "#lib/types/types.js";
+	import { saveSettings } from "#lib/api/launcherService.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
 	import ModalBase from "../ModalBase.svelte";
 	import AuthLoading from "./AuthLoading.svelte";
 	import AuthError from "./AuthError.svelte";

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import type { InstanceDto } from "$lib/types/types";
-	import Icon from "$lib/icons/Icon.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import type { InstanceDto } from "#lib/types/types.js";
+	import Icon from "#lib/icons/Icon.svelte";
 
 	let {
 		instance,

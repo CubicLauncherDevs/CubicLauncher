@@ -1,11 +1,11 @@
 <script lang="ts">
-	import CollapsibleSection from "$lib/components/settings/CollapsibleSection.svelte";
-	import { t } from "$lib/i18n";
-	import type { InstanceDto } from "$lib/types/types";
+	import CollapsibleSection from "#lib/components/settings/CollapsibleSection.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import type { InstanceDto } from "#lib/types/types.js";
 	import { onMount, onDestroy } from "svelte";
-	import { updateInst } from "$lib/api/launcherService";
-	import { addToQueue, reinstallVersion } from "$lib/api/cubicApi";
-	import { isVersionInstalled } from "$lib/state/versionsState.svelte";
+	import { updateInst } from "#lib/api/launcherService.js";
+	import { addToQueue, reinstallVersion } from "#lib/api/cubicApi.js";
+	import { isVersionInstalled } from "#lib/state/versionsState.svelte.js";
 	import GeneralSection from "./GeneralSection.svelte";
 	import AdvancedSection from "./AdvancedSection.svelte";
 	import InstallationSection from "./InstallationSection.svelte";

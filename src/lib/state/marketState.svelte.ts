@@ -20,13 +20,13 @@ import {
 	downloadShaderPacks,
 	resolveModDependencies,
 	type ModDownloadInfo,
-} from "$lib/api/cubicApi";
-import { registerModsRefreshCallback } from "$lib/api/launcherService";
-import { getInstanceModpack } from "$lib/api/modpackApi";
+} from "#lib/api/cubicApi.js";
+import { registerModsRefreshCallback } from "#lib/api/launcherService.js";
+import { getInstanceModpack } from "#lib/api/modpackApi.js";
 import {
 	replaceInstanceMod,
 	type ModVersionRef,
-} from "$lib/api/modVersionsApi";
+} from "#lib/api/modVersionsApi.js";
 import {
 	modrinthProjectToMarket,
 	modrinthVersionToMarket,
@@ -37,38 +37,38 @@ import {
 	type MarketProject,
 	type MarketVersion,
 	type ContentType,
-} from "$lib/types/market";
+} from "#lib/types/market.js";
 import type {
 	InstanceDto,
 	ModDto,
 	ModrinthProjectFull,
 	CurseForgeProject,
-} from "$lib/types/types";
-import { InstState } from "$lib/types/types";
+} from "#lib/types/types.js";
+import { InstState } from "#lib/types/types.js";
 import type {
 	DependencyRequest,
 	DependencyResolutionResult,
-} from "$lib/types/dependency";
-import { showWarning } from "$lib/state/state.svelte";
-import { t } from "$lib/i18n";
-import { createLocalModIcons } from "$lib/state/localModIcons";
-import { requiredDownloadQueue } from "$lib/utils/marketQuickInstall";
+} from "#lib/types/dependency.js";
+import { showWarning } from "#lib/state/state.svelte.js";
+import { t } from "#lib/i18n/index.js";
+import { createLocalModIcons } from "#lib/state/localModIcons.js";
+import { requiredDownloadQueue } from "#lib/utils/marketQuickInstall.js";
 import {
 	canUpdateOwnMod,
 	latestModUpdate,
 	requiredUpdateVersions,
-} from "$lib/utils/localModUpdates";
+} from "#lib/utils/localModUpdates.js";
 import {
 	isPackProtected,
 	matchesModOwnership,
 	targetsProtectedMod,
 	type ModOwnership,
-} from "$lib/utils/modpackMods";
+} from "#lib/utils/modpackMods.js";
 import {
 	reconcileLocalProjects,
 	sameProjectList,
 	matchesLocalQuery,
-} from "$lib/utils/localCatalog";
+} from "#lib/utils/localCatalog.js";
 
 const PAGE_SIZE = 20;
 const MAX_CACHED_PAGES = 15;

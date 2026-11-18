@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t } from "#lib/i18n/index.js";
 	import {
 		getYggdrasilServerInfo,
 		yggdrasilAuthenticate,
-	} from "$lib/api/cubicApi";
-	import { saveSettings } from "$lib/api/launcherService";
-	import type { YggdrasilServerInfo } from "$lib/types/types";
+	} from "#lib/api/cubicApi.js";
+	import { saveSettings } from "#lib/api/launcherService.js";
+	import type { YggdrasilServerInfo } from "#lib/types/types.js";
 	import { onDestroy } from "svelte";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { launcherStore } from "#lib/state/state.svelte.js";
 	import ModalBase from "../ModalBase.svelte";
 	import AuthLoading from "../auth/AuthLoading.svelte";
 	import AuthError from "../auth/AuthError.svelte";

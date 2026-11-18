@@ -1,7 +1,7 @@
 import type {
 	LoaderDisplayVersion,
 	LoaderVersionCatalog,
-} from "$lib/types/types";
+} from "#lib/types/types.js";
 
 export function compareVersions(a: string, b: string): number {
 	const aParts = a.split(".").map((n) => parseInt(n, 10) || 0);

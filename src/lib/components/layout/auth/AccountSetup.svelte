@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { onMount, tick } from "svelte";
-	import { t } from "$lib/i18n";
-	import { launcherStore } from "$lib/state/state.svelte";
-	import { saveSettings } from "$lib/api/launcherService";
+	import { t } from "#lib/i18n/index.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
+	import { saveSettings } from "#lib/api/launcherService.js";
 	import ModalBase from "../ModalBase.svelte";
 	import AuthModal from "./AuthModal.svelte";
 	import YggdrasilModal from "../YggdrasilModal/YggdrasilModal.svelte";
 	import {
 		ACCOUNT_SERVER_PRESETS,
 		type AccountProvider,
-	} from "$lib/utils/accountProviders";
+	} from "#lib/utils/accountProviders.js";
 
 	let {
 		provider,

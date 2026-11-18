@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
-	import type { Notification } from "$lib/types/types";
-	import { removeNotification } from "$lib/state/state.svelte";
-	import CopyIcon from "$lib/icons/CopyIcon.svelte";
-	import CheckIcon from "$lib/icons/CheckIcon.svelte";
-	import { animDuration } from "$lib/utils/animations";
+	import type { Notification } from "#lib/types/types.js";
+	import { removeNotification } from "#lib/state/state.svelte.js";
+	import CopyIcon from "#lib/icons/CopyIcon.svelte";
+	import CheckIcon from "#lib/icons/CheckIcon.svelte";
+	import { animDuration } from "#lib/utils/animations.js";
 	import {
 		DEFAULT_NOTIFICATION_PREFERENCES,
 		notificationTimeout,

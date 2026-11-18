@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
 	import { ask, open } from "@tauri-apps/plugin-dialog";
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
-	import Loading from "$lib/icons/Loading.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import Loading from "#lib/icons/Loading.svelte";
 	import {
 		getInstancesDirInfo,
 		changeInstancesDir,
@@ -19,7 +19,7 @@
 		type InstancesMoveProgress,
 		type SharedDirInfo,
 		type LauncherCacheInfo,
-	} from "$lib/api/storageLocation";
+	} from "#lib/api/storageLocation.js";
 
 	let info = $state<InstancesDirInfo | null>(null);
 	let loading = $state(true);

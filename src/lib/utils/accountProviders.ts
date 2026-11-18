@@ -1,4 +1,4 @@
-import type { MinecraftUser } from "$lib/types/types";
+import type { MinecraftUser } from "#lib/types/types.js";
 
 export type AccountProvider =
 	"offline" | "premium" | "ely" | "cubicAuth" | "authinject";

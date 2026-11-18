@@ -1,20 +1,20 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { ask, open } from "@tauri-apps/plugin-dialog";
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
 	import {
 		createOptionsProfile,
 		updateOptionsProfile,
 		deleteOptionsProfile,
 		importOptionsProfileFromFile,
 		type OptionsProfile,
-	} from "$lib/api/optionsProfiles";
+	} from "#lib/api/optionsProfiles.js";
 	import {
 		optionsProfilesState,
 		loadOptionsProfiles,
-	} from "$lib/state/optionsProfilesState.svelte";
-	import { showSuccess, showErrorParsed } from "$lib/state/state.svelte";
+	} from "#lib/state/optionsProfilesState.svelte.js";
+	import { showSuccess, showErrorParsed } from "#lib/state/state.svelte.js";
 
 	let editing = $state<{
 		id: string | null;

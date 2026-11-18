@@ -1,22 +1,22 @@
 <script lang="ts">
-	import { deleteInst, getActiveUser } from "$lib/api/launcherService";
-	import { pinInstance } from "$lib/api/cubicApi";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { deleteInst, getActiveUser } from "#lib/api/launcherService.js";
+	import { pinInstance } from "#lib/api/cubicApi.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
 	import {
 		fetchAvatarSvg,
 		DEFAULT_AVATAR_SVG,
-	} from "$lib/state/avatarCache.svelte";
-	import { getActiveDownloadCount } from "$lib/state/downloadQueueState.svelte";
-	import type { InstanceDto } from "$lib/types/types";
-	import { t } from "$lib/i18n";
+	} from "#lib/state/avatarCache.svelte.js";
+	import { getActiveDownloadCount } from "#lib/state/downloadQueueState.svelte.js";
+	import type { InstanceDto } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
 	import { tick } from "svelte";
 	import type { Component, Snippet } from "svelte";
-	import { getDisplayIconSrc } from "$lib/icons/logos";
-	import Icon from "$lib/icons/Icon.svelte";
+	import { getDisplayIconSrc } from "#lib/icons/logos.js";
+	import Icon from "#lib/icons/Icon.svelte";
 	import DeleteInstanceModal from "./DeleteInstanceModal.svelte";
-	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
-	import CubicIcon from "$lib/icons/Cubic.svelte";
-	import VirtualList from "$lib/components/layout/VirtualList.svelte";
+	import ChevronRightIcon from "#lib/icons/ChevronRightIcon.svelte";
+	import CubicIcon from "#lib/icons/Cubic.svelte";
+	import VirtualList from "#lib/components/layout/VirtualList.svelte";
 
 	interface Props {
 		selectedInstance: InstanceDto | null;
@@ -95,7 +95,7 @@
 	}
 
 	function startTooltipImport(): Promise<void> {
-		tooltipLoadPromise = import("$lib/components/ui/Tooltip.svelte").then(
+		tooltipLoadPromise = import("#lib/components/ui/Tooltip.svelte").then(
 			(mod) => {
 				Tooltip = mod.default;
 			},

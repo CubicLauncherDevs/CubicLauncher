@@ -1,7 +1,7 @@
 import {
 	listOptionsProfiles,
 	type OptionsProfile,
-} from "$lib/api/optionsProfiles";
+} from "#lib/api/optionsProfiles.js";
 
 const state = $state<{
 	profiles: OptionsProfile[];

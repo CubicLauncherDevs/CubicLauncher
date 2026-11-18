@@ -1,11 +1,11 @@
-import type { ModDownloadInfo } from "$lib/api/cubicApi";
+import type { ModDownloadInfo } from "#lib/api/cubicApi.js";
 import type {
 	DependencyRequest,
 	DependencyResolutionResult,
 	ResolvedDependency,
-} from "$lib/types/dependency";
-import type { ModDto } from "$lib/types/types";
-import { t } from "$lib/i18n";
+} from "#lib/types/dependency.js";
+import type { ModDto } from "#lib/types/types.js";
+import { t } from "#lib/i18n/index.js";
 
 /** Required-only installation: never silently overwrite an existing local file. */
 export function requiredDownloadQueue(

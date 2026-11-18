@@ -1,6 +1,6 @@
 import { SvelteMap } from "svelte/reactivity";
-import { getAvatarSvg } from "$lib/api/cubicApi";
-import offlineAvatarSvg from "$lib/assets/offline-avatar.svg?raw";
+import { getAvatarSvg } from "#lib/api/cubicApi.js";
+import offlineAvatarSvg from "#lib/assets/offline-avatar.svg?raw";
 
 interface CacheEntry {
 	// Render SVGs as <img> data URLs, never as inline HTML from the fallback service.

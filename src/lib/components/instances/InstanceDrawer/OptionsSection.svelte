@@ -1,25 +1,25 @@
 <script lang="ts">
 	import { onMount, untrack } from "svelte";
 	import { ask } from "@tauri-apps/plugin-dialog";
-	import { t } from "$lib/i18n";
-	import Select from "$lib/components/layout/Select.svelte";
-	import type { InstanceDto } from "$lib/types/types";
-	import { InstState } from "$lib/types/types";
+	import { t } from "#lib/i18n/index.js";
+	import Select from "#lib/components/layout/Select.svelte";
+	import type { InstanceDto } from "#lib/types/types.js";
+	import { InstState } from "#lib/types/types.js";
 	import {
 		applyOptionsProfile,
 		createOptionsProfileFromInstance,
 		setInstanceOptionsProfile,
 		optionsErrorCode,
-	} from "$lib/api/optionsProfiles";
+	} from "#lib/api/optionsProfiles.js";
 	import {
 		optionsProfilesState,
 		loadOptionsProfiles,
-	} from "$lib/state/optionsProfilesState.svelte";
+	} from "#lib/state/optionsProfilesState.svelte.js";
 	import {
 		showSuccess,
 		showWarning,
 		showErrorParsed,
-	} from "$lib/state/state.svelte";
+	} from "#lib/state/state.svelte.js";
 
 	let { instance }: { instance: InstanceDto } = $props();
 

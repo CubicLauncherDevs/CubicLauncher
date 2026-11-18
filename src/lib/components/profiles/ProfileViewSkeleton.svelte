@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t } from "#lib/i18n/index.js";
 </script>
 
 <div class="profile-view-skeleton sk-delayed" aria-hidden="true">

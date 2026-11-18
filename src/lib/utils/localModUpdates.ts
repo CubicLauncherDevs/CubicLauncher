@@ -1,11 +1,11 @@
-import type { ModVersionRef } from "$lib/api/modVersionsApi";
+import type { ModVersionRef } from "#lib/api/modVersionsApi.js";
 import type {
 	DependencyResolutionResult,
 	ResolvedDependency,
-} from "$lib/types/dependency";
-import type { MarketVersion } from "$lib/types/market";
-import type { ModDto } from "$lib/types/types";
-import { t } from "$lib/i18n";
+} from "#lib/types/dependency.js";
+import type { MarketVersion } from "#lib/types/market.js";
+import type { ModDto } from "#lib/types/types.js";
+import { t } from "#lib/i18n/index.js";
 
 export function canUpdateOwnMod(
 	mod?: ModDto,

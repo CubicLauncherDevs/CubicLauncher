@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import type { YggdrasilServerInfo } from "$lib/types/types";
-	import { openUrl } from "$lib/api/cubicApi";
+	import { t } from "#lib/i18n/index.js";
+	import type { YggdrasilServerInfo } from "#lib/types/types.js";
+	import { openUrl } from "#lib/api/cubicApi.js";
 
 	let {
 		serverInfo,

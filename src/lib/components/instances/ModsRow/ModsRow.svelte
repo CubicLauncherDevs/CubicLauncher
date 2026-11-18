@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
-	import { isPackProtected } from "$lib/utils/modpackMods";
+	import { isPackProtected } from "#lib/utils/modpackMods.js";
 	import {
 		getInstanceMods,
 		toggleInstanceMod,
 		deleteInstanceFile,
-	} from "$lib/api/cubicApi";
-	import { type ModDto } from "$lib/types/types";
-	import { t } from "$lib/i18n";
+	} from "#lib/api/cubicApi.js";
+	import { type ModDto } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
 	import ModalBase from "../../layout/ModalBase.svelte";
 	import { SvelteSet } from "svelte/reactivity";
-	import Trash from "$lib/icons/Trash.svelte";
-	import Lupa from "$lib/icons/Lupa.svelte";
+	import Trash from "#lib/icons/Trash.svelte";
+	import Lupa from "#lib/icons/Lupa.svelte";
 	import ModCard from "./ModCard.svelte";
 
 	let { instanceId }: { instanceId: string } = $props();

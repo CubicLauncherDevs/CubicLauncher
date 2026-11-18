@@ -1,4 +1,4 @@
-import type { SkinModel } from "$lib/utils/skinModel";
+import type { SkinModel } from "#lib/utils/skinModel.js";
 
 // Catálogo de skins de Mosaicary (https://mosaicary.com) por su API abierta: un listado
 // JSON con CORS abierto, descrito en https://mosaicary.com/developers. Solo se piden

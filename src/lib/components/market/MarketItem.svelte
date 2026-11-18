@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import type { MarketProject } from "$lib/types/market";
-	import Loading from "$lib/icons/Loading.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import type { MarketProject } from "#lib/types/market.js";
+	import Loading from "#lib/icons/Loading.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
 	import CubicLogo from "./CubicLogo.svelte";
-	import { marketIconSrc } from "$lib/utils/marketIcons";
+	import { marketIconSrc } from "#lib/utils/marketIcons.js";
 
 	interface Props {
 		project: MarketProject;

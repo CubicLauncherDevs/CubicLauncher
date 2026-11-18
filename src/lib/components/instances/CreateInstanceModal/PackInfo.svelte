@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { CurseForgeModpackInfo, MrpackInfo } from "$lib/types/types";
-	import { t } from "$lib/i18n";
+	import type { CurseForgeModpackInfo, MrpackInfo } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
 
 	type PackInfoData = MrpackInfo | CurseForgeModpackInfo;
 

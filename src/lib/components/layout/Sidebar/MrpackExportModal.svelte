@@ -2,17 +2,17 @@
 	import { onMount, onDestroy } from "svelte";
 	import { SvelteMap, SvelteSet } from "svelte/reactivity";
 	import { save } from "@tauri-apps/plugin-dialog";
-	import ModalBase from "$lib/components/layout/ModalBase.svelte";
-	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { t } from "$lib/i18n";
-	import { showSuccess } from "$lib/state/state.svelte";
+	import ModalBase from "#lib/components/layout/ModalBase.svelte";
+	import ChevronRightIcon from "#lib/icons/ChevronRightIcon.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import { showSuccess } from "#lib/state/state.svelte.js";
 	import {
 		previewMrpackExport,
 		exportInstanceMrpack,
 		type MrpackExportEntry,
 		type MrpackExportPreview,
-	} from "$lib/api/mrpackExportApi";
+	} from "#lib/api/mrpackExportApi.js";
 
 	let { open = $bindable(), id }: { open: boolean; id: string } = $props();
 	let preview = $state.raw<MrpackExportPreview | null>(null);

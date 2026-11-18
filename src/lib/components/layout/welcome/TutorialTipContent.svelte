@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import { launcherStore } from "$lib/state/state.svelte";
-	import { saveSettings } from "$lib/api/launcherService";
-	import { openUrl } from "$lib/api/cubicApi";
-	import Icon from "$lib/icons/Icon.svelte";
-	import LanguageSelect from "$lib/components/layout/LanguageSelect.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
+	import { saveSettings } from "#lib/api/launcherService.js";
+	import { openUrl } from "#lib/api/cubicApi.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import LanguageSelect from "#lib/components/layout/LanguageSelect.svelte";
 
 	let {
 		stepKey,

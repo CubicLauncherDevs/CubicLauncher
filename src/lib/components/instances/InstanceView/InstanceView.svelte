@@ -1,27 +1,27 @@
 <script lang="ts">
-	import { InstState, type InstanceDto } from "$lib/types/types";
-	import { launchInstance } from "$lib/api/cubicApi";
-	import { t } from "$lib/i18n";
-	import { showError } from "$lib/state/state.svelte";
-	import { lazyComponent } from "$lib/utils/lazyComponent.svelte";
+	import { InstState, type InstanceDto } from "#lib/types/types.js";
+	import { launchInstance } from "#lib/api/cubicApi.js";
+	import { t } from "#lib/i18n/index.js";
+	import { showError } from "#lib/state/state.svelte.js";
+	import { lazyComponent } from "#lib/utils/lazyComponent.svelte.js";
 	import { fade } from "svelte/transition";
-	import { killInst } from "$lib/api/launcherService";
-	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
+	import { killInst } from "#lib/api/launcherService.js";
+	import { isVersionDownloading } from "#lib/state/downloadState.svelte.js";
 	import {
 		downloads,
 		getOverallPct,
-	} from "$lib/state/downloadQueueState.svelte";
+	} from "#lib/state/downloadQueueState.svelte.js";
 	import InstanceHeader from "./InstanceHeader.svelte";
 	import InstanceModpack from "./InstanceModpack.svelte";
-	import ResourcesIcon from "$lib/icons/ResourcesIcon.svelte";
-	import ImageIcon from "$lib/icons/ImageIcon.svelte";
-	import ShadersIcon from "$lib/icons/ShadersIcon.svelte";
-	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
-	import WorldIcon from "$lib/icons/WorldIcon.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import ListSkeleton from "$lib/components/ui/ListSkeleton.svelte";
-	import PanelSkeleton from "$lib/components/ui/PanelSkeleton.svelte";
-	import MarketCatalogSkeleton from "$lib/components/market/MarketCatalogSkeleton.svelte";
+	import ResourcesIcon from "#lib/icons/ResourcesIcon.svelte";
+	import ImageIcon from "#lib/icons/ImageIcon.svelte";
+	import ShadersIcon from "#lib/icons/ShadersIcon.svelte";
+	import ChevronRightIcon from "#lib/icons/ChevronRightIcon.svelte";
+	import WorldIcon from "#lib/icons/WorldIcon.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
+	import ListSkeleton from "#lib/components/ui/ListSkeleton.svelte";
+	import PanelSkeleton from "#lib/components/ui/PanelSkeleton.svelte";
+	import MarketCatalogSkeleton from "#lib/components/market/MarketCatalogSkeleton.svelte";
 
 	let { selectedInstance }: { selectedInstance: InstanceDto } = $props();
 	let activeSection = $state("detalles");

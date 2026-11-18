@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from "svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { t } from "$lib/i18n";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { t } from "#lib/i18n/index.js";
 	import LogMenu from "./LogMenu.svelte";
 
 	interface Props {

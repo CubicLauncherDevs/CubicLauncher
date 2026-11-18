@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { requestThumbnail } from "$lib/utils/skinThumbnails";
+	import { requestThumbnail } from "#lib/utils/skinThumbnails.js";
 	import {
 		THUMBNAIL_CANCELLED,
 		type FigureModel,
-	} from "$lib/utils/thumbnailQueue";
+	} from "#lib/utils/thumbnailQueue.js";
 
 	interface Props {
 		skinUrl: string;

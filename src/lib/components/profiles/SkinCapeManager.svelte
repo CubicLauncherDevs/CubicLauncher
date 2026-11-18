@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
-	import { t } from "$lib/i18n";
+	import { t } from "#lib/i18n/index.js";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	import {
 		getMinecraftProfile,
@@ -10,25 +10,25 @@
 		uploadSkinUrl,
 		equipCape,
 		unequipCape,
-	} from "$lib/api/cubicApi";
-	import { showError, showSuccess } from "$lib/state/state.svelte";
-	import { bumpAvatarVersion } from "$lib/state/avatarCache.svelte";
+	} from "#lib/api/cubicApi.js";
+	import { showError, showSuccess } from "#lib/state/state.svelte.js";
+	import { bumpAvatarVersion } from "#lib/state/avatarCache.svelte.js";
 	import {
 		canUseSkinModel,
 		detectSkinModelFromUrl,
 		type SkinModel,
-	} from "$lib/utils/skinModel";
-	import Icon from "$lib/icons/Icon.svelte";
+	} from "#lib/utils/skinModel.js";
+	import Icon from "#lib/icons/Icon.svelte";
 	import SkinPreview from "./SkinPreview.svelte";
 	import CapeList from "./CapeList.svelte";
 	import SkinCatalogModal from "./SkinCatalogModal.svelte";
-	import type { CatalogSkin } from "$lib/api/mosaicarySkins";
-	import { catalogViewUrl } from "$lib/api/mosaicarySkins";
+	import type { CatalogSkin } from "#lib/api/mosaicarySkins.js";
+	import { catalogViewUrl } from "#lib/api/mosaicarySkins.js";
 	import type {
 		MinecraftProfileCape,
 		MinecraftProfileResponse,
 		MinecraftProfileSkin,
-	} from "$lib/types/types";
+	} from "#lib/types/types.js";
 
 	interface Props {
 		uuid: string;

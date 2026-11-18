@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { slide } from "svelte/transition";
 	import type { Snippet } from "svelte";
-	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { animDuration } from "$lib/utils/animations";
+	import ChevronDownIcon from "#lib/icons/ChevronDownIcon.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { animDuration } from "#lib/utils/animations.js";
 
 	let {
 		title,

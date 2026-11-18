@@ -1,33 +1,33 @@
 <script lang="ts">
-	import { isPackProtected } from "$lib/utils/modpackMods";
-	import { marketIconSrc } from "$lib/utils/marketIcons";
+	import { isPackProtected } from "#lib/utils/modpackMods.js";
+	import { marketIconSrc } from "#lib/utils/marketIcons.js";
 	import { onDestroy, tick } from "svelte";
-	import { t } from "$lib/i18n";
+	import { t } from "#lib/i18n/index.js";
 	import {
 		openUrl,
 		getCurseForgeFileDownloadUrl,
 		type ModDownloadInfo,
-	} from "$lib/api/cubicApi";
-	import Icon from "$lib/icons/Icon.svelte";
-	import Loading from "$lib/icons/Loading.svelte";
+	} from "#lib/api/cubicApi.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import Loading from "#lib/icons/Loading.svelte";
 	import CubicLogo from "./CubicLogo.svelte";
-	import Dropdown from "$lib/components/layout/Dropdown.svelte";
-	import MarkdownRenderer from "$lib/components/ui/MarkdownRenderer.svelte";
-	import HtmlRenderer from "$lib/components/ui/HtmlRenderer.svelte";
+	import Dropdown from "#lib/components/layout/Dropdown.svelte";
+	import MarkdownRenderer from "#lib/components/ui/MarkdownRenderer.svelte";
+	import HtmlRenderer from "#lib/components/ui/HtmlRenderer.svelte";
 	import MarketDependenciesModal from "./MarketDependenciesModal.svelte";
 	import MarketProjectInfo from "./MarketProjectInfo.svelte";
-	import type { MarketDetailState } from "$lib/state/marketState.svelte";
+	import type { MarketDetailState } from "#lib/state/marketState.svelte.js";
 	import type {
 		MarketProject,
 		MarketVersion,
 		ContentType,
 		MarketSource,
-	} from "$lib/types/market";
-	import type { ModrinthProjectFull } from "$lib/types/types";
+	} from "#lib/types/market.js";
+	import type { ModrinthProjectFull } from "#lib/types/types.js";
 	import type {
 		DependencyConflict,
 		ResolvedDependency,
-	} from "$lib/types/dependency";
+	} from "#lib/types/dependency.js";
 
 	interface Props {
 		project: MarketProject;

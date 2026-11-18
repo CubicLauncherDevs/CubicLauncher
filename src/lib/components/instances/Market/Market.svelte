@@ -1,24 +1,24 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
 	import { ask } from "@tauri-apps/plugin-dialog";
-	import { showErrorParsed } from "$lib/state/state.svelte";
-	import { t } from "$lib/i18n";
-	import type { InstanceDto } from "$lib/types/types";
-	import { createMarketState } from "$lib/state/marketState.svelte";
-	import type { ContentType, MarketProject } from "$lib/types/market";
+	import { showErrorParsed } from "#lib/state/state.svelte.js";
+	import { t } from "#lib/i18n/index.js";
+	import type { InstanceDto } from "#lib/types/types.js";
+	import { createMarketState } from "#lib/state/marketState.svelte.js";
+	import type { ContentType, MarketProject } from "#lib/types/market.js";
 	import type {
 		DependencyConflict,
 		ResolvedDependency,
-	} from "$lib/types/dependency";
-	import type { ModDownloadInfo } from "$lib/api/cubicApi";
-	import MarketFilterPanel from "$lib/components/market/MarketFilterPanel.svelte";
-	import MarketDependenciesModal from "$lib/components/market/MarketDependenciesModal.svelte";
-	import MarketItem from "$lib/components/market/MarketItem.svelte";
-	import MarketDetail from "$lib/components/market/MarketDetail.svelte";
-	import MarketEmptyState from "$lib/components/market/MarketEmptyState.svelte";
-	import MarketLayout from "$lib/components/market/MarketLayout.svelte";
-	import InstalledToolbar from "$lib/components/market/InstalledToolbar.svelte";
-	import InstalledItem from "$lib/components/market/InstalledItem.svelte";
+	} from "#lib/types/dependency.js";
+	import type { ModDownloadInfo } from "#lib/api/cubicApi.js";
+	import MarketFilterPanel from "#lib/components/market/MarketFilterPanel.svelte";
+	import MarketDependenciesModal from "#lib/components/market/MarketDependenciesModal.svelte";
+	import MarketItem from "#lib/components/market/MarketItem.svelte";
+	import MarketDetail from "#lib/components/market/MarketDetail.svelte";
+	import MarketEmptyState from "#lib/components/market/MarketEmptyState.svelte";
+	import MarketLayout from "#lib/components/market/MarketLayout.svelte";
+	import InstalledToolbar from "#lib/components/market/InstalledToolbar.svelte";
+	import InstalledItem from "#lib/components/market/InstalledItem.svelte";
 
 	interface Props {
 		instance: InstanceDto;

@@ -1,7 +1,7 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { SvelteSet } from "svelte/reactivity";
-import { getDownloadQueue } from "$lib/api/cubicApi";
-import type { AppEvent } from "$lib/types/types";
+import { getDownloadQueue } from "#lib/api/cubicApi.js";
+import type { AppEvent } from "#lib/types/types.js";
 
 const activeVersionDownloads = new SvelteSet<string>();
 

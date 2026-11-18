@@ -3,12 +3,12 @@ import {
 	getFabricVersions,
 	getLoaderVersionCatalog,
 	getQuiltVersions,
-} from "$lib/api/cubicApi";
+} from "#lib/api/cubicApi.js";
 import {
 	catalogToGrouped,
 	compareVersions,
 	type GroupedLoaderVersions,
-} from "$lib/components/layout/VersionDownloader/versionCatalog";
+} from "#lib/components/layout/VersionDownloader/versionCatalog.js";
 
 export async function getSelectionCatalog(
 	loader: string,

@@ -1,4 +1,4 @@
-import { launcherStore } from "$lib/state/state.svelte";
+import { launcherStore } from "#lib/state/state.svelte.js";
 import type es from "./es-ES.json";
 import en from "./en-US.json";
 import { i18nLoader, locales, type LocaleEntry } from "./loader.svelte";

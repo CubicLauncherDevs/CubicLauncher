@@ -4,11 +4,11 @@
 		setPendingJreLaunch,
 		clearPendingJreLaunch,
 		jreVendorFor,
-	} from "$lib/state/state.svelte";
-	import { installJre } from "$lib/api/cubicApi";
-	import { launcherStore } from "$lib/state/state.svelte";
-	import { t } from "$lib/i18n";
-	import ModalBase from "$lib/components/layout/ModalBase.svelte";
+	} from "#lib/state/state.svelte.js";
+	import { installJre } from "#lib/api/cubicApi.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
+	import { t } from "#lib/i18n/index.js";
+	import ModalBase from "#lib/components/layout/ModalBase.svelte";
 	import { fly } from "svelte/transition";
 
 	let prompt = $derived(launcherStore.jreInstallPrompt);

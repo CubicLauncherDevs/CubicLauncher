@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { fade } from "svelte/transition";
 	import { MediaQuery } from "svelte/reactivity";
-	import { animDuration } from "$lib/utils/animations";
+	import { animDuration } from "#lib/utils/animations.js";
 	import {
 		createInstance,
 		uploadCustomIcon,
@@ -10,17 +10,17 @@
 		downloadForge,
 		downloadNeoForge,
 		downloadQuilt,
-	} from "$lib/api/cubicApi";
-	import { launcherStore } from "$lib/state/state.svelte";
+	} from "#lib/api/cubicApi.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
 	import {
 		isVersionInstalled,
 		loadInstalledVersions,
 		invalidateInstalledVersions,
-	} from "$lib/state/versionsState.svelte";
-	import ModalBase from "$lib/components/layout/ModalBase.svelte";
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { getIconPath } from "$lib/icons/registry";
+	} from "#lib/state/versionsState.svelte.js";
+	import ModalBase from "#lib/components/layout/ModalBase.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { getIconPath } from "#lib/icons/registry.js";
 	import IconPicker from "./IconPicker.svelte";
 	import VersionSelectorStep from "./VersionSelectorStep.svelte";
 	import ModrinthModpackBrowser from "./ModrinthModpackBrowser.svelte";
@@ -31,7 +31,7 @@
 	import {
 		MAX_INSTANCE_NAME_LEN,
 		isValidInstanceName,
-	} from "$lib/utils/instanceName";
+	} from "#lib/utils/instanceName.js";
 
 	let {
 		open = $bindable(),

@@ -1,6 +1,6 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { interfacePreferences } from "$lib/utils/interfacePreferences";
+import { interfacePreferences } from "#lib/utils/interfacePreferences.js";
 
 export function applyInterfaceDensity(density: string): void {
 	const value = interfacePreferences({ density }).density;

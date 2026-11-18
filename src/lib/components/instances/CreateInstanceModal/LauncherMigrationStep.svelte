@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
 	import { open } from "@tauri-apps/plugin-dialog";
-	import { t } from "$lib/i18n";
-	import { launcherStore } from "$lib/state/state.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
+	import Icon from "#lib/icons/Icon.svelte";
 	import {
 		scanLauncherMigration,
 		cancelLauncherMigration,
@@ -12,12 +12,12 @@
 		type MigrationProgress,
 		type MigrationProvider,
 		type MigrationResult,
-	} from "$lib/api/launcherMigration";
-	import { MAX_INSTANCE_NAME_LEN } from "$lib/utils/instanceName";
+	} from "#lib/api/launcherMigration.js";
+	import { MAX_INSTANCE_NAME_LEN } from "#lib/utils/instanceName.js";
 	import {
 		suggestMigrationNames,
 		validMigrationNames,
-	} from "$lib/utils/migrationNames";
+	} from "#lib/utils/migrationNames.js";
 
 	let { onImported }: { onImported?: () => void } = $props();
 	let provider = $state<MigrationProvider>("official");

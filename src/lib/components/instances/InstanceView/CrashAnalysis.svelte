@@ -4,13 +4,13 @@
 		CrashFinding,
 		CrashSource,
 		DiagnosticAction,
-	} from "$lib/api/diagnostics";
-	import { formatAnalysis, sortFindings } from "$lib/api/diagnostics";
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
-	import CopyIcon from "$lib/icons/CopyIcon.svelte";
-	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
-	import { showError, showSuccess } from "$lib/state/state.svelte";
+	} from "#lib/api/diagnostics.js";
+	import { formatAnalysis, sortFindings } from "#lib/api/diagnostics.js";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import CopyIcon from "#lib/icons/CopyIcon.svelte";
+	import ChevronDownIcon from "#lib/icons/ChevronDownIcon.svelte";
+	import { showError, showSuccess } from "#lib/state/state.svelte.js";
 
 	let {
 		analysis,

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { fly } from "svelte/transition";
 	import type { Snippet } from "svelte";
-	import { animDuration } from "$lib/utils/animations";
+	import { animDuration } from "#lib/utils/animations.js";
 
 	interface Props {
 		open?: boolean;

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from "$lib/icons/Icon.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
 
 	let {
 		title = "¡Conectado!",

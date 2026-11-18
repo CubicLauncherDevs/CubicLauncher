@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { Notification } from "$lib/types/types";
-	import { t } from "$lib/i18n";
+	import type { Notification } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
 	import NotificationToast from "./NotificationToast.svelte";
 	import type { NotificationPreferences } from "./notificationPreferences";
 

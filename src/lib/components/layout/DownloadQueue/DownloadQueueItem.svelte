@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import CheckIcon from "$lib/icons/CheckIcon.svelte";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import CheckIcon from "#lib/icons/CheckIcon.svelte";
+	import { launcherStore } from "#lib/state/state.svelte.js";
 
 	let {
 		version,

@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import { INSTANCE_LOGOS } from "$lib/icons/logos";
-	import { uploadCustomIcon } from "$lib/api/cubicApi";
-	import { launcherStore, showWarning } from "$lib/state/state.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import { INSTANCE_LOGOS } from "#lib/icons/logos.js";
+	import { uploadCustomIcon } from "#lib/api/cubicApi.js";
+	import { launcherStore, showWarning } from "#lib/state/state.svelte.js";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
-	import { InstState } from "$lib/types/types";
-	import Icon from "$lib/icons/Icon.svelte";
+	import { InstState } from "#lib/types/types.js";
+	import Icon from "#lib/icons/Icon.svelte";
 
 	let {
 		selectedIcon = $bindable<string | null>(null),

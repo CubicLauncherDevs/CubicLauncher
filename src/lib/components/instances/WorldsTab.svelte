@@ -8,16 +8,16 @@
 		type WorldAction,
 		type WorldDto,
 		type WorldProgress,
-	} from "$lib/api/worlds";
-	import { InstState, type InstanceDto } from "$lib/types/types";
-	import { t } from "$lib/i18n";
-	import ModalBase from "$lib/components/layout/ModalBase.svelte";
-	import WorldIcon from "$lib/icons/WorldIcon.svelte";
-	import Select from "$lib/components/layout/Select.svelte";
-	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
-	import Lupa from "$lib/icons/Lupa.svelte";
-	import CloseIcon from "$lib/icons/CloseIcon.svelte";
-	import ListSkeleton from "$lib/components/ui/ListSkeleton.svelte";
+	} from "#lib/api/worlds.js";
+	import { InstState, type InstanceDto } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
+	import ModalBase from "#lib/components/layout/ModalBase.svelte";
+	import WorldIcon from "#lib/icons/WorldIcon.svelte";
+	import Select from "#lib/components/layout/Select.svelte";
+	import ChevronDownIcon from "#lib/icons/ChevronDownIcon.svelte";
+	import Lupa from "#lib/icons/Lupa.svelte";
+	import CloseIcon from "#lib/icons/CloseIcon.svelte";
+	import ListSkeleton from "#lib/components/ui/ListSkeleton.svelte";
 
 	let { instance }: { instance: InstanceDto } = $props();
 	let worlds = $state<WorldDto[]>([]);

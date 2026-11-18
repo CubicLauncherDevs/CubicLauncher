@@ -4,18 +4,18 @@
 	import {
 		versionsState,
 		loadInstalledVersions,
-	} from "$lib/state/versionsState.svelte";
-	import Select from "$lib/components/layout/Select.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { t } from "$lib/i18n";
+	} from "#lib/state/versionsState.svelte.js";
+	import Select from "#lib/components/layout/Select.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { t } from "#lib/i18n/index.js";
 	import {
 		getFabricLoaderVersions,
 		getQuiltLoaderVersions,
-	} from "$lib/api/cubicApi";
+	} from "#lib/api/cubicApi.js";
 	import {
 		createCatalogCache,
 		type GroupedLoaderVersions,
-	} from "$lib/components/layout/VersionDownloader/versionCatalog";
+	} from "#lib/components/layout/VersionDownloader/versionCatalog.js";
 	import { getSelectionCatalog } from "./availableVersions";
 
 	let {

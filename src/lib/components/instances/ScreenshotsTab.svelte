@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount, onDestroy, untrack, tick } from "svelte";
 	import { invoke, convertFileSrc } from "@tauri-apps/api/core";
-	import { deleteInstanceFile } from "$lib/api/cubicApi";
-	import type { InstanceDto } from "$lib/types/types";
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { createScreenshotThumbnails } from "$lib/state/screenshotThumbnails";
-	import { observeThemeMetrics } from "$lib/utils/themeMetrics";
+	import { deleteInstanceFile } from "#lib/api/cubicApi.js";
+	import type { InstanceDto } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { createScreenshotThumbnails } from "#lib/state/screenshotThumbnails.js";
+	import { observeThemeMetrics } from "#lib/utils/themeMetrics.js";
 
 	let { instance }: { instance: InstanceDto } = $props();
 	let screenshots = $state<string[]>([]);

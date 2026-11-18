@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { sanitizeHtml } from "$lib/utils/markdown";
+	import { sanitizeHtml } from "#lib/utils/markdown.js";
 
 	interface Props {
 		source: string;

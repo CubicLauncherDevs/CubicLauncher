@@ -1,12 +1,12 @@
 <script lang="ts">
-	import ModalBase from "$lib/components/layout/ModalBase.svelte";
+	import ModalBase from "#lib/components/layout/ModalBase.svelte";
 	import MarkdownRenderer from "./MarkdownRenderer.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import Loading from "$lib/icons/Loading.svelte";
-	import { t } from "$lib/i18n";
-	import { openUrl } from "$lib/api/cubicApi";
-	import { updater } from "$lib/api/updaterServices";
-	import { updaterState } from "$lib/state/updaterState.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
+	import Loading from "#lib/icons/Loading.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import { openUrl } from "#lib/api/cubicApi.js";
+	import { updater } from "#lib/api/updaterServices.js";
+	import { updaterState } from "#lib/state/updaterState.svelte.js";
 
 	const statusTitle = $derived(t(`updater.status.${updaterState.status}`));
 	const busy = $derived(

@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import type { MarketProject } from "$lib/types/market";
+	import { t } from "#lib/i18n/index.js";
+	import type { MarketProject } from "#lib/types/market.js";
 	import CubicLogo from "./CubicLogo.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import Loading from "$lib/icons/Loading.svelte";
-	import { isPackProtected } from "$lib/utils/modpackMods";
-	import { marketIconSrc } from "$lib/utils/marketIcons";
+	import Icon from "#lib/icons/Icon.svelte";
+	import Loading from "#lib/icons/Loading.svelte";
+	import { isPackProtected } from "#lib/utils/modpackMods.js";
+	import { marketIconSrc } from "#lib/utils/marketIcons.js";
 
 	let {
 		project,

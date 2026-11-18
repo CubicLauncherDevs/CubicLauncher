@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { getElySkinProfile, openUrl } from "$lib/api/cubicApi";
-	import { launcherStore } from "$lib/state/state.svelte";
-	import { bumpAvatarVersion } from "$lib/state/avatarCache.svelte";
-	import type { ElySkinProfile } from "$lib/types/types";
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
+	import { getElySkinProfile, openUrl } from "#lib/api/cubicApi.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
+	import { bumpAvatarVersion } from "#lib/state/avatarCache.svelte.js";
+	import type { ElySkinProfile } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
 	import Skin3dViewer from "./Skin3dViewer.svelte";
 
 	let { uuid }: { uuid: string } = $props();

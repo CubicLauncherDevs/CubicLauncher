@@ -3,14 +3,14 @@
 		cancelInstanceImport,
 		detectInstanceZip,
 		importInstanceZip,
-	} from "$lib/api/cubicApi";
-	import { t } from "$lib/i18n";
-	import { showSuccess } from "$lib/state/state.svelte";
-	import type { InstanceImportPlan } from "$lib/types/types";
+	} from "#lib/api/cubicApi.js";
+	import { t } from "#lib/i18n/index.js";
+	import { showSuccess } from "#lib/state/state.svelte.js";
+	import type { InstanceImportPlan } from "#lib/types/types.js";
 	import {
 		MAX_INSTANCE_NAME_LEN,
 		isValidInstanceName,
-	} from "$lib/utils/instanceName";
+	} from "#lib/utils/instanceName.js";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
 	import { onDestroy } from "svelte";
 

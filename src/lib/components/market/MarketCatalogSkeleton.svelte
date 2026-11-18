@@ -1,6 +1,6 @@
 <script lang="ts">
 	import MarketSkeleton from "./MarketSkeleton.svelte";
-	import { t } from "$lib/i18n";
+	import { t } from "#lib/i18n/index.js";
 </script>
 
 <div class="market-catalog-skeleton sk-delayed" aria-hidden="true">

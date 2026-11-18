@@ -1,7 +1,7 @@
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { launcherStore } from "$lib/state/state.svelte";
-import { updaterState } from "$lib/state/updaterState.svelte";
+import { launcherStore } from "#lib/state/state.svelte.js";
+import { updaterState } from "#lib/state/updaterState.svelte.js";
 import { createUpdateController } from "./updateController";
 import { createAutoUpdateScheduler } from "./autoUpdateScheduler";
 

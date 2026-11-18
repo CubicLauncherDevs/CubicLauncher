@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import { exportInstanceZip, openInstanceDir } from "$lib/api/cubicApi";
+	import { t } from "#lib/i18n/index.js";
+	import { exportInstanceZip, openInstanceDir } from "#lib/api/cubicApi.js";
 	import {
 		launcherStore,
 		removeNotification,
 		showErrorParsed,
 		showInfo,
 		showSuccess,
-	} from "$lib/state/state.svelte";
-	import type { InstanceDto } from "$lib/types/types";
-	import type { ContextMenuItem } from "$lib/components/layout/ContextMenu.svelte";
-	import type ContextMenuComponent from "$lib/components/layout/ContextMenu.svelte";
+	} from "#lib/state/state.svelte.js";
+	import type { InstanceDto } from "#lib/types/types.js";
+	import type { ContextMenuItem } from "#lib/components/layout/ContextMenu.svelte";
+	import type ContextMenuComponent from "#lib/components/layout/ContextMenu.svelte";
 	import { save } from "@tauri-apps/plugin-dialog";
 	import MrpackExportModal from "./MrpackExportModal.svelte";
 
@@ -40,7 +40,7 @@
 			return;
 		}
 
-		loadPromise = import("$lib/components/layout/ContextMenu.svelte").then(
+		loadPromise = import("#lib/components/layout/ContextMenu.svelte").then(
 			(mod) => {
 				MenuComponent = mod.default;
 			},

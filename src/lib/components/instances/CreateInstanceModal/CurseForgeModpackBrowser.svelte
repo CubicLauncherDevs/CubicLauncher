@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from "svelte";
-	import { t } from "$lib/i18n";
+	import { t } from "#lib/i18n/index.js";
 	import {
 		searchCurseForgeModpacks,
 		getCurseForgeProjectFiles,
@@ -10,20 +10,20 @@
 		downloadCurseForgeModpack,
 		installCurseForgeModpack,
 		openUrl,
-	} from "$lib/api/cubicApi";
+	} from "#lib/api/cubicApi.js";
 	import type {
 		CurseForgeProject,
 		CurseForgeFile,
 		MinecraftVersion,
-	} from "$lib/types/types";
-	import HtmlRenderer from "$lib/components/ui/HtmlRenderer.svelte";
-	import Loading from "$lib/icons/Loading.svelte";
+	} from "#lib/types/types.js";
+	import HtmlRenderer from "#lib/components/ui/HtmlRenderer.svelte";
+	import Loading from "#lib/icons/Loading.svelte";
 	import {
 		MAX_INSTANCE_NAME_LEN,
 		isValidInstanceName,
 		sanitizeInstanceName,
-	} from "$lib/utils/instanceName";
-	import { launcherStore, showErrorParsed } from "$lib/state/state.svelte";
+	} from "#lib/utils/instanceName.js";
+	import { launcherStore, showErrorParsed } from "#lib/state/state.svelte.js";
 	import ModpackBrowser, {
 		type ModpackItem,
 		type ModpackFilters,

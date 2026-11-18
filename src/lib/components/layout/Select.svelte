@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { fly } from "svelte/transition";
-	import CheckIcon from "$lib/icons/CheckIcon.svelte";
-	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { getIconPath } from "$lib/icons/registry";
-	import { animDuration } from "$lib/utils/animations";
+	import CheckIcon from "#lib/icons/CheckIcon.svelte";
+	import ChevronDownIcon from "#lib/icons/ChevronDownIcon.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { getIconPath } from "#lib/icons/registry.js";
+	import { animDuration } from "#lib/utils/animations.js";
 
 	interface Option {
 		value: string;

@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import { open } from "@tauri-apps/plugin-dialog";
-	import { openInstanceDir } from "$lib/api/cubicApi";
-	import { showErrorParsed } from "$lib/state/state.svelte";
+	import { openInstanceDir } from "#lib/api/cubicApi.js";
+	import { showErrorParsed } from "#lib/state/state.svelte.js";
 	import type {
 		createMarketState,
 		LocalStatusFilter,
-	} from "$lib/state/marketState.svelte";
-	import type { ContentType } from "$lib/types/market";
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
-	import type { ModOwnership } from "$lib/utils/modpackMods";
+	} from "#lib/state/marketState.svelte.js";
+	import type { ContentType } from "#lib/types/market.js";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import type { ModOwnership } from "#lib/utils/modpackMods.js";
 	const ownershipOptions: ModOwnership[] = ["own", "pack", "all"];
 
 	let {

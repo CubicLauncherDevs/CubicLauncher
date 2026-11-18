@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import { open } from "@tauri-apps/plugin-dialog";
-	import { InstState, type InstanceDto } from "$lib/types/types";
-	import { t } from "$lib/i18n";
+	import { InstState, type InstanceDto } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
 	import {
 		getMinecraftJar,
 		minecraftJarAction,
 		type MinecraftJarConfig,
 		type JarAction,
-	} from "$lib/api/minecraftJar";
-	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
-	import Trash from "$lib/icons/Trash.svelte";
+	} from "#lib/api/minecraftJar.js";
+	import ChevronDownIcon from "#lib/icons/ChevronDownIcon.svelte";
+	import Trash from "#lib/icons/Trash.svelte";
 
 	let { instance }: { instance: InstanceDto } = $props();
 	let config = $state<MinecraftJarConfig | null>(null);

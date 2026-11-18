@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
+	import { t } from "#lib/i18n/index.js";
 	import { invoke } from "@tauri-apps/api/core";
 	import { onMount } from "svelte";
 	import type { Snippet } from "svelte";
-	import { subscribeLogPreview } from "$lib/api/logStream";
-	import type { InstanceDto } from "$lib/types/types";
-	import { getLoaderLogo, getDisplayIconSrc } from "$lib/icons/logos";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { animateWidth } from "$lib/utils/animateWidth";
-	import { animDuration } from "$lib/utils/animations";
-	import { formatPlaytime, hasPlaytime } from "$lib/utils/playtime";
+	import { subscribeLogPreview } from "#lib/api/logStream.js";
+	import type { InstanceDto } from "#lib/types/types.js";
+	import { getLoaderLogo, getDisplayIconSrc } from "#lib/icons/logos.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { animateWidth } from "#lib/utils/animateWidth.js";
+	import { animDuration } from "#lib/utils/animations.js";
+	import { formatPlaytime, hasPlaytime } from "#lib/utils/playtime.js";
 
 	let {
 		instance,

@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { slide } from "svelte/transition";
-	import { t } from "$lib/i18n";
+	import { t } from "#lib/i18n/index.js";
 	import {
 		downloads,
 		getActiveDownloadCount,
 		getDoneDownloadCount,
 		getOverallPct,
 		getStatusLabel,
-	} from "$lib/state/downloadQueueState.svelte";
+	} from "#lib/state/downloadQueueState.svelte.js";
 	import DownloadQueueHeader from "./DownloadQueueHeader.svelte";
 	import DownloadQueueItem from "./DownloadQueueItem.svelte";
 

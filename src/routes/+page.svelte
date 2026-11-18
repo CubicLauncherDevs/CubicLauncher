@@ -1,51 +1,51 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
-	import { lazyComponent } from "$lib/utils/lazyComponent.svelte";
+	import { lazyComponent } from "#lib/utils/lazyComponent.svelte.js";
 	import "../styles/App.css";
-	import { launcherStore } from "$lib/state/state.svelte";
+	import { launcherStore } from "#lib/state/state.svelte.js";
 	import {
 		getVersions,
 		syncSettings,
 		initEventListeners,
 		destroyEventListeners,
-	} from "$lib/api/launcherService";
-	import type { InstanceDto } from "$lib/types/types";
-	import Sidebar from "$lib/components/layout/Sidebar/Sidebar.svelte";
-	import SidebarCompact from "$lib/components/layout/Sidebar/SidebarCompact.svelte";
-	import InstanceView from "$lib/components/instances/InstanceView/InstanceView.svelte";
-	import Drawer from "$lib/components/layout/Drawer.svelte";
-	import ModalBase from "$lib/components/layout/ModalBase.svelte";
-	import NotificationContainer from "$lib/components/ui/NotificationContainer.svelte";
-	import JreInstallPrompt from "$lib/components/ui/JreInstallPrompt.svelte";
-	import CreateInstanceSkeleton from "$lib/components/instances/CreateInstanceModal/CreateInstanceSkeleton.svelte";
-	import InstanceViewSkeleton from "$lib/components/instances/InstanceView/InstanceViewSkeleton.svelte";
-	import ProfileViewSkeleton from "$lib/components/profiles/ProfileViewSkeleton.svelte";
-	import SettingsSkeleton from "$lib/components/settings/SettingsSkeleton.svelte";
-	import InstanceDrawerSkeleton from "$lib/components/instances/InstanceDrawer/InstanceDrawerSkeleton.svelte";
-	import VersionDownloaderSkeleton from "$lib/components/layout/VersionDownloader/VersionDownloaderSkeleton.svelte";
-	import UpdateModalSkeleton from "$lib/components/ui/UpdateModalSkeleton.svelte";
-	import AccountSetup from "$lib/components/layout/auth/AccountSetup.svelte";
-	import { getAccountProvider } from "$lib/utils/accountProviders";
-	import { updaterState } from "$lib/state/updaterState.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { initDiscordPresence } from "$lib/api/cubicApi";
-	import { t } from "$lib/i18n";
+	} from "#lib/api/launcherService.js";
+	import type { InstanceDto } from "#lib/types/types.js";
+	import Sidebar from "#lib/components/layout/Sidebar/Sidebar.svelte";
+	import SidebarCompact from "#lib/components/layout/Sidebar/SidebarCompact.svelte";
+	import InstanceView from "#lib/components/instances/InstanceView/InstanceView.svelte";
+	import Drawer from "#lib/components/layout/Drawer.svelte";
+	import ModalBase from "#lib/components/layout/ModalBase.svelte";
+	import NotificationContainer from "#lib/components/ui/NotificationContainer.svelte";
+	import JreInstallPrompt from "#lib/components/ui/JreInstallPrompt.svelte";
+	import CreateInstanceSkeleton from "#lib/components/instances/CreateInstanceModal/CreateInstanceSkeleton.svelte";
+	import InstanceViewSkeleton from "#lib/components/instances/InstanceView/InstanceViewSkeleton.svelte";
+	import ProfileViewSkeleton from "#lib/components/profiles/ProfileViewSkeleton.svelte";
+	import SettingsSkeleton from "#lib/components/settings/SettingsSkeleton.svelte";
+	import InstanceDrawerSkeleton from "#lib/components/instances/InstanceDrawer/InstanceDrawerSkeleton.svelte";
+	import VersionDownloaderSkeleton from "#lib/components/layout/VersionDownloader/VersionDownloaderSkeleton.svelte";
+	import UpdateModalSkeleton from "#lib/components/ui/UpdateModalSkeleton.svelte";
+	import AccountSetup from "#lib/components/layout/auth/AccountSetup.svelte";
+	import { getAccountProvider } from "#lib/utils/accountProviders.js";
+	import { updaterState } from "#lib/state/updaterState.svelte.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { initDiscordPresence } from "#lib/api/cubicApi.js";
+	import { t } from "#lib/i18n/index.js";
 	import {
 		applyTheme,
 		importThemeZip,
 		import_theme_cbth,
-	} from "$lib/api/themeManager";
-	import { startAutoUpdates } from "$lib/api/updaterServices";
-	import { saveSettings } from "$lib/api/launcherService";
-	import { showSuccess, showError } from "$lib/state/state.svelte";
-	import { animDuration } from "$lib/utils/animations";
+	} from "#lib/api/themeManager.js";
+	import { startAutoUpdates } from "#lib/api/updaterServices.js";
+	import { saveSettings } from "#lib/api/launcherService.js";
+	import { showSuccess, showError } from "#lib/state/state.svelte.js";
+	import { animDuration } from "#lib/utils/animations.js";
 	import {
 		applyInterfaceScale,
 		applyInterfaceDensity,
 		applyInterfaceFont,
-	} from "$lib/api/interfaceAppearance";
-	import { interfacePreferences } from "$lib/utils/interfacePreferences";
-	import { injectProjectFonts } from "$lib/fonts/projectFonts";
+	} from "#lib/api/interfaceAppearance.js";
+	import { interfacePreferences } from "#lib/utils/interfacePreferences.js";
+	import { injectProjectFonts } from "#lib/fonts/projectFonts.js";
 
 	const logParams = $derived.by(() => {
 		if (typeof window === "undefined") return null;
@@ -77,7 +77,7 @@
 	let editingInstance = $state<InstanceDto | null>(null);
 	let showTutorial = $state(false);
 	const settingsPanel = lazyComponent(
-		() => import("$lib/components/settings/Settings.svelte"),
+		() => import("#lib/components/settings/Settings.svelte"),
 		() => quickMenuOpen,
 		(error) => {
 			quickMenuOpen = false;
@@ -88,7 +88,7 @@
 
 	const versionPanel = lazyComponent(
 		() =>
-			import("$lib/components/layout/VersionDownloader/VersionDownloader.svelte"),
+			import("#lib/components/layout/VersionDownloader/VersionDownloader.svelte"),
 		() => versionDownloaderOpen,
 		(error) => {
 			versionDownloaderOpen = false;
@@ -99,7 +99,7 @@
 
 	const createPanel = lazyComponent(
 		() =>
-			import("$lib/components/instances/CreateInstanceModal/CreateInstanceModal.svelte"),
+			import("#lib/components/instances/CreateInstanceModal/CreateInstanceModal.svelte"),
 		() => openCreateModal,
 		(error) => {
 			openCreateModal = false;
@@ -110,7 +110,7 @@
 
 	const editorPanel = lazyComponent(
 		() =>
-			import("$lib/components/instances/InstanceDrawer/InstanceDrawer.svelte"),
+			import("#lib/components/instances/InstanceDrawer/InstanceDrawer.svelte"),
 		() => instanceEditorOpen,
 		(error) => {
 			instanceEditorOpen = false;
@@ -120,7 +120,7 @@
 	const InstanceDrawer = $derived(editorPanel.component);
 
 	const profilePanel = lazyComponent(
-		() => import("$lib/components/profiles/ProfileView.svelte"),
+		() => import("#lib/components/profiles/ProfileView.svelte"),
 		() => showProfileView,
 		(error) => {
 			showProfileView = false;
@@ -130,7 +130,7 @@
 	const ProfileView = $derived(profilePanel.component);
 
 	const tutorialPanel = lazyComponent(
-		() => import("$lib/components/layout/welcome/welcome.svelte"),
+		() => import("#lib/components/layout/welcome/welcome.svelte"),
 		() => showTutorial,
 		(error) => {
 			showTutorial = false;
@@ -141,7 +141,7 @@
 
 	let logError = $state("");
 	const logPanel = lazyComponent(
-		() => import("$lib/components/log/LogWindow.svelte"),
+		() => import("#lib/components/log/LogWindow.svelte"),
 		() => logParams !== null,
 		(error) => {
 			logError = String(error);
@@ -150,7 +150,7 @@
 	const LogWindow = $derived(logPanel.component);
 
 	const updatePanel = lazyComponent(
-		() => import("$lib/components/ui/UpdateModal.svelte"),
+		() => import("#lib/components/ui/UpdateModal.svelte"),
 		() => !logParams && updaterState.open,
 		(error) => {
 			updaterState.open = false;

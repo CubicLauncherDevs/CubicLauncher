@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onDestroy, untrack } from "svelte";
 	import { SvelteMap, SvelteSet } from "svelte/reactivity";
-	import { t } from "$lib/i18n";
-	import { openUrl } from "$lib/api/cubicApi";
+	import { t } from "#lib/i18n/index.js";
+	import { openUrl } from "#lib/api/cubicApi.js";
 	import {
 		CATALOG_CATEGORIES,
 		MOSAICARY_REPO,
@@ -19,13 +19,13 @@
 		type CatalogFilters,
 		type CatalogSkin,
 		type CatalogSort,
-	} from "$lib/api/mosaicarySkins";
-	import Icon from "$lib/icons/Icon.svelte";
-	import ModalBase from "$lib/components/layout/ModalBase.svelte";
-	import Select from "$lib/components/layout/Select.svelte";
+	} from "#lib/api/mosaicarySkins.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import ModalBase from "#lib/components/layout/ModalBase.svelte";
+	import Select from "#lib/components/layout/Select.svelte";
 	import TagPicker from "./TagPicker.svelte";
-	import Tooltip from "$lib/components/ui/Tooltip.svelte";
-	import { shouldReduceAnimations } from "$lib/utils/animations";
+	import Tooltip from "#lib/components/ui/Tooltip.svelte";
+	import { shouldReduceAnimations } from "#lib/utils/animations.js";
 
 	interface Props {
 		open?: boolean;

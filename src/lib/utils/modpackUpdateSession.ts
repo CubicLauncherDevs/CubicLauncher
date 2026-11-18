@@ -1,4 +1,4 @@
-import type { PackResolutions, PackUpdatePreview } from "$lib/api/modpackApi";
+import type { PackResolutions, PackUpdatePreview } from "#lib/api/modpackApi.js";
 
 interface UpdateApi {
 	preview: (

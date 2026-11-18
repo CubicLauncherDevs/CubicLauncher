@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { getDownloadQueue } from "$lib/api/cubicApi";
+	import { getDownloadQueue } from "#lib/api/cubicApi.js";
 	import { SvelteMap, SvelteSet } from "svelte/reactivity";
-	import { t } from "$lib/i18n";
-	import { onAppEvent } from "$lib/api/launcherService";
-	import CheckIcon from "$lib/icons/CheckIcon.svelte";
-	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
-	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import { onAppEvent } from "#lib/api/launcherService.js";
+	import CheckIcon from "#lib/icons/CheckIcon.svelte";
+	import DownloadIcon from "#lib/icons/DownloadIcon.svelte";
+	import ChevronDownIcon from "#lib/icons/ChevronDownIcon.svelte";
 
 	type SegmentKey =
 		| "Library"

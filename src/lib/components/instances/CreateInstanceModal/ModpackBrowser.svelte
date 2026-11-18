@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
-	import Loading from "$lib/icons/Loading.svelte";
-	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
-	import { animateHeight } from "$lib/utils/animateHeight";
-	import { animDuration } from "$lib/utils/animations";
-	import Select from "$lib/components/layout/Select.svelte";
-	import { MAX_INSTANCE_NAME_LEN } from "$lib/utils/instanceName";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import Loading from "#lib/icons/Loading.svelte";
+	import DownloadIcon from "#lib/icons/DownloadIcon.svelte";
+	import { animateHeight } from "#lib/utils/animateHeight.js";
+	import { animDuration } from "#lib/utils/animations.js";
+	import Select from "#lib/components/layout/Select.svelte";
+	import { MAX_INSTANCE_NAME_LEN } from "#lib/utils/instanceName.js";
 	import type { Snippet } from "svelte";
 
 	export type ModpackItem = {

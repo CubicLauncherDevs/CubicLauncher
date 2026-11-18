@@ -1,5 +1,5 @@
-import type { ModDto } from "$lib/types/types";
-import { localModToMarket, type MarketProject } from "$lib/types/market";
+import type { ModDto } from "#lib/types/types.js";
+import { localModToMarket, type MarketProject } from "#lib/types/market.js";
 
 const searchText = new WeakMap<MarketProject, string>();
 

@@ -1,5 +1,5 @@
-import type { NotificationPreferences } from "$lib/components/ui/notificationPreferences";
-import type { InterfacePreferences } from "$lib/utils/interfacePreferences";
+import type { NotificationPreferences } from "#lib/components/ui/notificationPreferences.js";
+import type { InterfacePreferences } from "#lib/utils/interfacePreferences.js";
 
 export interface InstanceDto {
 	name: string;

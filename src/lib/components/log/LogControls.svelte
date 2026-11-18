@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { SvelteSet } from "svelte/reactivity";
-	import Icon from "$lib/icons/Icon.svelte";
-	import CheckIcon from "$lib/icons/CheckIcon.svelte";
-	import { t } from "$lib/i18n";
+	import Icon from "#lib/icons/Icon.svelte";
+	import CheckIcon from "#lib/icons/CheckIcon.svelte";
+	import { t } from "#lib/i18n/index.js";
 	import { LEVEL_ORDER } from "./logHelpers";
 	import LogMenu from "./LogMenu.svelte";
 

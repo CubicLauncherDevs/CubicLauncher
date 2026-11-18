@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
 	import { open as openDialog } from "@tauri-apps/plugin-dialog";
-	import ModalBase from "$lib/components/layout/ModalBase.svelte";
-	import Select from "$lib/components/layout/Select.svelte";
-	import ChevronDownIcon from "$lib/icons/ChevronDownIcon.svelte";
-	import ChevronRightIcon from "$lib/icons/ChevronRightIcon.svelte";
+	import ModalBase from "#lib/components/layout/ModalBase.svelte";
+	import Select from "#lib/components/layout/Select.svelte";
+	import ChevronDownIcon from "#lib/icons/ChevronDownIcon.svelte";
+	import ChevronRightIcon from "#lib/icons/ChevronRightIcon.svelte";
 	import {
 		listModpackVersions,
 		previewModpackUpdate,
@@ -14,10 +14,10 @@
 		type PackVersion,
 		type PackUpdatePreview,
 		type PackResolutions,
-	} from "$lib/api/modpackApi";
-	import { refreshInstanceMods } from "$lib/api/launcherService";
-	import { t } from "$lib/i18n";
-	import { createModpackUpdateSession } from "$lib/utils/modpackUpdateSession";
+	} from "#lib/api/modpackApi.js";
+	import { refreshInstanceMods } from "#lib/api/launcherService.js";
+	import { t } from "#lib/i18n/index.js";
+	import { createModpackUpdateSession } from "#lib/utils/modpackUpdateSession.js";
 
 	let {
 		open = $bindable(),

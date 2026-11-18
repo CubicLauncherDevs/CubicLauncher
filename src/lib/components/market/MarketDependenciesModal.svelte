@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import Loading from "$lib/icons/Loading.svelte";
-	import ModalBase from "$lib/components/layout/ModalBase.svelte";
-	import type { ModDownloadInfo } from "$lib/api/cubicApi";
+	import { t } from "#lib/i18n/index.js";
+	import Loading from "#lib/icons/Loading.svelte";
+	import ModalBase from "#lib/components/layout/ModalBase.svelte";
+	import type { ModDownloadInfo } from "#lib/api/cubicApi.js";
 	import type {
 		DependencyConflict,
 		ResolvedDependency,
-	} from "$lib/types/dependency";
+	} from "#lib/types/dependency.js";
 	import { SvelteSet } from "svelte/reactivity";
 
 	let {

@@ -7,10 +7,10 @@ import type {
 	PendingJreLaunch,
 	MinecraftUser,
 } from "../types/types";
-import { DEFAULT_CONSOLE_HISTORY_LIMIT } from "$lib/components/log/logHelpers";
-import { t } from "$lib/i18n";
-import { DEFAULT_NOTIFICATION_PREFERENCES } from "$lib/components/ui/notificationPreferences";
-import { DEFAULT_INTERFACE_PREFERENCES } from "$lib/utils/interfacePreferences";
+import { DEFAULT_CONSOLE_HISTORY_LIMIT } from "#lib/components/log/logHelpers.js";
+import { t } from "#lib/i18n/index.js";
+import { DEFAULT_NOTIFICATION_PREFERENCES } from "#lib/components/ui/notificationPreferences.js";
+import { DEFAULT_INTERFACE_PREFERENCES } from "#lib/utils/interfacePreferences.js";
 
 export interface LauncherState {
 	loadedInstances: InstanceDto[];

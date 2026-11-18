@@ -2,16 +2,16 @@
 	import { open, save } from "@tauri-apps/plugin-dialog";
 	import { invoke } from "@tauri-apps/api/core";
 	import { convertFileSrc } from "@tauri-apps/api/core";
-	import type { ThemeEntry } from "$lib/types/types";
-	import { t } from "$lib/i18n";
-	import { openUrl } from "$lib/api/cubicApi";
+	import type { ThemeEntry } from "#lib/types/types.js";
+	import { t } from "#lib/i18n/index.js";
+	import { openUrl } from "#lib/api/cubicApi.js";
 	import { SvelteMap } from "svelte/reactivity";
-	import CheckIcon from "$lib/icons/CheckIcon.svelte";
-	import DownloadIcon from "$lib/icons/DownloadIcon.svelte";
-	import Trash from "$lib/icons/Trash.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { themeDiagnostics } from "$lib/state/themeDiagnostics.svelte";
-	import { showSuccess, showError } from "$lib/state/state.svelte";
+	import CheckIcon from "#lib/icons/CheckIcon.svelte";
+	import DownloadIcon from "#lib/icons/DownloadIcon.svelte";
+	import Trash from "#lib/icons/Trash.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { themeDiagnostics } from "#lib/state/themeDiagnostics.svelte.js";
+	import { showSuccess, showError } from "#lib/state/state.svelte.js";
 
 	let {
 		themes = $bindable(),

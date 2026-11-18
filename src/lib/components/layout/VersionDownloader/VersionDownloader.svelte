@@ -15,24 +15,24 @@
 		downloadQuilt,
 		refreshAvailableVersions,
 		downloadOptiFine,
-	} from "$lib/api/cubicApi";
+	} from "#lib/api/cubicApi.js";
 	import {
 		versionsState,
 		loadInstalledVersions,
 		invalidateInstalledVersions,
-	} from "$lib/state/versionsState.svelte";
+	} from "#lib/state/versionsState.svelte.js";
 	import type {
 		MinecraftVersion,
 		LoaderDisplayVersion,
-	} from "$lib/types/types";
-	import { isVersionDownloading } from "$lib/state/downloadState.svelte";
-	import { launcherStore } from "$lib/state/state.svelte";
-	import { t } from "$lib/i18n";
+	} from "#lib/types/types.js";
+	import { isVersionDownloading } from "#lib/state/downloadState.svelte.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
+	import { t } from "#lib/i18n/index.js";
 	import Select from "../Select.svelte";
 	import ModalBase from "../ModalBase.svelte";
 	import VirtualList from "../VirtualList.svelte";
 	import VersionDownloaderTabs from "./VersionDownloaderTabs.svelte";
-	import Icon from "$lib/icons/Icon.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
 	import {
 		catalogToGrouped,
 		compareVersions,

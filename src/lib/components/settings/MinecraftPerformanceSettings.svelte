@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { launcherStore } from "$lib/state/state.svelte";
-	import { t } from "$lib/i18n";
-	import { getRecommendedRam } from "$lib/api/cubicApi";
+	import { launcherStore } from "#lib/state/state.svelte.js";
+	import { t } from "#lib/i18n/index.js";
+	import { getRecommendedRam } from "#lib/api/cubicApi.js";
 	import {
 		JVM_PRESETS,
 		detectJvmPreset,
 		jvmPresetArgs,
 		type JvmPreset,
-	} from "$lib/utils/performanceProfiles";
+	} from "#lib/utils/performanceProfiles.js";
 	import "./controls.css";
 
 	let { onsave }: { onsave: () => Promise<void> } = $props();

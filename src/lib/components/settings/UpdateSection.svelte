@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
-	import { updater } from "$lib/api/updaterServices";
-	import { updaterState } from "$lib/state/updaterState.svelte";
-	import { launcherStore } from "$lib/state/state.svelte";
-	import { saveSettings } from "$lib/api/launcherService";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { updater } from "#lib/api/updaterServices.js";
+	import { updaterState } from "#lib/state/updaterState.svelte.js";
+	import { launcherStore } from "#lib/state/state.svelte.js";
+	import { saveSettings } from "#lib/api/launcherService.js";
 	import { relaunch } from "@tauri-apps/plugin-process";
 
 	const status = $derived(t(`updater.status.${updaterState.status}`));

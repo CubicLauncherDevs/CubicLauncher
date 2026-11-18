@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { t } from "$lib/i18n";
-	import Select from "$lib/components/layout/Select.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import Select from "#lib/components/layout/Select.svelte";
 
 	let {
 		useOverrides = $bindable(false),

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Icon from "$lib/icons/Icon.svelte";
-	import { t } from "$lib/i18n";
+	import Icon from "#lib/icons/Icon.svelte";
+	import { t } from "#lib/i18n/index.js";
 
 	let {
 		loaderTab,

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { SvelteHTMLElements } from "svelte/elements";
-	import { getThemeIcon } from "$lib/api/themeManager";
-	import { getIconPath, isRasterIcon } from "$lib/icons/registry";
+	import { getThemeIcon } from "#lib/api/themeManager.js";
+	import { getIconPath, isRasterIcon } from "#lib/icons/registry.js";
 
 	type SpanProps = SvelteHTMLElements["span"];
 

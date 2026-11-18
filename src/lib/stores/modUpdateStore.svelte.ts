@@ -1,5 +1,5 @@
-import { getModrinthLatestVersions, getInstanceMods } from "$lib/api/cubicApi";
-import type { ModUpdateInfo, ModFileSource } from "$lib/types/types";
+import { getModrinthLatestVersions, getInstanceMods } from "#lib/api/cubicApi.js";
+import type { ModUpdateInfo, ModFileSource } from "#lib/types/types.js";
 
 export interface ModUpdateState {
 	checking: boolean;

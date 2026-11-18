@@ -1,4 +1,4 @@
-import { launcherStore } from "$lib/state/state.svelte";
+import { launcherStore } from "#lib/state/state.svelte.js";
 
 /**
  * Devuelve `true` si el usuario habilitó la reducción de animaciones.

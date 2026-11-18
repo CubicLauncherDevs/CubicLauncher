@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { launcherStore } from "$lib/state/state.svelte";
-	import { t } from "$lib/i18n";
+	import { launcherStore } from "#lib/state/state.svelte.js";
+	import { t } from "#lib/i18n/index.js";
 	import {
 		LAUNCHER_PERFORMANCE_PRESETS,
 		PERFORMANCE_FLAG_KEYS,
@@ -9,7 +9,7 @@
 		type LauncherPerformancePreset,
 		type PerformanceFlagKey,
 		type PerformanceFlags,
-	} from "$lib/utils/performanceProfiles";
+	} from "#lib/utils/performanceProfiles.js";
 	import "./controls.css";
 
 	let { onsave }: { onsave: () => Promise<void> } = $props();

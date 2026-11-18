@@ -1,10 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { HistoryLogLine } from "$lib/components/log/logState.svelte";
+import type { HistoryLogLine } from "#lib/components/log/logState.svelte.js";
 import {
 	CONSOLE_HISTORY_MAX,
 	type RawLogEvent,
-} from "$lib/components/log/logHelpers";
+} from "#lib/components/log/logHelpers.js";
 
 /** Subscribe before reading history; merge the overlapping snapshot by line ID. */
 export function openLogStream(

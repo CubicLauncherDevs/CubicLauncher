@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { t } from "$lib/i18n";
-	import Icon from "$lib/icons/Icon.svelte";
+	import { t } from "#lib/i18n/index.js";
+	import Icon from "#lib/icons/Icon.svelte";
 	import SkinThumbnail from "./SkinThumbnail.svelte";
-	import type { SkinClosetEntry } from "$lib/types/types";
+	import type { SkinClosetEntry } from "#lib/types/types.js";
 
 	interface Props {
 		entry: SkinClosetEntry;
