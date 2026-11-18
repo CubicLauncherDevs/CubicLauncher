@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from "svelte";
 	import type { Snippet } from "svelte";
 	import { shouldReduceAnimations } from "#lib/utils/animations.js";
+	import { t } from "#lib/i18n/index.js";
 
 	type Direction = "bottom" | "top" | "left" | "right";
 
@@ -11,6 +12,7 @@
 		dismissible?: boolean;
 		direction?: Direction;
 		closeThreshold?: number;
+		resizable?: boolean;
 		class?: string;
 		style?: string;
 		children?: Snippet;
@@ -22,6 +24,7 @@
 		dismissible = true,
 		direction = "bottom",
 		closeThreshold = 0.25,
+		resizable = false,
 		class: className = "",
 		style = "",
 		children,
@@ -49,6 +52,7 @@
 
 	$effect(() => {
 		releaseDrag();
+		resizePointer = null;
 		if (open) {
 			dismissed = false;
 			transitionStyle = "none";
@@ -80,6 +84,11 @@
 	let dragStart = 0;
 	let dragSize = 0;
 	let drawerEl: HTMLDivElement = $state() as HTMLDivElement;
+	let drawerWidth = $state<number | null>(null);
+	let resizePointer: number | null = null;
+	let resizeStartX = 0;
+	let resizeStartWidth = 0;
+	let resizeNextWidth = 0;
 
 	// Let controls own their pointer interaction, including native range dragging.
 	const interactiveSelector = [
@@ -169,6 +178,53 @@
 		if (e.target === drawerEl) onPointerCancel(e);
 	}
 
+	function clampDrawerWidth(width: number) {
+		const max = Math.min(760, window.innerWidth * 0.9);
+		const min = Math.min(300, max);
+		return Math.min(max, Math.max(min, width));
+	}
+
+	function onResizePointerDown(e: PointerEvent) {
+		if (!resizable || isVertical || !open || resizePointer !== null) return;
+		e.preventDefault();
+		e.stopPropagation();
+		const handle = e.currentTarget as HTMLElement;
+		resizePointer = e.pointerId;
+		resizeStartX = e.clientX;
+		resizeStartWidth = drawerEl.getBoundingClientRect().width;
+		resizeNextWidth = resizeStartWidth;
+		transitionStyle = "none";
+		handle.setPointerCapture(e.pointerId);
+	}
+
+	function onResizePointerMove(e: PointerEvent) {
+		if (e.pointerId !== resizePointer) return;
+		e.preventDefault();
+		const directionSign = direction === "right" ? -1 : 1;
+		resizeNextWidth = clampDrawerWidth(
+			resizeStartWidth + (e.clientX - resizeStartX) * directionSign,
+		);
+		drawerEl.style.setProperty("--drawer-width", `${resizeNextWidth}px`);
+	}
+
+	function endResize(e: PointerEvent) {
+		if (e.pointerId !== resizePointer) return;
+		resizePointer = null;
+		drawerWidth = resizeNextWidth;
+		transitionStyle = transformTransition(openDuration);
+	}
+
+	function onResizeKeydown(e: KeyboardEvent) {
+		if (!resizable || isVertical) return;
+		if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+		e.preventDefault();
+		const amount = e.key === "ArrowLeft" ? -24 : 24;
+		const directionSign = direction === "right" ? -1 : 1;
+		drawerWidth = clampDrawerWidth(
+			drawerEl.getBoundingClientRect().width + amount * directionSign,
+		);
+	}
+
 	function onTransitionEnd(e: TransitionEvent) {
 		if (
 			e.target === e.currentTarget &&
@@ -208,7 +264,10 @@
 	<div
 		bind:this={drawerEl}
 		class="drawer drawer--{direction} {className}"
-		style="transform: {transformStyle}; transition: {transitionStyle}; {style}"
+		style="transform: {transformStyle}; transition: {transitionStyle}; {style}; {resizable &&
+		drawerWidth !== null
+			? `--drawer-width: ${drawerWidth}px;`
+			: ''}"
 		role="dialog"
 		aria-modal="true"
 		tabindex="-1"
@@ -220,6 +279,24 @@
 		ontransitionend={onTransitionEnd}
 	>
 		{@render children?.()}
+		{#if resizable && !isVertical}
+			<div
+				class="drawer-resize-handle drawer-resize-handle--{direction}"
+				data-drawer-no-drag
+				role="slider"
+				aria-label={t("common.resizePanel")}
+				aria-orientation="horizontal"
+				aria-valuemin="300"
+				aria-valuemax="760"
+				aria-valuenow={Math.round(drawerWidth ?? 340)}
+				tabindex="0"
+				onpointerdown={onResizePointerDown}
+				onpointermove={onResizePointerMove}
+				onpointerup={endResize}
+				onpointercancel={endResize}
+				onkeydown={onResizeKeydown}
+			></div>
+		{/if}
 	</div>
 {/if}
 
@@ -245,6 +322,69 @@
 		will-change: transform;
 		-webkit-user-select: none;
 		user-select: none;
+	}
+
+	.drawer-resize-handle {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		z-index: 2;
+		display: flex;
+		width: 12px;
+		align-items: center;
+		justify-content: center;
+		cursor: col-resize;
+		touch-action: none;
+	}
+
+	.drawer-resize-handle::before {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 44px;
+		content: "";
+	}
+
+	.drawer-resize-handle::after {
+		position: absolute;
+		top: 50%;
+		width: 3px;
+		height: 40px;
+		border-radius: var(--border-radius-pill);
+		background: var(--border-color);
+		content: "";
+		opacity: 0.6;
+		transform: translateY(-50%);
+		transition:
+			background 0.15s,
+			opacity 0.15s;
+	}
+
+	.drawer-resize-handle:hover::after,
+	.drawer-resize-handle:focus-visible::after {
+		background: var(--accent);
+		opacity: 1;
+	}
+
+	.drawer-resize-handle--right {
+		left: 0;
+	}
+
+	.drawer-resize-handle--right::before {
+		left: -16px;
+	}
+
+	.drawer-resize-handle--left {
+		right: 0;
+	}
+
+	.drawer-resize-handle--left::before {
+		right: -16px;
+	}
+
+	.drawer-resize-handle:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: -2px;
 	}
 
 	.drawer--right {

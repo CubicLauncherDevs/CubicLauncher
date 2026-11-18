@@ -173,10 +173,26 @@
 	}
 
 	function categoryLabel(name: string) {
-		const key = `settings.launcherCache.categories.${name}`;
-		const label = t(key);
-		if (label !== key) return label;
+		const sharedKey = `settings.sharedStorage.categories.${name}`;
+		const sharedLabel = t(sharedKey);
+		if (sharedLabel !== sharedKey) return sharedLabel;
+		const cacheKey = `settings.launcherCache.categories.${name}`;
+		const cacheLabel = t(cacheKey);
+		if (cacheLabel !== cacheKey) return cacheLabel;
 		return name ? name[0].toLocaleUpperCase() + name.slice(1) : name;
+	}
+
+	const breakdownColors = [
+		"var(--accent)",
+		"var(--color-info)",
+		"var(--color-success)",
+		"var(--color-warning)",
+		"var(--color-error)",
+		"var(--text-muted)",
+	];
+
+	function breakdownColor(index: number) {
+		return breakdownColors[index % breakdownColors.length];
 	}
 
 	async function copyPath(
@@ -281,9 +297,7 @@
 			});
 			if (typeof path !== "string" || destroyed) return;
 			const confirmed = await ask(
-				t("settings.sharedStorage.changeConfirmDesc", {
-					size: sharedInfo ? sharedUsage(sharedInfo.total) : "0",
-				}),
+				t("settings.sharedStorage.changeConfirmDesc"),
 				{
 					title: t("settings.sharedStorage.changeConfirmTitle"),
 					kind: "warning",
@@ -366,6 +380,12 @@
 					<Icon name="instance:folder" size={15} />
 					{t("settings.storage.instancesTitle")}
 					<span
+						class="instance-count"
+						aria-label={`${info.instance_count} ${t("settings.storage.instanceCount").toLocaleLowerCase()}`}
+					>
+						{info.instance_count}
+					</span>
+					<span
 						class="location-state"
 						class:custom={Boolean(info.custom_dir)}
 					>
@@ -378,9 +398,6 @@
 			</header>
 
 			<div class="field">
-				<span class="field-label"
-					>{t("settings.storage.currentDir")}</span
-				>
 				<div class="path-line">
 					<Icon name="instance:folder" size={13} class="path-icon" />
 					<code class="path" title={info.current_dir}
@@ -411,13 +428,6 @@
 						>
 					</button>
 				</div>
-			</div>
-
-			<div class="meta-line">
-				<span class="meta-label"
-					>{t("settings.storage.instanceCount")}:</span
-				>
-				<span class="meta-value">{info.instance_count}</span>
 			</div>
 
 			{#if moving}
@@ -531,7 +541,7 @@
 				</div>
 			{/if}
 
-			<div class="actions">
+			<div class="actions instance-actions">
 				<button
 					type="button"
 					class="btn primary"
@@ -539,7 +549,7 @@
 					onclick={pick}
 				>
 					<Icon name="instance:folder" size={15} />
-					{t("settings.storage.change")}
+					<span>{t("settings.storage.change")}</span>
 				</button>
 				{#if info.custom_dir}
 					<button
@@ -549,7 +559,7 @@
 						onclick={reset}
 					>
 						<Icon name="ui:refresh" size={15} />
-						{t("settings.storage.reset")}
+						<span>{t("settings.storage.reset")}</span>
 					</button>
 				{/if}
 			</div>
@@ -598,13 +608,15 @@
 				<div class="breakdown-skeleton">
 					<span class="sk-block sk-line sk-line-sm" style="width: 22%"
 					></span>
+					<span class="sk-block usage-stack-skeleton"></span>
 					{#each { length: 3 } as _, index (index)}
 						<div class="breakdown-row-skeleton">
+							<span class="sk-block breakdown-dot-skeleton"
+							></span>
 							<span
 								class="sk-block sk-line sk-line-sm"
 								style="width: 44%"
 							></span>
-							<span class="sk-block usage-bar-skeleton"></span>
 						</div>
 					{/each}
 				</div>
@@ -666,25 +678,33 @@
 						>{t("settings.sharedStorage.breakdownTitle")}</span
 					>
 					<div class="breakdown-list">
-						{#each sharedInfo.breakdown as [name, usage] (name)}
-							<div class="breakdown-row">
-								<div class="breakdown-head">
+						<div class="usage-stack" aria-hidden="true">
+							{#each sharedInfo.breakdown as [name, usage], index (name)}
+								<span
+									class="usage-segment"
+									style={`width: ${sharedInfo.total.bytes > 0 ? (usage.bytes / sharedInfo.total.bytes) * 100 : 0}%; background: ${breakdownColor(index)}`}
+									title={`${categoryLabel(name)}: ${formatBytes(usage.bytes)}`}
+								></span>
+							{/each}
+						</div>
+						{#each sharedInfo.breakdown as [name, usage], index (name)}
+							<div class="breakdown-legend-row">
+								<div class="breakdown-legend-name">
+									<span
+										class="breakdown-dot"
+										style={`background: ${breakdownColor(index)}`}
+										aria-hidden="true"
+									></span>
 									<span class="breakdown-name"
 										>{categoryLabel(name)}</span
 									>
-									<span class="breakdown-value">
-										{formatBytes(usage.bytes)} ·
-										{t("settings.sharedStorage.files", {
-											count: usage.files,
-										})}
-									</span>
 								</div>
-								<progress
-									class="usage-bar"
-									max={Math.max(1, sharedInfo.total.bytes)}
-									value={usage.bytes}
-									aria-label={`${categoryLabel(name)}: ${formatBytes(usage.bytes)}`}
-								></progress>
+								<span class="breakdown-value">
+									{formatBytes(usage.bytes)} ·
+									{t("settings.sharedStorage.files", {
+										count: usage.files,
+									})}
+								</span>
 							</div>
 						{/each}
 					</div>
@@ -1043,6 +1063,19 @@
 		font-weight: 700;
 	}
 
+	.instance-count {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 20px;
+		padding: 2px 6px;
+		border-radius: var(--border-radius-pill);
+		background: var(--surface-hover);
+		color: var(--text-secondary);
+		font-size: 0.68rem;
+		font-weight: 600;
+	}
+
 	.meta-label,
 	.meta-separator {
 		color: var(--text-muted);
@@ -1054,6 +1087,23 @@
 		gap: 8px;
 		padding-top: calc(10px * var(--cubic-interface-gap-factor, 1));
 		border-top: 1px solid var(--border-color);
+	}
+
+	.instance-actions {
+		flex-wrap: nowrap;
+	}
+
+	.instance-actions .btn {
+		flex: 1 1 0;
+		min-width: 0;
+		padding-inline: 8px;
+		white-space: nowrap;
+	}
+
+	.instance-actions .btn span {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.btn {
@@ -1126,6 +1176,50 @@
 		display: flex;
 		flex-direction: column;
 		gap: 9px;
+	}
+
+	.usage-stack {
+		display: flex;
+		width: 100%;
+		height: 10px;
+		gap: 0;
+		overflow: hidden;
+		border-radius: var(--border-radius-pill);
+		background: var(--bg-input);
+	}
+
+	.usage-segment {
+		flex: 0 0 auto;
+		box-sizing: border-box;
+		min-width: 0;
+		transition: width 180ms ease;
+	}
+
+	.usage-segment + .usage-segment {
+		border-left: 2px solid var(--bg-input);
+	}
+
+	.breakdown-legend-row,
+	.breakdown-legend-name {
+		display: flex;
+		align-items: center;
+	}
+
+	.breakdown-legend-row {
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.breakdown-legend-name {
+		min-width: 0;
+		gap: 8px;
+	}
+
+	.breakdown-dot {
+		width: 8px;
+		height: 8px;
+		flex: 0 0 8px;
+		border-radius: 50%;
 	}
 
 	.breakdown-row {
@@ -1335,14 +1429,21 @@
 
 	.breakdown-row-skeleton {
 		display: flex;
-		flex-direction: column;
-		gap: 6px;
+		align-items: center;
+		gap: 8px;
 	}
 
-	.usage-bar-skeleton {
+	.usage-stack-skeleton {
 		width: 100%;
-		height: 6px;
-		border-radius: 999px;
+		height: 10px;
+		border-radius: var(--border-radius-pill);
+	}
+
+	.breakdown-dot-skeleton {
+		width: 8px;
+		height: 8px;
+		flex: 0 0 8px;
+		border-radius: 50%;
 	}
 
 	:global(.state-spinner) {

@@ -556,7 +556,7 @@
 		</main>
 	</div>
 
-	<Drawer bind:open={quickMenuOpen} direction="right">
+	<Drawer bind:open={quickMenuOpen} direction="right" resizable>
 		{#if SettingsComponent}
 			<SettingsComponent onclose={() => (quickMenuOpen = false)} />
 		{:else}
