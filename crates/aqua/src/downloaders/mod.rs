@@ -230,12 +230,7 @@ async fn run_download(
     // the forwarder down on success, error, or cancellation. Otherwise a
     // required item that fails leaves the forwarder looping forever, keeping
     // the watch channel alive and blocking any monitor waiting on it.
-    let result = run_download_impl(
-        Arc::clone(&inner),
-        progress_state.clone(),
-        progress_tx.clone(),
-    )
-    .await;
+    let result = run_download_impl(inner, progress_state, progress_tx).await;
 
     // The forwarder may still be looping if we exited early (error or cancel),
     // so abort and wait for it to release its cloned sender.
@@ -265,28 +260,23 @@ async fn run_download_impl(
         tokio::fs::create_dir_all(parent).await?;
     }
 
-    let completed = Arc::clone(&inner.completed_items);
+    let completed = &inner.completed_items;
     let max_concurrent = inner.max_downloads;
-    let items_vec: Vec<_> = inner.batch.items().to_vec();
-    let failed = Arc::new(AtomicBool::new(false));
+    let failed = AtomicBool::new(false);
 
-    let inner_for_finalize = Arc::clone(&inner);
-    let progress_state_for_stream = progress_state.clone();
-    let progress_tx_for_notify = progress_tx.clone();
-
-    stream::iter(items_vec.into_iter().map(move |item| {
-        let c = Arc::clone(&completed);
-        let state = progress_state_for_stream.clone();
-        let notify_tx = progress_tx_for_notify.clone();
-        let inner = Arc::clone(&inner);
-        let failed = Arc::clone(&failed);
+    stream::iter((0..inner.batch.items().len()).map(|index| {
+        let item = &inner.batch.items()[index];
+        let state = &progress_state;
+        let notify_tx = &progress_tx;
+        let inner = &inner;
+        let failed = &failed;
 
         async move {
             if inner.cancel_flag.load(Ordering::Relaxed) || failed.load(Ordering::Relaxed) {
                 return Err(AquaError::Cancelled);
             }
 
-            if let Some(ref s) = state {
+            if let Some(s) = state {
                 s.set_current_item(Some(item.label.clone()), item.size, item.stage.clone())
                     .await;
                 // Immediate snapshot so the frontend sees the stage change.
@@ -344,8 +334,8 @@ async fn run_download_impl(
                 );
             }
 
-            let count = c.fetch_add(1, Ordering::Relaxed) + 1;
-            if let Some(ref s) = state {
+            let count = completed.fetch_add(1, Ordering::Relaxed) + 1;
+            if let Some(s) = state {
                 s.item_current.store(count, Ordering::Relaxed);
                 s.clear_current_item().await;
                 // Notify immediately when an item is finished.
@@ -361,10 +351,10 @@ async fn run_download_impl(
     .fold(Ok(()), |result, next| async move { result.and(next) })
     .await?;
 
-    if inner_for_finalize.cancel_flag.load(Ordering::Relaxed) {
+    if inner.cancel_flag.load(Ordering::Relaxed) {
         return Err(AquaError::Cancelled);
     }
-    inner_for_finalize.batch.finalize(progress_tx).await?;
+    inner.batch.finalize(progress_tx).await?;
 
     Ok(())
 }
