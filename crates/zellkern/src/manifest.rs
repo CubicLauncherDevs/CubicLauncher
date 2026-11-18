@@ -378,7 +378,11 @@ impl VersionManifest {
         VersionManifest {
             id: self.id,
             id_raw: self.id_raw.clone(),
-            main_class: self.main_class.clone().or(parent.main_class.clone()),
+            main_class: self
+                .main_class
+                .as_ref()
+                .or(parent.main_class.as_ref())
+                .cloned(),
             arguments: {
                 let p_args = parent.arguments.as_ref();
                 let c_args = self.arguments.as_ref();
@@ -389,37 +393,51 @@ impl VersionManifest {
                     (Some(p), Some(c)) => {
                         let mut jvm = p.jvm.clone().unwrap_or_default();
                         if let Some(cj) = &c.jvm {
-                            jvm.extend(cj.clone());
+                            jvm.extend_from_slice(cj);
                         }
                         let mut game = p.game.clone().unwrap_or_default();
                         if let Some(cg) = &c.game {
-                            game.extend(cg.clone());
+                            game.extend_from_slice(cg);
                         }
                         Some(VersionArgType {
                             jvm: Some(jvm),
                             game: Some(game),
                             default_user_jvm: c
                                 .default_user_jvm
-                                .clone()
-                                .or(p.default_user_jvm.clone()),
+                                .as_ref()
+                                .or(p.default_user_jvm.as_ref())
+                                .cloned(),
                         })
                     }
                 }
             },
             minecraft_arguments: self
                 .minecraft_arguments
-                .clone()
-                .or(parent.minecraft_arguments.clone()),
-            downloads: self.downloads.clone().or(parent.downloads.clone()),
+                .as_ref()
+                .or(parent.minecraft_arguments.as_ref())
+                .cloned(),
+            downloads: self
+                .downloads
+                .as_ref()
+                .or(parent.downloads.as_ref())
+                .cloned(),
             libraries: {
                 let mut libs = parent.libraries.clone().unwrap_or_default();
                 if let Some(child_libs) = &self.libraries {
-                    libs.extend(child_libs.clone());
+                    libs.extend_from_slice(child_libs);
                 }
                 Some(libs)
             },
-            asset_index: self.asset_index.clone().or(parent.asset_index.clone()),
-            java_version: self.java_version.clone().or(parent.java_version.clone()),
+            asset_index: self
+                .asset_index
+                .as_ref()
+                .or(parent.asset_index.as_ref())
+                .cloned(),
+            java_version: self
+                .java_version
+                .as_ref()
+                .or(parent.java_version.as_ref())
+                .cloned(),
             inherits_from: parent.inherits_from.clone(),
         }
     }
@@ -432,8 +450,7 @@ impl VersionManifest {
     }
 
     pub fn get_classpath(&self, lib_dir: &Path) -> String {
-        let vec = vec![];
-        let libs = self.libraries.as_ref().unwrap_or(&vec);
+        let libs = self.libraries.as_deref().unwrap_or_default();
         let paths: Vec<String> = libs
             .iter()
             .filter(|lib| lib.should_include() && !lib.is_native())
