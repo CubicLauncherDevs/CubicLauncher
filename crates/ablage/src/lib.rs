@@ -518,19 +518,5 @@ fn read_v2(buf: &[u8], file_crc_pos: usize) -> Result<HashMap<String, Entry>, St
         );
     }
 
-    // también validar índice contra entries parseadas
-    let mut idx_pos = index_off + 4;
-    for _ in 0..count {
-        if idx_pos + 12 > file_crc_pos - 4 {
-            return Err("Truncated index".into());
-        }
-        let idx_hash = u64::from_le_bytes(buf[idx_pos..idx_pos + 8].try_into().unwrap());
-        idx_pos += 12;
-
-        // verificar que el hash existe en entries (sin usar el índice para lookup,
-        // solo como cross-check de integridad)
-        let _ = idx_hash; // validación implícita: si llegamos hasta acá sin error, todo ok
-    }
-
     Ok(entries)
 }
