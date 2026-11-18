@@ -589,3 +589,25 @@ pub fn compute_sha1_sync(path: &Path) -> Result<String, AquaError> {
 #[cfg(test)]
 #[path = "../tests/utilities.rs"]
 mod tests;
+
+pub(crate) fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), AquaError> {
+    for entry in std::fs::read_dir(from)
+        .map_err(|e| AquaError::ForgeExtract(format!("Cannot read dir: {e}")))?
+    {
+        let entry =
+            entry.map_err(|e| AquaError::ForgeExtract(format!("Cannot read dir entry: {e}")))?;
+        let src = entry.path();
+        let dst = to.join(entry.file_name());
+
+        if src.is_dir() {
+            std::fs::create_dir_all(&dst)?;
+            copy_dir_recursive(&src, &dst)?;
+        } else {
+            if let Some(parent) = dst.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::copy(&src, &dst)?;
+        }
+    }
+    Ok(())
+}

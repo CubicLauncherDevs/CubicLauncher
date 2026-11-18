@@ -12,7 +12,8 @@ use super::batch::{DownloadBatch, DownloadItemSpec};
 use crate::AquaError;
 use crate::progress::{DownloadProgress, DownloadStage, ProgressSender};
 use crate::utilities::{
-    compute_sha1_sync, extract_zip_to_dir, read_jar_main_class, run_java_process,
+    compute_sha1_sync, copy_dir_recursive, extract_zip_to_dir, read_jar_main_class,
+    run_java_process,
 };
 
 #[derive(Debug, Clone)]
@@ -829,26 +830,4 @@ fn resolve_var_refs(
         }
     }
     result
-}
-
-fn copy_dir_recursive(from: &Path, to: &Path) -> Result<(), AquaError> {
-    for entry in std::fs::read_dir(from)
-        .map_err(|e| AquaError::ForgeExtract(format!("Cannot read dir: {e}")))?
-    {
-        let entry =
-            entry.map_err(|e| AquaError::ForgeExtract(format!("Cannot read dir entry: {e}")))?;
-        let src = entry.path();
-        let dst = to.join(entry.file_name());
-
-        if src.is_dir() {
-            std::fs::create_dir_all(&dst)?;
-            copy_dir_recursive(&src, &dst)?;
-        } else {
-            if let Some(parent) = dst.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            std::fs::copy(&src, &dst)?;
-        }
-    }
-    Ok(())
 }
