@@ -666,14 +666,12 @@ dependencies = [
 name = "communicator"
 version = "0.1.0"
 dependencies = [
- "futures",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
  "tracing-subscriber",
- "winapi",
 ]
 
 [[package]]
