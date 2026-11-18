@@ -42,7 +42,11 @@ export const invoke=()=>{};
 						namespace: "fixture",
 					}));
 					build.onResolve({ filter: /.*/ }, ({ path, importer }) => {
-						if (path === "$lib/utils/saveQueue")
+						// El servicio importa por el alias `#lib`, no por `$lib`.
+						if (
+							path === "$lib/utils/saveQueue" ||
+							path === "#lib/utils/saveQueue.js"
+						)
 							return {
 								path: resolve(
 									root,
