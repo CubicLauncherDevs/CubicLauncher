@@ -23,22 +23,7 @@ pub fn parse_mrpack(path: &Path) -> Result<MrpackMetadata, MrpackError> {
     let file = std::fs::File::open(path)?;
     let mut archive = zip::ZipArchive::new(file)?;
 
-    let manifest_idx = archive
-        .file_names()
-        .filter_map(|name| name.ok())
-        .position(|name| name == "modrinth.index.json")
-        .ok_or_else(|| {
-            MrpackError::Invalid("No modrinth.index.json found in mrpack".to_string())
-        })?;
-
-    let mut content = String::new();
-    archive
-        .by_index(manifest_idx)?
-        .read_to_string(&mut content)?;
-
-    let pack: PackFormat = serde_json::from_str(&content)?;
-
-    pack.validate().map_err(MrpackError::Invalid)?;
+    let pack = read_pack(&mut archive)?;
 
     Ok(pack.extract_metadata())
 }
@@ -52,22 +37,7 @@ pub async fn install_mrpack(
     let file = std::fs::File::open(path)?;
     let mut archive = zip::ZipArchive::new(file)?;
 
-    let manifest_idx = archive
-        .file_names()
-        .filter_map(|name| name.ok())
-        .position(|name| name == "modrinth.index.json")
-        .ok_or_else(|| {
-            MrpackError::Invalid("No modrinth.index.json found in mrpack".to_string())
-        })?;
-
-    let mut content = String::new();
-    archive
-        .by_index(manifest_idx)?
-        .read_to_string(&mut content)?;
-
-    let pack: PackFormat = serde_json::from_str(&content)?;
-
-    pack.validate().map_err(MrpackError::Invalid)?;
+    let pack = read_pack(&mut archive)?;
 
     let metadata = pack.extract_metadata();
 
@@ -94,6 +64,27 @@ pub async fn install_mrpack(
     extract_icon(&mut archive, instance_dir).await?;
 
     Ok(metadata)
+}
+
+fn read_pack(archive: &mut zip::ZipArchive<std::fs::File>) -> Result<PackFormat, MrpackError> {
+    let manifest_idx = archive
+        .file_names()
+        .filter_map(|name| name.ok())
+        .position(|name| name == "modrinth.index.json")
+        .ok_or_else(|| {
+            MrpackError::Invalid("No modrinth.index.json found in mrpack".to_string())
+        })?;
+
+    let mut content = String::new();
+    archive
+        .by_index(manifest_idx)?
+        .read_to_string(&mut content)?;
+
+    let pack: PackFormat = serde_json::from_str(&content)?;
+
+    pack.validate().map_err(MrpackError::Invalid)?;
+
+    Ok(pack)
 }
 
 fn install_path(instance_dir: &Path, relative: &str) -> Result<PathBuf, MrpackError> {
