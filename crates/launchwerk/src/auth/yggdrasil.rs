@@ -4,7 +4,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use url::{Host, Url};
 
 use super::MinecraftUser;
@@ -420,10 +420,12 @@ fn build_user_from_response(
 // ── Authlib Injector Download ───────────────────────────────────────────────
 
 const AUTHLIB_INJECTOR_RELEASES_URL: &str =
-    "https://api.github.com/repos/CubicLauncherDevs/authlib-injector/releases/latest";
+    "https://api.github.com/repos/yushijinhun/authlib-injector/releases/latest";
+const AUTHLIB_UPDATE_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
 #[derive(Debug, Deserialize)]
 struct GitHubRelease {
+    tag_name: String,
     assets: Vec<GitHubAsset>,
 }
 
@@ -433,42 +435,98 @@ struct GitHubAsset {
     digest: Option<String>,
 }
 
-/// Download authlib-injector.jar to the shared directory if not already cached.
-/// Returns the path to the JAR file.
+/// Descarga o actualiza authlib-injector.jar y devuelve su ruta.
 pub async fn download_authlib_injector(shared_dir: &Path) -> Result<PathBuf, String> {
     let cache_dir = shared_dir.join("authlib-injector");
     let jar_path = cache_dir.join("authlib-injector.jar");
+    let version_path = cache_dir.join("authlib-injector.version");
+    let checked_path = cache_dir.join("authlib-injector.checked");
 
-    // Check if already cached
-    if jar_path.exists() {
-        log::info!(
-            "authlib-injector.jar already cached at {}",
-            jar_path.display()
-        );
+    let cached_version = std::fs::read_to_string(&version_path).ok();
+    let last_checked = std::fs::read_to_string(&checked_path)
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok());
+    let recently_checked = last_checked.is_some_and(|timestamp| {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .is_ok_and(|now| {
+                now.as_secs().saturating_sub(timestamp) < AUTHLIB_UPDATE_INTERVAL.as_secs()
+            })
+    });
+
+    if jar_path.exists() && cached_version.is_some() && recently_checked {
         return Ok(jar_path);
     }
 
-    log::info!("Downloading authlib-injector from CubicLauncher fork...");
+    match fetch_latest_authlib_injector(shared_dir, cached_version.as_deref()).await {
+        Ok(version) => {
+            let _ = std::fs::write(&version_path, &version);
+            if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                let _ = std::fs::write(&checked_path, now.as_secs().to_string());
+            }
+            log::info!("Versión de authlib-injector lista: {version}");
+            Ok(jar_path)
+        }
+        Err(error) if jar_path.exists() => {
+            log::warn!(
+                "No se pudo actualizar authlib-injector; se usará la copia instalada: {error}"
+            );
+            Ok(jar_path)
+        }
+        Err(error) => Err(error),
+    }
+}
+
+async fn fetch_latest_authlib_injector(
+    shared_dir: &Path,
+    cached_version: Option<&str>,
+) -> Result<String, String> {
+    let cache_dir = shared_dir.join("authlib-injector");
+    let jar_path = cache_dir.join("authlib-injector.jar");
+
+    log::info!("Downloading the latest authlib-injector release...");
     let client = Client::builder()
-        .timeout(Duration::from_secs(60))
+        .timeout(Duration::from_secs(15))
         .user_agent("CubicLauncher/2.0")
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
     // Fetch latest release from GitHub
-    let release: GitHubRelease = client
+    let response = client
         .get(AUTHLIB_INJECTOR_RELEASES_URL)
         .send()
         .await
-        .map_err(|e| format!("Failed to fetch latest release: {}", e))?
+        .map_err(|e| format!("Failed to fetch latest release: {}", e))?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Failed to fetch latest authlib-injector release: HTTP {}",
+            response.status()
+        ));
+    }
+    let release: GitHubRelease = response
         .json()
         .await
         .map_err(|e| format!("Invalid release response: {}", e))?;
 
+    let version = release.tag_name;
+    if jar_path.exists() && cached_version.is_some_and(|cached| cached.trim() == version) {
+        return Ok(version);
+    }
+
     let asset = release
         .assets
         .into_iter()
-        .find(|a| a.browser_download_url.ends_with("authlib-injector.jar"))
+        .find(|asset| {
+            asset
+                .browser_download_url
+                .rsplit('/')
+                .next()
+                .is_some_and(|name| {
+                    name.starts_with("authlib-injector-")
+                        && name.ends_with(".jar")
+                        && !name.ends_with("-sources.jar")
+                })
+        })
         .ok_or_else(|| "No authlib-injector.jar found in release".to_string())?;
 
     // Parse SHA-256 from digest field ("sha256:HASH" format)
@@ -520,11 +578,29 @@ pub async fn download_authlib_injector(shared_dir: &Path) -> Result<PathBuf, Str
     // Save to disk
     std::fs::create_dir_all(&cache_dir)
         .map_err(|e| format!("Failed to create cache directory: {}", e))?;
-    std::fs::write(&jar_path, &bytes)
-        .map_err(|e| format!("Failed to write authlib-injector.jar: {}", e))?;
+    let temp_path = cache_dir.join(format!("authlib-injector-{}.jar.tmp", uuid::Uuid::new_v4()));
+    std::fs::write(&temp_path, &bytes)
+        .map_err(|e| format!("Failed to write temporary authlib-injector.jar: {}", e))?;
+    if let Err(error) = std::fs::rename(&temp_path, &jar_path) {
+        if !jar_path.exists() {
+            let _ = std::fs::remove_file(&temp_path);
+            return Err(format!("Failed to install authlib-injector.jar: {}", error));
+        }
+
+        // Windows no permite reemplazar un archivo existente con rename.
+        let backup_path = cache_dir.join(format!("authlib-injector-{}.bak", uuid::Uuid::new_v4()));
+        std::fs::rename(&jar_path, &backup_path)
+            .map_err(|e| format!("Failed to preserve cached authlib-injector.jar: {}", e))?;
+        if let Err(error) = std::fs::rename(&temp_path, &jar_path) {
+            let _ = std::fs::rename(&backup_path, &jar_path);
+            let _ = std::fs::remove_file(&temp_path);
+            return Err(format!("Failed to replace authlib-injector.jar: {}", error));
+        }
+        let _ = std::fs::remove_file(backup_path);
+    }
 
     log::info!("authlib-injector.jar downloaded and cached");
-    Ok(jar_path)
+    Ok(version)
 }
 
 /// Fetch the Yggdrasil API metadata and return it as a Base64 string
