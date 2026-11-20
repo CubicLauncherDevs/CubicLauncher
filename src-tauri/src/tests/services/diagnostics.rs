@@ -14,6 +14,14 @@ fn codes(analysis: &crash::CrashAnalysis) -> Vec<&str> {
 // ── Reglas ──────────────────────────────────────────────────────────────────
 
 #[test]
+fn rule_needles_are_lowercase() {
+    assert!(
+        rules::needles_are_lowercase(),
+        "las needles se comparan contra líneas ya normalizadas"
+    );
+}
+
+#[test]
 fn each_rule_detects_its_signal() {
     let cases: &[(&str, &str)] = &[
         (
@@ -146,22 +154,15 @@ fn analyzed_evidence_never_contains_credentials_or_private_data() {
     std::fs::create_dir_all(dir.path().join("crash-reports")).unwrap();
     std::fs::write(
         dir.path().join("crash-reports/crash-1.txt"),
-        "Description: Unexpected error\n\
+        "Description: Unexpected error token=description-secret\n\
          java.lang.OutOfMemoryError: Java heap space token=super-secret-token\n\
          contact steve@example.com from 192.168.1.20\n\
          Authorization: Bearer abcdefghijklmnop\n",
     )
     .unwrap();
     let analysis = crash::analyze_report(dir.path(), "crash-1.txt").unwrap();
-    // El nombre del reporte no debe contener secretos: se mira ese campo.
-    let rendered = serde_json::to_string(
-        &analysis
-            .findings
-            .iter()
-            .map(|finding| finding.evidence.clone())
-            .collect::<Vec<_>>(),
-    )
-    .unwrap();
+    let rendered = serde_json::to_string(&analysis).unwrap();
+    assert!(!rendered.contains("description-secret"));
     assert!(!rendered.contains("super-secret-token"));
     assert!(!rendered.contains("steve@example.com"));
     assert!(!rendered.contains("192.168.1.20"));

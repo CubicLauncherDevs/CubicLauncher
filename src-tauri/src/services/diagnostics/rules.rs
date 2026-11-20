@@ -48,7 +48,7 @@ const RULES: &[Rule] = &[
         code: "java_unsupported_class",
         severity: CrashSeverity::Error,
         needles: &[Needle::Any(&[
-            "UnsupportedClassVersionError",
+            "unsupportedclassversionerror",
             "compiled by a more recent version",
         ])],
         action: Some(|| DiagnosticAction::InstallJava { version: 21 }),
@@ -57,10 +57,10 @@ const RULES: &[Rule] = &[
         code: "memory_out_of_memory",
         severity: CrashSeverity::Error,
         needles: &[Needle::Any(&[
-            "OutOfMemoryError",
-            "Java heap space",
+            "outofmemoryerror",
+            "java heap space",
             "insufficient memory",
-            "GC overhead limit exceeded",
+            "gc overhead limit exceeded",
         ])],
         action: None,
     },
@@ -68,9 +68,9 @@ const RULES: &[Rule] = &[
         code: "java_missing_main",
         severity: CrashSeverity::Error,
         needles: &[Needle::Any(&[
-            "Could not find or load main class",
-            "JAVA_HOME",
-            "Error: could not open",
+            "could not find or load main class",
+            "java_home",
+            "error: could not open",
         ])],
         action: None,
     },
@@ -78,8 +78,8 @@ const RULES: &[Rule] = &[
         code: "mods_mixin_failed",
         severity: CrashSeverity::Error,
         needles: &[Needle::Any(&[
-            "Mixin apply failed",
-            "MixinTransformerError",
+            "mixin apply failed",
+            "mixintransformererror",
             "mixin.invalid",
         ])],
         action: Some(|| DiagnosticAction::OpenMods),
@@ -87,7 +87,7 @@ const RULES: &[Rule] = &[
     Rule {
         code: "mods_duplicate",
         severity: CrashSeverity::Error,
-        needles: &[Needle::Any(&["Duplicate mods:", "Found duplicate mod"])],
+        needles: &[Needle::Any(&["duplicate mods:", "found duplicate mod"])],
         action: Some(|| DiagnosticAction::OpenMods),
     },
     Rule {
@@ -95,10 +95,10 @@ const RULES: &[Rule] = &[
         severity: CrashSeverity::Error,
         needles: &[
             Needle::Any(&[
-                "Missing or unsupported mandatory dependencies",
+                "missing or unsupported mandatory dependencies",
                 "mandatory dependency",
             ]),
-            Needle::All(&["Mod file", "requires", "currently missing"]),
+            Needle::All(&["mod file", "requires", "currently missing"]),
         ],
         action: Some(|| DiagnosticAction::OpenMods),
     },
@@ -106,10 +106,10 @@ const RULES: &[Rule] = &[
         code: "mods_incompatible",
         severity: CrashSeverity::Error,
         needles: &[Needle::Any(&[
-            "NoSuchMethodError",
-            "NoClassDefFoundError",
-            "Incompatible mod set",
-            "No functional mod set",
+            "nosuchmethoderror",
+            "noclassdeffounderror",
+            "incompatible mod set",
+            "no functional mod set",
         ])],
         action: Some(|| DiagnosticAction::OpenMods),
     },
@@ -119,9 +119,9 @@ const RULES: &[Rule] = &[
         // libawt_xawt.so sin libXtst/libXrender/libX11 es un JDK que no puede
         // cargar AWT; LWJGL lo dispara antes de crear la ventana.
         needles: &[
-            Needle::All(&["UnsatisfiedLinkError", "libawt"]),
-            Needle::All(&["UnsatisfiedLinkError", "libXtst"]),
-            Needle::All(&["UnsatisfiedLinkError", "libXrender"]),
+            Needle::All(&["unsatisfiedlinkerror", "libawt"]),
+            Needle::All(&["unsatisfiedlinkerror", "libxtst"]),
+            Needle::All(&["unsatisfiedlinkerror", "libxrender"]),
         ],
         action: None,
     },
@@ -129,10 +129,10 @@ const RULES: &[Rule] = &[
         code: "graphics_opengl",
         severity: CrashSeverity::Error,
         needles: &[Needle::Any(&[
-            "GLFW error",
-            "Pixel format not accelerated",
-            "Failed to create window",
-            "OpenGL 3.2",
+            "glfw error",
+            "pixel format not accelerated",
+            "failed to create window",
+            "opengl 3.2",
         ])],
         action: None,
     },
@@ -140,10 +140,10 @@ const RULES: &[Rule] = &[
         code: "network_download",
         severity: CrashSeverity::Warning,
         needles: &[Needle::Any(&[
-            "Failed to download",
-            "UnknownHostException",
-            "Connection reset",
-            "Connection refused",
+            "failed to download",
+            "unknownhostexception",
+            "connection reset",
+            "connection refused",
         ])],
         action: None,
     },
@@ -152,7 +152,7 @@ const RULES: &[Rule] = &[
         severity: CrashSeverity::Error,
         needles: &[
             Needle::All(&["level.dat", "corrupt"]),
-            Needle::All(&["Chunk file", "corrupt"]),
+            Needle::All(&["chunk file", "corrupt"]),
         ],
         action: Some(|| DiagnosticAction::OpenWorlds),
     },
@@ -160,30 +160,23 @@ const RULES: &[Rule] = &[
         code: "auth_session",
         severity: CrashSeverity::Error,
         needles: &[Needle::Any(&[
-            "Invalid session",
-            "Failed to verify username",
-            "User not authenticated",
+            "invalid session",
+            "failed to verify username",
+            "user not authenticated",
         ])],
         action: None,
     },
 ];
 
-const EVIDENCE_MAX_CHARS: usize = 240;
+pub(super) const EVIDENCE_MAX_CHARS: usize = 240;
 const EVIDENCE_MAX_PER_FINDING: usize = 3;
 
-fn haystack(line: &str) -> String {
-    line.to_lowercase()
-}
-
+/// `line` debe venir ya en minúsculas. Las frases de [`RULES`] también lo están,
+/// así el análisis no asigna memoria por cada regla y needle.
 fn matches(needle: &Needle, line: &str) -> bool {
-    let line = haystack(line);
     match needle {
-        Needle::All(phrases) => phrases
-            .iter()
-            .all(|phrase| line.contains(&haystack(phrase))),
-        Needle::Any(phrases) => phrases
-            .iter()
-            .any(|phrase| line.contains(&haystack(phrase))),
+        Needle::All(phrases) => phrases.iter().all(|phrase| line.contains(phrase)),
+        Needle::Any(phrases) => phrases.iter().any(|phrase| line.contains(phrase)),
     }
 }
 
@@ -197,20 +190,38 @@ fn excerpt(line: &str) -> String {
     out
 }
 
+fn sanitized_excerpt(line: &str) -> String {
+    excerpt(&crate::services::launcher::sanitize_log_line(line))
+}
+
 /// `lines` debe venir ya saneado; aquí no se vuelve a sanear.
 pub fn analyze_lines(lines: &[&str]) -> Vec<CrashFinding> {
+    analyze_lines_with(lines, excerpt)
+}
+
+/// Igual que [`analyze_lines`], pero sanea la evidencia con el filtro del
+/// usuario.
+pub(super) fn analyze_lines_sanitized(lines: &[&str]) -> Vec<CrashFinding> {
+    analyze_lines_with(lines, sanitized_excerpt)
+}
+
+fn analyze_lines_with(
+    lines: &[&str],
+    format_evidence: impl Fn(&str) -> String,
+) -> Vec<CrashFinding> {
+    let lowered: Vec<String> = lines.iter().map(|line| line.to_lowercase()).collect();
     let mut findings: Vec<CrashFinding> = Vec::new();
 
     for rule in RULES {
         let mut evidence = Vec::new();
-        for (index, line) in lines.iter().enumerate() {
+        for (index, line) in lowered.iter().enumerate() {
             if evidence.len() >= EVIDENCE_MAX_PER_FINDING {
                 break;
             }
             if rule.needles.iter().any(|needle| matches(needle, line)) {
                 evidence.push(CrashEvidence {
                     line: u32::try_from(index + 1).unwrap_or(u32::MAX),
-                    text: excerpt(line),
+                    text: format_evidence(lines[index]),
                 });
             }
         }
@@ -242,14 +253,6 @@ pub fn analyze_lines(lines: &[&str]) -> Vec<CrashFinding> {
     findings
 }
 
-pub fn crash_description(lines: &[&str]) -> Option<String> {
-    lines.iter().find_map(|line| {
-        let rest = line.trim().strip_prefix("Description:")?;
-        let value = rest.trim();
-        (!value.is_empty()).then(|| excerpt(value))
-    })
-}
-
 pub fn unknown_finding(description: Option<&str>) -> Option<CrashFinding> {
     let description = description?;
     let mut params = std::collections::BTreeMap::new();
@@ -260,5 +263,19 @@ pub fn unknown_finding(description: Option<&str>) -> Option<CrashFinding> {
         params,
         evidence: Vec::new(),
         action: None,
+    })
+}
+
+#[cfg(test)]
+pub fn needles_are_lowercase() -> bool {
+    RULES.iter().all(|rule| {
+        rule.needles.iter().all(|needle| {
+            let phrases = match needle {
+                Needle::All(phrases) | Needle::Any(phrases) => phrases,
+            };
+            phrases
+                .iter()
+                .all(|phrase| phrase.chars().all(|c| !c.is_ascii_uppercase()))
+        })
     })
 }

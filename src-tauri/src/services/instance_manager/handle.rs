@@ -64,6 +64,15 @@ pub struct InstanceHandle {
     play_session_start: Arc<std::sync::Mutex<Option<Instant>>>,
 }
 
+/// Vista de solo lectura para diagnósticos, tomada con un único lock.
+pub struct DiagnosticsSnapshot {
+    pub instance_dir: PathBuf,
+    pub version: Arc<str>,
+    pub overrides: Option<InstOverrides>,
+    pub min_memory: Option<u32>,
+    pub max_memory: Option<u32>,
+}
+
 /// Admission to an instance's filesystem. Clones share deletion state and the lock.
 pub struct InstanceFilesGuard {
     handle: InstanceHandle,
@@ -228,6 +237,17 @@ impl InstanceHandle {
 
     pub async fn get_overrides(&self) -> Option<InstOverrides> {
         self.data.read().await.overrides.clone()
+    }
+
+    pub async fn diagnostics_snapshot(&self) -> DiagnosticsSnapshot {
+        let data = self.data.read().await;
+        DiagnosticsSnapshot {
+            instance_dir: data.get_instance_dir(),
+            version: data.version.clone(),
+            overrides: data.overrides.clone(),
+            min_memory: data.min_memory,
+            max_memory: data.max_memory,
+        }
     }
 
     pub async fn get_pinned(&self) -> bool {

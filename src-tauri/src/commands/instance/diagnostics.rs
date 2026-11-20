@@ -8,11 +8,15 @@ use crate::services::diagnostics::health;
 use crate::services::{InstanceHandle, InstanceManager};
 use tracing::info;
 
-async fn handle_and_dir(id: &str) -> Result<(InstanceHandle, std::path::PathBuf), String> {
-    let handle = InstanceManager::get()
+async fn get_handle(id: &str) -> Result<InstanceHandle, String> {
+    InstanceManager::get()
         .get_handle(id)
         .await
-        .ok_or_else(|| InstanceError::NotFound.to_string())?;
+        .ok_or_else(|| InstanceError::NotFound.to_string())
+}
+
+async fn handle_and_dir(id: &str) -> Result<(InstanceHandle, std::path::PathBuf), String> {
+    let handle = get_handle(id).await?;
     let dir = handle.get_instance_dir().await;
     Ok((handle, dir))
 }
@@ -21,7 +25,7 @@ async fn handle_and_dir(id: &str) -> Result<(InstanceHandle, std::path::PathBuf)
 pub async fn diagnose_instance(instance_id: String) -> Result<DiagnosticReport, String> {
     validate_uuid(&instance_id)?;
     info!("Diagnóstico de la instancia {}", instance_id);
-    let (handle, _dir) = handle_and_dir(&instance_id).await?;
+    let handle = get_handle(&instance_id).await?;
     let context = health::InstanceContext::for_handle(&handle).await;
     tokio::task::spawn_blocking(move || health::run(&handle, context))
         .await

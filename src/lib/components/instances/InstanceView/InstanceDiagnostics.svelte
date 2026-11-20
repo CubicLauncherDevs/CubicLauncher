@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { onDestroy } from "svelte";
+	import { onDestroy, untrack } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
+	import { ask } from "@tauri-apps/plugin-dialog";
 	import type { InstanceDto } from "#lib/types/types.js";
 	import {
 		analyzeInstanceCrash,
@@ -15,9 +16,17 @@
 	import { summarize, sortChecks } from "#lib/api/diagnostics.js";
 	import { t } from "#lib/i18n/index.js";
 	import { showError } from "#lib/state/state.svelte.js";
+	import {
+		cacheCrashReports,
+		cacheDiagnosticReport,
+		isDiagnosticReportFresh,
+		readInstanceDiagnostics,
+	} from "#lib/state/instanceDiagnostics.js";
 	import { openInstanceDir } from "#lib/api/cubicApi.js";
 	import Icon from "#lib/icons/Icon.svelte";
 	import CrashAnalysisView from "./CrashAnalysis.svelte";
+
+	const REPORT_MAX_AGE_MS = 5 * 60_000;
 
 	let {
 		instance,
@@ -40,39 +49,64 @@
 	let analyzing = $state(false);
 	let alive = true;
 	let request = 0;
+	let diagnosisRequest = 0;
+	let analysisRequest = 0;
 
 	$effect(() => {
 		if (!active) return;
-		void loadReports();
+		const id = instance.uuid;
+		untrack(() => {
+			const cached = readInstanceDiagnostics(id);
+			if (cached) {
+				report = cached.report;
+				reports = cached.reports;
+			}
+			void loadReports(id);
+			if (
+				!cached?.report ||
+				!isDiagnosticReportFresh(cached.report, REPORT_MAX_AGE_MS)
+			) {
+				void runDiagnosis(id);
+			}
+		});
 	});
 
 	onDestroy(() => {
 		alive = false;
 		request++;
+		diagnosisRequest++;
+		analysisRequest++;
 	});
 
 	const checks = $derived(report ? sortChecks(report.checks) : []);
 	const summary = $derived(summarize(report));
 
-	async function runDiagnosis() {
+	async function runDiagnosis(id = instance.uuid) {
 		if (running) return;
+		const token = ++diagnosisRequest;
 		running = true;
 		error = "";
 		try {
-			const result = await diagnoseInstance(instance.uuid);
-			if (alive) report = result;
+			const result = await diagnoseInstance(id);
+			if (alive && token === diagnosisRequest) {
+				report = result;
+				cacheDiagnosticReport(id, result);
+			}
 		} catch (err) {
-			if (alive) error = String(err);
+			if (alive && token === diagnosisRequest) error = String(err);
 		} finally {
-			if (alive) running = false;
+			if (alive && token === diagnosisRequest) running = false;
 		}
 	}
 
-	async function loadReports() {
+	async function loadReports(id = instance.uuid) {
 		const token = ++request;
 		try {
-			const result = await listInstanceCrashReports(instance.uuid);
-			if (alive && token === request) reports = result;
+			const result = await listInstanceCrashReports(id);
+			if (alive && token === request) {
+				reports = result;
+				cacheCrashReports(id, result);
+			}
 		} catch {
 			if (alive && token === request) reports = [];
 		}
@@ -80,18 +114,20 @@
 
 	async function analyze(name?: string) {
 		if (analyzing) return;
+		const id = instance.uuid;
+		const token = ++analysisRequest;
 		analyzing = true;
 		error = "";
 		try {
-			const result = await analyzeInstanceCrash(instance.uuid, name);
-			if (alive) {
+			const result = await analyzeInstanceCrash(id, name);
+			if (alive && token === analysisRequest) {
 				analysis = result;
 				analysisName = name ?? null;
 			}
 		} catch (err) {
-			if (alive) error = String(err);
+			if (alive && token === analysisRequest) error = String(err);
 		} finally {
-			if (alive) analyzing = false;
+			if (alive && token === analysisRequest) analyzing = false;
 		}
 	}
 
@@ -103,13 +139,29 @@
 			: label;
 	}
 
+	function actionLabel(action: DiagnosticAction): string {
+		const key = `diagnostics.actions.${action.kind}`;
+		const params =
+			action.kind === "installJava"
+				? { version: action.version }
+				: undefined;
+		const label = t(key, params);
+		return label === key ? t("diagnostics.actions.generic") : label;
+	}
+
 	async function runAction(action: DiagnosticAction) {
 		switch (action.kind) {
 			case "reinstallVersion": {
-				const confirmed = window.confirm(
+				const confirmed = await ask(
 					t("diagnostics.actions.reinstallConfirm", {
 						version: action.version,
 					}),
+					{
+						title: t("diagnostics.title"),
+						kind: "warning",
+						okLabel: t("diagnostics.actions.reinstallVersion"),
+						cancelLabel: t("common.cancel"),
+					},
 				);
 				if (!confirmed) return;
 				try {
@@ -128,6 +180,7 @@
 						version: action.version,
 						vendor: null,
 					});
+					await runDiagnosis();
 				} catch (err) {
 					showError(t("errors.title"), String(err));
 				}
@@ -176,7 +229,7 @@
 			type="button"
 			class="primary"
 			disabled={running}
-			onclick={runDiagnosis}
+			onclick={() => runDiagnosis()}
 		>
 			{running ? t("diagnostics.running") : t("diagnostics.run")}
 		</button>
@@ -215,9 +268,7 @@
 									class="fix"
 									onclick={() =>
 										check.action && runAction(check.action)}
-									>{t(
-										`diagnostics.actions.${check.action.kind}`,
-									)}</button
+									>{actionLabel(check.action)}</button
 								>
 							{/if}
 						</div>

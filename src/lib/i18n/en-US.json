@@ -1528,7 +1528,7 @@
 		"issues": "{errors} errors · {warnings} warnings",
 		"checks": {
 			"version_missing": "Missing version files for {version}",
-			"java_missing": "Java {version} is not installed",
+			"java_missing": "Java is not installed (Java {version} is required)",
 			"worlds_metadata_error": "{count} worlds have an unreadable level.dat",
 			"mods_duplicate_project": "{count} mod projects are installed twice",
 			"mods_duplicate_sha1": "{count} mods are duplicated by content",
@@ -1540,6 +1540,7 @@
 			"reinstallVersion": "Reinstall version",
 			"reinstallConfirm": "Delete and download version {version} again?",
 			"installJava": "Install Java {version}",
+			"generic": "Fix",
 			"openMods": "Open mods",
 			"openWorlds": "Open worlds"
 		},

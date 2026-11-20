@@ -18,15 +18,20 @@ pub struct InstanceContext {
 
 impl InstanceContext {
     pub async fn for_handle(handle: &InstanceHandle) -> Self {
-        let instance_dir = handle.get_instance_dir().await;
-        let version = handle.get_version().await.to_string();
-        let overrides = handle.get_overrides().await;
+        let snapshot = handle.diagnostics_snapshot().await;
+        let settings = (snapshot.min_memory.is_none() || snapshot.max_memory.is_none())
+            .then(SettingsManager::read);
         Self {
-            version,
-            instance_dir,
-            min_memory: handle.get_min_memory().await,
-            max_memory: handle.get_max_memory().await,
-            java_override: overrides
+            version: snapshot.version.to_string(),
+            instance_dir: snapshot.instance_dir,
+            min_memory: snapshot
+                .min_memory
+                .unwrap_or_else(|| settings.as_ref().map_or(0, |s| s.get_min_memory())),
+            max_memory: snapshot
+                .max_memory
+                .unwrap_or_else(|| settings.as_ref().map_or(0, |s| s.get_max_memory())),
+            java_override: snapshot
+                .overrides
                 .as_ref()
                 .and_then(|overrides| overrides.java_version),
             shared_dir: crate::core::PathManager::get().get_shared_dir(),

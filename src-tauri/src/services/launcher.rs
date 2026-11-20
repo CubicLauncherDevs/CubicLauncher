@@ -222,6 +222,47 @@ pub(crate) fn sanitize_with_user(line: &str) -> String {
     sanitize_line(&user_cleaned)
 }
 
+/// Igual que [`sanitize_with_user`], pero aplica primero el filtro genérico a
+/// las líneas de log. Permite reutilizar el mismo filtro para muchas líneas sin
+/// volver a tomar el lock en cada una.
+fn sanitize_log_line_with_filter(filter: Option<&SensitiveFilter>, line: &str) -> String {
+    let generic = crate::core::sanitize::redact_log_line(line);
+    let user_cleaned = match filter {
+        Some(filter) => filter.apply(generic.as_ref()),
+        None => generic.into_owned(),
+    };
+    sanitize_line(&user_cleaned)
+}
+
+pub(crate) fn sanitize_log_line(line: &str) -> String {
+    let guard = user_filter().read();
+    sanitize_log_line_with_filter(guard.as_deref(), line)
+}
+
+pub(crate) fn sanitize_log_lines<'a>(lines: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+    let guard = user_filter().read();
+    let filter = guard.as_deref();
+    lines
+        .into_iter()
+        .map(|line| sanitize_log_line_with_filter(filter, line))
+        .collect()
+}
+
+/// Une el snapshot del anillo en un solo texto, saneando todas las líneas sin
+/// volver a tomar el lock del filtro en cada una.
+pub async fn crash_log_snapshot_text(id: &str) -> Option<String> {
+    let lines = crash_log_snapshot_lines(id).await?;
+    let guard = user_filter().read();
+    let filter = guard.as_deref();
+    let mut text = String::new();
+    for line in lines {
+        let sanitized = sanitize_log_line_with_filter(filter, line.text.as_ref());
+        text.push_str(&sanitized);
+        text.push('\n');
+    }
+    Some(text)
+}
+
 // ── Log Ring Buffer ─────────────────────────────────────────────────────────
 
 #[derive(Clone, serde::Serialize)]
