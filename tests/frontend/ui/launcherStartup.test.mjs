@@ -115,7 +115,7 @@ export * from 'startup-stub';`,
 					);
 				},
 			},
-			svelteModules(),
+			await svelteModules(),
 		],
 	});
 	expect(bundle.success, bundle.logs.join("\n")).toBe(true);

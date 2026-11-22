@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
+import { svelteModules } from "../fixtures/svelteModules.ts";
 
 async function fixture() {
 	const root = resolve(import.meta.dir, "../../..");
@@ -35,6 +36,7 @@ async function fixture() {
 								path === "i18n-entry"
 									? `export * from ${JSON.stringify(source)};export * from 'i18n-stub';
 import {t} from ${JSON.stringify(source)};
+import {launcherStore} from 'i18n-stub';
 import {effect_root,render_effect,derived,get} from 'svelte/internal/client';
 export {flushSync} from 'svelte';
 export const observeTranslation=onValue=>effect_root(()=>{const text=derived(()=>t('greeting',{name:'X'}));render_effect(()=>onValue(get(text)))});`
@@ -66,6 +68,7 @@ export const invoke=(command,args)=>{calls.push({command,args});return hooks.inv
 					);
 				},
 			},
+			await svelteModules(),
 		],
 	});
 	expect(bundle.success, bundle.logs.join("\n")).toBe(true);
