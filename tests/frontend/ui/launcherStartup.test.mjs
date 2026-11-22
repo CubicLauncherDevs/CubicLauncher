@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
-import { compileModule } from "svelte/compiler";
+import { svelteModules } from "../fixtures/svelteModules.ts";
 
 // Exercise the real event service and installed-version state together, without
 // process-wide mocks or a native Tauri runtime.
@@ -31,6 +31,38 @@ export const initDiscordPresence=()=>{};
 export const shutdownDiscordPresence=()=>{};
 export const launchInstance=()=>{};
 export const invoke=(...args)=>hooks.invoke(...args);
+export const createSaveQueue=()=>({
+	request:async()=>{},
+	flush:async()=>{}
+});
+export const state={loading:false,revision:0,promise:null};
+export const versionsState={loaded:false,loading:false,rawVersions:null,mcVersions:{vanilla:[]},error:null};
+export const publish=raw=>{versionsState.rawVersions=raw;versionsState.mcVersions={vanilla:[...raw]};versionsState.loaded=true;versionsState.error=null};
+export const publishLoaded=loaded=>{versionsState.loaded=loaded};
+export const publishError=error=>{versionsState.error=error;versionsState.loaded=false};
+export const loadInstalledVersions=async(force=false)=>{
+	// Mirrors the real coalescing: a forced refresh during a scan joins it and
+	// schedules exactly one trailing scan.
+	if (force || state.loaded) state.revision++;
+	if (state.loading) return state.promise;
+	state.loading=true;
+	state.promise=(async()=>{
+		try {
+			while (true) {
+				const requested=state.revision;
+				calls.scans++;
+				const raw=await hooks.scan();
+				if (requested!==state.revision) continue;
+				publish(raw);
+				break;
+			}
+		} catch (error) {
+			publishError(error instanceof Error ? error.message : String(error));
+		} finally {state.loading=false}
+	})();
+	return state.promise;
+};
+export const invalidateInstalledVersions=()=>{state.revision++;publishLoaded(false)};
 `;
 	const bundle = await Bun.build({
 		entrypoints: ["startup-entry"],
@@ -49,7 +81,6 @@ export const invoke=(...args)=>hooks.invoke(...args);
 							[
 								"$lib/utils/saveQueue",
 								"$lib/utils/versionUtils",
-								"$lib/state/versionsState.svelte",
 							].includes(path)
 						) {
 							return {
@@ -61,7 +92,8 @@ export const invoke=(...args)=>hooks.invoke(...args);
 						}
 						if (
 							importer === service ||
-							path === "$lib/api/cubicApi"
+							path === "$lib/api/cubicApi" ||
+							path === "$lib/state/versionsState.svelte"
 						)
 							return {
 								path: "startup-stub",
@@ -78,24 +110,12 @@ export const invoke=(...args)=>hooks.invoke(...args);
 									? stub
 									: `
 export {initEventListeners,destroyEventListeners,getVersions,deleteInst,registerModsRefreshCallback} from ${JSON.stringify(service)};
-export {loadInstalledVersions,versionsState} from '$lib/state/versionsState.svelte';
 export * from 'startup-stub';`,
-						}),
-					);
-					build.onLoad(
-						{ filter: /versionsState\.svelte\.ts$/ },
-						async ({ path }) => ({
-							loader: "js",
-							contents: compileModule(
-								new Bun.Transpiler({
-									loader: "ts",
-								}).transformSync(await readFile(path, "utf8")),
-								{ filename: path, generate: "client" },
-							).js.code,
 						}),
 					);
 				},
 			},
+			svelteModules(),
 		],
 	});
 	expect(bundle.success, bundle.logs.join("\n")).toBe(true);

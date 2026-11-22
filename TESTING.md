@@ -6,6 +6,7 @@ Lista de verificaciones para correr antes de mergear una PR o antes de lanzar un
 
 ```text
 tests/frontend/
+├── fixtures/          # Carga compartida de módulos con runas para las fixtures
 ├── marketplace/       # Estado y selección del marketplace
 ├── servers/           # API, cachés y recursos de servidores
 │   └── fixtures/      # Escenarios ejecutados en procesos aislados
@@ -26,6 +27,11 @@ crates/<crate>/src/tests/  # Tests de aqua, communicator, launchwerk y zellkern
 - **Frontend:** agregar archivos `*.test.mjs` en el área correspondiente. Las
   fixtures propias de una suite van en su subcarpeta `fixtures/`, sin el sufijo
   `.test`, para evitar que Bun las ejecute como suites independientes.
+- **Runas en fixtures:** `Bun.build` no compila `$state` y `bun test` ignora los
+  plugins registrados con `plugin()`, así que una fixture que incluya un módulo
+  `.svelte.ts` debe añadir `svelteModules()` de
+  `tests/frontend/fixtures/svelteModules.ts` a sus `plugins`. Sin él el bundle
+  falla con `rune_outside_svelte` o `$state is not defined`.
 - **Rust:** ubicar los tests en `src/tests/` del crate, reflejando la ruta del
   módulo de producción (por ejemplo, `services/instance_manager/handle.rs`).
   Para los módulos definidos en `mod.rs`, usar el nombre del área como archivo,
