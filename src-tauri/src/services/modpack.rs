@@ -4,6 +4,7 @@ use crate::commands::instance::mods::ModDto;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
@@ -37,6 +38,10 @@ pub struct PackState {
     /// Legacy instances need an exact archive before individual file ownership is known.
     #[serde(default)]
     pub needs_inventory: bool,
+    /// Provider identity resolved from the archive alone. Not persisted: the
+    /// per-file cache keeps it, and only install-time code fills it.
+    #[serde(skip)]
+    pub provenance: HashMap<String, crate::services::ModSource>,
 }
 
 /// Frontend-facing metadata. The per-file inventory can contain thousands of
@@ -184,6 +189,7 @@ fn legacy(root: &Path) -> Result<Option<PackState>> {
         files: BTreeMap::new(),
         identities: BTreeMap::new(),
         needs_inventory: true,
+        provenance: HashMap::new(),
     }))
 }
 
@@ -357,6 +363,7 @@ fn archive_data(path: &Path) -> Result<ArchiveData> {
             files,
             identities: BTreeMap::new(),
             needs_inventory: false,
+            provenance: HashMap::new(),
         },
         curseforge_files,
         overrides,
@@ -398,6 +405,13 @@ pub async fn inspect_archive(path: &Path) -> Result<PackState> {
             };
             let relative = format!("{folder}/{}", file.file_name);
             valid_path(&relative)?;
+            data.state.provenance.insert(
+                relative.clone(),
+                crate::services::ModSource::CurseForge {
+                    project_id: project.to_string(),
+                    file_id: file_id.to_string(),
+                },
+            );
             data.state.files.insert(
                 relative,
                 PackFile {
@@ -449,16 +463,127 @@ pub async fn record_install(
     version_id: Option<String>,
 ) -> Result<()> {
     let mut state = inspect_archive(archive).await?;
+    if state.provenance.is_empty() {
+        let identified = identify_modrinth(&state).await;
+        state.provenance.extend(identified);
+    }
     state.source = source.into();
     state.project_id = project_id;
     state.version_id = version_id;
     let root = root.to_path_buf();
     tokio::task::spawn_blocking(move || {
         verify_files(&root, &mut state)?;
+        cache_pack_sources(&root, &state);
         save(&root, &state)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// The archive knows each file's provider before anything is listed, so the
+/// per-file cache is seeded here instead of waiting for a local scan to
+/// re-identify thousands of files one by one.
+async fn identify_modrinth(state: &PackState) -> HashMap<String, crate::services::ModSource> {
+    let hashes: Vec<String> = state
+        .files
+        .iter()
+        .filter(|(relative, file)| relative.starts_with("mods/") && !file.sha1.is_empty())
+        .map(|(_, file)| file.sha1.to_ascii_lowercase())
+        .collect();
+    if hashes.is_empty() {
+        return HashMap::new();
+    }
+    let Ok(resolved) = crate::commands::instance::mods::resolve_modrinth_hashes(&hashes).await
+    else {
+        tracing::warn!("No se pudo identificar los mods del pack en Modrinth");
+        return HashMap::new();
+    };
+    state
+        .files
+        .iter()
+        .filter(|(relative, _)| relative.starts_with("mods/"))
+        .filter_map(|(relative, file)| {
+            let version = resolved.get(&file.sha1.to_ascii_lowercase())?;
+            Some((
+                relative.clone(),
+                crate::services::ModSource::Modrinth {
+                    project_id: version.project_id.clone(),
+                    version_id: version.id.clone(),
+                    slug: None,
+                },
+            ))
+        })
+        .collect()
+}
+
+fn cache_pack_sources(root: &Path, state: &PackState) {
+    use crate::commands::instance::mods::repo_path;
+
+    let mods = root.join("mods");
+    if !mods.is_dir() {
+        return;
+    }
+    let mut repo = ablage::Repo::open(repo_path(&mods));
+    for (relative, file) in &state.files {
+        let Some(filename) = relative.strip_prefix("mods/") else {
+            continue;
+        };
+        let Some(provenance) = state.provenance.get(relative).cloned() else {
+            continue;
+        };
+        cache_entry(&mut repo, root, filename, file, provenance.clone());
+        // The catalog looks a disabled mod up under the `.disabled` name.
+        let disabled_path = root.join("mods").join(format!("{filename}.disabled"));
+        if !relative.ends_with(".disabled") && disabled_path.is_file() {
+            cache_entry(
+                &mut repo,
+                root,
+                &format!("{filename}.disabled"),
+                file,
+                provenance,
+            );
+        }
+    }
+    if let Err(error) = repo.flush() {
+        tracing::warn!("Mod source cache: {error}");
+    }
+}
+
+fn cache_entry(
+    repo: &mut ablage::Repo,
+    root: &Path,
+    filename: &str,
+    file: &PackFile,
+    source: crate::services::ModSource,
+) {
+    use crate::commands::instance::mods::PerFileCacheEntry;
+
+    let path = root.join("mods").join(filename);
+    let Ok(metadata) = fs::metadata(&path) else {
+        return;
+    };
+    let Ok(modified) = metadata.modified() else {
+        return;
+    };
+    if metadata.len() != file.size {
+        return;
+    }
+    let entry = PerFileCacheEntry {
+        sha1: file.sha1.clone(),
+        metadata: super::AddonManager::get_mod_metadata_only(&path),
+        source,
+    };
+    let Ok(data) = postcard::to_stdvec(&entry) else {
+        return;
+    };
+    repo.put(
+        filename.to_string(),
+        ablage::Entry {
+            version: 1,
+            fingerprint: super::file_fingerprint(filename, &modified, metadata.len()),
+            data,
+        },
+    );
 }
 
 fn owned<'a>(state: &'a PackState, relative: &str) -> Option<&'a PackFile> {

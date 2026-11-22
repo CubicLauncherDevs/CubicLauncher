@@ -60,7 +60,7 @@ pub struct PerFileCacheEntry {
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct ModrinthVersionEntry {
+pub(crate) struct ModrinthVersionEntry {
     pub id: String,
     pub project_id: String,
 }
@@ -112,7 +112,7 @@ pub async fn get_instance_mods(
     annotate_pack_inventory(&instance_dir, "mods", mods).await
 }
 
-pub(super) async fn resolve_modrinth_hashes(
+pub(crate) async fn resolve_modrinth_hashes(
     hashes: &[String],
 ) -> Result<HashMap<String, ModrinthVersionEntry>, String> {
     let client = reqwest::Client::builder()

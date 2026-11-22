@@ -47,6 +47,7 @@ fn state(version: &str, entries: &[(&str, &[u8])]) -> PackState {
             .collect(),
         needs_inventory: false,
         identities: BTreeMap::new(),
+        provenance: Default::default(),
     }
 }
 

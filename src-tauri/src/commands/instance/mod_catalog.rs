@@ -311,7 +311,17 @@ pub(super) async fn list(
     }
     if let Some(guard) = EnrichmentGuard::acquire(&dir) {
         tokio::spawn(async move {
-            let Ok(files_guard) = handle.try_lock_files() else {
+            // An install or pack update still holds the lock: retry shortly so
+            // the files it just wrote don't stay unidentified.
+            let mut files_guard = None;
+            for _ in 0..12 {
+                if let Ok(guard) = handle.try_lock_files() {
+                    files_guard = Some(guard);
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+            let Some(files_guard) = files_guard else {
                 return;
             };
             if handle.get_instance_dir().await.join("mods") != dir {

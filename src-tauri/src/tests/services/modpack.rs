@@ -43,6 +43,7 @@ fn state(entries: &[(&str, &[u8])]) -> PackState {
             .collect(),
         needs_inventory: false,
         identities: BTreeMap::new(),
+        provenance: Default::default(),
     }
 }
 
@@ -278,6 +279,60 @@ async fn record_inventory_persists_original_mod_ids_after_the_installed_jar_is_d
     assert_eq!(
         json["identities"]["mods/original.jar"],
         json!(["first", "second"])
+    );
+}
+
+#[test]
+fn pack_sources_seed_the_per_file_cache_under_both_name_aliases() {
+    let temp = fixture();
+    let root = temp.path().join("instance");
+    put(&root, "mods/a.jar", b"alpha");
+    put(&root, "mods/b.jar.disabled", b"beta");
+    let mut inventory = state(&[
+        ("mods/a.jar", b"alpha"),
+        ("mods/b.jar", b"beta"),
+        ("mods/b.jar.disabled", b"beta"),
+    ]);
+    inventory.provenance.insert(
+        "mods/a.jar".into(),
+        crate::services::ModSource::CurseForge {
+            project_id: "10".into(),
+            file_id: "20".into(),
+        },
+    );
+    inventory.provenance.insert(
+        "mods/b.jar".into(),
+        crate::services::ModSource::CurseForge {
+            project_id: "11".into(),
+            file_id: "21".into(),
+        },
+    );
+    cache_pack_sources(&root, &inventory);
+
+    let mods = crate::commands::instance::mod_catalog::list_cached(&root.join("mods"));
+    let mut sources: Vec<_> = mods
+        .iter()
+        .map(|entry| {
+            (
+                entry.filename.clone(),
+                entry.project_id.clone(),
+                entry.sha1.clone(),
+            )
+        })
+        .collect();
+    sources.sort();
+    let sha_a = file(b"alpha").sha1;
+    let sha_b = file(b"beta").sha1;
+    assert_eq!(
+        sources,
+        vec![
+            ("a.jar".to_string(), Some("10".to_string()), Some(sha_a)),
+            (
+                "b.jar.disabled".to_string(),
+                Some("11".to_string()),
+                Some(sha_b)
+            ),
+        ]
     );
 }
 

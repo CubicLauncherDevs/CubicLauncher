@@ -379,6 +379,12 @@ fn cache_versions(
             continue;
         }
         let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
+        let mut names = vec![name];
+        // A disabled mod keeps its metadata under the base name but is listed
+        // under the `.disabled` filename.
+        if name != installed_name && installed_name.starts_with(name) {
+            names.push(installed_name);
+        }
         let source = if file.version.source == "modrinth" {
             ModSource::Modrinth {
                 project_id: file.version.project_id.clone(),
@@ -397,18 +403,20 @@ fn cache_versions(
             source,
         };
         let data = postcard::to_stdvec(&entry).map_err(|e| e.to_string())?;
-        repo.put(
-            name.to_string(),
-            ablage::Entry {
-                version: 1,
-                fingerprint: file_fingerprint(
-                    name,
-                    &metadata.modified().map_err(|e| e.to_string())?,
-                    metadata.len(),
-                ),
-                data,
-            },
-        );
+        for alias in names {
+            repo.put(
+                alias.to_string(),
+                ablage::Entry {
+                    version: 1,
+                    fingerprint: file_fingerprint(
+                        alias,
+                        &metadata.modified().map_err(|e| e.to_string())?,
+                        metadata.len(),
+                    ),
+                    data: data.clone(),
+                },
+            );
+        }
     }
     repo.flush().map_err(|e| e.to_string())
 }

@@ -39,6 +39,7 @@ async fn exported_minecraft_jar_and_modpack_round_trip_without_external_paths_or
         game_version: "1.12.2".into(),
         locked: false,
         needs_inventory: false,
+        provenance: Default::default(),
         files: [
             "mods/owned.jar",
             "config/pack.json",

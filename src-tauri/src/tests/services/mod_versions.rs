@@ -248,6 +248,7 @@ fn own_mod_updates_never_replace_pack_files_even_when_unlocked() {
         game_version: "1.21.1".into(),
         locked: false,
         needs_inventory: false,
+        provenance: Default::default(),
         files: BTreeMap::from([(
             "mods/old.jar".into(),
             modpack::PackFile {

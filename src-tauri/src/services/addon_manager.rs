@@ -104,7 +104,7 @@ pub struct AddonMetaNoIcon {
     pub authors: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ModSource {
     Local,
     Modrinth {
