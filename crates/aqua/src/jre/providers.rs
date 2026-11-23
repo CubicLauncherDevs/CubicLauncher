@@ -413,6 +413,21 @@ struct ZuluPackage {
     sha256_hash: Option<String>,
 }
 
+fn zulu_archive_matches(name: &str) -> bool {
+    if cfg!(target_os = "windows") {
+        name.ends_with(".zip")
+    } else {
+        name.ends_with(".tar.gz")
+    }
+}
+
+/// Descarta los builds CRaC (checkpoint/restore) y musl: el launcher espera el
+/// JRE estándar para ejecutar Minecraft.
+fn zulu_is_standard(name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    !name.contains("crac") && !name.contains("musl")
+}
+
 async fn resolve_zulu(major_version: u8, os: &str, arch: &str) -> Result<JrePackage, AquaError> {
     let url = format!(
         "https://api.azul.com/metadata/v1/zulu/packages/?java_version={}&os={}&arch={}&java_package_type=jre&javafx_bundled=false&release_status=ga&availability_types=CA&page_size=10",
@@ -421,7 +436,7 @@ async fn resolve_zulu(major_version: u8, os: &str, arch: &str) -> Result<JrePack
 
     log::info!("Querying Azul Zulu packages: {}", url);
 
-    let packages: Vec<ZuluPackage> = HTTP_CLIENT
+    let mut packages: Vec<ZuluPackage> = HTTP_CLIENT
         .get(&url)
         .header("accept", "application/json")
         .send()
@@ -430,15 +445,10 @@ async fn resolve_zulu(major_version: u8, os: &str, arch: &str) -> Result<JrePack
         .json()
         .await?;
 
-    let pkg = packages
-        .into_iter()
-        .find(|p| {
-            if cfg!(target_os = "windows") {
-                p.name.ends_with(".zip")
-            } else {
-                p.name.ends_with(".tar.gz")
-            }
-        })
+    let index = packages
+        .iter()
+        .position(|p| zulu_archive_matches(&p.name) && zulu_is_standard(&p.name))
+        .or_else(|| packages.iter().position(|p| zulu_archive_matches(&p.name)))
         .ok_or_else(|| {
             AquaError::Other(format!(
                 "No Zulu JRE ({}) found for Java {}",
@@ -450,6 +460,7 @@ async fn resolve_zulu(major_version: u8, os: &str, arch: &str) -> Result<JrePack
                 major_version
             ))
         })?;
+    let pkg = packages.swap_remove(index);
 
     let java_ver = pkg
         .java_version

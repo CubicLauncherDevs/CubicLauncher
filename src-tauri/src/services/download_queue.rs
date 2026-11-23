@@ -263,6 +263,14 @@ impl DownloadQueue {
             match dl_result {
                 Ok(_) => {
                     info!("Batch {} completado correctamente", version);
+                    if let Some(java) = version
+                        .strip_prefix("jre-")
+                        .and_then(|major| major.parse::<u8>().ok())
+                    {
+                        // El `java -version` del runtime cambió al terminar la
+                        // extracción; cualquier detección previa quedó obsoleta.
+                        crate::services::java_resolution::invalidate_managed_java(java);
+                    }
                     if let Some(mut state) = queue.active.get_mut(&version) {
                         state.status = DownloadStatus::Done;
                     }

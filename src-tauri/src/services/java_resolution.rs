@@ -88,53 +88,82 @@ pub fn is_forge_version_safe(forge_ver: &str) -> bool {
 /// Primera versión mayor que el launcher gestiona en `runtimes/jre{N}`.
 const FIRST_MANAGED_JAVA: u8 = 8;
 
-/// Serie mayor y build de una versión de `java -version`, comparables dentro
-/// de la misma serie: `1.8.0_412` y `8u412` → (8, 412); `21.0.14+12` → (21, 14).
-pub fn java_major_and_update(java_version: &str) -> Option<(u8, u32)> {
-    let digits = java_version
+/// Último build afectado por CVE-2026-114938 en cada serie. Se comparan todos
+/// los componentes numéricos porque los builds corregidos añaden una cuarta
+/// cifra (`21.0.13.1`) sobre el último afectado (`21.0.13.0.3`).
+const VULNERABLE_MAX: &[(u8, &[u32])] = &[
+    (8, &[8, 0, 512]),
+    (11, &[11, 0, 33, 0, 3]),
+    (17, &[17, 0, 21, 0, 3]),
+    (21, &[21, 0, 13, 0, 3]),
+    (25, &[25, 0, 5, 0, 3]),
+    (27, &[27, 0, 1, 0, 3]),
+];
+
+/// Componentes numéricos de una versión de `java -version`, normalizados para
+/// poder comparar builds de la misma serie: `1.8.0_514` y `8u514` → [8, 0, 514];
+/// `21.0.13.1+2-LTS` → [21, 0, 13, 1].
+pub fn java_version_components(java_version: &str) -> Option<Vec<u32>> {
+    let token = java_version
         .trim()
         .split(|c: char| !(c.is_ascii_digit() || c == '.' || c == '_' || c == 'u'))
         .find(|segment| !segment.is_empty())?;
-    let (major, rest) = digits.split_once(['.', '_', 'u'])?;
-    let major: u32 = major.parse().ok()?;
 
-    if major == 1 {
-        // `1.8.0_412`: el build va tras `_`; `1.8.0` sin build es 0.
-        let update = digits.split('_').nth(1).unwrap_or("0");
-        return update.parse().ok().map(|update| (8, update));
+    // Esquema antiguo de la serie 8: `1.8.0_514`.
+    if let Some(update) = token.strip_prefix("1.8.0_") {
+        return Some(vec![8, 0, update.parse().ok()?]);
+    }
+    if token == "1.8.0" {
+        return Some(vec![8, 0, 0]);
+    }
+    // `8u514` (Oracle/Adoptium) sin puntos.
+    if let Some((major, update)) = token.split_once('u')
+        && !major.contains('.')
+    {
+        return Some(vec![major.parse().ok()?, 0, update.parse().ok()?]);
     }
 
-    // `17.0.21` / `21.0.14+12`: la actualización es la última cifra punteada.
-    let update = rest
-        .split(['.', 'u'])
-        .next_back()
-        .unwrap_or("0")
-        .split(|c: char| !c.is_ascii_digit())
-        .next()
-        .unwrap_or("0");
-    ((FIRST_MANAGED_JAVA as u32..=99).contains(&major))
-        .then_some((major as u8, update.parse().ok()?))
+    let components: Vec<u32> = token
+        .split('.')
+        .map(str::parse)
+        .collect::<Result<_, _>>()
+        .ok()?;
+    let major = *components.first()?;
+    (FIRST_MANAGED_JAVA as u32..=99)
+        .contains(&major)
+        .then_some(components)
+}
+
+/// True si `components` es anterior o igual a `max`, rellenando con ceros los
+/// componentes ausentes.
+fn version_is_at_most(components: &[u32], max: &[u32]) -> bool {
+    let len = components.len().max(max.len());
+    for i in 0..len {
+        let left = components.get(i).copied().unwrap_or(0);
+        let right = max.get(i).copied().unwrap_or(0);
+        if left != right {
+            return left < right;
+        }
+    }
+    true
 }
 
 /// Indica si `java -version` corresponde a una versión anterior al arreglo de
-/// CVE-2026-114938, cuyo advisory lista 8u512, 11.0.33, 17.0.21, 21.0.13,
-/// 25.0.5 y 27.0.1 como últimos builds afectados de cada serie.
+/// CVE-2026-114938.
 pub fn is_java_known_vulnerable(java_version: &str) -> bool {
-    let Some((major, update)) = java_major_and_update(java_version) else {
+    let Some(components) = java_version_components(java_version) else {
         return false;
     };
-    match major {
-        8 => update <= 512,
-        11 => update <= 33,
-        17 => update <= 21,
-        21 => update <= 13,
-        25 => update <= 5,
-        27 => update <= 1,
-        // 22-24 quedaron fuera de soporte antes del arreglo; el resto no se
-        // usa en el launcher.
-        22..=24 => true,
-        _ => false,
+    let major = components[0] as u8;
+    // 22-24 quedaron fuera de soporte antes del arreglo; el resto no se usa en
+    // el launcher.
+    if (22..=24).contains(&major) {
+        return true;
     }
+    VULNERABLE_MAX
+        .iter()
+        .find(|(series, _)| *series == major)
+        .is_some_and(|(_, max)| version_is_at_most(&components, max))
 }
 
 /// True si el runtime administrado para la serie `major` está seguro.

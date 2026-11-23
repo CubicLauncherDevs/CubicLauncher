@@ -111,25 +111,40 @@ fn java4shell_versions_below_the_fix_are_flagged() {
     for version in [
         "1.8.0_412",
         "1.8.0_512",
+        "8.0.512",
         "8u512",
         "11.0.33",
         "17.0.21",
         "17.0.21+9",
+        "17.0.21.0.3",
         "21.0.13",
+        "21.0.13.0.3",
         "22.0.2",
         "23.0.2",
         "24.0.2",
         "25.0.5",
+        "25.0.5.0.3",
         "27.0.1",
+        "27.0.1.0.3",
     ] {
         assert!(is_java_known_vulnerable(version), "{version}");
     }
+    // Builds reales publicados por los proveedores tras el arreglo.
     for version in [
+        "1.8.0_514",
         "1.8.0_522",
+        "8.0.514",
+        "8u514",
+        "11.0.33.1",
         "11.0.34",
+        "17.0.21.1",
         "17.0.22",
+        "21.0.13.1",
+        "21.0.13.1+2-LTS",
         "21.0.14",
+        "25.0.5.1",
         "25.0.6",
+        "27.0.1.1",
         "27.0.2",
     ] {
         assert!(!is_java_known_vulnerable(version), "{version}");
@@ -140,9 +155,17 @@ fn java4shell_versions_below_the_fix_are_flagged() {
 }
 
 #[test]
-fn java_major_parses_oracle_and_openjdk_schemes() {
-    assert_eq!(java_major_and_update("1.8.0_522"), Some((8, 522)));
-    assert_eq!(java_major_and_update("8u522"), Some((8, 522)));
-    assert_eq!(java_major_and_update("21.0.14+12-LTS"), Some((21, 14)));
-    assert_eq!(java_major_and_update("openjdk"), None);
+fn java_version_components_parse_oracle_and_openjdk_schemes() {
+    assert_eq!(java_version_components("1.8.0_522"), Some(vec![8, 0, 522]));
+    assert_eq!(java_version_components("8u522"), Some(vec![8, 0, 522]));
+    assert_eq!(java_version_components("8.0.514"), Some(vec![8, 0, 514]));
+    assert_eq!(
+        java_version_components("21.0.14+12-LTS"),
+        Some(vec![21, 0, 14])
+    );
+    assert_eq!(
+        java_version_components("21.0.13.1+2-LTS"),
+        Some(vec![21, 0, 13, 1])
+    );
+    assert_eq!(java_version_components("openjdk"), None);
 }
