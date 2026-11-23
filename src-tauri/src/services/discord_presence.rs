@@ -28,6 +28,8 @@ struct RunningInstance {
     name: String,
     version: String,
     loader: String,
+    modpack_name: Option<String>,
+    modpack_icon: Option<String>,
     started_at: u64,
 }
 
@@ -40,6 +42,8 @@ enum PresenceState {
         name: String,
         version: String,
         loader: String,
+        modpack_name: Option<String>,
+        modpack_icon: Option<String>,
         /// How many other instances are running at the same time.
         others: usize,
         started_at: u64,
@@ -54,6 +58,8 @@ impl PresenceState {
                 name: current.name.clone(),
                 version: current.version.clone(),
                 loader: current.loader.clone(),
+                modpack_name: current.modpack_name.clone(),
+                modpack_icon: current.modpack_icon.clone(),
                 others: running.len() - 1,
                 started_at: current.started_at,
             },
@@ -72,6 +78,8 @@ impl PresenceState {
                 name,
                 version,
                 loader,
+                modpack_name,
+                modpack_icon,
                 others,
                 started_at,
             } => {
@@ -79,15 +87,42 @@ impl PresenceState {
                 if *others > 0 {
                     state.push_str(&format!(" · +{others}"));
                 }
+                let details = match modpack_name.as_deref().filter(|n| !n.trim().is_empty()) {
+                    Some(pack) => fit(format!("Jugando a {pack}"), 128),
+                    None => fit(format!("Jugando a {name}"), 128),
+                };
+                let (image, text) = match modpack_icon.as_deref() {
+                    Some(icon) if valid_icon(icon) => (
+                        icon.to_string(),
+                        fit(modpack_name.clone().unwrap_or_default(), 128),
+                    ),
+                    _ => ("mc".to_string(), "Minecraft".to_string()),
+                };
                 Activity::builder()
-                    .details(format!("Jugando a {name}"))
-                    .state(state)
+                    .details(details)
+                    .state(fit(state, 128))
                     .start_timestamp(*started_at)
-                    .large_image("mc", "Minecraft")
+                    .large_image(image, text)
                     .build()
             }
         }
     }
+}
+
+/// Discord rejects activity texts under 2 characters, so an empty name still
+/// falls back to something displayable.
+fn fit(text: String, max: usize) -> String {
+    let text: String = text.chars().take(max).collect();
+    if text.trim().chars().count() < 2 {
+        "CubicLauncher".to_string()
+    } else {
+        text
+    }
+}
+
+/// Only external https URLs are sent: Discord cannot render anything else.
+fn valid_icon(url: &str) -> bool {
+    url.starts_with("https://") && url.len() <= 300
 }
 
 struct DiscordPresence {
@@ -178,7 +213,13 @@ pub async fn shutdown() {
     }
 }
 
-pub async fn on_instance_start(name: String, version: String, loader: String) {
+pub async fn on_instance_start(
+    name: String,
+    version: String,
+    loader: String,
+    modpack_name: Option<String>,
+    modpack_icon: Option<String>,
+) {
     let Some(presence) = DISCORD.get() else {
         return;
     };
@@ -193,6 +234,8 @@ pub async fn on_instance_start(name: String, version: String, loader: String) {
         name,
         version,
         loader,
+        modpack_name,
+        modpack_icon,
         started_at: now_secs(),
     });
     presence
@@ -275,7 +318,17 @@ mod tests {
             name: name.to_string(),
             version: "1.21.1".to_string(),
             loader: "fabric".to_string(),
+            modpack_name: None,
+            modpack_icon: None,
             started_at,
+        }
+    }
+
+    fn modpack_instance(name: &str, pack: &str, icon: Option<&str>) -> RunningInstance {
+        RunningInstance {
+            modpack_name: Some(pack.to_string()),
+            modpack_icon: icon.map(str::to_owned),
+            ..instance(name, 10)
         }
     }
 
@@ -332,6 +385,70 @@ mod tests {
         let activity = PresenceState::resolve(&running).to_activity(0);
 
         assert_eq!(activity.state.as_deref(), Some("1.21.1 · fabric · +1"));
+    }
+
+    #[test]
+    fn modpack_with_icon_uses_its_name_and_art() {
+        let icon = "https://cdn.modrinth.com/data/project/icon.png";
+        let activity = PresenceState::resolve(&[modpack_instance(
+            "lobby",
+            "Fabulously Optimized",
+            Some(icon),
+        )])
+        .to_activity(0);
+
+        assert_eq!(
+            activity.details.as_deref(),
+            Some("Jugando a Fabulously Optimized")
+        );
+        assert_eq!(activity.state.as_deref(), Some("1.21.1 · fabric"));
+        let assets = activity.assets.unwrap();
+        assert_eq!(assets.large_image.as_deref(), Some(icon));
+        assert_eq!(assets.large_text.as_deref(), Some("Fabulously Optimized"));
+    }
+
+    #[test]
+    fn modpack_without_a_usable_url_falls_back_to_the_minecraft_art() {
+        for icon in [
+            None,
+            Some("http://insecure.example/icon.png"),
+            Some("local/path/icon.png"),
+        ] {
+            let activity = PresenceState::resolve(&[modpack_instance("lobby", "Cave pack", icon)])
+                .to_activity(0);
+            let assets = activity.assets.as_ref().unwrap();
+            assert_eq!(assets.large_image.as_deref(), Some("mc"));
+            assert_eq!(assets.large_text.as_deref(), Some("Minecraft"));
+            assert_eq!(activity.details.as_deref(), Some("Jugando a Cave pack"));
+        }
+    }
+
+    #[test]
+    fn plain_instance_keeps_the_instance_name_and_art() {
+        let activity = PresenceState::resolve(&[instance("a", 10)]).to_activity(0);
+        let assets = activity.assets.as_ref().unwrap();
+
+        assert_eq!(activity.details.as_deref(), Some("Jugando a a"));
+        assert_eq!(assets.large_image.as_deref(), Some("mc"));
+    }
+
+    #[test]
+    fn long_modpack_names_are_truncated() {
+        let pack = "p".repeat(200);
+        let activity = PresenceState::resolve(&[modpack_instance("a", &pack, None)]).to_activity(0);
+        let details = activity.details.unwrap();
+
+        assert_eq!(details.chars().count(), 128);
+        assert!(details.starts_with("Jugando a ppp"));
+    }
+
+    #[test]
+    fn overlong_icon_urls_are_rejected() {
+        let long = format!("https://example.com/{}", "a".repeat(300));
+        let activity =
+            PresenceState::resolve(&[modpack_instance("a", "Pack", Some(&long))]).to_activity(0);
+
+        assert_eq!(activity.assets.unwrap().large_image.as_deref(), Some("mc"));
     }
 
     #[test]

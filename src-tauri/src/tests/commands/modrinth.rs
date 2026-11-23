@@ -56,7 +56,7 @@ async fn installed_pack(root: &Path) -> std::path::PathBuf {
     cubrinth::mrpack::install_mrpack(&archive, &instance, &root.join("shared"), None)
         .await
         .unwrap();
-    crate::services::modpack::record_install(&instance, &archive, "local", None, None)
+    crate::services::modpack::record_install(&instance, &archive, "local", None, None, None)
         .await
         .unwrap();
     instance

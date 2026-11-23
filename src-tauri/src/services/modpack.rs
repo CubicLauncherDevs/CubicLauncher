@@ -29,6 +29,9 @@ pub struct PackState {
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
+    /// Provider artwork, kept only to show the pack in the Discord presence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon_url: Option<String>,
     pub version: String,
     pub game_version: String,
     pub locked: bool,
@@ -55,6 +58,8 @@ pub struct PackSummary {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon_url: Option<String>,
     pub version: String,
     pub game_version: String,
     pub locked: bool,
@@ -70,6 +75,7 @@ impl PackState {
             version_id: self.version_id.clone(),
             name: self.name.clone(),
             author: self.author.clone(),
+            icon_url: self.icon_url.clone(),
             version: self.version.clone(),
             game_version: self.game_version.clone(),
             locked: self.locked,
@@ -184,6 +190,7 @@ fn legacy(root: &Path) -> Result<Option<PackState>> {
             .into_owned(),
         version: String::new(),
         author: None,
+        icon_url: None,
         game_version: String::new(),
         locked: true,
         files: BTreeMap::new(),
@@ -357,6 +364,7 @@ fn archive_data(path: &Path) -> Result<ArchiveData> {
             version_id: None,
             name,
             author,
+            icon_url: None,
             version,
             game_version,
             locked: true,
@@ -461,6 +469,7 @@ pub async fn record_install(
     source: &str,
     project_id: Option<String>,
     version_id: Option<String>,
+    icon_url: Option<String>,
 ) -> Result<()> {
     let mut state = inspect_archive(archive).await?;
     if state.provenance.is_empty() {
@@ -470,6 +479,7 @@ pub async fn record_install(
     state.source = source.into();
     state.project_id = project_id;
     state.version_id = version_id;
+    state.icon_url = icon_url;
     let root = root.to_path_buf();
     tokio::task::spawn_blocking(move || {
         verify_files(&root, &mut state)?;
@@ -478,6 +488,43 @@ pub async fn record_install(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+/// Packs installed before the icon was recorded fall back to the provider API,
+/// with a short timeout so a slow or offline network never delays a launch.
+pub async fn resolve_icon_url(state: &PackState) -> Option<String> {
+    if state.icon_url.is_some() {
+        return state.icon_url.clone();
+    }
+    let project = state.project_id.as_deref()?;
+    let fetch = async {
+        match state.source.as_str() {
+            "modrinth" => {
+                let url = format!(
+                    "https://api.modrinth.com/v2/project/{}",
+                    urlencoding::encode(project)
+                );
+                crate::commands::market::get_json(&url)
+                    .await
+                    .ok()
+                    .and_then(|json| json["icon_url"].as_str().map(str::to_owned))
+            }
+            "curseforge" => {
+                let project_id = project.parse().ok()?;
+                super::curseforge_api::CurseForgeClient::from_settings_or_default()
+                    .get_project(project_id)
+                    .await
+                    .ok()
+                    .and_then(|project| project.logo)
+                    .map(|logo| logo.url)
+            }
+            _ => None,
+        }
+    };
+    tokio::time::timeout(std::time::Duration::from_secs(4), fetch)
+        .await
+        .ok()
+        .flatten()
 }
 
 /// The archive knows each file's provider before anything is listed, so the

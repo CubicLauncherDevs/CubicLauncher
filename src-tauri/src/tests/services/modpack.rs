@@ -34,6 +34,7 @@ fn state(entries: &[(&str, &[u8])]) -> PackState {
         version_id: None,
         name: "Inventory fixture".into(),
         author: None,
+        icon_url: None,
         version: "1.0".into(),
         game_version: "1.21.1".into(),
         locked: true,
@@ -206,6 +207,7 @@ async fn record_install_verifies_bytes_and_preserves_previous_state_on_failure()
         "modrinth",
         Some("project".into()),
         Some("release".into()),
+        Some("https://cdn.modrinth.com/data/project/icon.png".into()),
     )
     .await
     .unwrap();
@@ -214,6 +216,10 @@ async fn record_install_verifies_bytes_and_preserves_previous_state_on_failure()
     assert_eq!(installed.project_id.as_deref(), Some("project"));
     assert_eq!(installed.version_id.as_deref(), Some("release"));
     assert_eq!(
+        installed.icon_url.as_deref(),
+        Some("https://cdn.modrinth.com/data/project/icon.png")
+    );
+    assert_eq!(
         installed.files,
         BTreeMap::from([("config/a.json".into(), file(b"expected"))])
     );
@@ -221,7 +227,7 @@ async fn record_install_verifies_bytes_and_preserves_previous_state_on_failure()
     for bytes in [b"tampered".as_slice(), b"wrong length".as_slice()] {
         put(&root, "config/a.json", bytes);
         assert!(
-            record_install(&root, &archive, "local", None, None)
+            record_install(&root, &archive, "local", None, None, None)
                 .await
                 .is_err()
         );
@@ -230,11 +236,60 @@ async fn record_install_verifies_bytes_and_preserves_previous_state_on_failure()
     }
     fs::remove_file(root.join("config/a.json")).unwrap();
     assert!(
-        record_install(&root, &archive, "local", None, None)
+        record_install(&root, &archive, "local", None, None, None)
             .await
             .is_err()
     );
     assert_eq!(load(&root).unwrap(), Some(installed));
+}
+
+#[tokio::test]
+async fn icon_url_survives_a_reload_and_reaches_the_summary() {
+    let temp = fixture();
+    let root = temp.path().join("instance");
+    put(&root, "config/a.json", b"expected");
+    let archive = mrpack(
+        temp.path(),
+        json!([]),
+        &[("overrides/config/a.json", b"expected")],
+    );
+    let icon = "https://media.forgecdn.net/avatars/pack.png";
+    record_install(
+        &root,
+        &archive,
+        "curseforge",
+        Some("7".into()),
+        Some("9".into()),
+        Some(icon.into()),
+    )
+    .await
+    .unwrap();
+    let loaded = read_state(&root).await.unwrap().unwrap();
+    assert_eq!(loaded.icon_url.as_deref(), Some(icon));
+    assert_eq!(loaded.summary().icon_url.as_deref(), Some(icon));
+    let json: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join(STATE_FILE)).unwrap()).unwrap();
+    assert_eq!(json["icon_url"], icon);
+}
+
+#[tokio::test]
+async fn legacy_state_without_icon_url_still_loads() {
+    let temp = fixture();
+    let root = temp.path().join("instance");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join(STATE_FILE),
+        serde_json::to_vec(&json!({
+            "schema_version": 1, "source": "modrinth", "project_id": null,
+            "version_id": null, "name": "Old", "version": "1",
+            "game_version": "1.21.1", "locked": true, "files": {}
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let loaded = read_state(&root).await.unwrap().unwrap();
+    assert_eq!(loaded.icon_url, None);
+    assert_eq!(loaded.summary().icon_url, None);
 }
 
 #[tokio::test]
@@ -260,7 +315,7 @@ async fn record_inventory_persists_original_mod_ids_after_the_installed_jar_is_d
             ("overrides/config/settings", b"config"),
         ],
     );
-    record_install(&root, &archive, "local", None, None)
+    record_install(&root, &archive, "local", None, None, None)
         .await
         .unwrap();
     let expected = BTreeMap::from([(

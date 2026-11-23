@@ -244,6 +244,7 @@ fn own_mod_updates_never_replace_pack_files_even_when_unlocked() {
         version_id: None,
         name: "Pack".into(),
         author: None,
+        icon_url: None,
         version: "1".into(),
         game_version: "1.21.1".into(),
         locked: false,

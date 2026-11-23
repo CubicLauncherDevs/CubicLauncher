@@ -7,6 +7,7 @@ export interface PackSummary {
 	version_id: string | null;
 	name: string;
 	author?: string;
+	icon_url?: string | null;
 	version: string;
 	game_version: string;
 	locked: boolean;

@@ -48,7 +48,7 @@ async fn author_roundtrips_through_export_import_and_export_preview() {
     assert_eq!(index["formatVersion"], 1);
     let metadata = cubrinth::mrpack::parse_mrpack(&dest).unwrap();
     assert_eq!(metadata.author.as_deref(), Some("Lucía & Equipo Cubic"));
-    super::super::modpack::record_install(&input.root, &dest, "local", None, None)
+    super::super::modpack::record_install(&input.root, &dest, "local", None, None, None)
         .await
         .unwrap();
     assert_eq!(preview(&input).unwrap().author, "Lucía & Equipo Cubic");

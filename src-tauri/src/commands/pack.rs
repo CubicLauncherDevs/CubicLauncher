@@ -262,7 +262,7 @@ async fn install_mrpack_inner(
     }
 
     // Download icon from Modrinth if available and set as instance icon
-    let icon = if let Some(url) = icon_url {
+    let icon = if let Some(url) = icon_url.clone() {
         match reqwest::get(&url).await {
             Ok(response) => match response.bytes().await {
                 Ok(bytes) => {
@@ -303,6 +303,7 @@ async fn install_mrpack_inner(
         source,
         project_id,
         modrinth_version_id,
+        icon_url,
     )
     .await
     {
@@ -516,7 +517,7 @@ async fn install_curseforge_modpack_inner(
     }
 
     // Download icon if available and set as instance icon
-    let icon = if let Some(url) = icon_url {
+    let icon = if let Some(url) = icon_url.clone() {
         match reqwest::get(&url).await {
             Ok(response) => match response.bytes().await {
                 Ok(bytes) => {
@@ -559,6 +560,7 @@ async fn install_curseforge_modpack_inner(
         source,
         project_id.map(|id| id.to_string()),
         file_id.map(|id| id.to_string()),
+        icon_url,
     )
     .await
     {

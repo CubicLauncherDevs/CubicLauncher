@@ -35,6 +35,7 @@ async fn exported_minecraft_jar_and_modpack_round_trip_without_external_paths_or
         version_id: Some("pack-release".into()),
         name: "Original pack".into(),
         author: Some("Pack author".into()),
+        icon_url: None,
         version: "v1".into(),
         game_version: "1.12.2".into(),
         locked: false,

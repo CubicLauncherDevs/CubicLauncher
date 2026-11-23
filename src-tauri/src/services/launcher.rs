@@ -942,10 +942,22 @@ impl Launcher {
                 handle.set_status(InstanceStatus::Started);
 
                 let loader = handle.to_dto().await.loader;
+                let (modpack_name, modpack_icon) =
+                    match crate::services::modpack::read_state(&handle.get_instance_dir().await)
+                        .await
+                    {
+                        Ok(Some(pack)) => (
+                            Some(pack.name.clone()),
+                            crate::services::modpack::resolve_icon_url(&pack).await,
+                        ),
+                        _ => (None, None),
+                    };
                 discord_presence::on_instance_start(
                     instance_name.to_string(),
                     instance_version.to_string(),
                     loader.into_owned(),
+                    modpack_name,
+                    modpack_icon,
                 )
                 .await;
 

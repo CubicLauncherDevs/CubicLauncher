@@ -26,6 +26,7 @@ fn state(version: &str, entries: &[(&str, &[u8])]) -> PackState {
         version_id: None,
         name: "Update fixture".into(),
         author: None,
+        icon_url: None,
         version: version.into(),
         game_version: "1.21.1".into(),
         locked: true,

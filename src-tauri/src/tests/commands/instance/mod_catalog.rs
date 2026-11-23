@@ -143,7 +143,7 @@ async fn inventory_annotation_preserves_enriched_catalog_and_leaves_user_mods_un
     zip.write_all(&std::fs::read(mods_dir.join("mod-000.jar")).unwrap())
         .unwrap();
     zip.finish().unwrap();
-    crate::services::modpack::record_install(root.path(), &archive, "local", None, None)
+    crate::services::modpack::record_install(root.path(), &archive, "local", None, None, None)
         .await
         .unwrap();
 
