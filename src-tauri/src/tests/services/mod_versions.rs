@@ -287,6 +287,9 @@ fn required_and_selected_optional_dependencies_are_included_but_embedded_are_not
         download_url: None,
         kind,
         depth: 0,
+        unresolved_reason: None,
+        game_versions: vec![],
+        loaders: vec![],
         children: vec![],
     };
     let optional = node("optional", DependencyKind::Optional);

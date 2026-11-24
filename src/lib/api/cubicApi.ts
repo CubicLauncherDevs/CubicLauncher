@@ -38,6 +38,7 @@ import {
 import {
 	type DependencyRequest,
 	type DependencyResolutionResult,
+	type InstalledModRef,
 } from "../types/dependency";
 
 // ─────────────────────────────────────────────────────────────
@@ -1280,6 +1281,7 @@ export async function resolveModDependencies(
 	requests: DependencyRequest[],
 	loader: string,
 	gameVersion: string,
+	installed: InstalledModRef[] = [],
 ): Promise<DependencyResolutionResult> {
 	return (
 		(await invokeWithFallback<DependencyResolutionResult>(
@@ -1288,6 +1290,7 @@ export async function resolveModDependencies(
 				requests,
 				loader,
 				gameVersion,
+				installed,
 			},
 		)) ?? { tree: [], conflicts: [] }
 	);

@@ -48,11 +48,16 @@ import { InstState } from "#lib/types/types.js";
 import type {
 	DependencyRequest,
 	DependencyResolutionResult,
+	InstalledModRef,
 } from "#lib/types/dependency.js";
 import { showWarning } from "#lib/state/state.svelte.js";
 import { t } from "#lib/i18n/index.js";
 import { createLocalModIcons } from "#lib/state/localModIcons.js";
 import { requiredDownloadQueue } from "#lib/utils/marketQuickInstall.js";
+import {
+	detectInstallConflicts,
+	installedModRefs,
+} from "#lib/utils/marketConflicts.js";
 import {
 	canUpdateOwnMod,
 	latestModUpdate,
@@ -989,6 +994,7 @@ export function createMarketState(
 			[request],
 			filters.loader,
 			filters.gameVersion,
+			installedModRefs(mods),
 		);
 		if (disposed) throw new DOMException("Market closed", "AbortError");
 
@@ -1015,7 +1021,14 @@ export function createMarketState(
 			};
 			visit(result.tree);
 		}
-		return { ...result, installedProjectIds, installedMods: mods };
+		// Resolver conflicts know the dependency graph; the inventory adds
+		// disabled, outdated and incompatible mods the resolver cannot see.
+		return {
+			...result,
+			conflicts: detectInstallConflicts(result, mods),
+			installedProjectIds,
+			installedMods: mods,
+		};
 	}
 
 	async function projectVersions(
@@ -1403,6 +1416,7 @@ export function createMarketState(
 						[{ ...version, kind: "required" }],
 						loader,
 						gameVersion,
+						installedModRefs(fresh),
 					);
 					if (disposed || cancelUpdates) break;
 					const downloads = requiredUpdateVersions(

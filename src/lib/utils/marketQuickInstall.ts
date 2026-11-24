@@ -40,6 +40,8 @@ export function requiredDownloadQueue(
 					);
 				continue;
 			}
+			if (!node.version_id || !node.filename || !node.download_url)
+				throw new Error(t("market.quickInstall.noCompatibleVersion"));
 			required.add(key);
 			if (
 				key === identity(root.source, root.project_id) &&

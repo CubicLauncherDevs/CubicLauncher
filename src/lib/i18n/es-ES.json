@@ -1511,6 +1511,22 @@
 				"cancel": "Cancelar",
 				"install": "Instalar {count} archivos",
 				"installSingle": "Instalar 1 archivo",
+				"conflictsBlocked": "Conflictos que impiden instalar",
+				"requestedBy": "Pedida por {names}",
+				"conflictType": {
+					"version_mismatch": "versión distinta",
+					"incompatible": "incompatible",
+					"missing": "falta",
+					"disabled": "desactivada",
+					"unresolved": "sin versión compatible"
+				},
+				"conflictHint": {
+					"incompatible": "{name} está habilitado y es incompatible con este mod. Desactívalo para evitar que el juego falle.",
+					"missing": "Instala {name} antes de añadir este mod.",
+					"disabled": "{name} está desactivado. Actívalo antes de instalar.",
+					"version": "{name} ya está instalado con otra versión; se reemplazará por la requerida.",
+					"versionInstalled": "{name} está instalado en la versión {version} y este mod requiere otra; se reemplazará."
+				},
 				"dependencyKind": {
 					"required": "requerida",
 					"optional": "opcional",

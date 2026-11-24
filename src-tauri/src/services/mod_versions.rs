@@ -448,6 +448,7 @@ pub async fn replace(handle: &InstanceHandle, request: ReplaceRequest) -> Result
         }],
         game.loader.name().into(),
         game.mc_version.clone(),
+        Vec::new(),
     )
     .await?;
     if !result.conflicts.is_empty() {
