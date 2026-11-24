@@ -15,23 +15,46 @@
 		loadOptionsProfiles,
 	} from "#lib/state/optionsProfilesState.svelte.js";
 	import { showSuccess, showErrorParsed } from "#lib/state/state.svelte.js";
+	import OptionsVisualEditor from "./OptionsVisualEditor.svelte";
+	import SegmentedControl from "./SegmentedControl.svelte";
+	import {
+		OPTION_PRESETS,
+		OPTION_BY_KEY,
+		parseOptions,
+		presetContent,
+	} from "#lib/utils/minecraftOptions.js";
+
+	type EditorMode = "visual" | "advanced";
 
 	let editing = $state<{
 		id: string | null;
 		name: string;
 		content: string;
 	} | null>(null);
+	let editorMode = $state<EditorMode>("visual");
 	let busy = $state(false);
 
 	const profiles = $derived(optionsProfilesState.profiles);
 	const loading = $derived(optionsProfilesState.loading);
+	const editorModeOptions = $derived([
+		{ value: "visual", label: t("optionsProfiles.editor.visual") },
+		{ value: "advanced", label: t("optionsProfiles.editor.advanced") },
+	]);
+	const createPresets = $derived(
+		OPTION_PRESETS.filter((preset) => preset.id !== "vanilla"),
+	);
 
 	onMount(() => {
 		void loadOptionsProfiles();
 	});
 
-	function startCreate() {
-		editing = { id: null, name: "", content: "" };
+	function startCreate(presetId?: string) {
+		editing = {
+			id: null,
+			name: presetId ? t(`optionsProfiles.presets.${presetId}.name`) : "",
+			content: presetContent(presetId ?? "vanilla"),
+		};
+		editorMode = "visual";
 	}
 
 	function startEdit(profile: OptionsProfile) {
@@ -40,10 +63,23 @@
 			name: profile.name,
 			content: profile.content,
 		};
+		editorMode = "visual";
+	}
+
+	function profileOptionCount(content: string): number {
+		let count = 0;
+		for (const key of parseOptions(content).keys()) {
+			if (OPTION_BY_KEY.has(key)) count++;
+		}
+		return count;
 	}
 
 	function cancelEdit() {
 		editing = null;
+	}
+
+	function setEditorMode(value: string) {
+		editorMode = value === "advanced" ? "advanced" : "visual";
 	}
 
 	async function save() {
@@ -110,6 +146,26 @@
 		}
 	}
 
+	async function duplicate(profile: OptionsProfile) {
+		if (busy) return;
+		busy = true;
+		try {
+			await createOptionsProfile(
+				t("optionsProfiles.copyName", { name: profile.name }),
+				profile.content,
+			);
+			showSuccess(
+				t("optionsProfiles.title"),
+				t("optionsProfiles.created"),
+			);
+			await loadOptionsProfiles(true);
+		} catch (e) {
+			showErrorParsed(e);
+		} finally {
+			busy = false;
+		}
+	}
+
 	async function importFile() {
 		if (busy) return;
 		try {
@@ -143,7 +199,12 @@
 	<p class="hint">{t("optionsProfiles.description")}</p>
 
 	<div class="actions">
-		<button type="button" class="btn" disabled={busy} onclick={startCreate}>
+		<button
+			type="button"
+			class="btn primary"
+			disabled={busy}
+			onclick={() => startCreate()}
+		>
 			<Icon name="nav:create" size={16} />
 			{t("optionsProfiles.newProfile")}
 		</button>
@@ -157,6 +218,27 @@
 			{t("optionsProfiles.importFromFile")}
 		</button>
 	</div>
+
+	{#if !editing}
+		<div class="presets">
+			<span class="label">{t("optionsProfiles.presetsLabel")}</span>
+			<div class="preset-chips">
+				{#each createPresets as preset (preset.id)}
+					<button
+						type="button"
+						class="chip"
+						disabled={busy}
+						title={t(
+							`optionsProfiles.presets.${preset.id}.description`,
+						)}
+						onclick={() => startCreate(preset.id)}
+					>
+						{t(`optionsProfiles.presets.${preset.id}.name`)}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	{#if loading && profiles.length === 0}
 		<div class="profiles-skeleton sk-delayed" aria-hidden="true">
@@ -177,7 +259,11 @@
 						></span>
 						<span
 							class="sk-block"
-							style="width: 84px; height: 28px;"
+							style="width: 68px; height: 28px;"
+						></span>
+						<span
+							class="sk-block"
+							style="width: 64px; height: 28px;"
 						></span>
 					</div>
 				</div>
@@ -194,11 +280,25 @@
 				<li class="item">
 					<div class="item-info">
 						<span class="item-name">{profile.name}</span>
-						<span class="item-meta"
-							>{formatDate(profile.updated_at)}</span
-						>
+						<span class="item-meta">
+							{t("optionsProfiles.optionCount", {
+								count: profileOptionCount(profile.content),
+							})}
+							{#if profile.updated_at}
+								· {formatDate(profile.updated_at)}
+							{/if}
+						</span>
 					</div>
 					<div class="item-actions">
+						<button
+							type="button"
+							class="btn secondary"
+							disabled={busy}
+							title={t("optionsProfiles.duplicate")}
+							onclick={() => duplicate(profile)}
+						>
+							{t("optionsProfiles.duplicate")}
+						</button>
 						<button
 							type="button"
 							class="btn secondary"
@@ -236,21 +336,44 @@
 					placeholder={t("optionsProfiles.namePlaceholder")}
 				/>
 			</div>
-			<div class="field">
-				<label class="label" for="profile-content"
-					>{t("optionsProfiles.content")}</label
-				>
-				<textarea
-					id="profile-content"
-					class="textarea"
-					bind:value={editing.content}
-					placeholder={t("optionsProfiles.contentPlaceholder")}
-					spellcheck="false"></textarea>
+
+			<div class="editor-toolbar">
+				<span class="label">{t("optionsProfiles.editor.title")}</span>
+				<SegmentedControl
+					label={t("optionsProfiles.editor.title")}
+					value={editorMode}
+					options={editorModeOptions}
+					disabled={busy}
+					onchange={setEditorMode}
+				/>
 			</div>
+
+			{#if editorMode === "visual"}
+				<OptionsVisualEditor
+					bind:content={editing.content}
+					disabled={busy}
+				/>
+			{:else}
+				<div class="field">
+					<label class="label" for="profile-content"
+						>{t("optionsProfiles.content")}</label
+					>
+					<textarea
+						id="profile-content"
+						class="textarea"
+						bind:value={editing.content}
+						placeholder={t("optionsProfiles.contentPlaceholder")}
+						spellcheck="false"></textarea>
+					<span class="hint"
+						>{t("optionsProfiles.editor.advancedHint")}</span
+					>
+				</div>
+			{/if}
+
 			<div class="actions">
 				<button
 					type="button"
-					class="btn"
+					class="btn primary"
 					disabled={busy}
 					onclick={save}
 				>
@@ -288,6 +411,51 @@
 		flex-wrap: wrap;
 		gap: 8px;
 	}
+	.presets {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	.preset-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.chip {
+		padding: 6px 12px;
+		background: transparent;
+		border: 1px dashed var(--border);
+		border-radius: 999px;
+		color: var(--text-secondary);
+		font: inherit;
+		font-size: 0.75rem;
+		cursor: pointer;
+		transition:
+			color 0.15s,
+			border-color 0.15s;
+	}
+	.chip:hover:not(:disabled) {
+		color: var(--text-primary);
+		border-color: var(--accent);
+	}
+	.chip:disabled {
+		opacity: var(--disabled-opacity, 0.5);
+		cursor: not-allowed;
+	}
+	.chip:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+	.editor-toolbar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
+	.editor-toolbar > :global(.segmented-control) {
+		min-width: 200px;
+	}
 	.btn {
 		display: inline-flex;
 		align-items: center;
@@ -304,6 +472,14 @@
 	.btn:hover:not(:disabled) {
 		background: var(--surface-hover);
 		border-color: var(--accent);
+	}
+	.btn.primary {
+		border-color: rgba(var(--accent-rgb), 0.35);
+		color: var(--accent);
+	}
+	.btn.primary:hover:not(:disabled) {
+		border-color: var(--accent);
+		background: rgba(var(--accent-rgb), 0.08);
 	}
 	.btn.danger:hover:not(:disabled) {
 		border-color: var(--color-error);
@@ -381,6 +557,8 @@
 	}
 	.item-actions {
 		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
 		gap: 6px;
 		flex-shrink: 0;
 	}

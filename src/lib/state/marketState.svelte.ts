@@ -48,7 +48,6 @@ import { InstState } from "#lib/types/types.js";
 import type {
 	DependencyRequest,
 	DependencyResolutionResult,
-	InstalledModRef,
 } from "#lib/types/dependency.js";
 import { showWarning } from "#lib/state/state.svelte.js";
 import { t } from "#lib/i18n/index.js";
