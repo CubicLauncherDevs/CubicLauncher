@@ -69,6 +69,20 @@ const SEVERITY_RANK: Record<DiagnosticSeverity, number> = {
 	warning: 1,
 };
 
+/** Chequeos que describen un crash del último arranque. */
+export const CRASH_CHECK_IDS = [
+	"crash_recent",
+	"crash_repeated",
+	"crash_without_report",
+	"crash_launch_error",
+] as const;
+
+export function hasCrashCheck(checks: DiagnosticCheck[]): boolean {
+	return checks.some((check) =>
+		(CRASH_CHECK_IDS as readonly string[]).includes(check.id),
+	);
+}
+
 export function summarize(report: DiagnosticReport | null): {
 	errors: number;
 	warnings: number;

@@ -362,29 +362,81 @@ pub fn remove_log_ring(id: &str) {
     }
 }
 
+/// Un arranque que terminó en crash: cuándo (ms desde epoch) y con qué salida.
+#[derive(Clone, Copy, Debug)]
+pub struct CrashRun {
+    pub at: u64,
+    pub exit_code: Option<i32>,
+}
+
+const CRASH_HISTORY_MAX: usize = 8;
+
 struct CrashLogSnapshot {
     lines: Vec<LogLine>,
     created: std::time::Instant,
     /// El diagnóstico ignora crash reports anteriores a este instante.
     crashed_at: std::time::SystemTime,
+    /// Salida del proceso; el anillo y `latest.log` no la imprimen.
+    exit_code: Option<i32>,
 }
 
 /// Guarda un snapshot de los logs de una instancia antes de descartar el
 /// anillo, para que la ventana de logs del crash siga teniendo historial.
-pub async fn save_crash_log_snapshot(id: &str) {
+pub async fn save_crash_log_snapshot(id: &str, exit_code: Option<i32>) {
     let snapshot = CrashLogSnapshot {
         lines: get_log_ring(id).snapshot(None).await,
         created: std::time::Instant::now(),
         crashed_at: std::time::SystemTime::now(),
+        exit_code,
     };
     crash_log_snapshots().insert(Arc::from(id), snapshot);
     cleanup_crash_log_snapshots();
+    // Un crash que se repite al relanzar es la señal de un problema que sigue.
+    let mut history = crash_history().entry(Arc::from(id)).or_default();
+    let at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0);
+    history.push(CrashRun { at, exit_code });
+    let excess = history.len().saturating_sub(CRASH_HISTORY_MAX);
+    history.drain(..excess);
 }
 
 pub fn crash_log_snapshot_time(id: &str) -> Option<std::time::SystemTime> {
     crash_log_snapshots()
         .get(id)
         .map(|entry| entry.value().crashed_at)
+}
+
+/// Arranques que terminaron en crash, del más antiguo al más reciente.
+pub fn crash_run_history(id: &str) -> Vec<CrashRun> {
+    crash_history()
+        .get(id)
+        .map(|runs| runs.clone())
+        .unwrap_or_default()
+}
+
+/// Marca el mensaje con la hora del arranque: el diagnóstico solo lo cuenta
+/// como error actual, no como un estado de error de días atrás.
+fn launch_error(handle: &InstanceHandle, message: &str) -> String {
+    format!("[launch {}] {message}", handle.last_launch_ms_sync())
+}
+
+/// Olvida los crashes previos: llamar al arrancar una sesión nueva.
+pub fn clear_crash_runs(id: &str) {
+    crash_history().remove(id);
+}
+
+fn crash_history() -> &'static DashMap<Arc<str>, Vec<CrashRun>> {
+    static HISTORY: OnceLock<DashMap<Arc<str>, Vec<CrashRun>>> = OnceLock::new();
+    HISTORY.get_or_init(DashMap::new)
+}
+
+/// Salida del proceso del crash que dejó el snapshot actual.
+pub fn crash_log_snapshot_exit_code(id: &str) -> Option<i32> {
+    crash_log_snapshots()
+        .get(id)
+        .and_then(|entry| entry.value().exit_code)
 }
 
 pub async fn crash_log_snapshot_lines(id: &str) -> Option<Vec<LogLine>> {
@@ -650,8 +702,10 @@ impl Launcher {
         };
 
         if !java_path.exists() {
-            let reason = InstanceError::JreNotFound(java_version.to_string()).to_string();
-            handle.set_status(InstanceStatus::Error(reason));
+            handle.set_status(InstanceStatus::Error(launch_error(
+                &handle,
+                &InstanceError::JreNotFound(java_version.to_string()).to_string(),
+            )));
             Err(AppError::Instance(InstanceError::JreNotFound(
                 java_version.to_string(),
             )))?;
@@ -842,7 +896,7 @@ impl Launcher {
                         format!("Error preparando minecraft.jar: {message}"),
                     )
                     .await;
-                    handle.set_status(InstanceStatus::Error(message.clone()));
+                    handle.set_status(InstanceStatus::Error(launch_error(&handle, &message)));
                     return Err(AppError::Instance(InstanceError::MinecraftJar(message)));
                 }
             }
@@ -974,6 +1028,11 @@ impl Launcher {
                 }
 
                 let uuid = handle.uuid.clone();
+                // Desde aquí cuentan los crashes de esta sesión: uno anterior
+                // ya no explica la próxima muerte del proceso. También queda
+                // anotado el arranque por si muere antes de crear la sesión.
+                clear_crash_runs(&uuid);
+                handle.mark_launch().await;
                 let h = handle.clone();
                 let inst_name = instance_name.clone();
                 let app_for_show = app_handle.clone();
@@ -1027,7 +1086,7 @@ impl Launcher {
                         let code = result.unwrap_or(-1);
                         push_launcher_message(&uuid, format!("Crash detectado (código {})", code))
                             .await;
-                        save_crash_log_snapshot(&uuid).await;
+                        save_crash_log_snapshot(&uuid, result).await;
                         emit(AppEvent::InstanceCrashed {
                             id: uuid.to_compact_string(),
                             name: inst_name.to_compact_string(),
@@ -1061,7 +1120,7 @@ impl Launcher {
                 let msg = e.to_string();
                 error!("{}", msg);
                 push_launcher_message(&handle.uuid, format!("Error al iniciar: {}", msg)).await;
-                handle.set_status(InstanceStatus::Error(msg.clone()));
+                handle.set_status(InstanceStatus::Error(launch_error(&handle, &msg)));
                 return Err(AppError::CoreError(crate::core::CoreError::Other(msg)));
             }
         }

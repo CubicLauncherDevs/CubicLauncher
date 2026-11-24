@@ -62,6 +62,7 @@
 		!!analysis &&
 			(!!analysis.context.minecraftVersion ||
 				!!analysis.context.javaVersion ||
+				!!analysis.context.loader ||
 				exitCode !== null),
 	);
 
@@ -196,6 +197,12 @@
 						<span class="meta-item">
 							{t("diagnostics.crash.java")}
 							<strong>{analysis.context.javaVersion}</strong>
+						</span>
+					{/if}
+					{#if analysis.context.loader}
+						<span class="meta-item">
+							{t("diagnostics.crash.loader")}
+							<strong>{analysis.context.loader}</strong>
 						</span>
 					{/if}
 					{#if exitCode !== null}

@@ -17,6 +17,10 @@ pub(crate) struct InstanceData {
     /// Segundos acumulados de juego (estilo Prism). Se suma al cerrar cada sesión.
     #[serde(default)]
     pub playtime_seconds: u64,
+    /// ms desde epoch del último arranque lanzado. Separa un crash de este
+    /// arranque del que dejó la sesión anterior.
+    #[serde(default, alias = "lastLaunchMs")]
+    pub last_launch_ms: u64,
     pub min_memory: Option<u32>,
     pub max_memory: Option<u32>,
     pub cover_image: Option<PathBuf>,
@@ -64,6 +68,7 @@ impl InstanceData {
             version: version.into(),
             last_played: 0,
             playtime_seconds: 0,
+            last_launch_ms: 0,
             min_memory: None,
             max_memory: None,
             cover_image: None,

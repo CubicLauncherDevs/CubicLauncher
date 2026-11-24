@@ -14,6 +14,8 @@ pub(super) const MAX_LINES: usize = 20_000;
 const SANITIZE_MAX_LINES: usize = 5_000;
 /// Las entradas de cabecera (`Description:`, `Minecraft Version:`…) van arriba.
 const CONTEXT_MAX_LINES: usize = 500;
+/// `Description:` es la primera entrada: no hace falta buscar más abajo.
+const DESCRIPTION_MAX_LINES: usize = 100;
 const LOG_TAIL_BYTES: u64 = 512 * 1024;
 pub(super) const LOG_TAIL_LINES: usize = 1000;
 
@@ -208,7 +210,9 @@ fn sanitize_lines(lines: &[&str]) -> Vec<String> {
     sanitized
 }
 
-pub(super) fn extract_context(lines: &[&str]) -> CrashContext {
+/// `lines` son la cabecera ya saneada y `search` todo el texto saneado: el
+/// cargador se anuncia más abajo que los campos de cabecera.
+pub(super) fn extract_context(lines: &[&str], search: &[&str]) -> CrashContext {
     fn field(lines: &[&str], prefix: &str) -> Option<String> {
         lines.iter().find_map(|line| {
             let rest = line.trim().strip_prefix(prefix)?;
@@ -216,27 +220,22 @@ pub(super) fn extract_context(lines: &[&str]) -> CrashContext {
             (!value.is_empty()).then(|| truncate_chars(value, 120))
         })
     }
-    let description = lines.iter().find_map(|line| {
+    // `Description:` va arriba: buscarlo solo en la cabecera evita que un mod
+    // imprima el suyo al final y se muestre como causa del crash.
+    let head = &lines[..lines.len().min(DESCRIPTION_MAX_LINES)];
+    let description = head.iter().find_map(|line| {
         let rest = line.trim().strip_prefix("Description:")?;
         let value = rest.trim();
         (!value.is_empty()).then(|| truncate_chars(value, rules::EVIDENCE_MAX_CHARS))
     });
-    let loader = ["--fml.forgeVersion", "Forge Mod Loader version"]
-        .iter()
-        .find(|needle| lines.iter().any(|line| line.contains(**needle)))
-        .map(|_| "Forge".to_string())
-        .or_else(|| {
-            lines
-                .iter()
-                .any(|line| line.contains("Fabric Loader"))
-                .then(|| "Fabric".to_string())
-        })
-        .or_else(|| {
-            lines
-                .iter()
-                .any(|line| line.contains("neoforge"))
-                .then(|| "NeoForge".to_string())
-        });
+    let lowered: Vec<String> = search.iter().map(|line| line.to_lowercase()).collect();
+    let loader = match rules::Loader::detect(&lowered) {
+        rules::Loader::Forge => Some("Forge"),
+        rules::Loader::Fabric => Some("Fabric"),
+        rules::Loader::NeoForge => Some("NeoForge"),
+        rules::Loader::Vanilla | rules::Loader::Unknown => None,
+    }
+    .map(str::to_string);
 
     CrashContext {
         description,
@@ -247,30 +246,40 @@ pub(super) fn extract_context(lines: &[&str]) -> CrashContext {
     }
 }
 
+/// `exit_code` es la salida observada por el launcher; solo se usa si el texto
+/// no la trae (`Exit Code:` de un crash report).
 pub(super) fn analysis_from_text(
     text: &str,
     extra_truncated: bool,
     source: CrashSource,
     report_name: Option<String>,
+    exit_code: Option<i32>,
 ) -> CrashAnalysis {
     let all: Vec<&str> = text.lines().collect();
     let truncated = all.len() > MAX_LINES;
     let lines = &all[..all.len().min(MAX_LINES)];
-    let (context, mut findings) = if lines.len() <= SANITIZE_MAX_LINES {
+    let (mut context, mut findings) = if lines.len() <= SANITIZE_MAX_LINES {
         // Ruta normal: se sanea una vez y el contexto y las reglas reutilizan
         // las mismas líneas.
         let sanitized = sanitize_lines(lines);
         let refs: Vec<&str> = sanitized.iter().map(String::as_str).collect();
-        (extract_context(&refs), rules::analyze_lines(&refs))
+        (extract_context(&refs, &refs), rules::analyze_lines(&refs))
     } else {
         // Reporte enorme: el contexto sale de la cabecera y las reglas sanean
         // solo la evidencia que devuelven.
         (
-            extract_context(&lines[..lines.len().min(CONTEXT_MAX_LINES)]),
+            extract_context(&lines[..lines.len().min(CONTEXT_MAX_LINES)], lines),
             rules::analyze_lines_sanitized(lines),
         )
     };
-    if findings.is_empty() {
+    // El snapshot del anillo y `latest.log` no imprimen la salida del proceso;
+    // la reporta el launcher al detectar el crash.
+    if context.exit_code.is_none() {
+        context.exit_code = exit_code;
+    }
+    // Un texto vacío no es un crash: el diagnóstico comprueba la salud aunque
+    // no haya nada que analizar.
+    if findings.is_empty() && all.iter().any(|line| !line.trim().is_empty()) {
         findings = rules::unknown_finding(context.description.as_deref())
             .into_iter()
             .collect();
@@ -295,11 +304,29 @@ pub fn analyze_report(instance_dir: &Path, name: &str) -> Result<CrashAnalysis, 
         truncated,
         CrashSource::CrashReport,
         Some(name.to_string()),
+        None,
     ))
 }
 
 /// Prioridad: crash report reciente > snapshot del anillo > `latest.log`.
 pub async fn analyze_instance(instance_id: &str, instance_dir: &Path) -> CrashAnalysis {
+    match analyze_recent_crash(instance_id, instance_dir, false).await {
+        Some(analysis) => analysis,
+        None => analysis_from_text("", false, CrashSource::LatestLog, None, None),
+    }
+}
+
+/// Prioridad: crash report reciente > snapshot del anillo > `latest.log`.
+///
+/// En el último recurso, `newest_first` prefiere `debug.log`: el diagnóstico
+/// necesita el final del log más reciente para comprobar la salud, mientras
+/// que un crash sin reporte ya dejó su contenido en el snapshot (y la ventana
+/// de logs sigue prefiriendo `latest.log`, el mismo que muestra).
+pub(super) async fn analyze_recent_crash(
+    instance_id: &str,
+    instance_dir: &Path,
+    newest_first: bool,
+) -> Option<CrashAnalysis> {
     let crashed_at = crate::services::launcher::crash_log_snapshot_time(instance_id);
     let dir = instance_dir.to_path_buf();
     let report = tokio::task::spawn_blocking(move || {
@@ -314,33 +341,55 @@ pub async fn analyze_instance(instance_id: &str, instance_dir: &Path) -> CrashAn
             truncated,
             CrashSource::CrashReport,
             name,
+            None,
         ))
     })
     .await
     .ok()
     .flatten();
     if let Some(analysis) = report {
-        return analysis;
+        return Some(analysis);
     }
 
+    let exit_code = crate::services::launcher::crash_log_snapshot_exit_code(instance_id);
     if let Some(snapshot) = crate::services::launcher::crash_log_snapshot_text(instance_id).await {
-        return analysis_from_text(&snapshot, false, CrashSource::Ring, None);
+        return Some(analysis_from_text(
+            &snapshot,
+            false,
+            CrashSource::Ring,
+            None,
+            exit_code,
+        ));
     }
     let dir = instance_dir.to_path_buf();
     tokio::task::spawn_blocking(move || {
-        let base = logs_dir(&dir);
-        for name in ["latest.log", "debug.log"] {
-            let Some(path) = safe_file(&base, name) else {
+        // Minecraft rota `latest.log` en cada arranque: `debug.log` se llena
+        // después y, en un crash sin reporte, es donde queda la salida real.
+        let names = if newest_first {
+            ["debug.log", "latest.log"]
+        } else {
+            ["latest.log", "debug.log"]
+        };
+        for name in names {
+            let Some(path) = safe_file(&logs_dir(&dir), name) else {
                 continue;
             };
-            if let Ok((text, truncated)) = read_tail(&path, LOG_TAIL_BYTES) {
-                return analysis_from_text(&text, truncated, CrashSource::LatestLog, None);
-            }
+            let Ok((text, truncated)) = read_tail(&path, LOG_TAIL_BYTES) else {
+                continue;
+            };
+            return Some(analysis_from_text(
+                &text,
+                truncated,
+                CrashSource::LatestLog,
+                None,
+                exit_code,
+            ));
         }
-        analysis_from_text("", false, CrashSource::LatestLog, None)
+        None
     })
     .await
-    .unwrap_or_else(|_| analysis_from_text("", false, CrashSource::LatestLog, None))
+    .ok()
+    .flatten()
 }
 
 /// Cola saneada de `logs/latest.log`.

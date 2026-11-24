@@ -1,6 +1,8 @@
 //! Comprobaciones locales del estado de una instancia. Ninguna escribe nada.
 
-use super::{DiagnosticAction, DiagnosticCheck, DiagnosticReport, DiagnosticSeverity};
+use super::rules::CrashSeverity;
+use super::{DiagnosticAction, DiagnosticCheck, DiagnosticReport, DiagnosticSeverity, last_crash};
+use crate::services::instance_manager::InstanceStatus;
 use crate::services::java_resolution;
 use crate::services::{InstanceHandle, SettingsManager};
 use std::path::{Path, PathBuf};
@@ -14,35 +16,59 @@ pub struct InstanceContext {
     pub max_memory: u32,
     pub java_override: Option<u8>,
     pub shared_dir: PathBuf,
+    /// ms desde epoch del último arranque lanzado (0 si nunca).
+    pub launch_ms: u64,
 }
 
 impl InstanceContext {
     pub async fn for_handle(handle: &InstanceHandle) -> Self {
         let snapshot = handle.diagnostics_snapshot().await;
-        let settings = (snapshot.min_memory.is_none() || snapshot.max_memory.is_none())
-            .then(SettingsManager::read);
+        // El guard de settings no es `Send`: se copian los valores antes del
+        // `await` siguiente en vez de arrastrarlo por la función.
+        let (default_min, default_max) =
+            if snapshot.min_memory.is_none() || snapshot.max_memory.is_none() {
+                let settings = SettingsManager::read();
+                (settings.get_min_memory(), settings.get_max_memory())
+            } else {
+                (0, 0)
+            };
         Self {
             version: snapshot.version.to_string(),
             instance_dir: snapshot.instance_dir,
-            min_memory: snapshot
-                .min_memory
-                .unwrap_or_else(|| settings.as_ref().map_or(0, |s| s.get_min_memory())),
-            max_memory: snapshot
-                .max_memory
-                .unwrap_or_else(|| settings.as_ref().map_or(0, |s| s.get_max_memory())),
+            min_memory: snapshot.min_memory.unwrap_or(default_min),
+            max_memory: snapshot.max_memory.unwrap_or(default_max),
             java_override: snapshot
                 .overrides
                 .as_ref()
                 .and_then(|overrides| overrides.java_version),
             shared_dir: crate::core::PathManager::get().get_shared_dir(),
+            launch_ms: handle.last_launch_ms().await,
         }
     }
 }
 
 /// Debe llamarse dentro de `spawn_blocking`.
-pub fn run(handle: &InstanceHandle, context: InstanceContext) -> DiagnosticReport {
+///
+/// `crash` sale de [`super::last_crash::collect`]: lo último que vio el
+/// launcher al morir el proceso, que ningún chequeo de archivos ve.
+pub fn run(
+    handle: &InstanceHandle,
+    context: InstanceContext,
+    crash: Option<last_crash::CrashFacts>,
+) -> DiagnosticReport {
     let mut checks = Vec::new();
 
+    match (crash, handle.get_status()) {
+        (Some(crash), _) => checks.push(check_last_crash(&crash)),
+        // El arranque falló antes de correr el juego: el error lo dejó el
+        // launcher, no un crash report. Un error viejo no cuenta.
+        (None, InstanceStatus::Error(reason)) if recent_launch_error(&context, &reason) => checks
+            .push(
+                DiagnosticCheck::new("crash_launch_error", DiagnosticSeverity::Error)
+                    .detail(reason),
+            ),
+        _ => {}
+    }
     checks.extend(check_version_and_java(&context));
     check_memory(&context, &mut checks);
 
@@ -69,6 +95,71 @@ pub fn run(handle: &InstanceHandle, context: InstanceContext) -> DiagnosticRepor
 #[cfg(test)]
 pub(super) fn check_memory_for_tests(context: &InstanceContext, checks: &mut Vec<DiagnosticCheck>) {
     check_memory(context, checks)
+}
+
+#[cfg(test)]
+pub(super) fn recent_launch_error_for_tests(context: &InstanceContext, reason: &str) -> bool {
+    recent_launch_error(context, reason)
+}
+
+/// `Estado: Error` puede venir de un arranque de hace días. Solo cuenta si el
+/// mensaje lleva la marca de hora del último intento.
+fn recent_launch_error(context: &InstanceContext, reason: &str) -> bool {
+    const WINDOW: std::time::Duration = std::time::Duration::from_secs(60 * 60);
+    const PREFIX: &str = "[launch ";
+    let Some(rest) = reason.strip_prefix(PREFIX) else {
+        return false;
+    };
+    let Some((stamp, _)) = rest.split_once(']') else {
+        return false;
+    };
+    let Ok(at) = stamp.parse::<u64>() else {
+        return false;
+    };
+    at >= context.launch_ms && super::now_millis().saturating_sub(at) <= WINDOW.as_millis() as u64
+}
+
+fn check_last_crash(crash: &last_crash::CrashFacts) -> DiagnosticCheck {
+    let cause = crash
+        .findings
+        .iter()
+        .find(|finding| finding.code != "unknown")
+        .or_else(|| crash.findings.first());
+    let id = match cause {
+        Some(_) if crash.repeated => "crash_repeated",
+        Some(_) => "crash_recent",
+        None => "crash_without_report",
+    };
+    let severity = cause
+        .map(|finding| match finding.severity {
+            CrashSeverity::Error => DiagnosticSeverity::Error,
+            CrashSeverity::Warning | CrashSeverity::Info => DiagnosticSeverity::Warning,
+        })
+        .unwrap_or(DiagnosticSeverity::Warning);
+    let mut check = DiagnosticCheck::new(id, severity)
+        .param("runs", crash.runs.to_string())
+        .param("count", crash.findings.len().to_string());
+    if let Some(code) = cause {
+        check = check.param("cause", code.code.clone());
+    }
+    if let Some(exit) = crash.exit_code {
+        check = check.param("exitCode", exit.to_string());
+    }
+    if let Some(first) = crash.first_at {
+        check = check.param("first", first.to_string());
+    }
+    if let Some(last) = crash.last_at {
+        check = check.param("last", last.to_string());
+    }
+    for finding in &crash.findings {
+        if let Some(evidence) = last_crash::evidence_summary(finding) {
+            check = check.detail(evidence);
+        }
+    }
+    if let Some(action) = cause.and_then(|finding| finding.action.clone()) {
+        check = check.action(action);
+    }
+    check
 }
 
 fn check_version_and_java(context: &InstanceContext) -> Vec<DiagnosticCheck> {

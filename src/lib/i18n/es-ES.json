@@ -1511,22 +1511,6 @@
 				"cancel": "Cancelar",
 				"install": "Instalar {count} archivos",
 				"installSingle": "Instalar 1 archivo",
-				"conflictsBlocked": "Conflictos que impiden instalar",
-				"requestedBy": "Pedida por {names}",
-				"conflictType": {
-					"version_mismatch": "versión distinta",
-					"incompatible": "incompatible",
-					"missing": "falta",
-					"disabled": "desactivada",
-					"unresolved": "sin versión compatible"
-				},
-				"conflictHint": {
-					"incompatible": "{name} está habilitado y es incompatible con este mod. Desactívalo para evitar que el juego falle.",
-					"missing": "Instala {name} antes de añadir este mod.",
-					"disabled": "{name} está desactivado. Actívalo antes de instalar.",
-					"version": "{name} ya está instalado con otra versión; se reemplazará por la requerida.",
-					"versionInstalled": "{name} está instalado en la versión {version} y este mod requiere otra; se reemplazará."
-				},
 				"dependencyKind": {
 					"required": "requerida",
 					"optional": "opcional",
@@ -1551,7 +1535,11 @@
 			"mods_duplicate_sha1": "{count} mods están duplicados por contenido",
 			"memory_low": "Los límites de memoria son inusuales (mín. {min} MB / máx. {max} MB)",
 			"instance_busy": "La instancia está ocupada, se omitieron las comprobaciones de archivos",
-			"recovery_pending": "Hay una actualización de modpack pendiente de recuperar"
+			"recovery_pending": "Hay una actualización de modpack pendiente de recuperar",
+			"crash_recent": "La instancia se cerró por un crash ({cause})",
+			"crash_repeated": "La instancia lleva {runs} arranques seguidos terminando en crash ({cause})",
+			"crash_without_report": "La instancia se cerró por un crash sin crash report",
+			"crash_launch_error": "Este crash lo provocó el launcher, no el juego"
 		},
 		"actions": {
 			"reinstallVersion": "Reinstalar versión",
@@ -1576,6 +1564,7 @@
 			"description": "Descripción",
 			"minecraft": "Minecraft",
 			"java": "Java",
+			"loader": "Cargador",
 			"exitCode": "Código de salida",
 			"noKnownCause": "No se detectó una causa conocida. El log completo sigue arriba.",
 			"copy": "Copiar diagnóstico",
@@ -1602,8 +1591,18 @@
 				"network_download": "Falló una descarga de red",
 				"world_corrupt": "Un archivo de mundo parece estar corrupto",
 				"auth_session": "No se pudo verificar la sesión",
-				"unknown": "Crash no reconocido: {description}"
+				"unknown": "Crash no reconocido: {description}",
+				"java_heap_too_big": "La RAM asignada a Java es demasiado alta para este equipo",
+				"mods_outdated": "Un mod no está actualizado para esta versión del juego",
+				"mods_registry": "Un mod, datapack o receta falló al registrarse al cargar el mundo",
+				"graphics_shader_pack": "Un pack de shaders no pudo compilarse",
+				"content_pack_invalid": "Un pack de recursos o datapack está dañado (aviso, no la causa)",
+				"auth_skin": "No se pudo cargar tu perfil o tu skin (la sesión sigue activa)",
+				"mods_sodium_graphics": "Un mod gráfico (Sodium, Iris, OptiFine…) falló"
 			}
+		},
+		"subview": {
+			"crashOriginLauncher": "El último arranque ni llegó a abrir el juego; el problema está en los archivos de la instancia (mira los avisos de arriba)."
 		}
 	}
 }

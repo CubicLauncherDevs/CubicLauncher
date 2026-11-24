@@ -505,6 +505,33 @@ impl InstanceHandle {
         self.data.read().await.playtime_seconds
     }
 
+    /// Instante (ms desde epoch) del último inicio de sesión que no arrancó
+    /// el juego. Es la referencia para no culpar a este arranque de un crash
+    /// anterior de la instancia.
+    pub async fn last_launch_ms(&self) -> u64 {
+        self.data.read().await.last_launch_ms
+    }
+
+    /// Igual que [`Self::last_launch_ms`] desde tareas síncronas.
+    pub fn last_launch_ms_sync(&self) -> u64 {
+        self.data
+            .try_read()
+            .map(|data| data.last_launch_ms)
+            .unwrap_or(0)
+    }
+
+    /// Registra el arranque actual antes de saber si Java llega a cargar el
+    /// juego. Sin esto, un crash en el arranque se confundiría con uno de la
+    /// sesión anterior.
+    pub async fn mark_launch(&self) {
+        let mut data = self.data.write().await;
+        data.last_launch_ms = super::super::diagnostics::now_millis();
+        data.dirty = true;
+        if let Err(e) = data.save().await {
+            warn!("No se pudo guardar el arranque de la instancia: {e}");
+        }
+    }
+
     /// Marca el inicio de una sesión de juego (solo en memoria).
     pub fn begin_play_session(&self) {
         let mut slot = self

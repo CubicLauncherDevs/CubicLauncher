@@ -3,6 +3,7 @@
 
 pub(crate) mod crash;
 pub(crate) mod health;
+pub(crate) mod last_crash;
 pub(crate) mod rules;
 
 use serde::Serialize;
