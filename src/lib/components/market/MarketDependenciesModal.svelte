@@ -7,6 +7,12 @@
 		DependencyConflict,
 		ResolvedDependency,
 	} from "#lib/types/dependency.js";
+	import {
+		hasFatalConflict,
+		toInstallConflicts,
+		type DetectedConflictType,
+		type InstallConflict,
+	} from "#lib/utils/marketConflicts.js";
 	import { SvelteSet } from "svelte/reactivity";
 
 	let {
@@ -37,6 +43,52 @@
 		onclose?: () => void;
 	} = $props();
 
+	function conflictLabel(conflict: InstallConflict): string {
+		const key = `market.detail.dependencies.conflictType.${conflict.type}`;
+		const value = t(key as never);
+		return value === key ? conflict.type : value;
+	}
+
+	function conflictHint(conflict: InstallConflict): string {
+		if (conflict.reason && conflict.type === "unresolved")
+			return conflict.reason;
+		const name = conflict.title;
+		switch (conflict.type) {
+			case "incompatible":
+				return t(
+					"market.detail.dependencies.conflictHint.incompatible",
+					{ name },
+				);
+			case "missing":
+				return t("market.detail.dependencies.conflictHint.missing", {
+					name,
+				});
+			case "disabled":
+				return t("market.detail.dependencies.conflictHint.disabled", {
+					name,
+				});
+			case "version_mismatch":
+				return conflict.installed_version
+					? t(
+							"market.detail.dependencies.conflictHint.versionInstalled",
+							{ name, version: conflict.installed_version },
+						)
+					: t("market.detail.dependencies.conflictHint.version", {
+							name,
+						});
+			default:
+				return "";
+		}
+	}
+
+	function conflictParents(conflict: InstallConflict): string {
+		return t("market.detail.dependencies.requestedBy", {
+			names: conflict.requested_by
+				.map((origin) => origin.project_id)
+				.join(", "),
+		});
+	}
+
 	let selectedOptionalIds = new SvelteSet<string>();
 	let queue = $state<ModDownloadInfo[]>([]);
 
@@ -53,6 +105,28 @@
 		void tree;
 		queue = computeQueue(tree);
 	});
+
+	const installConflicts = $derived(
+		toInstallConflicts(
+			conflicts.map((conflict) => ({
+				key: `${conflict.source}:${conflict.project_id}`,
+				type: (conflict.type ??
+					(conflict.kind === "unresolved"
+						? "unresolved"
+						: "version_mismatch")) as DetectedConflictType,
+				fatal: conflict.fatal ?? conflict.kind !== "unresolved",
+				projectId: conflict.project_id,
+				source: conflict.source,
+				title: conflict.title || conflict.project_id,
+				iconUrl: conflict.icon_url ?? null,
+				requestedBy: conflict.requested_by ?? [],
+				installedVersion: conflict.installed_version ?? null,
+				installedFilename: conflict.installed_filename ?? null,
+				reason: conflict.reason ?? null,
+			})),
+		),
+	);
+	const fatalConflict = $derived(hasFatalConflict(installConflicts));
 
 	function isInstalled(dep: ResolvedDependency): boolean {
 		return installedProjectIds.has(dep.project_id);
@@ -176,17 +250,30 @@
 				})}
 			</div>
 		{:else}
-			{#if conflicts.length > 0}
-				<div class="market-conflicts-box">
+			{#if installConflicts.length > 0}
+				<div class="market-conflicts-box" class:fatal={fatalConflict}>
 					<strong>
-						{t("market.detail.dependencies.conflictsTitle")}
+						{fatalConflict
+							? t("market.detail.dependencies.conflictsBlocked")
+							: t("market.detail.dependencies.conflictsTitle")}
 					</strong>
 					<ul>
-						{#each conflicts as conflict (conflict.project_id)}
+						{#each installConflicts as conflict (conflict.project_id + conflict.source)}
 							<li>
-								{conflict.project_id}: {conflict.requested_versions
-									.map((v) => v.version_id)
-									.join(", ")}
+								<span class="market-conflict-kind">
+									{conflictLabel(conflict)}
+								</span>
+								<span class="market-conflict-title">
+									{conflict.title}
+								</span>
+								<span class="market-conflict-hint">
+									{conflictHint(conflict)}
+								</span>
+								{#if conflict.requested_by.length > 0}
+									<span class="market-conflict-parents">
+										{conflictParents(conflict)}
+									</span>
+								{/if}
 							</li>
 						{/each}
 					</ul>
@@ -214,7 +301,10 @@
 			<button
 				type="button"
 				class="market-detail-btn primary"
-				disabled={resolving || downloading || queueCount === 0}
+				disabled={resolving ||
+					downloading ||
+					queueCount === 0 ||
+					fatalConflict}
 				onclick={handleConfirm}
 			>
 				{installButtonLabel(queueCount)}
@@ -244,7 +334,11 @@
 			</div>
 			<div class="market-dep-info">
 				<span class="market-dep-title">{dep.title}</span>
-				{#if dep.filename}
+				{#if dep.unresolved_reason}
+					<span class="market-dep-filename error">
+						{dep.unresolved_reason}
+					</span>
+				{:else if dep.filename}
 					<span class="market-dep-filename">{dep.filename}</span>
 				{/if}
 			</div>
@@ -303,14 +397,23 @@
 	}
 
 	.market-conflicts-box {
-		background: color-mix(in srgb, var(--color-error) 8%, transparent);
+		background: color-mix(in srgb, var(--color-warning) 8%, transparent);
 		border: var(--border-width) solid
-			color-mix(in srgb, var(--color-error) 25%, transparent);
+			color-mix(in srgb, var(--color-warning) 25%, transparent);
 		border-radius: var(--border-radius-sm);
 		padding: 12px 14px;
 		margin-bottom: 16px;
-		color: var(--color-error);
+		color: var(--text-primary);
 		font-size: 0.78rem;
+
+		&.fatal {
+			background: color-mix(in srgb, var(--color-error) 8%, transparent);
+			border-color: color-mix(
+				in srgb,
+				var(--color-error) 25%,
+				transparent
+			);
+		}
 
 		strong {
 			display: block;
@@ -318,16 +421,56 @@
 			text-transform: uppercase;
 			letter-spacing: 0.5px;
 			font-size: 0.65rem;
+			color: var(--color-warning);
+		}
+
+		&.fatal strong {
+			color: var(--color-error);
 		}
 
 		ul {
 			margin: 0;
-			padding-left: 16px;
+			padding-left: 0;
+			list-style: none;
 		}
 
 		li {
-			margin-bottom: 2px;
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+			padding: 6px 0;
+			border-top: 1px solid
+				color-mix(in srgb, var(--border) 60%, transparent);
+
+			&:first-child {
+				border-top: none;
+			}
 		}
+	}
+
+	.market-conflict-kind {
+		font-size: 0.58rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.4px;
+		color: var(--color-warning);
+	}
+
+	.market-conflicts-box.fatal .market-conflict-kind {
+		color: var(--color-error);
+	}
+
+	.market-conflict-title {
+		font-weight: 600;
+	}
+
+	.market-conflict-hint,
+	.market-conflict-parents {
+		color: var(--text-secondary);
+	}
+
+	.market-dep-filename.error {
+		color: var(--color-error);
 	}
 
 	@include deps-tree("market");

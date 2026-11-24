@@ -53,6 +53,14 @@ fn each_rule_detects_its_signal() {
             "java.lang.NoSuchMethodError: 'void net.minecraft.Foo.bar()'",
         ),
         (
+            "mods_outdated",
+            "[main/WARN]: Mixin apply failed mixin.foo.json:bar -> baz: NoSuchMethodError",
+        ),
+        (
+            "mods_registry",
+            "Failed to create registry entry minecraft:foo (item)",
+        ),
+        (
             "graphics_opengl",
             "[LWJGL] GLFW error 65542: WGL: The driver does not appear to support OpenGL",
         ),
@@ -65,6 +73,23 @@ fn each_rule_detects_its_signal() {
             "Chunk file at chunk file provided is corrupted (libdeflate)",
         ),
         ("auth_session", "Failed to verify username! Invalid session"),
+        ("auth_skin", "[Render thread/WARN]: Failed to get profile"),
+        (
+            "graphics_shader_pack",
+            "[Render thread/ERROR]: Failed to compile shader: shaders/water.vsh",
+        ),
+        (
+            "java_heap_too_big",
+            "Error occurred during initialization of VM\nCould not reserve enough space for 8388608KB object heap",
+        ),
+        (
+            "mods_sodium_graphics",
+            "Exception in thread \"Render thread\" java.lang.NoSuchMethodError: me.jellysquid.mods.sodium.Thing()",
+        ),
+        (
+            "content_pack_invalid",
+            "WARN Couldn't read pack at resourcepacks/broken.zip",
+        ),
         (
             "java_missing_native_lib",
             "Exception in thread \"main\" java.lang.UnsatisfiedLinkError: /home/user/.cubic/shared/runtimes/jre8/lib/amd64/libawt_xawt.so: libXtst.so.6: no se puede abrir el fichero del objeto compartido: No existe el fichero o el directorio",
@@ -72,7 +97,9 @@ fn each_rule_detects_its_signal() {
     ];
 
     for (code, line) in cases {
-        let findings = rules::analyze_lines(&[line]);
+        // Un caso puede necesitar varias líneas para que la causa sea real.
+        let lines: Vec<&str> = line.lines().collect();
+        let findings = rules::analyze_lines(&lines);
         assert!(
             findings.iter().any(|finding| finding.code == *code),
             "la regla {code} no detectó: {line}"
@@ -103,6 +130,128 @@ fn normal_logs_produce_no_findings() {
         "[12:00:03] [Render thread/INFO]: Stopping!",
     ];
     assert!(rules::analyze_lines(&lines).is_empty());
+}
+
+fn detected_codes(lines: &[&str]) -> Vec<String> {
+    rules::analyze_lines(lines)
+        .into_iter()
+        .map(|finding| finding.code)
+        .collect()
+}
+
+#[test]
+fn a_vanilla_world_does_not_crash_because_a_resource_pack_is_broken() {
+    // El crash es de otro archivo: el pack roto solo genera un aviso.
+    let lines = [
+        "---- Minecraft Crash Report ----",
+        "// I let you down. Sorry :(",
+        "Description: Rendering overlay",
+        "java.lang.NullPointerException: Cannot invoke \"Object.hashCode()\"",
+        "[Render thread/WARN]: Couldn't read resourcepacks/broken.zip: not a valid pack",
+        "Chunk file at minecraft:overworld is corrupt",
+    ];
+    let codes = detected_codes(&lines);
+    assert!(codes.contains(&"content_pack_invalid".to_string()));
+    assert!(
+        !codes.contains(&"world_corrupt".to_string()),
+        "la lectura del pack no corrompe el mundo: {codes:?}"
+    );
+}
+
+#[test]
+fn forge_error_handler_noise_is_not_read_as_mod_incompatibility() {
+    let lines = [
+        "[main/ERROR] [ModernFix/]: Detected possible mod incompatibility",
+        "java.lang.NoSuchMethodError: net.minecraft.client.Foo.bar()",
+    ];
+    let codes = detected_codes(&lines);
+    assert!(
+        codes.contains(&"mods_incompatible".to_string()),
+        "{codes:?}"
+    );
+
+    // Un fix de mods de Forge imprime la misma pila con su `[ErrorHandler]`.
+    let lines_with_fix = [
+        "Mixin apply failed mixins.core.json:core -> mixin.core",
+        "[main/ERROR] [ErrorHandler]: ------------------------------------------------------------",
+        "[main/ERROR] [ErrorHandler]: Mixin apply failed mixins.core.json:core -> mixin.core",
+        "[main/ERROR] [ErrorHandler]: java.lang.NoClassDefFoundError: org/spongepowered/asm/launch/MixinLaunchPlugin",
+    ];
+    let codes = detected_codes(&lines_with_fix);
+    assert!(codes.contains(&"mods_mixin_failed".to_string()));
+    assert!(
+        !codes.contains(&"mods_incompatible".to_string()),
+        "el fix de mods captura el fallo; la causa concreta ya está: {codes:?}"
+    );
+}
+
+#[test]
+fn shader_stack_traces_do_not_blame_desktop_libraries() {
+    let lines = [
+        "Exception in thread \"Render thread\" java.lang.UnsatisfiedLinkError: Error looking up function 'glShaderSource': /usr/lib/libGL.so.1",
+        "java.lang.ExceptionInInitializerError",
+        "Caused by: unable to load native lwjgl library",
+        "Caused by: org.lwjgl.LWJGLException: Stack trace unavailable (stack parse error)",
+    ];
+    let codes = detected_codes(&lines);
+    assert!(
+        !codes.contains(&"java_missing_native_lib".to_string()),
+        "un StackParseError de un fix de shaders no es un JDK incompleto: {codes:?}"
+    );
+}
+
+#[test]
+fn vanilla_crashes_do_not_blame_mods() {
+    let lines = [
+        "[12:00:00] [main/INFO]: Setting user: Steve",
+        "java.lang.NoSuchMethodError: net.minecraft.client.Foo.bar()",
+        "java.util.concurrent.CompletionException: Mixin apply failed",
+    ];
+    let codes = detected_codes(&lines);
+    for code in ["mods_incompatible", "mods_outdated"] {
+        assert!(
+            !codes.contains(&code.to_string()),
+            "{code} no puede venir de un arranque vanilla: {codes:?}"
+        );
+    }
+}
+
+#[test]
+fn fabric_reports_the_outdated_mod_instead_of_a_generic_incompatibility() {
+    let lines = [
+        "[12:00:00] [main/INFO]: Loading Minecraft 1.20.1 with Fabric Loader 0.15.0",
+        "[12:00:01] [main/ERROR]: Mod resolution failed",
+        "[12:00:01] [main/ERROR]: Mod 'sodium' (sodium) 0.5.0 requires version 0.5.2 or later of fabric-api",
+        "[12:00:01] [main/ERROR]: java.lang.NoClassDefFoundError: net/fabricmc/api/EnvType",
+    ];
+    let codes = detected_codes(&lines);
+    assert!(codes.contains(&"mods_outdated".to_string()), "{codes:?}");
+    assert!(
+        !codes.contains(&"mods_incompatible".to_string()),
+        "{codes:?}"
+    );
+}
+
+#[test]
+fn sodium_removal_explains_vanilla_graphics_crashes() {
+    let lines = [
+        "- Minecraft 1.20.1 (com.mojang.authlib)",
+        "[Render thread/WARN]: Failed to create window: GLFW error 65542",
+    ];
+    let codes = detected_codes(&lines);
+    assert!(codes.contains(&"graphics_opengl".to_string()));
+    assert!(!codes.contains(&"mods_sodium_graphics".to_string()));
+
+    let with_sodium = [
+        "[main/INFO]: Loading 87 mods:",
+        "\tsodium 0.5.2",
+        "[main/ERROR]: Mixins for sodium failed to apply",
+    ];
+    let codes = detected_codes(&with_sodium);
+    assert!(
+        codes.contains(&"mods_sodium_graphics".to_string()),
+        "{codes:?}"
+    );
 }
 
 #[test]
@@ -168,6 +317,56 @@ fn analyzed_evidence_never_contains_credentials_or_private_data() {
     assert!(!rendered.contains("192.168.1.20"));
     assert!(!rendered.contains("abcdefghijklmnop"));
     assert!(rendered.contains("***") || rendered.contains("<email>"));
+}
+
+#[test]
+fn observed_exit_code_is_reported_when_the_source_has_none() {
+    let dir = instance_dir();
+    std::fs::create_dir_all(dir.path().join("logs")).unwrap();
+    std::fs::write(
+        dir.path().join("logs/latest.log"),
+        "[12:00:00] [main/INFO]: Setting user: Steve\n\
+         java.lang.OutOfMemoryError: Java heap space\n",
+    )
+    .unwrap();
+    let analysis = crash::analysis_from_text(
+        "[12:00:00] [main/INFO]: Setting user: Steve\n\
+         java.lang.OutOfMemoryError: Java heap space\n",
+        false,
+        CrashSource::LatestLog,
+        None,
+        Some(1),
+    );
+    assert_eq!(analysis.exit_code, Some(1));
+    assert_eq!(analysis.context.exit_code, Some(1));
+}
+
+#[test]
+fn crash_report_exit_code_wins_over_the_observed_one() {
+    let analysis = crash::analysis_from_text(
+        "Description: Rendering overlay\nExit Code: 6\n",
+        false,
+        CrashSource::CrashReport,
+        Some("crash-2.txt".into()),
+        Some(1),
+    );
+    assert_eq!(analysis.exit_code, Some(6));
+}
+
+#[test]
+fn loader_is_read_below_the_crash_report_header() {
+    let analysis = crash::analysis_from_text(
+        "Description: Rendering overlay\n\
+         -- System Details --\n\
+         Minecraft Version: 1.20.1\n\
+         Launched Version: 1.20.1-forge-47.2.0\n\
+         --launchTarget forgeclient --fml.forgeVersion 47.2.0\n",
+        false,
+        CrashSource::CrashReport,
+        Some("crash-3.txt".into()),
+        None,
+    );
+    assert_eq!(analysis.context.loader.as_deref(), Some("Forge"));
 }
 
 #[test]
@@ -325,6 +524,7 @@ fn health_reports_low_memory_and_corrupt_worlds() {
         max_memory: 1024,
         java_override: None,
         shared_dir: dir.path().to_path_buf(),
+        launch_ms: 0,
     };
     let checks = health::check_files(&context);
     assert!(
@@ -349,6 +549,7 @@ fn duplicate_mods_are_reported_only_from_cached_entries() {
         max_memory: 2048,
         java_override: None,
         shared_dir: dir.path().to_path_buf(),
+        launch_ms: 0,
     };
     // Sin caché no hay duplicados conocidos: no se hashea nada.
     assert!(health::check_files(&context).is_empty());
@@ -388,4 +589,36 @@ fn actions_are_serialized_for_the_frontend() {
 fn report_names_are_validated() {
     assert!(crash::validate_report_name("crash-1.txt").is_ok());
     assert!(crash::validate_report_name("../x.txt").is_err());
+}
+
+// ── Último crash ────────────────────────────────────────────────────────────
+
+#[test]
+fn recent_launch_error_needs_the_current_launch_stamp() {
+    let dir = instance_dir();
+    let now = now_millis();
+    let mut context = health::InstanceContext {
+        version: "1.21".into(),
+        instance_dir: dir.path().to_path_buf(),
+        min_memory: 1024,
+        max_memory: 2048,
+        java_override: None,
+        shared_dir: dir.path().to_path_buf(),
+        launch_ms: now,
+    };
+    // Se comprueba por el mensaje marcado por el launcher, no por su texto.
+    let reason = |stamp: u64| format!("[launch {stamp}] Java no encontrado");
+    assert!(health::recent_launch_error_for_tests(
+        &context,
+        &reason(now)
+    ));
+    context.launch_ms = now + 60_000;
+    assert!(
+        !health::recent_launch_error_for_tests(&context, &reason(now)),
+        "un error de un arranque anterior no explica el estado actual"
+    );
+    assert!(!health::recent_launch_error_for_tests(
+        &context,
+        "mensaje viejo"
+    ));
 }

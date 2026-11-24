@@ -1534,7 +1534,11 @@
 			"mods_duplicate_sha1": "{count} mods are duplicated by content",
 			"memory_low": "Memory limits are unusual ({min} MB min / {max} MB max)",
 			"instance_busy": "The instance is busy, so file checks were skipped",
-			"recovery_pending": "A modpack update is pending recovery"
+			"recovery_pending": "A modpack update is pending recovery",
+			"crash_recent": "The instance exited with a crash ({cause})",
+			"crash_repeated": "The instance crashed {runs} launches in a row ({cause})",
+			"crash_without_report": "The instance exited with a crash but no crash report",
+			"crash_launch_error": "The launcher caused this crash, not the game"
 		},
 		"actions": {
 			"reinstallVersion": "Reinstall version",
@@ -1559,6 +1563,7 @@
 			"description": "Description",
 			"minecraft": "Minecraft",
 			"java": "Java",
+			"loader": "Loader",
 			"exitCode": "Exit code",
 			"noKnownCause": "No known cause was detected. The full log is still above.",
 			"copy": "Copy diagnosis",
@@ -1585,8 +1590,18 @@
 				"network_download": "A network download failed",
 				"world_corrupt": "A world file appears to be corrupted",
 				"auth_session": "The session could not be verified",
-				"unknown": "Unrecognized crash: {description}"
+				"unknown": "Unrecognized crash: {description}",
+				"java_heap_too_big": "The memory assigned to Java is too high for this computer",
+				"mods_outdated": "A mod is out of date for this game version",
+				"mods_registry": "A mod, datapack or recipe failed to register while the world loaded",
+				"graphics_shader_pack": "A shader pack failed to compile",
+				"content_pack_invalid": "A resource pack or datapack is broken (a warning, not the cause)",
+				"auth_skin": "Your profile or skin could not be loaded (the session is still valid)",
+				"mods_sodium_graphics": "A graphics mod (Sodium, Iris, OptiFine…) failed"
 			}
+		},
+		"subview": {
+			"crashOriginLauncher": "The last launch never opened the game; the problem is in the instance files (see the warnings above)."
 		}
 	}
 }

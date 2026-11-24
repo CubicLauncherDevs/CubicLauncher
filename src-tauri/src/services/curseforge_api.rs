@@ -191,6 +191,9 @@ pub struct CurseForgeFileDependency {
     #[serde(default)]
     pub mod_id: Option<u32>,
     pub relation_type: u32,
+    /// File the mod author pinned for this dependency, when provided.
+    #[serde(default)]
+    pub file_id: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

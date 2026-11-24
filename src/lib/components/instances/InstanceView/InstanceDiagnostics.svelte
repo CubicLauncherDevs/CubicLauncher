@@ -13,7 +13,11 @@
 		type DiagnosticCheck,
 		type DiagnosticReport,
 	} from "#lib/api/diagnostics.js";
-	import { summarize, sortChecks } from "#lib/api/diagnostics.js";
+	import {
+		hasCrashCheck,
+		sortChecks,
+		summarize,
+	} from "#lib/api/diagnostics.js";
 	import { t } from "#lib/i18n/index.js";
 	import { showError } from "#lib/state/state.svelte.js";
 	import {
@@ -47,11 +51,17 @@
 	let analysis = $state<CrashAnalysis | null>(null);
 	let analysisName = $state<string | null>(null);
 	let analyzing = $state(false);
+	let analysisAttempted = $state(false);
+	let lastStatus = $state<string>("");
+	let lastUuid = $state<string>("");
 	let alive = true;
 	let request = 0;
 	let diagnosisRequest = 0;
 	let analysisRequest = 0;
 
+	// Cada vez que se abre la sección: datos del caché, crash reports y, si el
+	// diagnóstico se guardó antes de la última sesión, se rehace. Un crash solo
+	// existe después de jugar, así que su panel debe mirar el estado de ahora.
 	$effect(() => {
 		if (!active) return;
 		const id = instance.uuid;
@@ -62,13 +72,52 @@
 				reports = cached.reports;
 			}
 			void loadReports(id);
+			// El caché es de esta sesión de la app y un informe "todo bien" de
+			// hace 5 minutos puede ser anterior al crash que acaba de cerrar el
+			// juego: en una instancia detenida se rehace siempre.
+			const idle =
+				instance.status === "off" || instance.status === "error";
 			if (
 				!cached?.report ||
+				idle ||
 				!isDiagnosticReportFresh(cached.report, REPORT_MAX_AGE_MS)
 			) {
 				void runDiagnosis(id);
 			}
+			void analyzeLatest();
 		});
+	});
+
+	// Al cambiar la instancia se descarta el análisis de la anterior.
+	$effect(() => {
+		if (instance.uuid !== lastUuid) {
+			lastUuid = instance.uuid;
+			if (
+				instance.status !== "started" &&
+				instance.status !== "starting"
+			) {
+				lastStatus = instance.status;
+			}
+			analysis = null;
+			analysisName = null;
+			analysisAttempted = false;
+			report = null;
+		}
+	});
+
+	// El juego solo puede crashear mientras corre: cuando el estado deja de ser
+	// "started" se refresca el diagnóstico para no mostrar un "todo bien"
+	// anterior al crash.
+	$effect(() => {
+		const wasRunning =
+			lastStatus === "started" || lastStatus === "starting";
+		const isIdle = instance.status === "off" || instance.status === "error";
+		lastStatus = instance.status;
+		// Un ciclo connected→off que dura pocos ms es un cambio de estado del
+		// arranque, no un crash: sin esperar, cada arranque rehace el diagnóstico.
+		if (wasRunning && isIdle && !running) {
+			untrack(() => void runDiagnosis(instance.uuid));
+		}
 	});
 
 	onDestroy(() => {
@@ -80,6 +129,15 @@
 
 	const checks = $derived(report ? sortChecks(report.checks) : []);
 	const summary = $derived(summarize(report));
+	// El resumen del chequeo no puede decir "todo bien" si el último arranque
+	// terminó en crash: el diagnóstico del crash está debajo.
+	const crashed = $derived(
+		!!report &&
+			(hasCrashCheck(checks) ||
+				!!analysis?.findings.some(
+					(finding) => finding.code !== "unknown",
+				)),
+	);
 
 	async function runDiagnosis(id = instance.uuid) {
 		if (running) return;
@@ -112,6 +170,12 @@
 		}
 	}
 
+	async function analyzeLatest() {
+		if (analyzing || analysisAttempted) return;
+		analysisAttempted = true;
+		await analyze();
+	}
+
 	async function analyze(name?: string) {
 		if (analyzing) return;
 		const id = instance.uuid;
@@ -131,9 +195,25 @@
 		}
 	}
 
+	function checkParams(check: DiagnosticCheck) {
+		// Un crash sin causa detectada no se titula "Crash no reconocido": el
+		// título ya dice que el juego se cerró.
+		if (check.params.cause === "unknown") return {};
+		return {
+			...check.params,
+			...(check.params.cause
+				? {
+						cause: t(
+							`diagnostics.crash.findings.${check.params.cause}`,
+						),
+					}
+				: {}),
+		};
+	}
+
 	function checkTitle(check: DiagnosticCheck): string {
 		const key = `diagnostics.checks.${check.id}`;
-		const label = t(key, check.params);
+		const label = t(key, checkParams(check));
 		return label === key
 			? t("diagnostics.crash.unknownCode", { code: check.id })
 			: label;
@@ -240,11 +320,16 @@
 	{#if report}
 		<p
 			class="summary"
-			class:ok={summary.label === "allGood"}
-			class:bad={summary.label === "issues"}
+			class:ok={summary.label === "allGood" && !crashed}
+			class:bad={summary.label === "issues" || crashed}
 			role="status"
 		>
-			{#if summary.label === "allGood"}
+			{#if crashed && summary.label === "allGood"}
+				{t("diagnostics.issues", {
+					errors: summary.errors,
+					warnings: Math.max(summary.warnings, 1),
+				})}
+			{:else if summary.label === "allGood"}
 				{t("diagnostics.allGood")}
 			{:else}
 				{t("diagnostics.issues", {
@@ -316,13 +401,15 @@
 		{/if}
 	</div>
 
-	{#if analysis}
+	{#if analysis && (analysis.reportName || analysis.findings.length > 0)}
 		<CrashAnalysisView
 			{analysis}
 			loading={analyzing}
 			onanalyze={() => analyze(analysisName ?? undefined)}
 			onaction={runAction}
 		/>
+	{:else if analysisAttempted && !analyzing}
+		<p class="hint">{t("diagnostics.crash.noKnownCause")}</p>
 	{/if}
 </section>
 

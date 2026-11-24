@@ -4,7 +4,7 @@ use super::launch::validate_uuid;
 use crate::core::errors::InstanceError;
 use crate::services::diagnostics::DiagnosticReport;
 use crate::services::diagnostics::crash::{self, CrashAnalysis, CrashReportEntry};
-use crate::services::diagnostics::health;
+use crate::services::diagnostics::{health, last_crash};
 use crate::services::{InstanceHandle, InstanceManager};
 use tracing::info;
 
@@ -27,7 +27,9 @@ pub async fn diagnose_instance(instance_id: String) -> Result<DiagnosticReport, 
     info!("Diagnóstico de la instancia {}", instance_id);
     let handle = get_handle(&instance_id).await?;
     let context = health::InstanceContext::for_handle(&handle).await;
-    tokio::task::spawn_blocking(move || health::run(&handle, context))
+    let dir = handle.get_instance_dir().await;
+    let crash = last_crash::collect(&instance_id, &dir, context.launch_ms).await;
+    tokio::task::spawn_blocking(move || health::run(&handle, context, crash))
         .await
         .map_err(|e| e.to_string())
 }

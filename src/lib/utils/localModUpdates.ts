@@ -83,8 +83,13 @@ export function requiredUpdateVersions(
 				}
 				continue;
 			}
-			if (!node.version_id)
-				throw new Error(t("market.modVersions.missingTarget"));
+			if (
+				!node.version_id ||
+				!node.filename ||
+				!node.download_url ||
+				node.unresolved_reason
+			)
+				throw new Error(t("market.quickInstall.noCompatibleVersion"));
 			const id = key(node.source, node.project_id);
 			const previous = refs.get(id);
 			if (previous && previous.version_id !== node.version_id)
