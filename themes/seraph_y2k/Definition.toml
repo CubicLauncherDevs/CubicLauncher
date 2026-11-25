@@ -1,0 +1,85 @@
+[colors]
+accent = "#a8446a"
+accent-rgb = "168, 68, 106"
+accent-primary = "#a8446a"
+accent-hover = "#8e3557"
+accent-text = "#fffafb"
+accent-subtle = "rgba(168, 68, 106, 0.10)"
+color-success = "#47785b"
+color-success-rgb = "71, 120, 91"
+color-error = "#b3323c"
+color-error-rgb = "179, 50, 60"
+color-warning = "#9f721f"
+color-warning-rgb = "159, 114, 31"
+color-info = "#526f9a"
+color-info-rgb = "82, 111, 154"
+color-status-starting = "#526f9a"
+color-status-started = "#47785b"
+
+[text]
+primary = "#4c4449"
+secondary = "#665b62"
+tertiary = "#85777f"
+muted = "#a4969e"
+accent = "#a8446a"
+
+[backgrounds]
+main = "#eee9eb"
+sidebar = "#ded8da"
+sidebar-gradient = "#ded8da"
+card = "#f7f3f4"
+card-gradient = "#f7f3f4"
+item-active = "#d8c1ca"
+input = "#fffdfd"
+overlay = "rgba(28, 21, 25, 0.56)"
+surface = "#e6dfe2"
+surface-card = "#f7f3f4"
+surface-input = "#fffdfd"
+surface-dropdown = "#f7f3f4"
+surface-hover = "#e8dfe2"
+surface-active = "#d8c1ca"
+surface-selected = "#ead5dc"
+toast-bg = "#f7f3f4"
+toast-border = "#b9b1b5"
+
+[borders]
+color = "#b9b1b5"
+color-hover = "#8e7e86"
+color-focus = "#a8446a"
+width = "1px"
+radius = "0px"
+radius-sm = "0px"
+radius-lg = "0px"
+
+[shadows]
+shadow-sm = "1px 1px 0 rgba(38, 28, 33, 0.20)"
+shadow-md = "2px 2px 0 rgba(38, 28, 33, 0.22)"
+shadow-lg = "3px 3px 0 rgba(38, 28, 33, 0.26)"
+glow-accent = "0 0 0 1px #a8446a"
+glow-error = "0 0 0 1px #b3323c"
+glow-success = "0 0 0 1px #47785b"
+
+[layout]
+sidebar-width = "240px"
+
+[typography]
+family = "Tahoma, Verdana, sans-serif"
+size_base = "12px"
+size_sm = "11px"
+size_lg = "14px"
+size_label = "10px"
+weight_normal = "400"
+weight_medium = "600"
+weight_bold = "700"
+
+[others]
+surface-rgb = "255, 255, 255"
+icon-filter = "none"
+scrollbar-track = "#ded8da"
+scrollbar-thumb = "#b9b1b5"
+scrollbar-thumb-hover = "#a8446a"
+
+[inject]
+path = "Inject.css"
+enabled = true
+layer = "theme"

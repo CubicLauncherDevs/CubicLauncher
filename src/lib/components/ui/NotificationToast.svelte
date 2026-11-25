@@ -4,6 +4,7 @@
 	import { removeNotification } from "#lib/state/state.svelte.js";
 	import CopyIcon from "#lib/icons/CopyIcon.svelte";
 	import CheckIcon from "#lib/icons/CheckIcon.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
 	import { animDuration } from "#lib/utils/animations.js";
 	import {
 		DEFAULT_NOTIFICATION_PREFERENCES,
@@ -172,67 +173,30 @@
 			{/if}
 
 			{#key isDone ? "done" : notification.type}
-				{#if isDone}
-					<svg
-						viewBox="0 0 14 14"
-						fill="none"
-						stroke="var(--color-on-success)"
-						stroke-width="1.8"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						aria-hidden="true"
-					>
-						<path d="M2.5 7l3 3 6-6" />
-					</svg>
+				{#if isDone || notification.type === "success"}
+					<Icon
+						name="ui:status-success"
+						size={13}
+						color="var(--color-on-success)"
+					/>
 				{:else if notification.type === "error"}
-					<svg
-						viewBox="0 0 14 14"
-						fill="none"
-						stroke="var(--color-on-error)"
-						stroke-width="1.6"
-						stroke-linecap="round"
-						aria-hidden="true"
-					>
-						<path d="M4 4l6 6M10 4l-6 6" />
-					</svg>
+					<Icon
+						name="ui:status-error"
+						size={13}
+						color="var(--color-on-error)"
+					/>
 				{:else if notification.type === "warning"}
-					<svg
-						viewBox="0 0 14 14"
-						fill="none"
-						stroke="var(--color-on-warning)"
-						stroke-width="1.6"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						aria-hidden="true"
-					>
-						<path
-							d="M7 2.5L1.5 11.5h11L7 2.5zM7 6v2.5M7 10.5v.01"
-						/>
-					</svg>
-				{:else if notification.type === "success"}
-					<svg
-						viewBox="0 0 14 14"
-						fill="none"
-						stroke="var(--color-on-success)"
-						stroke-width="1.8"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						aria-hidden="true"
-					>
-						<path d="M2.5 7l3 3 6-6" />
-					</svg>
+					<Icon
+						name="ui:status-warning"
+						size={13}
+						color="var(--color-on-warning)"
+					/>
 				{:else}
-					<svg
-						viewBox="0 0 14 14"
-						fill="none"
-						stroke="var(--color-on-info)"
-						stroke-width="1.6"
-						stroke-linecap="round"
-						aria-hidden="true"
-					>
-						<circle cx="7" cy="7" r="5.5" />
-						<path d="M7 6.5v3.5M7 4.5v.01" />
-					</svg>
+					<Icon
+						name="ui:status-info"
+						size={13}
+						color="var(--color-on-info)"
+					/>
 				{/if}
 			{/key}
 		</div>
@@ -462,9 +426,7 @@
 		transition: background-color 0.4s ease;
 	}
 
-	.notification-icon svg {
-		width: 13px;
-		height: 13px;
+	.notification-icon :global(.icon-svg) {
 		position: relative;
 		z-index: 1;
 		flex-shrink: 0;

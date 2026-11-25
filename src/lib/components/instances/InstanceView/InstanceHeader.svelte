@@ -49,6 +49,9 @@
 				? downloadLabel
 				: t("instanceView.playBtn"),
 	);
+	const showPlayIcon = $derived(
+		!buttonDownloading && bannerState !== "Started",
+	);
 	const resizeDuration = $derived(animDuration(220));
 
 	const statusLabel = $derived(
@@ -142,6 +145,15 @@
 			: buttonLabel}
 	>
 		<span class="launch-label">
+			{#if buttonDownloading}
+				<Icon
+					name="ui:loader"
+					size={16}
+					class="launch-icon launch-icon--spin"
+				/>
+			{:else if showPlayIcon}
+				<Icon name="ui:play" size={16} class="launch-icon" />
+			{/if}
 			<span>{buttonLabel}</span>
 			{#if buttonDownloading}
 				<span class="download-percent">{downloadProgress}%</span>
@@ -266,23 +278,11 @@
 					<span class="meta-sep">·</span>
 					<span class="inline-status {statusClass}">
 						{#if bannerState === "Starting"}
-							<svg
+							<Icon
+								name="ui:loader"
+								size={12}
 								class="status-spin"
-								width="12"
-								height="12"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2.5"
-							>
-								<circle
-									cx="12"
-									cy="12"
-									r="10"
-									stroke-dasharray="31.4"
-									stroke-dashoffset="10"
-								/>
-							</svg>
+							/>
 						{:else if bannerState === "Started"}
 							<Icon name="ui:check" size={12} />
 						{/if}
@@ -626,6 +626,22 @@
 		white-space: nowrap;
 	}
 
+	.launch-icon {
+		flex-shrink: 0;
+		display: block;
+	}
+
+	.launch-icon--spin {
+		animation: spin 0.9s linear infinite;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.launch-icon--spin,
+		.status-spin {
+			animation: none;
+		}
+	}
+
 	.download-border {
 		position: absolute;
 		inset: 0;
@@ -797,14 +813,14 @@
 
 	.instance-icon--accent {
 		background-color: var(--text-primary);
-		-webkit-mask: url("/images/cubic.svg") center/contain no-repeat;
-		mask: url("/images/cubic.svg") center/contain no-repeat;
+		-webkit-mask: url("/icons/brand/cubic.svg") center/contain no-repeat;
+		mask: url("/icons/brand/cubic.svg") center/contain no-repeat;
 	}
 
 	.compact-icon--accent {
 		background-color: var(--text-primary);
-		-webkit-mask: url("/images/cubic.svg") center/contain no-repeat;
-		mask: url("/images/cubic.svg") center/contain no-repeat;
+		-webkit-mask: url("/icons/brand/cubic.svg") center/contain no-repeat;
+		mask: url("/icons/brand/cubic.svg") center/contain no-repeat;
 	}
 
 	.compact-title-area {

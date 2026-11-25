@@ -257,7 +257,7 @@
 								/>
 							{:else}
 								<img
-									src="/images/cubic.svg"
+									src="/icons/brand/cubic.svg"
 									alt={selectedUser?.username}
 								/>
 							{/if}

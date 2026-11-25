@@ -1,0 +1,92 @@
+/* Seraph.exe: angelcore Y2K without a bundled background image. */
+
+html {
+  color-scheme: light;
+}
+
+::selection {
+  background: #d8c1ca;
+  color: #33242b;
+}
+
+/* Hard, quiet surfaces: the user image stays the visual focal point. */
+:is(.sidebar, .sidebar-compact) {
+  background: var(--bg-sidebar) !important;
+  border-right-color: var(--border-color) !important;
+  box-shadow: inset -1px 0 rgba(255, 255, 255, 0.72);
+}
+
+:is(.modal, .qm-root, .select-dropdown, .context-menu, .notification-toast) {
+  background: var(--surface-dropdown) !important;
+  border-color: var(--border-color) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--shadow-lg), inset 0 1px rgba(255, 255, 255, 0.86) !important;
+}
+
+:is(.btn-primary, .launch-btn, .qm-save-btn, .import-btn):not(:disabled) {
+  background: #a8446a !important;
+  border: 1px solid #5d263a !important;
+  border-radius: 0 !important;
+  box-shadow: inset 1px 1px rgba(255,255,255,0.32), 2px 2px 0 rgba(68, 37, 49, 0.35) !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px rgba(55, 24, 36, 0.35);
+}
+
+:is(.btn-primary, .launch-btn, .qm-save-btn, .import-btn):hover:not(:disabled) {
+  background: #8e3557 !important;
+}
+
+:is(.btn-primary, .launch-btn, .qm-save-btn, .import-btn):active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: none !important;
+}
+
+:is(.btn-secondary, .tools-btn, .sc-tool-btn, .select-trigger, .collapse-btn, .expand-btn) {
+  background: #f7f3f4 !important;
+  border-color: #b9b1b5 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 1px 1px rgba(255,255,255,0.9), 1px 1px 0 rgba(58, 42, 49, 0.18) !important;
+}
+
+:is(.btn-secondary, .tools-btn, .sc-tool-btn, .select-trigger, .collapse-btn, .expand-btn):hover:not(:disabled) {
+  background: #e8dfe2 !important;
+  border-color: #8e7e86 !important;
+}
+
+:is(.instance-item, .sc-instance-item, .theme-row, .jre-card, .section-group) {
+  border-color: #b9b1b5 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 1px rgba(255,255,255,0.75);
+}
+
+:is(.instance-item.active, .sc-instance-item.active, .theme-row.active, .select-option.selected) {
+  background: #d8c1ca !important;
+  border-color: #a8446a !important;
+  color: #4c2635 !important;
+  box-shadow: inset 3px 0 #a8446a, inset 0 1px rgba(255,255,255,0.65) !important;
+}
+
+:is(input, textarea, .text-input) {
+  background: #fffdfd !important;
+  border-color: #b9b1b5 !important;
+  border-radius: 0 !important;
+  box-shadow: inset 1px 1px 2px rgba(61, 43, 51, 0.12) !important;
+}
+
+:is(input, textarea, .text-input):focus {
+  border-color: #a8446a !important;
+  box-shadow: 0 0 0 2px rgba(168, 68, 106, 0.18) !important;
+}
+
+:focus-visible {
+  outline: 2px solid #a8446a !important;
+  outline-offset: 0;
+}
+
+::-webkit-scrollbar-track { background: #ded8da; }
+::-webkit-scrollbar-thumb { background: #b9b1b5; border: 1px solid #ded8da; border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: #a8446a; }
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.btn-primary, .launch-btn, .qm-save-btn, .import-btn):active:not(:disabled) { transform: none; }
+}

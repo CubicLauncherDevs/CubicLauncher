@@ -4,7 +4,7 @@
 	"version": "37.0.0",
 	"identifier": "com.cubiclauncher.launcher",
 	"build": {
-		"beforeDevCommand": "bun run dev",
+		"beforeDevCommand": "bun run dev --force",
 		"devUrl": "http://localhost:1420",
 		"beforeBuildCommand": "bun run build",
 		"frontendDist": "../build"

@@ -33,28 +33,17 @@
 				<span class="provider-icon" aria-hidden="true">
 					{#if provider === "premium"}
 						<img
-							src="/images/icons/brand/microsoft.svg"
+							src="/icons/brand/microsoft.svg"
 							alt=""
 							width="22"
 							height="22"
 						/>
 					{:else if provider === "cubicAuth"}
-						<Icon src="/images/cubic.svg" size={24} />
+						<Icon src="/icons/brand/cubic.svg" size={24} />
 					{:else if provider === "ely"}
 						<span class="ely-mark">E</span>
 					{:else if provider === "offline"}
-						<svg
-							width="22"
-							height="22"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.6"
-							stroke-linecap="round"
-						>
-							<circle cx="12" cy="8" r="4" />
-							<path d="M4 21v-2a8 8 0 0 1 16 0v2" />
-						</svg>
+						<Icon name="ui:user" size={22} />
 					{:else}
 						<Icon name="instance:servers" size={22} />
 					{/if}

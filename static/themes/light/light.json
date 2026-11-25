@@ -70,8 +70,8 @@
 
 		"--icon-filter": "none",
 		"--icon-filter-error": "none",
-		"--cubic-logo": "url(\"/images/cubic.svg\")",
-		"--cubic-logo-fallback": "url(\"/images/cubic.svg\")",
+		"--cubic-logo": "url(\"/icons/brand/cubic.svg\")",
+		"--cubic-logo-fallback": "url(\"/icons/brand/cubic.svg\")",
 
 		"--clr-loader-vanilla": "#475569",
 		"--clr-loader-fabric": "#166534",

@@ -45,7 +45,7 @@
 				alt={user.username}
 			/>
 		{:else}
-			<img src="/images/cubic.svg" alt={user.username} />
+			<img src="/icons/brand/cubic.svg" alt={user.username} />
 		{/if}
 	</div>
 	<div class="account-info">

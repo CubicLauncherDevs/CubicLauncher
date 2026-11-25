@@ -1,0 +1,7 @@
+name = "Seraph.exe"
+author = "CubicLauncher"
+version = "1.0.0"
+description = "Angelcore Y2K de bordes duros, gris papel y rosa apagado. Añade tu propio fondo."
+format = 2
+api_version = "2"
+injects_css = true

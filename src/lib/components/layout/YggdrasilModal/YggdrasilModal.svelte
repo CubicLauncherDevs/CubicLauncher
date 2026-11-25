@@ -14,6 +14,7 @@
 	import AuthSuccess from "../auth/AuthSuccess.svelte";
 	import ServerStep from "./ServerStep.svelte";
 	import LoginStep from "./LoginStep.svelte";
+	import Icon from "#lib/icons/Icon.svelte";
 
 	let {
 		open = $bindable(false),
@@ -130,19 +131,9 @@
 			</p>
 		{/if}
 		<div class="ygg-logo-wrapper">
-			<svg
-				class="ygg-logo"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M12 2L2 7l10 5 10-5-10-5z" />
-				<path d="M2 17l10 5 10-5" />
-				<path d="M2 12l10 5 10-5" />
-			</svg>
+			<div class="ygg-logo">
+				<Icon name="ui:layers" width="100%" height="100%" />
+			</div>
 		</div>
 
 		{#if step === "loading"}

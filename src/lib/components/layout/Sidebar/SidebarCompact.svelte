@@ -345,7 +345,7 @@
 					alt={username}
 				/>
 			{:else}
-				<img src="/images/cubic.svg" alt={username} />
+				<img src="/icons/brand/cubic.svg" alt={username} />
 			{/if}
 		</div>
 	</div>
