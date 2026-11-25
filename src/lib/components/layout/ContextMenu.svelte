@@ -119,11 +119,14 @@
 	.ctx-menu {
 		position: fixed;
 		z-index: 9999;
-		min-width: 140px;
-		max-width: 210px;
+		min-width: 180px;
+		max-width: 240px;
+		max-height: min(60vh, 420px);
+		overflow-y: auto;
 		background: var(--bg-surface, #1e1e1e);
-		border-radius: var(--border-radius-sm, 6px);
-		padding: 0;
+		border: var(--border-width) solid var(--border);
+		border-radius: var(--border-radius);
+		padding: 5px;
 		box-shadow: var(--shadow-floating);
 		backdrop-filter: blur(var(--backdrop-blur-dropdown, 4px));
 	}
@@ -131,34 +134,44 @@
 	.ctx-item {
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 10px;
 		width: 100%;
-		padding: 5px 14px;
+		padding: 7px 10px;
 		background: transparent;
 		border: none;
+		border-radius: var(--border-radius-sm);
 		color: var(--text-primary);
-		font-size: 0.82rem;
+		font-size: var(--font-size-sm);
 		font-weight: 500;
+		line-height: 1.3;
 		text-align: left;
 		cursor: pointer;
-		border-radius: 4px;
-		transition:
-			background 0.12s ease,
-			color 0.12s ease;
+		transition: background-color 0.12s ease;
 	}
 
 	.ctx-icon {
 		display: flex;
 		align-items: center;
+		justify-content: center;
 		flex-shrink: 0;
+		width: 16px;
+		opacity: 0.85;
+		transition: opacity 0.12s ease;
 	}
 
 	.ctx-label {
 		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
 	}
 
 	.ctx-item:hover:not(:disabled) {
-		background: var(--surface-active);
+		background: var(--surface-hover);
+	}
+
+	.ctx-item:hover:not(:disabled) .ctx-icon {
+		opacity: 1;
 	}
 
 	.ctx-item.danger {
@@ -177,8 +190,7 @@
 
 	.ctx-separator {
 		height: 1px;
+		margin: 4px 6px;
 		background: var(--border);
-		margin: 4px 7px;
-		opacity: 0.55;
 	}
 </style>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, untrack } from "svelte";
+	import { onDestroy, tick, untrack } from "svelte";
 	import { invoke } from "@tauri-apps/api/core";
 	import { ask } from "@tauri-apps/plugin-dialog";
 	import type { InstanceDto } from "#lib/types/types.js";
@@ -28,6 +28,7 @@
 	} from "#lib/state/instanceDiagnostics.js";
 	import { openInstanceDir } from "#lib/api/cubicApi.js";
 	import Icon from "#lib/icons/Icon.svelte";
+	import Loading from "#lib/icons/Loading.svelte";
 	import CrashAnalysisView from "./CrashAnalysis.svelte";
 
 	const REPORT_MAX_AGE_MS = 5 * 60_000;
@@ -51,7 +52,9 @@
 	let analysis = $state<CrashAnalysis | null>(null);
 	let analysisName = $state<string | null>(null);
 	let analyzing = $state(false);
+	let analyzingName = $state<string | null>(null);
 	let analysisAttempted = $state(false);
+	let analysisEl = $state<HTMLDivElement>();
 	let lastStatus = $state<string>("");
 	let lastUuid = $state<string>("");
 	let alive = true;
@@ -100,6 +103,7 @@
 			}
 			analysis = null;
 			analysisName = null;
+			analyzingName = null;
 			analysisAttempted = false;
 			report = null;
 		}
@@ -137,6 +141,9 @@
 				!!analysis?.findings.some(
 					(finding) => finding.code !== "unknown",
 				)),
+	);
+	const activeReportName = $derived(
+		analysisName ?? analysis?.reportName ?? null,
 	);
 
 	async function runDiagnosis(id = instance.uuid) {
@@ -181,17 +188,25 @@
 		const id = instance.uuid;
 		const token = ++analysisRequest;
 		analyzing = true;
+		analyzingName = name ?? null;
 		error = "";
 		try {
 			const result = await analyzeInstanceCrash(id, name);
 			if (alive && token === analysisRequest) {
 				analysis = result;
 				analysisName = name ?? null;
+				if (name) {
+					await tick();
+					analysisEl?.scrollIntoView({ block: "nearest" });
+				}
 			}
 		} catch (err) {
 			if (alive && token === analysisRequest) error = String(err);
 		} finally {
-			if (alive && token === analysisRequest) analyzing = false;
+			if (alive && token === analysisRequest) {
+				analyzing = false;
+				analyzingName = null;
+			}
 		}
 	}
 
@@ -317,100 +332,128 @@
 
 	{#if error}<p class="error" role="alert">{error}</p>{/if}
 
-	{#if report}
-		<p
-			class="summary"
-			class:ok={summary.label === "allGood" && !crashed}
-			class:bad={summary.label === "issues" || crashed}
-			role="status"
-		>
-			{#if crashed && summary.label === "allGood"}
-				{t("diagnostics.issues", {
-					errors: summary.errors,
-					warnings: Math.max(summary.warnings, 1),
-				})}
-			{:else if summary.label === "allGood"}
-				{t("diagnostics.allGood")}
-			{:else}
-				{t("diagnostics.issues", {
-					errors: summary.errors,
-					warnings: summary.warnings,
-				})}
+	<div class="body">
+		<div class="main">
+			{#if report}
+				<p
+					class="summary"
+					class:ok={summary.label === "allGood" && !crashed}
+					class:bad={summary.label === "issues" || crashed}
+					role="status"
+				>
+					{#if crashed && summary.label === "allGood"}
+						{t("diagnostics.issues", {
+							errors: summary.errors,
+							warnings: Math.max(summary.warnings, 1),
+						})}
+					{:else if summary.label === "allGood"}
+						{t("diagnostics.allGood")}
+					{:else}
+						{t("diagnostics.issues", {
+							errors: summary.errors,
+							warnings: summary.warnings,
+						})}
+					{/if}
+				</p>
+
+				{#if checks.length > 0}
+					<ul class="checks">
+						{#each checks as check (check.id)}
+							<li
+								class="check"
+								class:error={check.severity === "error"}
+							>
+								<div class="check-head">
+									<span
+										class="severity-dot"
+										aria-hidden="true"
+									></span>
+									<span class="check-title"
+										>{checkTitle(check)}</span
+									>
+									{#if check.action}
+										<button
+											type="button"
+											class="fix"
+											onclick={() =>
+												check.action &&
+												runAction(check.action)}
+											>{actionLabel(check.action)}</button
+										>
+									{/if}
+								</div>
+								{#if check.details.length > 0}
+									<ul class="details">
+										{#each check.details as detail (detail)}
+											<li><code>{detail}</code></li>
+										{/each}
+									</ul>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{/if}
 			{/if}
-		</p>
 
-		{#if checks.length > 0}
-			<ul class="checks">
-				{#each checks as check (check.id)}
-					<li class="check" class:error={check.severity === "error"}>
-						<div class="check-head">
-							<span class="severity-dot" aria-hidden="true"
-							></span>
-							<span class="check-title">{checkTitle(check)}</span>
-							{#if check.action}
-								<button
-									type="button"
-									class="fix"
-									onclick={() =>
-										check.action && runAction(check.action)}
-									>{actionLabel(check.action)}</button
-								>
-							{/if}
-						</div>
-						{#if check.details.length > 0}
-							<ul class="details">
-								{#each check.details as detail (detail)}
-									<li><code>{detail}</code></li>
-								{/each}
-							</ul>
-						{/if}
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	{/if}
-
-	<div class="reports">
-		<div class="reports-head">
-			<h3>{t("diagnostics.reports.title")}</h3>
-			<button type="button" class="ghost" onclick={openReports}
-				>{t("diagnostics.reports.openFolder")}</button
-			>
+			{#if analysis && (analysis.reportName || analysis.findings.length > 0)}
+				<div class="analysis" bind:this={analysisEl}>
+					<CrashAnalysisView
+						{analysis}
+						loading={analyzing}
+						onanalyze={() => analyze(analysisName ?? undefined)}
+						onaction={runAction}
+					/>
+				</div>
+			{:else if analysisAttempted && !analyzing}
+				<p class="hint">{t("diagnostics.crash.noKnownCause")}</p>
+			{/if}
 		</div>
-		{#if reports.length === 0}
-			<p class="hint">{t("diagnostics.reports.empty")}</p>
-		{:else}
-			<ul class="report-list">
-				{#each reports as entry (entry.name)}
-					<li class="report-row">
-						<span class="report-name">{entry.name}</span>
-						<span class="report-meta"
-							>{formatDate(entry.modified)} · {formatBytes(
-								entry.size,
-							)}</span
-						>
-						<button
-							type="button"
-							disabled={analyzing}
-							onclick={() => analyze(entry.name)}
-							>{t("diagnostics.reports.analyze")}</button
-						>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</div>
 
-	{#if analysis && (analysis.reportName || analysis.findings.length > 0)}
-		<CrashAnalysisView
-			{analysis}
-			loading={analyzing}
-			onanalyze={() => analyze(analysisName ?? undefined)}
-			onaction={runAction}
-		/>
-	{:else if analysisAttempted && !analyzing}
-		<p class="hint">{t("diagnostics.crash.noKnownCause")}</p>
-	{/if}
+		<aside class="reports" aria-label={t("diagnostics.reports.title")}>
+			<div class="reports-head">
+				<h3>{t("diagnostics.reports.title")}</h3>
+				<button type="button" class="ghost" onclick={openReports}
+					>{t("diagnostics.reports.openFolder")}</button
+				>
+			</div>
+			{#if reports.length === 0}
+				<p class="hint">{t("diagnostics.reports.empty")}</p>
+			{:else}
+				<ul class="report-list">
+					{#each reports as entry (entry.name)}
+						<li
+							class="report-row"
+							class:selected={entry.name === activeReportName}
+						>
+							<div class="report-info">
+								<span class="report-name" title={entry.name}
+									>{entry.name}</span
+								>
+								<span class="report-meta"
+									>{formatDate(entry.modified)} · {formatBytes(
+										entry.size,
+									)}</span
+								>
+							</div>
+							<button
+								type="button"
+								disabled={analyzing}
+								aria-busy={analyzing &&
+									analyzingName === entry.name}
+								onclick={() => analyze(entry.name)}
+							>
+								{#if analyzing && analyzingName === entry.name}
+									<Loading size={12} />
+								{:else}
+									{t("diagnostics.reports.analyze")}
+								{/if}
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</aside>
+	</div>
 </section>
 
 <style>
@@ -419,6 +462,21 @@
 		flex-direction: column;
 		gap: 16px;
 		color: var(--text-primary);
+	}
+	.body {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+		gap: 16px;
+		align-items: start;
+	}
+	.main {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		min-width: 0;
+	}
+	.analysis {
+		min-width: 0;
 	}
 	.toolbar {
 		display: flex;
@@ -435,7 +493,7 @@
 		font-size: 1.15rem;
 	}
 	h3 {
-		margin: 0 0 8px;
+		margin: 0;
 		font-size: 0.95rem;
 	}
 	.reports-head {
@@ -506,8 +564,7 @@
 		flex-direction: column;
 		gap: 8px;
 	}
-	.check,
-	.report-row {
+	.check {
 		padding: 10px 14px;
 		border: 1px solid var(--border);
 		border-radius: var(--border-radius);
@@ -550,25 +607,66 @@
 		overflow-wrap: anywhere;
 	}
 	.reports {
-		border-top: 1px solid var(--border);
-		padding-top: 14px;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		min-width: 0;
+		padding: 14px;
+		border: 1px solid var(--border);
+		border-radius: var(--border-radius);
+		background: var(--bg-card);
+	}
+	.report-list {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		max-height: 50vh;
+		overflow-y: auto;
 	}
 	.report-row {
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		margin-bottom: 6px;
+		gap: 10px;
+		padding: 8px 10px;
+		border: 1px solid transparent;
+		border-radius: var(--border-radius-sm);
+		background: var(--surface-input);
+	}
+	.report-row.selected {
+		border-color: color-mix(
+			in srgb,
+			var(--accent-primary) 45%,
+			var(--border)
+		);
+		background: var(--surface-active);
+	}
+	.report-info {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
 	}
 	.report-name {
-		flex: 1;
-		overflow-wrap: anywhere;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
 		font-family: var(--font-family-mono);
-		font-size: 0.78rem;
+		font-size: 0.76rem;
 	}
 	.report-meta {
 		color: var(--text-secondary);
-		font-size: 0.76rem;
+		font-size: 0.7rem;
 		white-space: nowrap;
+	}
+	.report-row button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		min-width: 72px;
+		padding: 5px 10px;
+		font-size: 0.74rem;
 	}
 	.hint {
 		margin: 0;
@@ -580,9 +678,9 @@
 		color: var(--log-error);
 		overflow-wrap: anywhere;
 	}
-	@media (max-width: 600px) {
-		.report-row {
-			flex-wrap: wrap;
+	@media (max-width: 860px) {
+		.body {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>

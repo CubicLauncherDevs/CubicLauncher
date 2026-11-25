@@ -233,15 +233,16 @@
 							<div class="finding-head">
 								<span class="severity-dot" aria-hidden="true"
 								></span>
-								{#if isLead}
-									<span class="finding-title lead-label"
-										>{t("diagnostics.crash.lead")}</span
-									>
-								{:else}
+								<span class="finding-heading">
+									{#if isLead}
+										<span class="finding-tag"
+											>{t("diagnostics.crash.lead")}</span
+										>
+									{/if}
 									<span class="finding-title"
 										>{findingTitle(finding)}</span
 									>
-								{/if}
+								</span>
 								{#if finding.action && onaction && !isLead}
 									<button
 										type="button"
@@ -269,6 +270,15 @@
 													>L{item.line}</span
 												>
 												<code>{item.text}</code>
+												<span
+													class="line-jump"
+													aria-hidden="true"
+												>
+													<Icon
+														name="instance:external-link"
+														size={11}
+													/>
+												</span>
 											</button>
 										</li>
 									{/each}
@@ -321,6 +331,7 @@
 
 	.head {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: 10px;
 		padding: 10px 12px 10px 14px;
@@ -486,17 +497,24 @@
 		border-color: color-mix(in srgb, var(--tone) 35%, var(--border));
 		background: color-mix(in srgb, var(--tone) 6%, var(--surface-card));
 	}
-	.finding.lead .finding-title {
-		font-size: 0.7rem;
-		font-weight: 600;
-		letter-spacing: 0.05em;
-		text-transform: uppercase;
-		color: var(--tone);
-	}
 	.finding-head {
 		display: flex;
 		align-items: center;
 		gap: 8px;
+	}
+	.finding-heading {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		gap: 2px;
+		min-width: 0;
+	}
+	.finding-tag {
+		font-size: 0.64rem;
+		font-weight: 600;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		color: var(--tone);
 	}
 	.severity-dot {
 		width: 6px;
@@ -512,9 +530,9 @@
 		background: var(--color-warning);
 	}
 	.finding-title {
-		flex: 1;
 		font-weight: 600;
 		line-height: 1.35;
+		overflow-wrap: anywhere;
 	}
 	.fix {
 		flex-shrink: 0;
@@ -577,12 +595,25 @@
 		user-select: none;
 	}
 	.evidence-line code {
+		flex: 1;
 		min-width: 0;
 		font-family: var(--font-family-mono);
 		font-size: 0.71rem;
 		line-height: 1.45;
 		overflow-wrap: anywhere;
 		white-space: pre-wrap;
+	}
+	.line-jump {
+		display: inline-flex;
+		align-self: center;
+		flex-shrink: 0;
+		opacity: 0;
+		color: var(--text-muted);
+		transition: opacity 0.15s ease;
+	}
+	.evidence-line:hover .line-jump,
+	.evidence-line:focus-visible .line-jump {
+		opacity: 0.9;
 	}
 
 	.foot {
