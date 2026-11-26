@@ -1,4 +1,4 @@
-.settings-controls .qm-field-checkbox {
+.qm-field-checkbox {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -8,7 +8,7 @@
 	user-select: none;
 }
 
-.settings-controls .qm-field-checkbox input[type="checkbox"] {
+.qm-field-checkbox input[type="checkbox"] {
 	appearance: none;
 	-webkit-appearance: none;
 	width: 18px;
@@ -24,12 +24,12 @@
 		border-color 0.2s;
 }
 
-.settings-controls .qm-field-checkbox input[type="checkbox"]:checked {
+.qm-field-checkbox input[type="checkbox"]:checked {
 	background: var(--accent);
 	border-color: var(--accent);
 }
 
-.settings-controls .qm-field-checkbox input[type="checkbox"]:checked::after {
+.qm-field-checkbox input[type="checkbox"]:checked::after {
 	content: "✓";
 	position: absolute;
 	top: 50%;
@@ -40,22 +40,22 @@
 	font-weight: 800;
 }
 
-.settings-controls .qm-field-checkbox label {
+.qm-field-checkbox label {
 	font-size: 0.85rem;
 	color: var(--text-secondary);
 	cursor: pointer;
 	transition: color 0.2s;
 }
 
-.settings-controls .qm-field-checkbox:hover label {
+.qm-field-checkbox:hover label {
 	color: var(--text-primary);
 }
 
-.settings-controls .qm-field-checkbox input[type="checkbox"]:hover {
+.qm-field-checkbox input[type="checkbox"]:hover {
 	border-color: var(--text-muted);
 }
 
-.settings-controls .detect-btn {
+.detect-btn {
 	background: var(--bg-input);
 	border: 1px solid var(--border-color);
 	color: var(--text-secondary);
@@ -70,12 +70,12 @@
 		border-color 0.15s;
 }
 
-.settings-controls .detect-btn:hover:not(:disabled) {
+.detect-btn:hover:not(:disabled) {
 	color: var(--text-primary);
 	border-color: var(--text-muted);
 }
 
-.settings-controls .qm-ram-hint {
+.qm-ram-hint {
 	display: block;
 	margin-top: 10px;
 	font-size: 0.75rem;
@@ -84,7 +84,7 @@
 	padding: 0 4px;
 }
 
-.settings-controls .qm-range-input {
+.qm-range-input {
 	appearance: none;
 	-webkit-appearance: none;
 	width: 100%;
@@ -96,7 +96,7 @@
 	accent-color: var(--accent);
 }
 
-.settings-controls .qm-range-input::-webkit-slider-runnable-track {
+.qm-range-input::-webkit-slider-runnable-track {
 	height: 4px;
 	border-radius: var(--border-radius-sm);
 	background: linear-gradient(
@@ -106,7 +106,7 @@
 	);
 }
 
-.settings-controls .qm-range-input::-moz-range-track {
+.qm-range-input::-moz-range-track {
 	height: 4px;
 	border-radius: var(--border-radius-sm);
 	background: linear-gradient(
@@ -116,7 +116,7 @@
 	);
 }
 
-.settings-controls .qm-range-input::-webkit-slider-thumb {
+.qm-range-input::-webkit-slider-thumb {
 	appearance: none;
 	width: 12px;
 	height: 12px;
@@ -127,7 +127,7 @@
 	box-shadow: var(--shadow-sm);
 }
 
-.settings-controls .qm-range-input::-moz-range-thumb {
+.qm-range-input::-moz-range-thumb {
 	width: 12px;
 	height: 12px;
 	box-sizing: border-box;
@@ -137,13 +137,13 @@
 	box-shadow: var(--shadow-sm);
 }
 
-.settings-controls .qm-range-input:focus-visible,
-.settings-controls .qm-field-checkbox input:focus-visible,
-.settings-controls .detect-btn:focus-visible {
+.qm-range-input:focus-visible,
+.qm-field-checkbox input:focus-visible,
+.detect-btn:focus-visible {
 	outline: 2px solid var(--accent);
 	outline-offset: 3px;
 }
 
-.settings-controls input:disabled {
+input:disabled {
 	cursor: not-allowed;
 }

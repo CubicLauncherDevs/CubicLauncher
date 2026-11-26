@@ -765,11 +765,6 @@
 		padding: 8px 12px;
 	}
 
-	.input-group :global(.text-input.error) {
-		border-color: var(--color-error) !important;
-		box-shadow: 0 0 0 1px var(--color-error) !important;
-	}
-
 	.input-error {
 		font-size: 0.7rem;
 		color: var(--color-error);

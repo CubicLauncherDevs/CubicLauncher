@@ -621,6 +621,16 @@
 		overflow-y: auto;
 		min-height: 0;
 		max-height: 440px;
+		animation: contentIn var(--detail-duration) ease-out;
+	}
+
+	@keyframes contentIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
 	}
 
 	.empty-state {
@@ -725,20 +735,7 @@
 		flex-direction: column;
 		gap: 18px;
 		overflow-wrap: anywhere;
-	}
-
-	.detail-view,
-	.results-panel {
 		animation: contentIn var(--detail-duration) ease-out;
-	}
-
-	@keyframes contentIn {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -982,11 +979,6 @@
 
 	.name-input-row :global(.text-input:focus) {
 		border-color: var(--accent);
-	}
-
-	.name-input-row :global(.text-input.error) {
-		border-color: var(--color-error) !important;
-		box-shadow: 0 0 0 1px var(--color-error) !important;
 	}
 
 	.input-error {

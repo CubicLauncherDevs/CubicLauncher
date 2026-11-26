@@ -324,6 +324,11 @@
 	box-shadow: var(--control-focus-shadow, 0 0 0 2px var(--surface-subtle));
 }
 
+.text-input.error {
+	border-color: var(--color-error);
+	box-shadow: 0 0 0 1px var(--color-error);
+}
+
 .text-input:focus-visible,
 .select-trigger:focus-visible {
 	outline: 2px solid var(--accent);
