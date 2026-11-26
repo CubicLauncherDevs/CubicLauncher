@@ -12,20 +12,7 @@ pub const TEXTURE_PACKS: &str = "texturepacks";
 
 /// Indica si `version` usa `texturepacks` en lugar de `resourcepacks`.
 pub fn uses_texture_packs(version: &str) -> bool {
-    let base = zellkern::GameVersion::from_version_id(version).mc_version;
-    let base = base.trim().to_ascii_lowercase();
-
-    let legacy_prefix = matches!(base.as_bytes().first(), Some(b'a' | b'b' | b'c'))
-        && base.as_bytes().get(1).is_some_and(u8::is_ascii_digit);
-    if legacy_prefix || base.starts_with("rd-") || base.starts_with("inf-") {
-        return true;
-    }
-
-    if let Some((year, week)) = snapshot_year_week(&base) {
-        return (year, week) < (13, 23);
-    }
-
-    release_major_minor(&base).is_some_and(|(major, minor)| (major, minor) < (1, 6))
+    zellkern::is_pre_1_6(version)
 }
 
 /// Traduce un subdirectorio lógico (`resourcepacks`, `mods`, …) al real.
@@ -93,36 +80,6 @@ fn migrate_blocking(instance_dir: &Path) -> Result<(), String> {
         let _ = std::fs::remove_dir(&src);
     }
     Ok(())
-}
-
-fn snapshot_year_week(version: &str) -> Option<(u32, u32)> {
-    let (year, rest) = version.split_once('w')?;
-    let year: u32 = year.parse().ok()?;
-    if !(10..=99).contains(&year) {
-        return None;
-    }
-    let week: u32 = rest
-        .chars()
-        .take_while(|c| c.is_ascii_digit())
-        .collect::<String>()
-        .parse()
-        .ok()?;
-    Some((year, week))
-}
-
-fn release_major_minor(version: &str) -> Option<(u32, u32)> {
-    if !version.starts_with(|c: char| c.is_ascii_digit()) {
-        return None;
-    }
-    let mut parts = version.split('.');
-    let major = parts.next()?.parse().ok()?;
-    let minor = parts
-        .next()?
-        .split(|c: char| !c.is_ascii_digit())
-        .next()?
-        .parse()
-        .ok()?;
-    Some((major, minor))
 }
 
 #[cfg(test)]

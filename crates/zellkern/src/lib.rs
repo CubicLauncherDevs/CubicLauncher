@@ -24,4 +24,6 @@ pub use manifest::{
 pub use resolvers::{
     ClasspathResolver, CommandBuilder, extract_jar, extract_natives, is_native_file,
 };
-pub use version::{GameVersion, MCVersion, ResolvedVersion, parse_version, resolve_dependencies};
+pub use version::{
+    GameVersion, MCVersion, ResolvedVersion, is_pre_1_6, parse_version, resolve_dependencies,
+};

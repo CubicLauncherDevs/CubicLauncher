@@ -1388,6 +1388,7 @@
 		"INST_SRC_INVALID": "Ruta de origen inválida",
 		"INST_JRE_MISSING": "Java {version} no está instalado. Instálalo en Ajustes > Java.",
 		"INST_MINECRAFT_JAR": "No se pudo preparar minecraft.jar: {error}",
+		"INST_LEGACY_ASSETS": "No se pudieron preparar los assets de esta versión: {error}",
 		"FS_READ_DIR": "No se pudo leer directorio '{path}': {error}",
 		"FS_READ_FILE": "No se pudo leer archivo '{path}': {error}",
 		"FS_CREATE_DIR": "No se pudo crear directorio '{path}': {error}",

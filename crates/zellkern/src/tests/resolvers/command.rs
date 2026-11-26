@@ -263,3 +263,97 @@ fn loader_inherits_quick_play_support_from_parent() {
     assert!(args.contains(&"[::1]:25565".to_string()));
     assert!(!args.iter().any(|arg| arg.contains("${")));
 }
+
+fn legacy_launch(id: &str, value: serde_json::Value, config: &LaunchConfig) -> Vec<String> {
+    let dir = tempfile::tempdir().unwrap();
+    let version_dir = dir.path().join("versions").join(id);
+    std::fs::create_dir_all(&version_dir).unwrap();
+    std::fs::write(version_dir.join(format!("{id}.jar")), []).unwrap();
+    std::fs::write(
+        dir.path().join("expected-assets.txt"),
+        dir.path().join("assets").display().to_string(),
+    )
+    .unwrap();
+    let manifest = VersionManifest::from_bytes(&serde_json::to_vec(&value).unwrap()).unwrap();
+    let config = LaunchConfig::builder()
+        .java_path(std::env::current_exe().unwrap())
+        .cracked(config.cracked)
+        .access_token(config.access_token.clone().unwrap_or_else(|| "0".into()))
+        .build();
+    let mut args = CommandBuilder::new(&manifest, dir.path(), dir.path(), &config)
+        .build()
+        .unwrap();
+    let expected = std::fs::read_to_string(dir.path().join("expected-assets.txt")).unwrap();
+    for arg in &mut args {
+        if *arg == expected {
+            *arg = "<assets>".into();
+        }
+    }
+    args
+}
+
+fn flag_value<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
+    args.windows(2)
+        .find(|pair| pair[0] == flag)
+        .map(|pair| pair[1].as_str())
+}
+
+#[test]
+fn legacy_manifests_keep_their_own_arguments_and_modern_defaults_stay_away() {
+    for id in ["1.5.2", "1.6.4", "1.7.2", "13w16a", "rd-132211"] {
+        let value = serde_json::json!({
+            "id": id,
+            "mainClass": "net.minecraft.client.main.Main",
+            "minecraftArguments": "--username ${auth_player_name} --gameDir ${game_directory} --assetsDir ${game_assets} --assetIndex ${assets_index_name} --uuid ${auth_uuid} --accessToken ${auth_access_token} --userProperties ${user_properties} --userType ${user_type} --session ${auth_session}"
+        });
+        let args = legacy_launch(id, value, &LaunchConfig::default());
+        assert!(!args.iter().any(|arg| arg.contains("${")), "{id}: {args:?}");
+        assert_eq!(flag_value(&args, "--username"), Some("Player"), "{id}");
+        assert_eq!(flag_value(&args, "--assetsDir"), Some("<assets>"), "{id}");
+        let session = flag_value(&args, "--session").unwrap();
+        assert!(session.starts_with("token:0:"), "{id}: {session}");
+        assert_eq!(flag_value(&args, "--width"), None, "{id}");
+        assert_eq!(flag_value(&args, "--height"), None, "{id}");
+        assert_eq!(flag_value(&args, "--version"), None, "{id}");
+    }
+}
+
+#[test]
+fn modern_manifests_still_receive_default_arguments() {
+    let value = serde_json::json!({
+        "id": "1.21.4",
+        "mainClass": "net.minecraft.client.main.Main",
+        "arguments": {"game": ["--username", "${auth_player_name}"]}
+    });
+    let args = legacy_launch("1.21.4", value, &LaunchConfig::default());
+    assert_eq!(flag_value(&args, "--width"), Some("854"));
+    assert_eq!(flag_value(&args, "--assetsDir"), Some("<assets>"));
+}
+
+#[test]
+fn game_assets_override_is_used_for_assets_dir_and_game_assets() {
+    let dir = tempfile::tempdir().unwrap();
+    let version_dir = dir.path().join("versions").join("1.5.2");
+    std::fs::create_dir_all(&version_dir).unwrap();
+    std::fs::write(version_dir.join("1.5.2.jar"), []).unwrap();
+    let value = serde_json::json!({
+        "id": "1.5.2",
+        "mainClass": "net.minecraft.client.main.Main",
+        "assetIndex": {"id": "pre-1.6"},
+        "minecraftArguments": "--assetsDir ${game_assets} --assetIndex ${assets_index_name}"
+    });
+    let manifest = VersionManifest::from_bytes(&serde_json::to_vec(&value).unwrap()).unwrap();
+    let resources = dir.path().join("instance").join("resources");
+    let config = LaunchConfig::builder()
+        .java_path(std::env::current_exe().unwrap())
+        .game_assets(&resources)
+        .build();
+    let args = CommandBuilder::new(&manifest, dir.path(), dir.path(), &config)
+        .build()
+        .unwrap();
+    assert_eq!(
+        flag_value(&args, "--assetsDir"),
+        Some(resources.to_str().unwrap())
+    );
+    assert_eq!(flag_value(&args, "--assetIndex"), Some("pre-1.6"));
+}

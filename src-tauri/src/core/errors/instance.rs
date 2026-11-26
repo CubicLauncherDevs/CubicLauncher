@@ -44,6 +44,9 @@ pub enum InstanceError {
     #[error("No se pudo preparar minecraft.jar: {0}")]
     MinecraftJar(String),
 
+    #[error("No se pudieron preparar los assets legacy: {0}")]
+    LegacyAssets(String),
+
     #[error("Formato de instancia no reconocido en el archivo proporcionado")]
     ImportInstanceFormatUnknown,
 
@@ -86,6 +89,7 @@ impl InstanceError {
             Self::InvalidSourcePath => "INST_SRC_INVALID",
             Self::JreNotFound(_) => "INST_JRE_MISSING",
             Self::MinecraftJar(_) => "INST_MINECRAFT_JAR",
+            Self::LegacyAssets(_) => "INST_LEGACY_ASSETS",
             Self::ImportInstanceFormatUnknown => "INST_IMPORT_FORMAT_UNKNOWN",
             Self::ImportInstanceArchiveInvalid(_) => "INST_IMPORT_ARCHIVE_INVALID",
             Self::ImportInstanceExtractionFailed(_) => "INST_IMPORT_EXTRACTION_FAILED",
@@ -103,6 +107,7 @@ impl InstanceError {
             Self::InstNameParse(s) => vec![("error", s.clone())],
             Self::JreNotFound(v) => vec![("version", v.clone())],
             Self::MinecraftJar(message) => vec![("error", message.clone())],
+            Self::LegacyAssets(message) => vec![("error", message.clone())],
             Self::ImportInstanceArchiveInvalid(d) => vec![("error", d.clone())],
             Self::ImportInstanceExtractionFailed(d) => vec![("error", d.clone())],
             Self::ImportInstanceUnsupportedLoader(l) => vec![("loader", l.clone())],

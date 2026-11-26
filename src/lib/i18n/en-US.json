@@ -1388,6 +1388,7 @@
 		"INST_SRC_INVALID": "Invalid source path",
 		"INST_JRE_MISSING": "Java {version} is not installed. Install it in Settings > Java.",
 		"INST_MINECRAFT_JAR": "Could not prepare minecraft.jar: {error}",
+		"INST_LEGACY_ASSETS": "Could not prepare this version's assets: {error}",
 		"FS_READ_DIR": "Could not read directory '{path}': {error}",
 		"FS_READ_FILE": "Could not read file '{path}': {error}",
 		"FS_CREATE_DIR": "Could not create directory '{path}': {error}",

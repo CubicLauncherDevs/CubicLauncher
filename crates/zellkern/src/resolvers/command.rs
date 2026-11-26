@@ -33,28 +33,7 @@ impl<'a> CommandBuilder<'a> {
     }
 
     fn resolve_manifest(&self) -> Result<(VersionManifest, String), Error> {
-        let mut current = self.manifest.clone();
-        let mut seen = std::collections::HashSet::new();
-        seen.insert(current.id_raw.clone());
-        let mut base_id = current.id_raw.clone();
-
-        while let Some(parent_id) = current.inherits_from.clone() {
-            if !seen.insert(parent_id.clone()) {
-                return Err(Error::VersionLoad(format!(
-                    "Circular inheritance detected: {}",
-                    parent_id
-                )));
-            }
-            let parent_path = self
-                .shared_dir
-                .join("versions")
-                .join(&parent_id)
-                .join(format!("{}.json", parent_id));
-            let parent_manifest = VersionManifest::from_file(parent_path)?;
-            current = current.resolve(&parent_manifest);
-            base_id = parent_id;
-        }
-        Ok((current, base_id))
+        VersionManifest::resolve_chain(self.manifest, self.shared_dir)
     }
 
     /// Resolve the same client JAR that the launch classpath would normally use.
@@ -196,8 +175,14 @@ impl<'a> CommandBuilder<'a> {
                     Uuid::new_v4().to_string()
                 }
             });
+        let game_assets = self
+            .config
+            .game_assets
+            .clone()
+            .unwrap_or_else(|| assets_dir.clone());
         let vars = self.build_vars(
             &assets_dir,
+            &game_assets,
             &natives_base,
             &uuid,
             &classpath,
@@ -216,7 +201,7 @@ impl<'a> CommandBuilder<'a> {
         cmd.push(main_class.clone());
 
         self.add_game_args(&mut cmd, &vars, &final_manifest);
-        self.add_default_game_args(&mut cmd, &assets_dir, &final_manifest);
+        self.add_default_game_args(&mut cmd, &game_assets, &final_manifest);
 
         if main_class == "net.minecraft.launchwrapper.Launch"
             && !cmd.iter().any(|a| a == "--tweakClass")
@@ -367,15 +352,20 @@ impl<'a> CommandBuilder<'a> {
     fn add_default_game_args(
         &self,
         cmd: &mut Vec<String>,
-        assets_dir: &Path,
+        game_assets: &Path,
         manifest: &VersionManifest,
     ) {
+        // Legacy manifests already carry every argument their client parses;
+        // newer flags such as --assetIndex or --width are simply ignored there.
+        if manifest.minecraft_arguments.is_some() {
+            return;
+        }
         let defaults: Vec<(&str, String)> = vec![
             ("--width", self.config.width.to_string()),
             ("--height", self.config.height.to_string()),
             ("--username", self.config.username.clone()),
             ("--version", manifest.id_raw.clone()),
-            ("--assetsDir", assets_dir.display().to_string()),
+            ("--assetsDir", game_assets.display().to_string()),
             (
                 "--assetIndex",
                 manifest
@@ -442,6 +432,7 @@ impl<'a> CommandBuilder<'a> {
     fn build_vars(
         &self,
         assets_dir: &Path,
+        game_assets: &Path,
         natives_base: &Path,
         uuid: &str,
         classpath: &str,
@@ -489,6 +480,15 @@ impl<'a> CommandBuilder<'a> {
             self.shared_dir.join("libraries").display().to_string(),
         );
         vars.insert("classpath".into(), classpath.to_string());
+        vars.insert("game_assets".into(), game_assets.display().to_string());
+        vars.insert(
+            "auth_session".into(),
+            format!(
+                "token:{}:{}",
+                self.config.access_token.as_deref().unwrap_or("0"),
+                uuid
+            ),
+        );
 
         #[cfg(windows)]
         vars.insert("classpath_separator".into(), ";".into());

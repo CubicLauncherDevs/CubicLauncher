@@ -183,43 +183,54 @@ fn readiness_uses_the_minecraft_client_marker() {
 }
 
 #[test]
-fn readiness_fallback_is_only_enabled_for_old_minecraft_betas() {
+fn readiness_fallback_is_only_enabled_for_legacy_versions() {
     for (version, parent) in [
         ("b1.0", None),
         ("b1.7_01", None),
         ("b1.7.3", None),
         ("b1.8.1", None),
         ("b1.9-pre4", None),
+        ("a1.2.6", None),
+        ("c0.30_01c", None),
+        ("rd-132211", None),
+        ("inf-20100618", None),
+        ("1.5.2", None),
+        ("13w22a", None),
         ("b1.7.3-OptiFine_HD_G", None),
         ("custom-profile", Some("b1.7.3")),
     ] {
         assert_eq!(
-            beta_readiness_delay(version, parent, true),
+            legacy_readiness_delay(version, parent, true),
             Some(std::time::Duration::from_secs(2)),
             "{version} / {parent:?}"
         );
-        assert_eq!(beta_readiness_delay(version, parent, false), None);
+        assert_eq!(legacy_readiness_delay(version, parent, false), None);
     }
     for version in [
+        "1.6",
+        "1.6.4",
+        "1.7.10",
         "1.21.4",
-        "1.0",
-        "a1.2.6",
         "26.2-snapshot-5",
+        "13w23a",
+        "13w41b",
         "36.0.0-beta.1",
         "fabric-loader-0.16.0-1.21",
         "bukkit",
-        "b1",
-        "b1.",
         "beta1.7.3",
     ] {
-        assert_eq!(beta_readiness_delay(version, None, true), None, "{version}");
+        assert_eq!(
+            legacy_readiness_delay(version, None, true),
+            None,
+            "{version}"
+        );
     }
-    assert_eq!(beta_readiness_delay("b1.7.3", Some("1.21"), true), None);
+    assert_eq!(legacy_readiness_delay("b1.7.3", Some("1.21"), true), None);
 }
 
 #[tokio::test]
-async fn silent_betas_become_ready_after_the_grace_period_with_open_or_closed_logs() {
-    let delay = beta_readiness_delay("b1.7.3", None, true).unwrap();
+async fn silent_legacy_clients_become_ready_after_the_grace_period_with_open_or_closed_logs() {
+    let delay = legacy_readiness_delay("b1.7.3", None, true).unwrap();
     futures::future::join_all([false, true].map(|closed| async move {
         let (tx, rx) = tokio::sync::oneshot::channel();
         let sender = (!closed).then_some(tx);
@@ -232,7 +243,7 @@ async fn silent_betas_become_ready_after_the_grace_period_with_open_or_closed_lo
         );
         tokio::time::timeout(std::time::Duration::from_secs(5), readiness)
             .await
-            .expect("silent beta never became ready");
+            .expect("silent legacy client never became ready");
         assert!(tokio::time::Instant::now() >= deadline);
         drop(sender);
     }))
@@ -240,7 +251,7 @@ async fn silent_betas_become_ready_after_the_grace_period_with_open_or_closed_lo
 }
 
 #[tokio::test]
-async fn client_marker_can_hide_before_the_beta_fallback_deadline() {
+async fn client_marker_can_hide_before_the_legacy_fallback_deadline() {
     for deadline in [
         None,
         Some(tokio::time::Instant::now() + std::time::Duration::from_secs(60)),
@@ -257,7 +268,7 @@ async fn client_marker_can_hide_before_the_beta_fallback_deadline() {
 }
 
 #[tokio::test]
-async fn closed_logs_without_a_beta_fallback_do_not_signal_readiness() {
+async fn closed_logs_without_a_legacy_fallback_do_not_signal_readiness() {
     let (tx, rx) = tokio::sync::oneshot::channel();
     drop(tx);
     let readiness = wait_for_game_readiness(rx, None);
