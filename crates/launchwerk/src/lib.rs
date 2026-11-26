@@ -2,6 +2,7 @@ pub mod error;
 pub mod handle;
 pub mod launchwerk;
 pub mod models;
+mod native_libs;
 
 pub use error::Error;
 pub use handle::InstanceHandle;

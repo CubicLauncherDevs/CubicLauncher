@@ -157,7 +157,9 @@ impl InstanceHandle {
             }
         }
 
-        for (k, v) in &config.env {
+        let mut env: std::collections::HashMap<String, String> = config.env.clone();
+        crate::native_libs::extend_ld_library_path(&config.java_path, &mut env);
+        for (k, v) in &env {
             cmd.env(k, v);
         }
         let mut child = cmd.spawn()?;
