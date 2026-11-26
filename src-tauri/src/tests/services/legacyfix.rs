@@ -229,6 +229,38 @@ fn missing_object_reports_the_asset_and_leaves_no_marker() {
 }
 
 #[test]
+fn marker_stays_out_of_the_directory_the_game_scans() {
+    let fixture = Fixture::new();
+    fixture.write_index(
+        "pre-1.6",
+        single_object("pack.mcmeta"),
+        serde_json::json!({}),
+    );
+    let manifest = serde_json::json!({
+        "id": "1.5.2",
+        "assetIndex": {"id": "pre-1.6"},
+        "minecraftArguments": "x"
+    });
+
+    let assets = fixture.prepare(manifest).unwrap().unwrap();
+
+    // El juego recorre `resources` como resource pack: solo debe haber assets.
+    let entries: Vec<String> = std::fs::read_dir(&assets)
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(entries, ["pack.mcmeta"], "{entries:?}");
+    let markers: Vec<String> = std::fs::read_dir(fixture.shared.join("assets"))
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name.starts_with(".cubic-legacy-"))
+        .collect();
+    assert_eq!(markers.len(), 1, "{markers:?}");
+}
+
+#[test]
 fn modern_versions_need_no_extraction() {
     let fixture = Fixture::new();
     fixture.write_index("test", single_object("a/b"), serde_json::json!({}));

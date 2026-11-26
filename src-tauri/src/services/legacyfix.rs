@@ -60,7 +60,7 @@ pub(crate) fn prepare(
     let objects = assets_dir.join("objects");
     let state = if index.map_to_resources == Some(true) || (index.r#virtual.is_none() && is_pre_1_6)
     {
-        State::in_instance(instance_dir, objects, &index, &index_bytes)
+        State::in_instance(instance_dir, &assets_dir, objects, &index, &index_bytes)
     } else {
         State::in_virtual_root(
             &assets_dir.join("virtual").join(&index_id),
@@ -81,17 +81,25 @@ struct State {
     game_assets: PathBuf,
     objects: PathBuf,
     index_sha1: String,
-    in_shared_assets: bool,
+    /// Directorio del marcador; `None` para escribir junto a los assets.
+    marker_dir: Option<PathBuf>,
 }
 
 impl State {
     fn in_instance(
         instance_dir: &Path,
+        marker_dir: &Path,
         objects: PathBuf,
         index: &aqua::VersionAssets,
         bytes: &[u8],
     ) -> Self {
-        Self::new(instance_dir.join("resources"), objects, index, bytes, false)
+        Self::new(
+            instance_dir.join("resources"),
+            objects,
+            index,
+            bytes,
+            Some(marker_dir.to_path_buf()),
+        )
     }
 
     fn in_virtual_root(
@@ -100,7 +108,9 @@ impl State {
         index: &aqua::VersionAssets,
         bytes: &[u8],
     ) -> Self {
-        Self::new(root.to_path_buf(), objects, index, bytes, true)
+        // `<assets>/virtual` queda fuera de la raíz que abre el juego.
+        let marker_dir = root.parent().map(Path::to_path_buf);
+        Self::new(root.to_path_buf(), objects, index, bytes, marker_dir)
     }
 
     fn new(
@@ -108,7 +118,7 @@ impl State {
         objects: PathBuf,
         index: &aqua::VersionAssets,
         bytes: &[u8],
-        in_shared_assets: bool,
+        marker_dir: Option<PathBuf>,
     ) -> Self {
         let index_sha1: String = Sha1::digest(bytes)
             .iter()
@@ -119,22 +129,21 @@ impl State {
             game_assets,
             objects,
             index_sha1,
-            in_shared_assets,
+            marker_dir,
         }
     }
 
     /// Un marcador con el SHA-1 del índice registra que ya se descomprimió,
     /// para no recorrer miles de archivos en cada arranque.
+    ///
+    /// Vive en `<assets>`, nunca en `resources`: el juego escanea esa carpeta
+    /// como resource pack y registra en el log los archivos que no entiende.
     fn marker_path(&self) -> PathBuf {
         let marker = format!("{MARKER_PREFIX}{}{MARKER_SUFFIX}", self.index_sha1);
-        let root = if self.in_shared_assets {
-            // `<assets>/virtual/<id>` debe contener solo assets porque es la
-            // raíz que abre el juego, así que el marcador va junto a ella.
-            self.game_assets.parent().unwrap_or(&self.game_assets)
-        } else {
-            &self.game_assets
-        };
-        root.join(marker)
+        match self.marker_dir {
+            Some(ref dir) => dir.join(marker),
+            None => self.game_assets.join(marker),
+        }
     }
 
     fn is_current(&self) -> Result<bool, String> {
