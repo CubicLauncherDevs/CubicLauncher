@@ -3,6 +3,7 @@ pub mod handle;
 pub mod launchwerk;
 pub mod models;
 mod native_libs;
+mod xrandr;
 
 pub use error::Error;
 pub use handle::InstanceHandle;

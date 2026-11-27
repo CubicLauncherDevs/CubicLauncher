@@ -1742,6 +1742,7 @@
 				"mods_missing_dependency": "A un mod le falta una dependencia obligatoria",
 				"mods_incompatible": "El conjunto de mods no es compatible",
 				"graphics_opengl": "El controlador gráfico no pudo inicializar OpenGL",
+				"graphics_xrandr_missing": "No se encontró el comando xrandr, necesario para detectar los modos de pantalla",
 				"network_download": "Falló una descarga de red",
 				"world_corrupt": "Un archivo de mundo parece estar corrupto",
 				"auth_session": "No se pudo verificar la sesión",

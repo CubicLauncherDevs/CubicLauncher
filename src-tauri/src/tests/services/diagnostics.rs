@@ -65,6 +65,10 @@ fn each_rule_detects_its_signal() {
             "[LWJGL] GLFW error 65542: WGL: The driver does not appear to support OpenGL",
         ),
         (
+            "graphics_xrandr_missing",
+            "java.lang.ArrayIndexOutOfBoundsException: 0\n\tat org.lwjgl.opengl.LinuxDisplay.getAvailableDisplayModes(LinuxDisplay.java:951)",
+        ),
+        (
             "network_download",
             "java.net.UnknownHostException: libraries.minecraft.net",
         ),

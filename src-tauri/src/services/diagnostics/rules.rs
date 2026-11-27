@@ -341,6 +341,19 @@ const RULES: &[Rule] = &[
         suppressed_by: &[],
     },
     Rule {
+        code: "graphics_xrandr_missing",
+        severity: CrashSeverity::Error,
+        // LWJGL 2 enumera los modos ejecutando `xrandr -q`; si el comando no
+        // está en PATH, LinuxDisplay indexa una lista vacía de pantallas.
+        needles: &[Needle::Any(&[
+            "linuxdisplay.getavailabledisplaymodes",
+            "exception in xrandr.populate()",
+        ])],
+        action: None,
+        loaders: Loaders::Any,
+        suppressed_by: &[],
+    },
+    Rule {
         code: "graphics_shader_pack",
         severity: CrashSeverity::Warning,
         needles: &[Needle::Any(&[

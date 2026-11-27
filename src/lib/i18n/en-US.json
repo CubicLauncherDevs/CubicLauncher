@@ -1741,6 +1741,7 @@
 				"mods_missing_dependency": "A mod is missing a required dependency",
 				"mods_incompatible": "The mod set is not compatible",
 				"graphics_opengl": "The graphics driver could not initialize OpenGL",
+				"graphics_xrandr_missing": "The xrandr command was not found; it is required to detect display modes",
 				"network_download": "A network download failed",
 				"world_corrupt": "A world file appears to be corrupted",
 				"auth_session": "The session could not be verified",

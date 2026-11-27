@@ -58,6 +58,7 @@
             libxinerama
             libxrandr
             libxxf86vm
+            xrandr
             mesa
             libpulseaudio
             pipewire
