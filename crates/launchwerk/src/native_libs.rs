@@ -16,18 +16,19 @@ pub(crate) fn extend_ld_library_path(
     java: &std::path::Path,
     env: &mut std::collections::HashMap<String, String>,
 ) {
-    let Some(native_dir) = java
-        .parent()
-        .and_then(|bin| bin.parent())
-        .map(|home| home.join("lib").join("amd64"))
-        .filter(|dir| dir.is_dir())
-    else {
+    let Some(home) = java.parent().and_then(|bin| bin.parent()) else {
+        return;
+    };
+    let Some(native_dir) = linux::native_dir(home) else {
+        return;
+    };
+    let Some(expected) = linux::expected_id(&native_dir) else {
         return;
     };
 
     let mut dirs: Vec<String> = Vec::new();
     for library in linux::missing(&native_dir, env.get("LD_LIBRARY_PATH")) {
-        match linux::locate(&library) {
+        match linux::locate(&library, expected) {
             Some(dir) if !dirs.contains(&dir) => dirs.push(dir),
             Some(_) => {}
             None => log::warn!("El JRE necesita {library}, pero no está instalado en el sistema"),
@@ -91,17 +92,124 @@ mod linux {
         libraries
     }
 
+    /// Clase (`EI_CLASS`) y máquina (`e_machine`) de un objeto ELF.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub(super) struct ElfId {
+        pub(super) class: u8,
+        pub(super) machine: u16,
+    }
+
+    /// Directorio de bibliotecas nativas del JRE (`lib/amd64`, `lib/aarch64`…).
+    pub(super) fn native_dir(home: &Path) -> Option<PathBuf> {
+        let lib = home.join("lib");
+        let arch = match std::env::consts::ARCH {
+            "x86_64" => Some("amd64"),
+            "x86" => Some("i386"),
+            "aarch64" => Some("aarch64"),
+            "arm" => Some("arm"),
+            _ => None,
+        };
+        if let Some(arch) = arch {
+            let candidate = lib.join(arch);
+            if candidate.is_dir() {
+                return Some(candidate);
+            }
+        }
+        std::fs::read_dir(&lib)
+            .ok()?
+            .flatten()
+            .map(|entry| entry.path())
+            .find(|dir| dir.is_dir() && contains_native_library(dir))
+    }
+
+    fn contains_native_library(dir: &Path) -> bool {
+        std::fs::read_dir(dir).ok().is_some_and(|entries| {
+            entries.flatten().any(|entry| {
+                entry
+                    .path()
+                    .extension()
+                    .is_some_and(|extension| extension == "so")
+            })
+        })
+    }
+
+    /// Arquitectura que deben tener las bibliotecas del sistema para que el
+    /// JRE las pueda cargar. Se lee del propio runtime y, si no es posible,
+    /// se asume la del host.
+    pub(super) fn expected_id(native_dir: &Path) -> Option<ElfId> {
+        ["libawt_xawt.so", "libjava.so", "libjvm.so"]
+            .into_iter()
+            .find_map(|name| file_id(&native_dir.join(name)))
+            .or_else(|| {
+                std::fs::read_dir(native_dir)
+                    .ok()?
+                    .flatten()
+                    .map(|entry| entry.path())
+                    .find_map(|path| file_id(&path))
+            })
+            .or_else(host_id)
+    }
+
+    fn host_id() -> Option<ElfId> {
+        let machine = match std::env::consts::ARCH {
+            "x86_64" => 62,
+            "x86" => 3,
+            "aarch64" => 183,
+            "arm" => 40,
+            "riscv64" => 243,
+            "powerpc64" => 21,
+            "s390x" => 22,
+            _ => return None,
+        };
+        Some(ElfId { class: 2, machine })
+    }
+
+    /// Identidad de la cabecera ELF, sin importar si es de 32 o 64 bits.
+    pub(super) fn elf_id(bytes: &[u8]) -> Option<ElfId> {
+        if bytes.get(..4)? != b"\x7fELF" {
+            return None;
+        }
+        let class = *bytes.get(4)?;
+        if class != 1 && class != 2 {
+            return None;
+        }
+        let machine = match *bytes.get(5)? {
+            1 => u16::from_le_bytes(bytes.get(18..20)?.try_into().ok()?),
+            2 => u16::from_be_bytes(bytes.get(18..20)?.try_into().ok()?),
+            _ => return None,
+        };
+        Some(ElfId { class, machine })
+    }
+
+    pub(super) fn file_id(path: &Path) -> Option<ElfId> {
+        use std::io::Read;
+
+        let mut header = [0u8; 20];
+        std::fs::File::open(path)
+            .ok()?
+            .read_exact(&mut header)
+            .ok()?;
+        elf_id(&header)
+    }
+
+    fn compatible(path: &Path, expected: ElfId) -> bool {
+        file_id(path) == Some(expected)
+    }
+
     /// Directorio que contiene `library`. Primero las rutas con que el sistema
     /// expone sus bibliotecas, después los paquetes del store de Nix y al
-    /// final la caché de glibc (distribuciones clásicas).
-    pub(super) fn locate(library: &str) -> Option<String> {
-        if let Some(dir) = exported_dirs().find(|dir| Path::new(dir).join(library).is_file()) {
+    /// final la caché de glibc (distribuciones clásicas). Solo se aceptan
+    /// objetos con la misma arquitectura que el JRE.
+    pub(super) fn locate(library: &str, expected: ElfId) -> Option<String> {
+        if let Some(dir) =
+            exported_dirs().find(|dir| compatible(&Path::new(dir).join(library), expected))
+        {
             return Some(dir);
         }
-        if let Some(dir) = nix_package_dir(library) {
+        if let Some(dir) = nix_package_dir(library, expected) {
             return Some(dir);
         }
-        cache_lookup(library)
+        cache_lookup(library, expected)
     }
 
     /// Rutas con las que las sesiones de escritorio exponen bibliotecas.
@@ -120,12 +228,21 @@ mod linux {
     /// bajo `<prefix>/<nombre>-<ver>/lib` o `<prefix>/lib/<nombre>-<ver>/lib`.
     /// Cubre bibliotecas instaladas pero ausentes de las rutas exportadas; es
     /// solo una búsqueda por nombre, sin invocar al cargador.
-    fn nix_package_dir(library: &str) -> Option<String> {
-        nix_package_dir_in(Path::new("/nix/store"), library)
-            .or_else(|| nix_package_dir_in(Path::new("/nix/var/nix/profiles/default"), library))
+    fn nix_package_dir(library: &str, expected: ElfId) -> Option<String> {
+        nix_package_dir_in(Path::new("/nix/store"), library, expected).or_else(|| {
+            nix_package_dir_in(
+                Path::new("/nix/var/nix/profiles/default"),
+                library,
+                expected,
+            )
+        })
     }
 
-    pub(super) fn nix_package_dir_in(base: &Path, library: &str) -> Option<String> {
+    pub(super) fn nix_package_dir_in(
+        base: &Path,
+        library: &str,
+        expected: ElfId,
+    ) -> Option<String> {
         // `libXtst.so.6` → `-libxtst-`.
         let needle = format!("-{}-", library.split(".so").next()?.to_ascii_lowercase());
         let mut packages: Vec<PathBuf> = std::fs::read_dir(base)
@@ -139,33 +256,61 @@ mod linux {
             })
             .collect();
         // La versión más reciente del store gana sobre el orden de entrada.
-        packages.sort();
-        packages.iter().rev().find_map(|package| {
-            let direct = package.join("lib").join(library);
-            if direct.is_file() {
-                return Some(package.join("lib").display().to_string());
-            }
-            // Algunos envs anidan el paquete: `lib/<nombre>-<ver>/lib`.
-            std::fs::read_dir(package.join("lib"))
-                .ok()?
-                .flatten()
-                .find_map(|entry| {
-                    let candidate = entry.path().join("lib").join(library);
-                    candidate
-                        .is_file()
-                        .then(|| candidate.parent().map(|dir| dir.display().to_string()))
-                        .flatten()
-                })
-        })
+        packages.sort_by(|left, right| {
+            version_key(left)
+                .cmp(&version_key(right))
+                .then_with(|| left.cmp(right))
+        });
+        packages
+            .iter()
+            .rev()
+            .find_map(|package| package_dir(package, library, expected))
     }
 
-    fn cache_lookup(library: &str) -> Option<String> {
+    fn package_dir(package: &Path, library: &str, expected: ElfId) -> Option<String> {
+        let direct = package.join("lib").join(library);
+        if compatible(&direct, expected) {
+            return Some(package.join("lib").display().to_string());
+        }
+        // Algunos envs anidan el paquete: `lib/<nombre>-<ver>/lib`.
+        std::fs::read_dir(package.join("lib"))
+            .ok()?
+            .flatten()
+            .find_map(|entry| {
+                let candidate = entry.path().join("lib").join(library);
+                compatible(&candidate, expected)
+                    .then(|| candidate.parent().map(|dir| dir.display().to_string()))
+                    .flatten()
+            })
+    }
+
+    /// Componente numérica final del nombre del paquete (`...-libxtst-1.2.6`).
+    fn version_key(package: &Path) -> Vec<u64> {
+        package
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| {
+                name.split('-')
+                    .rev()
+                    .find(|part| part.chars().next().is_some_and(|c| c.is_ascii_digit()))
+            })
+            .map(|version| {
+                version
+                    .split('.')
+                    .filter_map(|part| part.parse().ok())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn cache_lookup(library: &str, expected: ElfId) -> Option<String> {
         let ldconfig = ldconfig_path()?;
         let output = std::process::Command::new(ldconfig)
-            .args(["-p", library])
+            .arg("-p")
             .output()
             .ok()?;
-        let path = cache_entry(&String::from_utf8_lossy(&output.stdout), library)?;
+        let cache = String::from_utf8_lossy(&output.stdout);
+        let path = cache_entries(&cache, library).find(|path| file_id(path) == Some(expected))?;
         let real = std::fs::canonicalize(path).ok()?;
         Some(real.parent()?.display().to_string())
     }
@@ -186,8 +331,11 @@ mod linux {
     }
 
     /// Línea de `ldconfig -p`: `libfoo.so.6 (libc6,x86-64) => /path/libfoo.so.6`.
-    pub(super) fn cache_entry(cache: &str, library: &str) -> Option<PathBuf> {
-        cache.lines().find_map(|line| {
+    pub(super) fn cache_entries<'a>(
+        cache: &'a str,
+        library: &'a str,
+    ) -> impl Iterator<Item = PathBuf> + 'a {
+        cache.lines().filter_map(move |line| {
             let (name, rest) = line.trim().split_once(" (")?;
             if name != library {
                 return None;
@@ -311,14 +459,45 @@ mod tests {
     #[test]
     fn ldconfig_cache_entries_are_parsed_by_name() {
         let cache = "libXtst.so.6 (libc6,x86-64) => /nix/store/x-libxtst/lib/libXtst.so.6\n\
+                     libXtst.so.6 (libc6) => /lib32/libXtst.so.6\n\
                      libXtst.so.4 (libc6,x86-64) => /old/libXtst.so.4";
         assert_eq!(
-            linux::cache_entry(cache, "libXtst.so.6"),
-            Some(std::path::PathBuf::from(
-                "/nix/store/x-libxtst/lib/libXtst.so.6"
-            ))
+            linux::cache_entries(cache, "libXtst.so.6").collect::<Vec<_>>(),
+            vec![
+                std::path::PathBuf::from("/nix/store/x-libxtst/lib/libXtst.so.6"),
+                std::path::PathBuf::from("/lib32/libXtst.so.6"),
+            ]
         );
-        assert_eq!(linux::cache_entry(cache, "libXi.so.6"), None);
+        assert_eq!(linux::cache_entries(cache, "libXi.so.6").count(), 0);
+    }
+
+    #[test]
+    fn elf_identity_distinguishes_32_and_64_bits() {
+        let mut header = [0u8; 20];
+        header[..4].copy_from_slice(b"\x7fELF");
+        header[4] = 2;
+        header[5] = 1;
+        header[18..20].copy_from_slice(&62u16.to_le_bytes());
+        assert_eq!(
+            linux::elf_id(&header),
+            Some(linux::ElfId {
+                class: 2,
+                machine: 62
+            })
+        );
+
+        header[4] = 1;
+        header[18..20].copy_from_slice(&3u16.to_le_bytes());
+        assert_eq!(
+            linux::elf_id(&header),
+            Some(linux::ElfId {
+                class: 1,
+                machine: 3
+            })
+        );
+
+        header[4] = 3;
+        assert_eq!(linux::elf_id(&header), None);
     }
 
     #[test]
@@ -339,6 +518,7 @@ mod tests {
         )]);
         extend_ld_library_path(&java, &mut env);
         let path = env.get("LD_LIBRARY_PATH").unwrap();
+        let expected = linux::expected_id(&native).expect("el JRE expone su arquitectura");
         for library in [
             "libXtst.so.6",
             "libX11.so.6",
@@ -346,10 +526,14 @@ mod tests {
             "libXext.so.6",
             "libXrender.so.1",
         ] {
-            assert!(
-                path.split(':')
-                    .any(|dir| std::path::Path::new(dir).join(library).is_file()),
-                "{library} no está en {path}"
+            let dir = path
+                .split(':')
+                .find(|dir| std::path::Path::new(dir).join(library).is_file())
+                .unwrap_or_else(|| panic!("{library} no está en {path}"));
+            assert_eq!(
+                linux::file_id(&std::path::Path::new(dir).join(library)),
+                Some(expected),
+                "{library} en {dir} no coincide con la arquitectura del JRE"
             );
         }
         assert_eq!(
@@ -358,20 +542,61 @@ mod tests {
         );
     }
 
+    fn write_elf(path: &std::path::Path, class: u8, machine: u16) {
+        let mut header = [0u8; 64];
+        header[..4].copy_from_slice(b"\x7fELF");
+        header[4] = class;
+        header[5] = 1;
+        header[18..20].copy_from_slice(&machine.to_le_bytes());
+        std::fs::write(path, header).unwrap();
+    }
+
+    fn elf64_x86_64() -> linux::ElfId {
+        linux::ElfId {
+            class: 2,
+            machine: 62,
+        }
+    }
+
     #[cfg(unix)]
     #[test]
     fn nix_package_lookup_finds_the_library_by_package_name() {
         let temp = tempfile::tempdir().unwrap();
         let package = temp.path().join("abc-libxtst-1.2.6");
         std::fs::create_dir_all(package.join("lib")).unwrap();
-        std::fs::write(package.join("lib").join("libXtst.so.6"), b"").unwrap();
-        std::fs::create_dir_all(temp.path().join("zzz-libxi-1.8.2").join("lib")).unwrap();
+        write_elf(&package.join("lib").join("libXtst.so.6"), 2, 62);
+        let other = temp.path().join("zzz-libxi-1.8.2");
+        std::fs::create_dir_all(other.join("lib")).unwrap();
+        write_elf(&other.join("lib").join("libXi.so.6"), 2, 62);
 
         assert_eq!(
-            linux::nix_package_dir_in(temp.path(), "libXtst.so.6"),
+            linux::nix_package_dir_in(temp.path(), "libXtst.so.6", elf64_x86_64()),
             Some(package.join("lib").display().to_string())
         );
-        assert_eq!(linux::nix_package_dir_in(temp.path(), "libXi.so.6"), None);
-        assert_eq!(linux::nix_package_dir_in(temp.path(), "libX11.so.6"), None);
+        assert_eq!(
+            linux::nix_package_dir_in(temp.path(), "libXi.so.6", elf64_x86_64()),
+            Some(other.join("lib").display().to_string())
+        );
+        assert_eq!(
+            linux::nix_package_dir_in(temp.path(), "libX11.so.6", elf64_x86_64()),
+            None
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nix_package_lookup_skips_libraries_of_the_wrong_architecture() {
+        let temp = tempfile::tempdir().unwrap();
+        let valid = temp.path().join("aaa-libxtst-1.2.6");
+        std::fs::create_dir_all(valid.join("lib")).unwrap();
+        write_elf(&valid.join("lib").join("libXtst.so.6"), 2, 62);
+        let wrong = temp.path().join("zzz-libxtst-1.2.6");
+        std::fs::create_dir_all(wrong.join("lib")).unwrap();
+        write_elf(&wrong.join("lib").join("libXtst.so.6"), 1, 3);
+
+        assert_eq!(
+            linux::nix_package_dir_in(temp.path(), "libXtst.so.6", elf64_x86_64()),
+            Some(valid.join("lib").display().to_string())
+        );
     }
 }
