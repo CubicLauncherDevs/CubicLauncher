@@ -26,6 +26,7 @@
   libxrandr,
   libxxf86vm,
   nodejs,
+  xrandr,
   openssl,
   pkg-config,
   pipewire,
@@ -239,7 +240,9 @@ rustPlatform.buildRustPackage rec {
     # .cubiclauncher-wrapped already contains the real binary from the GTK hook.
     mv "$out/bin/cubiclauncher" "$out/bin/.cubiclauncher-gtk-wrapped"
     makeShellWrapper "$out/bin/.cubiclauncher-gtk-wrapped" "$out/bin/cubiclauncher" \
-      --run 'if ! { [ -e /sys/module/nvidia ] || [ -e /proc/driver/nvidia ] || command -v nvidia-smi >/dev/null 2>&1; }; then
+      --prefix PATH : "${lib.makeBinPath [ xrandr ]}" \
+      --run 'export CUBIC_XRANDR="${lib.getExe xrandr}"
+      if ! { [ -e /sys/module/nvidia ] || [ -e /proc/driver/nvidia ] || command -v nvidia-smi >/dev/null 2>&1; }; then
         export __EGL_VENDOR_LIBRARY_FILENAMES="''${__EGL_VENDOR_LIBRARY_FILENAMES:-${mesa}/share/glvnd/egl_vendor.d/50_mesa.json}"
         export LIBGL_DRIVERS_PATH="''${LIBGL_DRIVERS_PATH:-${mesa}/lib/dri}"
         export GBM_BACKENDS_PATH="''${GBM_BACKENDS_PATH:-${mesa}/lib/gbm}"

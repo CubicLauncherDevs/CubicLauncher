@@ -374,6 +374,35 @@ impl VersionManifest {
         Self::from_bytes(&bytes)
     }
 
+    /// Merge every `inheritsFrom` parent found in `<shared>/versions`.
+    /// Returns the merged manifest and the id of the base it inherits from.
+    pub fn resolve_chain(
+        manifest: &VersionManifest,
+        shared_dir: &Path,
+    ) -> Result<(Self, String), Error> {
+        let mut current = manifest.clone();
+        let mut seen = std::collections::HashSet::new();
+        seen.insert(current.id_raw.clone());
+        let mut base_id = current.id_raw.clone();
+
+        while let Some(parent_id) = current.inherits_from.clone() {
+            if !seen.insert(parent_id.clone()) {
+                return Err(Error::VersionLoad(format!(
+                    "Circular inheritance detected: {parent_id}"
+                )));
+            }
+            let parent = Self::from_file(
+                shared_dir
+                    .join("versions")
+                    .join(&parent_id)
+                    .join(format!("{parent_id}.json")),
+            )?;
+            current = current.resolve(&parent);
+            base_id = parent_id;
+        }
+        Ok((current, base_id))
+    }
+
     pub fn resolve(&self, parent: &VersionManifest) -> VersionManifest {
         VersionManifest {
             id: self.id,

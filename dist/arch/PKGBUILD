@@ -18,6 +18,7 @@ depends=(
   'gst-libav'
   'libglvnd'
   'mesa'
+  'xorg-xrandr'
   'zstd'
   'openssl'
 )

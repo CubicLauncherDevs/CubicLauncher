@@ -62,6 +62,12 @@ pub struct NormalizedArguments {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct VersionAssets {
     pub objects: std::collections::HashMap<String, Asset>,
+    /// Legacy indexes only: directory the game expects the assets in, and
+    /// whether they must be unpacked there from `objects`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub r#virtual: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub map_to_resources: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

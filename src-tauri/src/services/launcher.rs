@@ -12,6 +12,7 @@ use crate::services::instance_manager::{
 };
 use crate::services::java_resolution;
 use crate::services::launch_window::LaunchSession;
+use crate::services::legacyfix;
 use aqua::JavaVersion;
 use compact_str::{CompactString, ToCompactString};
 use launchwerk::auth::{
@@ -665,6 +666,27 @@ impl Launcher {
         }
         set_user_filter(&user);
 
+        let legacy_assets = {
+            let manifest = manifest.clone();
+            let shared = shared_dir.clone();
+            let instance = instance_dir.clone();
+            tokio::task::spawn_blocking(move || legacyfix::prepare(&manifest, &shared, &instance))
+                .await
+                .map_err(|e| crate::core::CoreError::Other(e.to_string()))?
+        };
+        let legacy_assets = match legacy_assets {
+            Ok(paths) => paths,
+            Err(message) => {
+                push_launcher_message(
+                    &handle.uuid,
+                    format!("Error preparando los assets legacy: {message}"),
+                )
+                .await;
+                handle.set_status(InstanceStatus::Error(launch_error(&handle, &message)));
+                return Err(AppError::Instance(InstanceError::LegacyAssets(message)));
+            }
+        };
+
         // Forge version.json may omit javaVersion; declared_java also checks
         // inheritsFrom. The manifest's value is bumped for Forge/NeoForge, but
         // only that: an inferred value is used as is.
@@ -742,6 +764,10 @@ impl Launcher {
             .auth_uuid(user.uuid)
             .ram(min_mem, max_mem)
             .cracked(user.user_type == AccountType::Cracked);
+
+        if let Some(path) = legacy_assets {
+            builder = builder.game_assets(path);
+        }
 
         if let Some(server) = server {
             let target = super::server_status::resolve_target(&server).await;
@@ -954,7 +980,7 @@ impl Launcher {
 
         // Resolve the root per launch, after storage admission, rather than
         // retaining the directory that was active when the launcher started.
-        let beta_hide_delay = beta_readiness_delay(
+        let legacy_hide_delay = legacy_readiness_delay(
             &manifest.id_raw,
             manifest.inherits_from.as_deref(),
             hide_on_launch,
@@ -987,8 +1013,8 @@ impl Launcher {
         match lw_handle.launch().await {
             Ok(_) => {
                 // Start the grace period only after Java was successfully spawned.
-                let beta_hide_deadline =
-                    beta_hide_delay.map(|delay| tokio::time::Instant::now() + delay);
+                let legacy_hide_deadline =
+                    legacy_hide_delay.map(|delay| tokio::time::Instant::now() + delay);
                 info!("Handle {} lanzado", lw_handle.id().to_string());
                 let (kill_tx, mut kill_rx) = tokio::sync::oneshot::channel::<()>();
                 let kill_requested = register_kill_sender(&handle.uuid, kill_tx);
@@ -1038,7 +1064,7 @@ impl Launcher {
                 let app_for_show = app_handle.clone();
                 tokio::spawn(async move {
                     let _shared_guard = shared_guard;
-                    let readiness = wait_for_game_readiness(ready_rx, beta_hide_deadline);
+                    let readiness = wait_for_game_readiness(ready_rx, legacy_hide_deadline);
                     tokio::pin!(readiness);
                     let mut ready_seen = false;
                     let result = loop {
@@ -1311,9 +1337,10 @@ fn is_game_ready(line: &str) -> bool {
         .is_match(line)
 }
 
-/// Old Minecraft betas may never print the modern client-ready marker. Use the
-/// base version ID (including inherited/modded profiles), not the launcher version.
-fn beta_readiness_delay(
+/// Versiones anteriores a 1.6 pueden no imprimir nunca el marcador moderno de
+/// cliente listo. Se mira la versión base (incluye perfiles heredados), no la
+/// versión del launcher.
+fn legacy_readiness_delay(
     version: &str,
     parent: Option<&str>,
     hide_on_launch: bool,
@@ -1322,23 +1349,15 @@ fn beta_readiness_delay(
         return None;
     }
     let base = GameVersion::from_version_id(parent.unwrap_or(version)).mc_version;
-    let beta = base
-        .strip_prefix('b')
-        .and_then(|rest| rest.split_once('.'))
-        .is_some_and(|(major, minor)| {
-            !major.is_empty()
-                && major.bytes().all(|byte| byte.is_ascii_digit())
-                && minor.as_bytes().first().is_some_and(u8::is_ascii_digit)
-        });
-    beta.then_some(std::time::Duration::from_secs(2))
+    zellkern::is_pre_1_6(&base).then_some(std::time::Duration::from_secs(2))
 }
 
 async fn wait_for_game_readiness(
     mut marker: tokio::sync::oneshot::Receiver<()>,
-    beta_deadline: Option<tokio::time::Instant>,
+    legacy_deadline: Option<tokio::time::Instant>,
 ) {
     let fallback = async {
-        match beta_deadline {
+        match legacy_deadline {
             Some(deadline) => tokio::time::sleep_until(deadline).await,
             None => std::future::pending::<()>().await,
         }
@@ -1346,8 +1365,8 @@ async fn wait_for_game_readiness(
     tokio::pin!(fallback);
     tokio::select! {
         result = &mut marker => {
-            // Closing stdout/stderr is not a readiness signal. Betas may run
-            // without either stream; other versions must still wait for a marker.
+            // Closing stdout/stderr is not a readiness signal. Legacy versions
+            // may run without either stream; others still wait for a marker.
             if result.is_err() {
                 fallback.await;
             }

@@ -120,3 +120,47 @@ fn optifine_version_roundtrip_and_dependencies() {
         );
     }
 }
+
+#[test]
+fn pre_1_6_versions() {
+    for version in [
+        "a1.2.6",
+        "b1.7.3",
+        "b1.8.1",
+        "c0.30_01c",
+        "rd-132211",
+        "inf-20100618",
+        "1.0",
+        "1.5.2",
+        "1.5.2-forge-7.8.1.738",
+        "b1.7.3-OptiFine_HD_G",
+        "fabric-loader-0.15.11-a1.2.6",
+        "11w49a",
+        "12w50a",
+        "13w22a",
+    ] {
+        assert!(crate::is_pre_1_6(version), "{version}");
+    }
+}
+
+#[test]
+fn versions_since_1_6_are_not_pre_1_6() {
+    for version in [
+        "1.6",
+        "1.6.4",
+        "1.7.10",
+        "1.7.10-forge-10.13.4.1614",
+        "1.21.4",
+        "26.2-snapshot-5",
+        "13w23a",
+        "13w41b",
+        "14w02a",
+        "fabric-loader-0.15.11-1.20.1",
+        "custom-profile",
+        "beta1.7.3",
+        "1.7.2",
+        "",
+    ] {
+        assert!(!crate::is_pre_1_6(version), "{version}");
+    }
+}

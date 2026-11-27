@@ -147,6 +147,61 @@ fn extract_mc_version(full_id: &str) -> String {
     full_id.to_string()
 }
 
+/// Whether the version predates 1.6 (snapshot `13w23a`): alpha, beta, classic,
+/// `rd-`/`inf-` builds, older snapshots and releases before 1.6.
+pub fn is_pre_1_6(version: &str) -> bool {
+    let base = GameVersion::from_version_id(version)
+        .mc_version
+        .trim()
+        .to_ascii_lowercase();
+
+    let legacy_prefix = matches!(base.as_bytes().first(), Some(b'a' | b'b' | b'c'))
+        && base.as_bytes().get(1).is_some_and(u8::is_ascii_digit);
+    eprintln!(
+        "DBG base={base:?} len={} prefix={legacy_prefix}",
+        base.len()
+    );
+    if legacy_prefix || base.starts_with("rd-") || base.starts_with("inf-") {
+        return true;
+    }
+
+    if let Some((year, week)) = snapshot_year_week(&base) {
+        return (year, week) < (13, 23);
+    }
+
+    release_major_minor(&base).is_some_and(|(major, minor)| (major, minor) < (1, 6))
+}
+
+fn snapshot_year_week(version: &str) -> Option<(u32, u32)> {
+    let (year, rest) = version.split_once('w')?;
+    let year: u32 = year.parse().ok()?;
+    if !(10..=99).contains(&year) {
+        return None;
+    }
+    let week: u32 = rest
+        .chars()
+        .take_while(|c| c.is_ascii_digit())
+        .collect::<String>()
+        .parse()
+        .ok()?;
+    Some((year, week))
+}
+
+fn release_major_minor(version: &str) -> Option<(u32, u32)> {
+    if !version.starts_with(|c: char| c.is_ascii_digit()) {
+        return None;
+    }
+    let mut parts = version.split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts
+        .next()?
+        .split(|c: char| !c.is_ascii_digit())
+        .next()?
+        .parse()
+        .ok()?;
+    Some((major, minor))
+}
+
 /// Resolve all version IDs that a given version depends on.
 ///
 /// Vanilla versions have no dependencies (return only themselves).

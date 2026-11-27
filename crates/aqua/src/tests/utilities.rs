@@ -73,3 +73,29 @@ fn test_infer_java_version() {
     assert_eq!(infer_java_version("1.21.4"), 21);
     assert_eq!(infer_java_version("26.3-snapshot-2"), 21);
 }
+
+#[test]
+fn legacy_versions_prefer_java_8() {
+    for version in [
+        "a1.2.6",
+        "b1.8.1",
+        "c0.30_01c",
+        "rd-132211",
+        "inf-20100618",
+        "1.5.2",
+        "1.0",
+        "13w41b",
+    ] {
+        assert_eq!(java_runtime_preferences(version), &[8, 17, 21], "{version}");
+        assert_eq!(infer_java_version(version), 8, "{version}");
+    }
+    assert_eq!(infer_java_version("1.5.2-forge-7.8.1.738"), 8);
+}
+
+#[test]
+fn modern_snapshots_keep_the_year_based_default() {
+    assert_eq!(java_runtime_preferences("24w14a"), &[21, 17, 8]);
+    assert_eq!(infer_java_version("24w14a"), 21);
+    assert_eq!(java_runtime_preferences("1.6.2"), &[8, 17, 21]);
+    assert_eq!(java_runtime_preferences("1.7.10"), &[8, 17, 21]);
+}

@@ -449,11 +449,26 @@ fn parse_mc_major_minor(version: &str) -> Option<(u32, u32)> {
     Some((major, minor))
 }
 
+/// Year of a `12w50a`-style snapshot ID; `None` for releases and other ids.
+fn snapshot_year(version: &str) -> Option<u32> {
+    let (year, rest) = version.split_once('w')?;
+    let year: u32 = year.parse().ok()?;
+    if !(10..=99).contains(&year) || !rest.starts_with(|c: char| c.is_ascii_digit()) {
+        return None;
+    }
+    Some(year)
+}
+
 /// Returns the preferred Java runtime versions for a given Minecraft version.
 /// The first element is the optimal version; later entries are acceptable
 /// fallbacks if the optimal one is not installed.
 pub fn java_runtime_preferences(mc_version: &str) -> &'static [u8] {
-    match parse_mc_major_minor(mc_version) {
+    let version = mc_version.trim().to_ascii_lowercase();
+    // Alpha/beta/classic and pre-1.6 snapshots only run on Java 8.
+    if zellkern::is_pre_1_6(&version) || snapshot_year(&version).is_some_and(|year| year <= 20) {
+        return &[8, 17, 21];
+    }
+    match parse_mc_major_minor(&version) {
         Some((1, n)) if n >= 21 => &[21, 17, 8],
         Some((1, n)) if n >= 17 => &[17, 21, 8],
         Some((1, _)) => &[8, 17, 21],

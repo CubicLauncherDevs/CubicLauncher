@@ -24,6 +24,9 @@ pub struct LaunchConfig {
     pub yggdrasil_metadata_b64: Option<String>,
     /// Instance-local replacement for the main Minecraft client JAR.
     pub minecraft_jar: Option<PathBuf>,
+    /// Directory the game reads assets from instead of `assets_dir`
+    /// (`resources` on pre-1.6, the virtual index root on legacy snapshots).
+    pub game_assets: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,6 +57,7 @@ impl Default for LaunchConfig {
             authlib_injector_path: None,
             yggdrasil_metadata_b64: None,
             minecraft_jar: None,
+            game_assets: None,
         }
     }
 }
@@ -132,6 +136,10 @@ impl LaunchConfigBuilder {
     }
     pub fn yggdrasil_metadata_b64(mut self, m: impl Into<String>) -> Self {
         self.0.yggdrasil_metadata_b64 = Some(m.into());
+        self
+    }
+    pub fn game_assets(mut self, p: impl Into<PathBuf>) -> Self {
+        self.0.game_assets = Some(p.into());
         self
     }
     pub fn build(self) -> LaunchConfig {

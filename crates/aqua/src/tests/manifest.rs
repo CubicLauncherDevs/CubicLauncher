@@ -122,3 +122,25 @@ async fn resolve_normalized_from_each_release_type() {
         tested
     );
 }
+
+#[test]
+fn parses_virtual_and_mapped_asset_indexes() {
+    let r#virtual: VersionAssets = serde_json::from_slice(
+        br#"{"objects":{"minecraft/sounds/step.ogg":{"hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","size":4}},"virtual":true}"#,
+    )
+    .unwrap();
+    assert_eq!(r#virtual.r#virtual, Some(true));
+    assert_eq!(r#virtual.map_to_resources, None);
+    assert_eq!(r#virtual.len(), 1);
+
+    let mapped: VersionAssets = serde_json::from_slice(
+        br#"{"objects":{"sound/step.ogg":{"hash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","size":4}},"map_to_resources":true}"#,
+    )
+    .unwrap();
+    assert_eq!(mapped.map_to_resources, Some(true));
+    assert_eq!(mapped.r#virtual, None);
+
+    let modern: VersionAssets = serde_json::from_slice(br#"{"objects":{}}"#).unwrap();
+    assert_eq!(modern.r#virtual, None);
+    assert_eq!(modern.map_to_resources, None);
+}
